@@ -14,6 +14,13 @@ crate-type = ["rlib", "dylib"]
 name = "svm"
 path = "./src/bin/cli.rs"
 
+[[bin]]
+name = "gaslighter"
+path = "./src/bin/gaslighter/mod.rs"
+
 [dependencies]
 clap = "2.22"
 log = "0.3"
+serde = "0.9"
+serde_derive = "0.9"
+serde_json = "0.9"
