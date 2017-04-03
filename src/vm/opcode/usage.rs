@@ -53,59 +53,45 @@ impl Opcode {
         let self_cost: Gas = match opcode {
             // Unimplemented
             Opcode::SSTORE | Opcode::EXP | Opcode::CALLDATACOPY |
-            Opcode::CODECOPY | Opcode::EXTCODECOPY | Opcode::LOG0 |
-            Opcode::LOG1 | Opcode::LOG2 | Opcode::LOG3 | Opcode::LOG4 |
+            Opcode::CODECOPY | Opcode::EXTCODECOPY | Opcode::LOG(_) |
             Opcode::CALL | Opcode::CALLCODE | Opcode::DELEGATECALL |
-            Opcode::SELFDESTRUCT | Opcode::SHA3 |
-            Opcode::EXTCODESIZE => unimplemented!(),
+            Opcode::SELFDESTRUCT | Opcode::SHA3 | Opcode::EXTCODESIZE
+                => unimplemented!(),
 
             Opcode::CREATE => G_CREATE.into(),
             Opcode::JUMPDEST => G_JUMPDEST.into(),
             Opcode::SLOAD => G_SLOAD.into(),
 
             // W_zero
-            Opcode::STOP | Opcode::RETURN => G_ZERO.into(),
+            Opcode::STOP | Opcode::RETURN
+                => G_ZERO.into(),
 
             // W_base
             Opcode::ADDRESS | Opcode::ORIGIN | Opcode::CALLER |
-            Opcode::CALLVALUE | Opcode::CALLDATASIZE | Opcode::CODESIZE |
-            Opcode::GASPRICE | Opcode::COINBASE | Opcode::TIMESTAMP |
-            Opcode::NUMBER | Opcode::DIFFICULTY | Opcode::GASLIMIT |
-            Opcode::POP | Opcode::PC | Opcode::MSIZE |
-            Opcode::GAS => G_BASE.into(),
+            Opcode::CALLVALUE | Opcode::CALLDATASIZE |
+            Opcode::CODESIZE | Opcode::GASPRICE | Opcode::COINBASE |
+            Opcode::TIMESTAMP | Opcode::NUMBER | Opcode::DIFFICULTY |
+            Opcode::GASLIMIT | Opcode::POP | Opcode::PC |
+            Opcode::MSIZE | Opcode::GAS
+                => G_BASE.into(),
 
             // W_verylow
             Opcode::ADD | Opcode::SUB | Opcode::NOT | Opcode::LT |
             Opcode::GT | Opcode::SLT | Opcode::SGT | Opcode::EQ |
             Opcode::ISZERO | Opcode::AND | Opcode::OR | Opcode::XOR |
             Opcode::BYTE | Opcode::CALLDATALOAD | Opcode::MLOAD |
-            Opcode::MSTORE | Opcode::MSTORE8 | Opcode::PUSH1 |
-            Opcode::PUSH2 | Opcode::PUSH3 | Opcode::PUSH4 | Opcode::PUSH5 |
-            Opcode::PUSH6 | Opcode::PUSH7 | Opcode::PUSH8 |
-            Opcode::PUSH9 | Opcode::PUSH10 | Opcode::PUSH11 |
-            Opcode::PUSH12 | Opcode::PUSH13 | Opcode::PUSH14 |
-            Opcode::PUSH15 | Opcode::PUSH16 | Opcode::PUSH17 |
-            Opcode::PUSH18 | Opcode::PUSH19 | Opcode::PUSH20 |
-            Opcode::PUSH21 | Opcode::PUSH22 | Opcode::PUSH23 |
-            Opcode::PUSH24 | Opcode::PUSH25 | Opcode::PUSH26 |
-            Opcode::PUSH27 | Opcode::PUSH28 | Opcode::PUSH29 |
-            Opcode::PUSH30 | Opcode::PUSH31 | Opcode::PUSH32 |
-            Opcode::DUP1 | Opcode::DUP2 | Opcode::DUP3 | Opcode::DUP4 |
-            Opcode::DUP5 | Opcode::DUP6 | Opcode::DUP7 | Opcode::DUP8 |
-            Opcode::DUP9 | Opcode::DUP10 | Opcode::DUP11 | Opcode::DUP12 |
-            Opcode::DUP13 | Opcode::DUP14 | Opcode::DUP15 | Opcode::DUP16 |
-            Opcode::SWAP1 | Opcode::SWAP2 | Opcode::SWAP3 |
-            Opcode::SWAP4 | Opcode::SWAP5 | Opcode::SWAP6 | Opcode::SWAP7 |
-            Opcode::SWAP8 | Opcode::SWAP9 | Opcode::SWAP10 |
-            Opcode::SWAP11 | Opcode::SWAP12 | Opcode::SWAP13 |
-            Opcode::SWAP14 | Opcode::SWAP15 | Opcode::SWAP16 => G_VERYLOW.into(),
+            Opcode::MSTORE | Opcode::MSTORE8 | Opcode::PUSH(_) |
+            Opcode::DUP(_) | Opcode::SWAP(_)
+                => G_VERYLOW.into(),
 
             // W_low
             Opcode::MUL | Opcode::DIV | Opcode::SDIV | Opcode::MOD |
-            Opcode::SMOD | Opcode::SIGNEXTEND => G_LOW.into(),
+            Opcode::SMOD | Opcode::SIGNEXTEND
+                => G_LOW.into(),
 
             // W_mid
-            Opcode::ADDMOD | Opcode::MULMOD | Opcode::JUMP => G_MID.into(),
+            Opcode::ADDMOD | Opcode::MULMOD | Opcode::JUMP
+                => G_MID.into(),
 
             // W_high
             Opcode::JUMPI => G_HIGH.into(),
