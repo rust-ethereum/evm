@@ -52,11 +52,7 @@ tests = stdenv.mkDerivation rec {
 sputnikvm = rustPlatform.buildRustPackage (rec {
   name = "sputnikvm-${version}";
   version = "0.1.0";
-  depsSha256 = "0b3117j13y6ijgq4zslzmxi8xbcxpz5qaxz9792nvkrca2wr4v17";
-  doCheck = true;
-  checkPhase = ''
-    target/release/gaslighter --test_dir ${tests} --artefact_dir target/release/
-  '';
+  depsSha256 = "1m2wgrsp23n2vkl12ixfc5x6p8gadi33q6qbzd6wvjfrqb62dq96";
   src = ./.;
   });
 in {
