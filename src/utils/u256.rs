@@ -284,7 +284,7 @@ impl Shr<usize> for U256 {
 
 #[cfg(test)]
 mod tests {
-    use U256;
+    use super::U256;
 
     #[test]
     fn u256_add() {
