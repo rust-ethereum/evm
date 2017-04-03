@@ -43,6 +43,26 @@ impl Opcode {
                 }
             },
 
+            Opcode::GT => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+                if op1 > op2 {
+                    stack.push(op1);
+                } else {
+                    stack.push(op2);
+                }
+            }
+
+            Opcode::LT => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+                if op1 < op2 {
+                    stack.push(op1);
+                } else {
+                    stack.push(op2);
+                }
+            }
+
             // TODO: implement omitted opcodes.
 
             Opcode::PUSH(v) => {
