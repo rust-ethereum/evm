@@ -1,4 +1,4 @@
-use u256::U256;
+use utils::u256::U256;
 
 pub trait Memory {
     fn new() -> Self;

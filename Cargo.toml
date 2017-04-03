@@ -17,4 +17,3 @@ path = "./src/bin/cli.rs"
 [dependencies]
 clap = "2.22"
 log = "0.3"
-u256 = { git = "https://github.com/sorpaas/u256" }
