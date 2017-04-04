@@ -5,3 +5,13 @@ struct Input {
   code @1 :List(Data);
   data @2 :List(Data);
 }
+
+struct Output {
+  gas @0 :Int32;
+  code @1 :List(Data);
+}
+
+struct Test {
+  input @0 :Input;
+  output @1 :Output;
+}
