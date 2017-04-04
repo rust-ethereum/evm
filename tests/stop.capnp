@@ -3,7 +3,7 @@
 using Vm = import "vm.capnp";
 
 const stop: Vm.VMInput = (
-  gas=[.Vm.stop, .Vm.stop],
-  code=[.Vm.stop, .Vm.stop],
-  data=[.Vm.stop, .Vm.stop]
+  gas=[.Vm.STOP, .Vm.STOP],
+  code=[.Vm.STOP, .Vm.STOP],
+  data=[.Vm.STOP, .Vm.STOP]
 );
