@@ -1,25 +1,26 @@
 @0xda7d72d8f4b3c0c1;
 
 using Vm = import "../vm.capnp";
+using Op = import "../opcodes.capnp";
 
-const all: List(Vm.VMInput) = [
+const all: List(Vm.Input) = [
   .stop, .add, .multiply
 ];
 
-const stop: Vm.VMInput = (
+const stop: Vm.Input = (
   gas= 314159,
-  code=[ Vm.STOP, Vm.STOP ],
-  data=[ Vm.STOP, Vm.STOP ]
+  code=[ Op.STOP, Op.STOP ],
+  data=[ Op.STOP, Op.STOP ]
 );
 
-const add: Vm.VMInput = (
+const add: Vm.Input = (
   gas= 314159,
-  code=[ Vm.ADD, Vm.ADD ],
-  data=[ Vm.ADD, Vm.ADD ]
+  code=[ Op.ADD, Op.ADD ],
+  data=[ Op.ADD, Op.ADD ]
 );
 
-const multiply: Vm.VMInput = (
+const multiply: Vm.Input = (
   gas= 314159,
-  code=[ Vm.MUL, Vm.MUL ],
-  data=[ Vm.MUL, Vm.MUL ]
+  code=[ Op.MUL, Op.MUL ],
+  data=[ Op.MUL, Op.MUL ]
 );
