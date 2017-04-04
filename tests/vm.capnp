@@ -12,6 +12,7 @@ struct Output {
 }
 
 struct Test {
-  input @0 :Input;
-  output @1 :Output;
+  name @0 :Text;
+  input @1 :Input;
+  output @2 :Output;
 }

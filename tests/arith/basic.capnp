@@ -8,6 +8,7 @@ const all: List(Vm.Test) = [
 ];
 
 const stop: Vm.Test = (
+  name = "arith/basic/stop",
   input = (
     gas= 314159,
     code=[ Op.STOP, Op.STOP ],
@@ -20,6 +21,7 @@ const stop: Vm.Test = (
 );
 
 const add: Vm.Test = (
+  name = "arith/basic/add",
   input = (
     gas= 314159,
     code=[ Op.ADD, Op.ADD ],
@@ -32,6 +34,7 @@ const add: Vm.Test = (
 );
 
 const multiply: Vm.Test = (
+  name = "arith/basic/multiply",
   input = (
     gas= 314159,
     code=[ Op.MUL, Op.MUL ],
