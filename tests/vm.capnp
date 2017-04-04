@@ -143,7 +143,7 @@ const DELEGATECALL :Data = 0x"f4";
 const SELFDESTRUCT :Data = 0x"ff";
 
 struct VMInput {
-  gas @0 :List(Data);
+  gas @0 :Int32;
   code @1 :List(Data);
   data @2 :List(Data);
 }
