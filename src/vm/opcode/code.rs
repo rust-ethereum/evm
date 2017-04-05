@@ -23,7 +23,7 @@ pub enum Opcode {
 
     CREATE, CALL, CALLCODE, RETURN, DELEGATECALL,
 
-    INVALID, SELFDESTRUCT
+    INVALID, SUICIDE
 }
 
 impl From<u8> for Opcode {
@@ -169,7 +169,7 @@ impl From<u8> for Opcode {
             0xf3 => Opcode::RETURN,
             0xf4 => Opcode::DELEGATECALL,
 
-            0xff => Opcode::SELFDESTRUCT,
+            0xff => Opcode::SUICIDE,
             _ => Opcode::INVALID,
         }
     }
@@ -266,7 +266,7 @@ impl Into<u8> for Opcode {
             Opcode::DELEGATECALL => 0xf4,
 
             Opcode::INVALID => 0xfe,
-            Opcode::SELFDESTRUCT => 0xff,
+            Opcode::SUICIDE => 0xff,
         }
     }
 }
