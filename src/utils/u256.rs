@@ -88,6 +88,20 @@ impl U256 {
         }
         0x40 - arr[0].leading_zeros() as usize
     }
+
+    pub fn log2floor(&self) -> isize {
+        assert!(*self != U256::zero());
+        let mut l: isize = 256;
+        for i in 0..4 {
+            if self.0[3 - i] == 0u64 {
+                l -= 64;
+            } else {
+                l -= self.0[3 - i].leading_zeros() as isize;
+                return l;
+            }
+        }
+        return l;
+    }
 }
 
 impl From<u64> for U256 {
@@ -302,5 +316,16 @@ mod tests {
             U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64]),
             U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64])
         );
+    }
+
+    #[test]
+    fn u256_log2floor() {
+        assert_eq!(
+            U256([u64::max_value(), u64::max_value(), u64::max_value(), u64::max_value()])
+                .log2floor(),
+            256, "testing log2floor for max value");
+        assert_eq!(
+            U256([0x1u64, 0u64, 0u64, 0u64]).log2floor(),
+            1, "testing log2floor for 1");
     }
 }
