@@ -1,3 +1,4 @@
+use utils::u256::U256;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC, Gas};
 
@@ -49,6 +50,8 @@ fn memory_cost(a: usize) -> Gas {
 
 impl Opcode {
     pub fn gas_cost_before<M: Memory, S: Stack>(&self, machine: &Machine<M, S>) -> Gas {
+        let ref stack = machine.stack;
+        let ref memory = machine.memory;
         let opcode = self.clone();
         let self_cost: Gas = match opcode {
             // Unimplemented
@@ -57,6 +60,14 @@ impl Opcode {
             Opcode::CALL | Opcode::CALLCODE | Opcode::DELEGATECALL |
             Opcode::SELFDESTRUCT | Opcode::SHA3 | Opcode::EXTCODESIZE
                 => unimplemented!(),
+
+            Opcode::EXP => {
+                if *stack.peek(1) == U256::zero() {
+                    G_EXP.into()
+                } else {
+                    (G_EXP + G_EXPBYTE * (1 + stack.peek(1).log2floor())).into()
+                }
+            }
 
             Opcode::CREATE => G_CREATE.into(),
             Opcode::JUMPDEST => G_JUMPDEST.into(),
