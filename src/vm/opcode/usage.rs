@@ -55,11 +55,31 @@ impl Opcode {
         let opcode = self.clone();
         let self_cost: Gas = match opcode {
             // Unimplemented
-            Opcode::SSTORE | Opcode::EXP | Opcode::CALLDATACOPY |
-            Opcode::CODECOPY | Opcode::EXTCODECOPY | Opcode::LOG(_) |
-            Opcode::CALL | Opcode::CALLCODE | Opcode::DELEGATECALL |
-            Opcode::SELFDESTRUCT | Opcode::SHA3 | Opcode::EXTCODESIZE
-                => unimplemented!(),
+            Opcode::SSTORE | Opcode::CALL | Opcode::CALLCODE |
+            Opcode::DELEGATECALL | Opcode::SUICIDE =>
+                unimplemented!(),
+
+            Opcode::SHA3 => {
+                let u_s1: u64 = (*stack.peek(1)).into();
+                (G_SHA3 + G_SHA3WORD * (u_s1 as isize / 32)).into()
+            },
+
+            Opcode::LOG(v) => {
+                let u_s1: u64 = (*stack.peek(1)).into();
+                (G_LOG + G_LOGDATA * u_s1 as isize + (v as isize - 1) * G_LOGTOPIC).into()
+            },
+
+            Opcode::EXTCODECOPY => {
+                // TODO: this value might exceed isize::max_value()
+                let u_s3: u64 = (*stack.peek(2)).into();
+                (G_EXTCODE + G_COPY * (u_s3 as isize / 32)).into()
+            },
+
+            Opcode::CALLDATACOPY | Opcode::CODECOPY => {
+                // TODO: this value might exceed isize::max_value()
+                let u_s2: u64 = (*stack.peek(2)).into();
+                (G_VERYLOW + G_COPY * (u_s2 as isize / 32)).into()
+            },
 
             Opcode::EXP => {
                 if *stack.peek(1) == U256::zero() {
@@ -106,6 +126,9 @@ impl Opcode {
 
             // W_high
             Opcode::JUMPI => G_HIGH.into(),
+
+            // W_extcode
+            Opcode::EXTCODESIZE => G_EXTCODE.into(),
 
             Opcode::BALANCE => G_BALANCE.into(),
             Opcode::BLOCKHASH => G_BLOCKHASH.into(),
