@@ -11,7 +11,7 @@ struct Output {
   code @1 :List(Data);
 }
 
-struct Test {
+struct InputOutput {
   name @0 :Text;
   input @1 :Input;
   output @2 :Output;

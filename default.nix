@@ -32,7 +32,7 @@ let
 env = stdenv.mkDerivation {
   name = "sputnikvm-env";
   buildInputs = [
-    rustc cargo
+    rustc cargo capnproto
   ];
 };
 tests = stdenv.mkDerivation rec {
@@ -53,8 +53,11 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
   name = "sputnikvm-${version}";
   version = "0.1.0";
   depsSha256 = "0j7gxz28b0z9njmi64bfn2hr2hkis78qsr0afv2vrcvfgfhd5l8w";
+  buildInputs = [ capnproto ];
   doCheck = true;
   checkPhase = ''
+    cd tests && ${capnproto}/bin/capnp eval --short mod.capnp all && cd ..
+    echo "Successfully compiled tests hierarchy"
     cargo test
     target/release/gaslighter --test_dir ${tests} --artefact_dir target/release/
   '';
