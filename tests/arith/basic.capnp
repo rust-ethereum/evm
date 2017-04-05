@@ -2,13 +2,15 @@
 
 using Vm = import "../vm.capnp";
 using Op = import "../opcodes.capnp";
+using Hierarchy = import "../hierarchy.capnp";
 
-const all: List(Vm.Test) = [
-  .stop, .add, .multiply
-];
+const all: Hierarchy.Tests = (
+  name = "basic",
+  tests = [ .stop, .add, .multiply ]
+);
 
 const stop: Vm.Test = (
-  name = "arith/basic/stop",
+  name = "stop",
   input = (
     gas = 314159,
     code = [ Op.STOP, Op.STOP ],
@@ -21,7 +23,7 @@ const stop: Vm.Test = (
 );
 
 const add: Vm.Test = (
-  name = "arith/basic/add",
+  name = "add",
   input = (
     gas = 314159,
     code = [ Op.ADD, Op.ADD ],
@@ -34,7 +36,7 @@ const add: Vm.Test = (
 );
 
 const multiply: Vm.Test = (
-  name = "arith/basic/multiply",
+  name = "multiply",
   input = (
     gas = 314159,
     code = [ Op.MUL, Op.MUL ],
