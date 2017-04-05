@@ -1,5 +1,9 @@
 #[macro_use]
 extern crate clap;
+extern crate capnp;
+
+mod hierarchy_capnp;
+mod vm_capnp;
 
 fn main() {
     let matches = clap_app!(gaslighter =>
