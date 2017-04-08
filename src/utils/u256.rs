@@ -42,8 +42,16 @@ use ::std::cmp::Ordering;
 pub struct U256([u64; 4]);
 
 impl U256 {
-    pub fn zero() -> U256 { U256([0; 4]) }
-    pub fn one() -> U256 { U256([1u64, 0u64, 0u64, 0u64]) }
+    pub fn zero() -> U256 { 0.into() }
+    pub fn one() -> U256 { 1.into() }
+
+    pub fn max_value() -> U256 {
+        !U256::zero()
+    }
+
+    pub fn min_value() -> U256 {
+        U256::zero()
+    }
 
     pub fn overflowing_add(self, other: U256) -> (U256, bool) {
         let U256(ref me) = self;
@@ -106,14 +114,14 @@ impl U256 {
 
 impl From<u64> for U256 {
     fn from(val: u64) -> U256 {
-        U256([0, 0, 0, val])
+        U256([val, 0, 0, 0])
     }
 }
 
 impl Into<u64> for U256 {
     fn into(self) -> u64 {
-        assert!(self.0[0] == 0 && self.0[1] == 0 && self.0[2] == 0);
-        self.0[3]
+        assert!(self.0[1] == 0 && self.0[2] == 0 && self.0[3] == 0);
+        self.0[0]
     }
 }
 
@@ -310,11 +318,32 @@ mod tests {
     }
 
     #[test]
+    fn u256_overflowing_add() {
+        assert_eq!(
+            U256::max_value().overflowing_add(U256::one() + U256::one()).0,
+            U256::one()
+        );
+    }
+
+    #[test]
     fn u256_sub() {
         assert_eq!(
             U256([0xfffffffffffffffeu64, 1u64, 0u64, 0u64]) -
             U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64]),
             U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64])
+        );
+    }
+
+    #[test]
+    fn u256_not() {
+        assert_eq!(
+            !U256::min_value(),
+            U256([0xffffffffffffffffu64, 0xffffffffffffffffu64,
+                  0xffffffffffffffffu64, 0xffffffffffffffffu64])
+        );
+        assert_eq!(
+            !U256::max_value(),
+            U256([0u64, 0u64, 0u64, 0u64])
         );
     }
 
