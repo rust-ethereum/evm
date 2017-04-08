@@ -34,7 +34,7 @@
 // #![no_std]
 
 use ::std::convert::{From, Into};
-use ::std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl};
+use ::std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use ::std::cmp::Ordering;
 
 #[repr(C)]
@@ -304,6 +304,42 @@ impl Shr<usize> for U256 {
     }
 }
 
+impl BitAnd for U256 {
+    type Output = U256;
+
+    fn bitand(self, other: U256) -> U256 {
+        let mut r: U256 = self;
+        for i in 0..4 {
+            r.0[i] = r.0[i] & other.0[i];
+        }
+        r
+    }
+}
+
+impl BitOr for U256 {
+    type Output = U256;
+
+    fn bitor(self, other: U256) -> U256 {
+        let mut r: U256 = self;
+        for i in 0..4 {
+            r.0[i] = r.0[i] | other.0[i];
+        }
+        r
+    }
+}
+
+impl BitXor for U256 {
+    type Output = U256;
+
+    fn bitxor(self, other: U256) -> U256 {
+        let mut r: U256 = self;
+        for i in 0..4 {
+            r.0[i] = r.0[i] ^ other.0[i];
+        }
+        r
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::U256;
@@ -331,6 +367,22 @@ mod tests {
             U256([0xfffffffffffffffeu64, 1u64, 0u64, 0u64]) -
             U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64]),
             U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64])
+        );
+    }
+
+    #[test]
+    fn u256_bitand() {
+        assert_eq!(
+            U256::min_value() & U256::max_value(),
+            U256::min_value()
+        );
+    }
+
+    #[test]
+    fn u256_bitor() {
+        assert_eq!(
+            U256::min_value() | U256::max_value(),
+            U256::max_value()
         );
     }
 

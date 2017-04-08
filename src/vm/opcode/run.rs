@@ -185,25 +185,135 @@ impl Opcode {
                 }
             },
 
-            Opcode::GT => {
-                let op1 = stack.pop();
-                let op2 = stack.pop();
-                if op1 > op2 {
-                    stack.push(op1);
-                } else {
-                    stack.push(op2);
-                }
-            }
-
             Opcode::LT => {
                 let op1 = stack.pop();
                 let op2 = stack.pop();
                 if op1 < op2 {
-                    stack.push(op1);
+                    stack.push(1.into());
                 } else {
-                    stack.push(op2);
+                    stack.push(0.into());
                 }
-            }
+            },
+
+            Opcode::GT => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+                if op1 > op2 {
+                    stack.push(1.into());
+                } else {
+                    stack.push(0.into());
+                }
+            },
+
+            Opcode::SLT => {
+                let negative = U256::one() << 256;
+
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                if op1 < negative && op2 < negative {
+                    if op1 < op2 {
+                        stack.push(1.into());
+                    } else {
+                        stack.push(0.into());
+                    }
+                } else if op2 >= negative && op2 >= negative {
+                    if op1 < op2 {
+                        stack.push(0.into());
+                    } else {
+                        stack.push(1.into());
+                    }
+                } else if op1 < negative && op2 >= negative {
+                    stack.push(0.into());
+                } else {
+                    stack.push(1.into());
+                }
+            },
+
+            Opcode::SGT => {
+                let negative = U256::one() << 256;
+
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                if op1 < negative && op2 < negative {
+                    if op1 < op2 {
+                        stack.push(0.into());
+                    } else {
+                        stack.push(1.into());
+                    }
+                } else if op2 >= negative && op2 >= negative {
+                    if op1 < op2 {
+                        stack.push(1.into());
+                    } else {
+                        stack.push(0.into());
+                    }
+                } else if op1 < negative && op2 >= negative {
+                    stack.push(1.into());
+                } else {
+                    stack.push(0.into());
+                }
+            },
+
+            Opcode::EQ => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                if op1 == op2 {
+                    stack.push(1.into());
+                } else {
+                    stack.push(0.into());
+                }
+            },
+
+            Opcode::ISZERO => {
+                let op1 = stack.pop();
+
+                if op1 == 0.into() {
+                    stack.push(1.into());
+                } else {
+                    stack.push(0.into());
+                }
+            },
+
+            Opcode::AND => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                stack.push(op1 & op2);
+            },
+
+            Opcode::OR => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                stack.push(op1 | op2);
+            },
+
+            Opcode::XOR => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                stack.push(op1 ^ op2);
+            },
+
+            Opcode::NOT => {
+                let op1 = stack.pop();
+
+                stack.push(!op1);
+            },
+
+            Opcode::BYTE => {
+                let op1 = stack.pop();
+                let op2: usize = stack.pop().into(); // 256 / 8
+                let mark: U256 = 0xff.into();
+
+                if op2 >= 256 / 8 {
+                    stack.push(0.into());
+                } else {
+                    stack.push((op1 >> (op2 * 8)) & mark);
+                }
+            },
 
             // TODO: implement omitted opcodes.
 
