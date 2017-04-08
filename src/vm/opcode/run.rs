@@ -160,6 +160,31 @@ impl Opcode {
                 stack.push(r);
             },
 
+            Opcode::SIGNEXTEND => {
+                // TODO: Check this confines with the yello paper
+
+                let mut op1 = stack.pop();
+                let mut op2 = stack.pop();
+
+                let mut negative: U256 = 1.into();
+                let mut s = 0;
+                while op2 != 0.into() {
+                    negative = U256::one() << s;
+                    s = s + 1;
+                    op2 = op2 - 1.into();
+                }
+
+                if op1 >= negative {
+                    while s <= 256 {
+                        op1 = op1 + (U256::one() << s);
+                        s = s + 1;
+                    }
+                    stack.push(op1);
+                } else {
+                    stack.push(op1);
+                }
+            },
+
             Opcode::GT => {
                 let op1 = stack.pop();
                 let op2 = stack.pop();
