@@ -85,6 +85,41 @@ impl Opcode {
                 }
             },
 
+            Opcode::MOD => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                if op2 == 0.into() {
+                    stack.push(0.into());
+                } else {
+                    stack.push(op1 - (op1 / op2) * op2);
+                }
+            },
+
+            Opcode::SMOD => {
+                let negative: U256 = U256::one() << 256;
+
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+
+                if op2 == 0.into() {
+                    stack.push(0.into());
+                } else {
+                    let aop1 = signed_abs(op1);
+                    let aop2 = signed_abs(op2);
+                    let r = aop1 - (aop1 / aop2) * aop2;
+                    if op1 < negative && op2 < negative {
+                        stack.push(r);
+                    } else if op1 >= negative && op2 < negative {
+                        stack.push(!(op1 + r) + 1.into());
+                    } else if op1 < negative && op2 >= negative {
+                        stack.push(op1 + r);
+                    } else if op1 >= negative && op2 >= negative {
+                        stack.push(!r + 1.into());
+                    }
+                }
+            },
+
             Opcode::GT => {
                 let op1 = stack.pop();
                 let op2 = stack.pop();
