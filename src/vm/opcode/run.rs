@@ -120,6 +120,46 @@ impl Opcode {
                 }
             },
 
+            Opcode::ADDMOD => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+                let op3 = stack.pop();
+
+                if op3 == 0.into() {
+                    stack.push(0.into());
+                } else {
+                    // TODO: Handle the case where op1 + op2 > 2^256
+                    let v = op1 + op2;
+                    stack.push(v - (v / op3) * op3);
+                }
+            },
+
+            Opcode::MULMOD => {
+                let op1 = stack.pop();
+                let op2 = stack.pop();
+                let op3 = stack.pop();
+
+                if op3 == 0.into() {
+                    stack.push(0.into());
+                } else {
+                    // TODO: Handle the case where op1 * op2 > 2^256
+                    let v = op1 * op2;
+                    stack.push(v - (v / op3) * op3);
+                }
+            },
+
+            Opcode::EXP => {
+                let op1 = stack.pop();
+                let mut op2 = stack.pop();
+                let mut r: U256 = 1.into();
+
+                while op2 != 0.into() {
+                    r = r * op1;
+                    op2 = op2 - 1.into();
+                }
+                stack.push(r);
+            },
+
             Opcode::GT => {
                 let op1 = stack.pop();
                 let op2 = stack.pop();
