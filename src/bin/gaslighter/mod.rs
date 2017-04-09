@@ -4,15 +4,63 @@ extern crate capnp;
 
 mod hierarchy_capnp;
 mod vm_capnp;
+mod test_capnp;
 
 use std::error::Error;
 use std::fs::File;
 use std::path::Path;
 use std::io::BufReader;
 
-use hierarchy_capnp::{directories, files};
+use hierarchy_capnp::{directories};
+use vm_capnp::{input_output, input, output};
+use test_capnp::*;
 use capnp::{serialize, message};
 
+struct Input {
+    gas: usize,
+    code: Vec<u8>,
+    data: Vec<u8>,
+}
+
+impl Input {
+    pub fn new(gas: usize, code: Vec<u8>, data: Vec<u8>) -> Self {
+        Self {
+            gas: gas,
+            code: code,
+            data: data,
+        }
+    }
+}
+
+struct Output {
+    gas: usize,
+    code: Vec<u8>,
+}
+
+impl Output {
+    pub fn new(gas: usize, code: Vec<u8>) -> Self {
+        Self {
+            gas: gas,
+            code: code,
+        }
+    }
+}
+
+struct InputOutput {
+    name: String,
+    input: Input,
+    output: Output,
+}
+
+impl InputOutput {
+    pub fn new(name: String, input: Input, output: Output) -> Self{
+        Self {
+            name: name,
+            input: input,
+            output: output,
+        }
+    }
+}
 
 fn main() {
     let matches = clap_app!(gaslighter =>

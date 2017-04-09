@@ -10,8 +10,8 @@ const all: Hierarchy.Tests = (
 );
 
 const stop: Test.InputOutput = (
+  name = "stop",
   inputOutput = (
-    name = "stop",
     input = (
       gas = 314159,
       code = [ Op.STOP, Op.STOP ],
@@ -29,8 +29,8 @@ const stop: Test.InputOutput = (
 );
 
 const add: Test.InputOutput = (
+  name = "add",
   inputOutput = (
-    name = "add",
     input = (
       gas = 314159,
       code = [ Op.STOP, Op.STOP ],

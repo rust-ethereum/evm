@@ -9,6 +9,7 @@ struct ExpectedOutput {
 }
 
 struct InputOutput {
-  inputOutput @0 :Vm.InputOutput;
-  expectedOutput @1 :ExpectedOutput;
+  name @0 :Text;
+  inputOutput @1 :Vm.InputOutput;
+  expectedOutput @2 :ExpectedOutput;
 }
