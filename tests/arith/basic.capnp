@@ -1,48 +1,47 @@
 @0xda7d72d8f4b3c0c1;
 
-using Vm = import "../../schema/vm.capnp";
+using Test = import "../test.capnp";
 using Op = import "../opcodes.capnp";
 using Hierarchy = import "../hierarchy.capnp";
 
 const all: Hierarchy.Tests = (
   name = "basic",
-  tests = [ .stop, .add, .multiply ]
+  tests = [ .stop, .add ]
 );
 
-const stop: Vm.InputOutput = (
+const stop: Test.InputOutput = (
   name = "stop",
-  input = (
-    gas = 314159,
-    code = [ Op.STOP, Op.STOP ],
-    data = [ Op.STOP, Op.STOP ]
+  inputOutput = (
+    input = (
+      gas = 314159,
+      code = [ Op.STOP, Op.STOP ],
+      data = [ Op.STOP, Op.STOP ]
+    ),
+    output = (
+      gas = 314159,
+      code = [ Op.STOP ]
+    )
   ),
-  output = (
+  expectedOutput = (
     gas = 314159,
     code = [ Op.STOP ]
   )
 );
 
-const add: Vm.InputOutput = (
+const add: Test.InputOutput = (
   name = "add",
-  input = (
-    gas = 314159,
-    code = [ Op.ADD, Op.ADD ],
-    data = [ Op.ADD, Op.ADD ]
+  inputOutput = (
+    input = (
+      gas = 314159,
+      code = [ Op.STOP, Op.STOP ],
+      data = [ Op.STOP, Op.STOP ]
+    ),
+    output = (
+      gas = 314159,
+      code = [ Op.STOP ]
+    )
   ),
-  output = (
-    gas = 314159,
-    code = [ Op.STOP ]
-  )
-);
-
-const multiply: Vm.InputOutput = (
-  name = "multiply",
-  input = (
-    gas = 314159,
-    code = [ Op.MUL, Op.MUL ],
-    data = [ Op.MUL, Op.MUL ]
-  ),
-  output = (
+  expectedOutput = (
     gas = 314159,
     code = [ Op.STOP ]
   )

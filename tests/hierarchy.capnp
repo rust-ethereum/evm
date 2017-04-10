@@ -1,10 +1,10 @@
 @0xea2c8e2dc7ce97f8;
 
-using Vm = import "../schema/vm.capnp";
+using Test = import "test.capnp";
 
 struct Tests {
   name @0 :Text;
-  tests @1 :List(Vm.InputOutput);
+  tests @1 :List(Test.InputOutput);
 }
 
 struct Files {
