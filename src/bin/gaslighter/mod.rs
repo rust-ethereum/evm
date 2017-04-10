@@ -106,6 +106,7 @@ fn main() {
                 if testname == test_to_run || test_to_run == "" {
                     add_test = true;
                     if add_dir && add_file && add_test {
+                        println!("{:?}", testname );
                         tests_to_execute.push(test);
                     }
                 } else { add_test = false; }

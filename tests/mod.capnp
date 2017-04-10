@@ -4,8 +4,9 @@ using Hierarchy = import "hierarchy.capnp";
 
 # test modules
 using Arith = import "arith/mod.capnp";
+using Bitwise = import "bitwise/mod.capnp";
 
 const all: Hierarchy.Directories = (
   name = "top",
-  dirs = [ Arith.all ]
+  dirs = [ Arith.all, Bitwise.all ]
 );
