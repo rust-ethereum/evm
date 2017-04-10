@@ -1,5 +1,6 @@
 use super::{Machine, Memory, Stack};
 use std::ops::{Add, AddAssign, Sub, SubAssign};
+use utils::u256::U256;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Gas(isize);
@@ -11,6 +12,13 @@ impl Gas {
 
 impl From<isize> for Gas {
     fn from(val: isize) -> Gas { Gas(val) }
+}
+
+impl Into<U256> for Gas {
+    fn into(self) -> U256 {
+        assert!(self.is_valid());
+        (self.0 as u64).into()
+    }
 }
 
 impl Add for Gas {
