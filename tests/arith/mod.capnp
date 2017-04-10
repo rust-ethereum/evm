@@ -1,6 +1,6 @@
 @0xe165e950e83b0d24;
 
-using Hierarchy = import "../hierarchy.capnp";
+using Hierarchy = import "../../src/schema/hierarchy.capnp";
 using Add = import "add.capnp";
 using Div = import "div.capnp";
 

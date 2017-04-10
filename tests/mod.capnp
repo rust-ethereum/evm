@@ -1,6 +1,6 @@
 @0xa8dd6a728e8f8499;
 
-using Hierarchy = import "hierarchy.capnp";
+using Hierarchy = import "../src/schema/hierarchy.capnp";
 
 # test modules
 using Arith = import "arith/mod.capnp";

@@ -1,8 +1,8 @@
 @0xda7d72d8f4b3c0c2;
 
-using Test = import "../test.capnp";
-using Op = import "../opcodes.capnp";
-using Hierarchy = import "../hierarchy.capnp";
+using Test = import "../../src/schema/test.capnp";
+using Op = import "../../src/schema/opcodes.capnp";
+using Hierarchy = import "../../src/schema/hierarchy.capnp";
 
 const all: Hierarchy.Tests = (
   name = "and",

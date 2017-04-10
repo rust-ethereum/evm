@@ -1,6 +1,6 @@
 @0xdcfa74f6e8423ba1;
 
-using Hierarchy = import "../hierarchy.capnp";
+using Hierarchy = import "../../src/schema/hierarchy.capnp";
 using And = import "and.capnp";
 using Or = import "or.capnp";
 
