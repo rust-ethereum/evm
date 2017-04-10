@@ -78,10 +78,9 @@ fn main() {
         Some(c) => c,
         None => "",
     };
-    println!("capnp_test_bin: {:?}", capnp_test_bin);
     let path = Path::new(capnp_test_bin);
     let display = path.display();
-    let mut file = match File::open(&path) {
+    let file = match File::open(&path) {
         Err(_) => panic!("couldn't open {}", display),
         Ok(file) => file,
     };
