@@ -1,4 +1,5 @@
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, Result, Gas};
+use ::account::Account;
 
 pub type VectorMachine<'p> = Machine<'p, VectorMemory, VectorStack>;
 
@@ -7,6 +8,7 @@ pub struct Machine<'p, M, S> {
     pub pc: PC<'p>,
     pub memory: M, // Contains i
     pub stack: S,
+    pub account: Account,
 }
 
 impl<'p, M, S> Machine<'p, M, S> where M: Memory, S: Stack {
@@ -16,6 +18,7 @@ impl<'p, M, S> Machine<'p, M, S> where M: Memory, S: Stack {
             pc: PC::new(code),
             memory: M::new(),
             stack: S::new(),
+            account: Account::default(),
         }
     }
 

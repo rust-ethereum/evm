@@ -33,7 +33,7 @@
 
 // #![no_std]
 
-use ::std::convert::{From, Into};
+use ::std::convert::{From, Into, AsRef};
 use ::std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use ::std::cmp::Ordering;
 
@@ -109,6 +109,14 @@ impl U256 {
             }
         }
         return l;
+    }
+}
+
+impl AsRef<[u8]> for U256 {
+    fn as_ref(&self) -> &[u8] {
+        use std::mem::transmute;
+        let r: &[u8; 32] = unsafe { transmute(&self.0) };
+        r
     }
 }
 
