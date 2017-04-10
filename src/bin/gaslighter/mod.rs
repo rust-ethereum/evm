@@ -67,8 +67,8 @@ fn main() {
         (version: "0.1.0")
         (author: "Stewart Mackenzie <setori88@gmail.com>")
         (about: "Gaslighter - Ethereum Virtual Machine tester.")
-        (@arg CAPNPROTO_TYPECHECKED_TEST_BIN: -t --capnp_test_bin +takes_value "Absolute path to a typechecked binary compiled by the capnp tool. The source of this artefact is in the tests directory. Please run `$ capnp eval -b mod.capnp all >> test.bin` in the tests directory.")
-        (@arg TESTS_TO_RUN: -r --run_test +takes_value "The format is <directory>/<file>/<test> e.g. `--run_test arith/basic/add` will run the arith/basic/add test, `--run_test arith/basic/` will run all the tests in the tests/arith/basic.capnp file. Likewise `--run_test arith//` will run all the tests in all the files of the `arith` directory. Lastly `--run_test //` will run all the tests.")
+        (@arg CAPNPROTO_TYPECHECKED_TEST_BIN: -t --capnp_test_bin +takes_value "Path to a type checked binary compiled by the capnp tool. The source of this artefact is in the tests directory. Please run `$ capnp eval -b tests/mod.capnp all > tests.bin` in the root directory to generate the binary.")
+        (@arg TESTS_TO_RUN: -r --run_test +takes_value "The format is [directory]/[file]/[test] e.g. `--run_test arith/add/add1` will run the arith/add/add1 test, `--run_test arith/add/` will run every test in the tests/arith/add.capnp file. Likewise `--run_test arith//` will run every test in every file of the `arith` directory. Lastly `--run_test //` will run every single test available.")
     ).get_matches();
     let capnp_test_bin = match matches.value_of("CAPNPROTO_TYPECHECKED_TEST_BIN") {
         Some(c) => c,
@@ -106,6 +106,7 @@ fn main() {
                 if testname == test_to_run || test_to_run == "" {
                     add_test = true;
                     if add_dir && add_file && add_test {
+                        println!("{:?}", testname );
                         tests_to_execute.push(test);
                     }
                 } else { add_test = false; }

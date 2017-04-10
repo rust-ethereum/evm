@@ -30,7 +30,6 @@ see the
 ```
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm
-$ cargo build
-$ RUST_LOG=svm cargo run --bin svm -- -g 23 -c 00 -d data
-$ cargo run -- -h
+$ capnp eval --binary tests/mod.capnp all > tests.bin
+$ RUST_LOG=gaslighter cargo run --bin gaslighter -- --capnp_test_bin tests.bin --run_test //
 ```
