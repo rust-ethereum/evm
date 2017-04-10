@@ -23,4 +23,4 @@ clap = "2.22"
 log = "0.3"
 capnp = "0.8"
 rust-crypto = "^0.2"
-merkle = { git = "https://github.com/sorpaas/merkle.rs", branch = "sha3" }
+merkle-sha3 = "0.1"
