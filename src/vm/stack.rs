@@ -5,7 +5,7 @@ pub trait Stack {
     fn push(&mut self, elem: U256);
     fn pop(&mut self) -> U256;
     fn set(&mut self, no_from_top: usize, val: U256);
-    fn peek(&self, no_from_top: usize) -> &U256;
+    fn peek(&self, no_from_top: usize) -> U256;
     fn has(&self, no_of_elems: usize) -> bool;
     fn size(&self) -> usize;
 }
@@ -33,11 +33,12 @@ impl Stack for VectorStack {
     }
 
     fn set(&mut self, no_from_top: usize, val: U256) {
-        self.stack[self.stack.len() - no_from_top - 1] = val;
+        let len = self.stack.len();
+        self.stack[len - no_from_top - 1] = val;
     }
 
-    fn peek(&self, no_from_top: usize) -> &U256 {
-        &self.stack[self.stack.len() - no_from_top - 1]
+    fn peek(&self, no_from_top: usize) -> U256 {
+        self.stack[self.stack.len() - no_from_top - 1]
     }
 
     fn has(&self, no_of_elems: usize) -> bool {

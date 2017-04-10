@@ -60,29 +60,29 @@ impl Opcode {
                 unimplemented!(),
 
             Opcode::SHA3 => {
-                let u_s1: u64 = (*stack.peek(1)).into();
+                let u_s1: u64 = (stack.peek(1)).into();
                 (G_SHA3 + G_SHA3WORD * (u_s1 as isize / 32)).into()
             },
 
             Opcode::LOG(v) => {
-                let u_s1: u64 = (*stack.peek(1)).into();
+                let u_s1: u64 = (stack.peek(1)).into();
                 (G_LOG + G_LOGDATA * u_s1 as isize + (v as isize - 1) * G_LOGTOPIC).into()
             },
 
             Opcode::EXTCODECOPY => {
                 // TODO: this value might exceed isize::max_value()
-                let u_s3: u64 = (*stack.peek(2)).into();
+                let u_s3: u64 = (stack.peek(2)).into();
                 (G_EXTCODE + G_COPY * (u_s3 as isize / 32)).into()
             },
 
             Opcode::CALLDATACOPY | Opcode::CODECOPY => {
                 // TODO: this value might exceed isize::max_value()
-                let u_s2: u64 = (*stack.peek(2)).into();
+                let u_s2: u64 = (stack.peek(2)).into();
                 (G_VERYLOW + G_COPY * (u_s2 as isize / 32)).into()
             },
 
             Opcode::EXP => {
-                if *stack.peek(1) == U256::zero() {
+                if stack.peek(1) == U256::zero() {
                     G_EXP.into()
                 } else {
                     (G_EXP + G_EXPBYTE * (1 + stack.peek(1).log2floor())).into()

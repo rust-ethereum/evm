@@ -368,7 +368,7 @@ impl Opcode {
             },
 
             Opcode::DUP(v) => {
-                let val = machine.peek(v - 1);
+                let val = machine.stack.peek(v - 1);
                 machine.stack.push(val);
             },
 
