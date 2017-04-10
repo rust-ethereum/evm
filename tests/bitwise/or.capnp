@@ -1,16 +1,16 @@
-@0xda7d72d8f4b3c0c1;
+@0xda7d72d8f4b3c0c5;
 
 using Test = import "../test.capnp";
 using Op = import "../opcodes.capnp";
 using Hierarchy = import "../hierarchy.capnp";
 
 const all: Hierarchy.Tests = (
-  name = "basic",
-  tests = [ .stop, .add ]
+  name = "or",
+  tests = [ .or1, .or2 ]
 );
 
-const stop: Test.InputOutput = (
-  name = "stop",
+const or1: Test.InputOutput = (
+  name = "or1",
   inputOutput = (
     input = (
       gas = 314159,
@@ -28,8 +28,8 @@ const stop: Test.InputOutput = (
   )
 );
 
-const add: Test.InputOutput = (
-  name = "add",
+const or2: Test.InputOutput = (
+  name = "or2",
   inputOutput = (
     input = (
       gas = 314159,
