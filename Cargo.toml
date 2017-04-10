@@ -12,7 +12,7 @@ crate-type = ["rlib", "dylib"]
 
 [[bin]]
 name = "svm"
-path = "./src/bin/cli.rs"
+path = "./src/bin/cli/mod.rs"
 
 [[bin]]
 name = "gaslighter"
