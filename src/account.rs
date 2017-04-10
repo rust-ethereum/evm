@@ -14,7 +14,7 @@ impl Default for Account {
         Account {
             nonce: 0,
             balance: 0.into(),
-            storageRoot: MerkleTree::from_vec(Sha3::keccak256(), Vec::new()),
+            storageRoot: MerkleTree::from_vec::<U256>(Sha3::keccak256(), Vec::new()),
             codeHash: 0.into()
         }
     }
