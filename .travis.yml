@@ -1,5 +1,5 @@
 language: nix
-script: nix-build -A sputnikvm -I nixpkgs=https://github.com/sjmackenzie/nixpkgs/archive/dc1872450c0045e34c904c78d2c79ad8bab7750e.tar.gz
+script: nix-build -A sputnikvm -I nixpkgs=https://github.com/sjmackenzie/nixpkgs/archive/cf866642b37ac7484460477be26090a9d33e7da1.tar.gz
 notifications:
   email:
     on_success: never
