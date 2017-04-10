@@ -2,7 +2,8 @@ use super::Opcode;
 use utils::u256::U256;
 use vm::{Machine, Memory, Stack, PC};
 
-// TODO: deal with gas limit and other Ethereum-specific things.
+use crypto::sha3::Sha3;
+use crypto::digest::Digest;
 
 fn signed_abs(v: U256) -> U256 {
     let negative: U256 = U256::one() << 256;
@@ -312,7 +313,23 @@ impl Opcode {
                 }
             },
 
-            // TODO: implement opcode 0x20 to 0x4f
+            Opcode::SHA3 => {
+                let mut op1 = machine.stack.pop();
+                let op2 = machine.stack.pop();
+
+                let mut r: [u8; 32] = [0u8; 32];
+                let mut sha3 = Sha3::keccak256();
+
+                while op1 != op2 - 1.into() {
+                    let val = machine.memory.read(op1);
+                    sha3.input(val.as_ref());
+                    op1 = op1 + 1.into();
+                }
+                sha3.result(&mut r);
+                machine.stack.push(U256::from(r.as_ref()))
+            },
+
+            // TODO: implement opcode 0x21 to 0x4f
 
             Opcode::POP => {
                 machine.stack.pop();

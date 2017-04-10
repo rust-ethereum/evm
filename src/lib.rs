@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log;
-extern crate ring;
+extern crate crypto;
 extern crate merkle;
 
 pub mod vm;

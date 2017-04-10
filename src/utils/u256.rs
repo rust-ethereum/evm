@@ -37,6 +37,10 @@ use ::std::convert::{From, Into, AsRef};
 use ::std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use ::std::cmp::Ordering;
 
+use merkle::{Hashable, HashUtils};
+use crypto::sha3::Sha3;
+use crypto::digest::Digest;
+
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub struct U256([u64; 4]);
@@ -117,6 +121,33 @@ impl AsRef<[u8]> for U256 {
         use std::mem::transmute;
         let r: &[u8; 32] = unsafe { transmute(&self.0) };
         r
+    }
+}
+
+impl HashUtils<U256> for Sha3 {
+    fn hash_empty(mut self) -> U256 {
+        let mut r: [u8; 32] = [0u8; 32];
+        self.reset();
+        self.input(&[]);
+        self.result(&mut r);
+        U256::from(r.as_ref())
+    }
+
+    fn hash_leaf<T>(mut self, bytes: &T) -> U256 where T: Hashable {
+        let mut r: [u8; 32] = [0u8; 32];
+        self.reset();
+        bytes.update_context(&mut self);
+        self.result(&mut r);
+        U256::from(r.as_ref())
+    }
+
+    fn hash_nodes<T>(mut self, left: &T, right: &T) -> U256 where T: Hashable {
+        let mut r: [u8; 32] = [0u8; 32];
+        self.reset();
+        left.update_context(&mut self);
+        right.update_context(&mut self);
+        self.result(&mut r);
+        U256::from(r.as_ref())
     }
 }
 
