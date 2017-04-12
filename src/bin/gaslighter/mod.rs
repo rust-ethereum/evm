@@ -14,6 +14,11 @@ use std::process;
 use hierarchy_capnp::{directories};
 use capnp::{serialize, message};
 
+struct ExecuteTest<'a> {
+    pub name: String,
+    pub test: test_capnp::input_output::Reader<'a>,
+}
+
 fn main() {
     let matches = clap_app!(gaslighter =>
         (version: "0.1.0")
@@ -41,7 +46,7 @@ fn main() {
     let (dir_to_run, file_to_run, test_to_run) = test_scope(test_to_run.into());
     let mut contents = BufReader::new(file);
     let tests_reader = serialize::read_message(&mut contents, message::ReaderOptions::new()).expect("read message failed.");
-    let mut tests_to_execute = Vec::new();
+    let mut tests_to_execute :std::vec::Vec<ExecuteTest> = Vec::new();
     let top_level_tests = tests_reader.get_root::<directories::Reader>().expect("failed to get top level test root.");
     for dir in top_level_tests.get_dirs().expect("failed to directories.").iter() {
         let mut add_dir = false;
@@ -59,13 +64,17 @@ fn main() {
                 if testname == test_to_run || test_to_run == "" {
                     add_test = true;
                     if add_dir && add_file && add_test {
-                        tests_to_execute.push(test);
+                        let execute_test = ExecuteTest {
+                            name: format!("{}/{}/{}", dirname, filename, testname),
+                            test: test,
+                        };
+                        tests_to_execute.push(execute_test);
                     }
                 }
             }
         }
     }
-    if has_all_tests_passed(&tests_to_execute, keep_going) {
+    if has_all_tests_passed(tests_to_execute, keep_going) {
         process::exit(0);
     } else {
         process::exit(1);
@@ -77,11 +86,12 @@ fn test_scope(test_to_run: String) -> (String, String, String) {
     (vec[0].into(), vec[1].into(), vec[2].into())
 }
 
-fn has_all_tests_passed(tests_to_execute: &std::vec::Vec<test_capnp::input_output::Reader>, keep_going: bool) -> bool {
+fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going: bool) -> bool {
     println!("Executing tests:");
-    let mut has_all_tests_passed :bool = true;
+    let mut has_all_tests_passed = true;
     for test in tests_to_execute {
-        print!("--> {:?} ", test.get_name().expect("name expected") );
+        print!("--> {:?} ", test.name);
+        let test = test.test;
         let eo = test.get_expected_output().expect("failed to get expected output");
         let io = test.get_input_output().expect("failed to get actual input");
         let ao_gas = io.get_output().expect("").get_gas();
