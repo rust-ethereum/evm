@@ -2,7 +2,6 @@
 
 using Hierarchy = import "../src/schema/hierarchy.capnp";
 
-# test modules
 using Arith = import "arith/mod.capnp";
 using Bitwise = import "bitwise/mod.capnp";
 

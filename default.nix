@@ -43,9 +43,9 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
   buildInputs = [ capnproto perl ];
   doCheck = true;
   checkPhase = ''
-    ${capnproto}/bin/capnp eval -b tests/mod.capnp all >> tests.bin
+    ${capnproto}/bin/capnp eval -b tests/mod.capnp all > tests.bin
     cargo test
-    target/release/gaslighter --capnp_test_bin tests.bin --run_test ///
+    target/release/gaslighter --capnp_test_bin tests.bin --run_test /// -k
   '';
   });
 in {
