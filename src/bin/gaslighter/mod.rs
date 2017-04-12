@@ -84,27 +84,35 @@ fn has_all_tests_passed(tests_to_execute: &std::vec::Vec<test_capnp::input_outpu
         print!("--> {:?} ", test.get_name().expect("name expected") );
         let eo = test.get_expected_output().expect("failed to get expected output");
         let io = test.get_input_output().expect("failed to get actual input");
-        let ao = io.get_output().expect("").get_code().expect("").iter();
-        let eo = eo.get_code().expect("").iter();
+        let ao_gas = io.get_output().expect("").get_gas();
+        let eo_gas = eo.get_gas();
+        let ao_code = io.get_output().expect("").get_code().expect("").iter();
+        let eo_code = eo.get_code().expect("").iter();
         let mut ao_vec = Vec::new();
         let mut eo_vec = Vec::new();
         let mut has_this_test_failed = false;
-        for ao_char in ao {
-            ao_vec.push(ao_char.expect("charater expected")[0]);
+        for ao_char in ao_code {
+            ao_vec.push(ao_char.expect("character expected")[0]);
         }
-        for eo_char in eo {
-            eo_vec.push(eo_char.expect("charater expected")[0]);
+        for eo_char in eo_code {
+            eo_vec.push(eo_char.expect("character expected")[0]);
         }
         let length = eo_vec.len();
         let matching = ao_vec.iter().zip(eo_vec.iter()).filter(|&(a, b)| a == b).count();
         if matching != length {
             has_this_test_failed = true;
-            print!("\n equality fail: only {} actual output opcodes matched the {} opcodes of the expected output.", matching, length);
+            print!("\n\n code equality fail: only {} actual output opcodes matched the {} opcodes of the expected output.\n", matching, length);
+            println!(" actual code output:\t{:?}", ao_vec);
+            println!(" expected code output:\t{:?}", eo_vec);
+        }
+        if eo_gas != ao_gas {
+            has_this_test_failed = true;
+            print!("\n gas equality fail: actual output gas value of {} doesn't equal the expected output gas value of {}.", ao_gas, eo_gas);
+            print!("\n actual gas output:\t{}", ao_gas);
+            print!("\n expected gas output:\t{}\n", eo_gas);
         }
         if has_this_test_failed {
             print!("\n");
-            println!(" actual output:\t\t{:?}", ao_vec);
-            println!(" expected output:\t{:?}", eo_vec);
             has_all_tests_passed = false;
             if !keep_going {
                 return has_all_tests_passed;
