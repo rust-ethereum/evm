@@ -19,12 +19,12 @@ const add1: Test.InputOutput = (
     ),
     output = (
       gas = 314159,
-      code = [ Op.STOP ]
+      code = [ Op.ADD, Op.LT, Op.GT, Op.GT ]
     )
   ),
   expectedOutput = (
     gas = 314159,
-    code = [ Op.STOP ]
+    code = [ Op.ADD, Op.LT, Op.GT, Op.GT ]
   )
 );
 
@@ -38,11 +38,11 @@ const add2: Test.InputOutput = (
     ),
     output = (
       gas = 314159,
-      code = [ Op.STOP ]
+      code = [ Op.STOP, Op.STOP ]
     )
   ),
   expectedOutput = (
     gas = 314159,
-    code = [ Op.STOP ]
+    code = [ Op.STOP, Op.STOP]
   )
 );
