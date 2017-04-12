@@ -42,7 +42,7 @@ const add2: Test.InputOutput = (
     )
   ),
   expectedOutput = (
-    gas = 314158,
-    code = [ Op.STOP, Op.GT]
+    gas = 314159,
+    code = [ Op.STOP, Op.STOP]
   )
 );
