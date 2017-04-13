@@ -4,7 +4,8 @@ extern crate clap;
 extern crate log;
 extern crate sputnikvm;
 
-use sputnikvm::vm::{VectorMachine, Gas};
+use sputnikvm::Gas;
+use sputnikvm::vm::{Machine, FakeVectorMachine};
 
 use std::error::Error;
 use std::fs::File;
@@ -63,17 +64,9 @@ fn main() {
         None => "".as_bytes().into(),
     };
 
-    let mut machine = VectorMachine::new(code.as_slice(), data, initial_gas);
-    match machine.fire() {
-        Ok(leftover_gas) => {
-            if log_enabled!(LogLevel::Info) {
-                info!("gas used: {:?}", leftover_gas);
-            }
-        },
-        Err(e) => {
-            if log_enabled!(LogLevel::Error) {
-                info!("error: {:?}", e);
-            }
-        }
+    let mut machine = FakeVectorMachine::new(code.as_slice(), data, initial_gas);
+    machine.fire();
+    if log_enabled!(LogLevel::Info) {
+        info!("gas used: {:?}", machine.used_gas());
     }
 }
