@@ -112,6 +112,16 @@ impl U256 {
     }
 }
 
+impl From<bool> for U256 {
+    fn from(val: bool) -> U256 {
+        if val {
+            U256::one()
+        } else {
+            U256::zero()
+        }
+    }
+}
+
 impl From<u64> for U256 {
     fn from(val: u64) -> U256 {
         U256([val, 0, 0, 0])
