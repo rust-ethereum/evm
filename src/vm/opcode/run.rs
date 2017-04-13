@@ -1,9 +1,11 @@
 use utils::u256::U256;
 use utils::gas::Gas;
+use utils::address::Address;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
 use account::Storage;
 use transaction::Transaction;
+use blockchain::{Block, Blockchain};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use crypto::sha3::Sha3;
@@ -290,6 +292,19 @@ impl Opcode {
                 }
                 sha3.result(&mut r);
                 machine.stack_mut().push(U256::from(r.as_ref()))
+            },
+
+            Opcode::ADDRESS => {
+                let address = machine.transaction().callee();
+                machine.stack_mut().push(address.into());
+            },
+
+            Opcode::BALANCE => {
+                let address: Option<Address> = machine.stack_mut().pop().into();
+                let balance = address.map_or(None, |address| {
+                    machine.block().balance(address)
+                }).map_or(U256::zero(), |balance| balance);
+                machine.stack_mut().push(balance);
             },
 
             // TODO: implement opcode 0x21 to 0x4f
