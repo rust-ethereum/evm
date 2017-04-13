@@ -112,6 +112,14 @@ impl U256 {
     }
 }
 
+impl AsRef<[u8]> for U256 {
+    fn as_ref(&self) -> &[u8] {
+        use std::mem::transmute;
+        let r: &[u8; 32] = unsafe { transmute(&self.0) };
+        r
+    }
+}
+
 impl From<bool> for U256 {
     fn from(val: bool) -> U256 {
         if val {

@@ -275,21 +275,21 @@ impl Opcode {
                 }
             },
 
-            // Opcode::SHA3 => {
-            //     let mut op1 = machine.stack_mut().pop();
-            //     let op2 = machine.stack_mut().pop();
+            Opcode::SHA3 => {
+                let mut op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
 
-            //     let mut r: [u8; 32] = [0u8; 32];
-            //     let mut sha3 = Sha3::keccak256();
+                let mut r: [u8; 32] = [0u8; 32];
+                let mut sha3 = Sha3::keccak256();
 
-            //     while op1 != op2 - 1.into() {
-            //         let val = machine.memory().read(op1);
-            //         sha3.input(val.as_ref());
-            //         op1 = op1 + 1.into();
-            //     }
-            //     sha3.result(&mut r);
-            //     machine.stack_mut().push(U256::from(r.as_ref()))
-            // },
+                while op1 != op2 - 1.into() {
+                    let val = machine.memory_mut().read(op1);
+                    sha3.input(val.as_ref());
+                    op1 = op1 + 1.into();
+                }
+                sha3.result(&mut r);
+                machine.stack_mut().push(U256::from(r.as_ref()))
+            },
 
             // TODO: implement opcode 0x21 to 0x4f
 
