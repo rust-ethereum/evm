@@ -307,6 +307,16 @@ impl Opcode {
                 machine.stack_mut().push(balance);
             },
 
+            Opcode::ORIGIN => {
+                let address = machine.transaction().originator();
+                machine.stack_mut().push(address.into());
+            },
+
+            Opcode::CALLER => {
+                let address = machine.transaction().sender();
+                machine.stack_mut().push(address.into());
+            },
+
             // TODO: implement opcode 0x21 to 0x4f
 
             Opcode::POP => {
