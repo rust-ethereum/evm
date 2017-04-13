@@ -9,6 +9,7 @@ pub trait PC {
     fn stopped(&self) -> bool;
     fn read(&mut self, byte_count: usize) -> U256;
     fn position(&self) -> usize;
+    fn jump(&mut self, position: usize);
 }
 
 pub struct VectorPC {
@@ -19,7 +20,7 @@ pub struct VectorPC {
 
 impl VectorPC {
     pub fn new(code: &[u8]) -> Self {
-        PC {
+        VectorPC {
             position: 0,
             code: code.into(),
             stopped: false,
@@ -27,19 +28,11 @@ impl VectorPC {
     }
 }
 
-impl<A: Account> From<&A> for VectorPC {
-    fn from(account: &A) -> VectorPC {
-        let empty: [u8; 0] = [];
-        let code = account.code;
-        if code.is_some() {
-            VectorPC::new(code.unwrap())
-        } else {
-            VectorPC::new(empty)
-        }
-    }
-}
-
 impl PC for VectorPC {
+    fn jump(&mut self, position: usize) {
+        self.position = position;
+    }
+
     fn position(&self) -> usize {
         self.position
     }
