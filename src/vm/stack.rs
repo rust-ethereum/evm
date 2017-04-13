@@ -1,7 +1,6 @@
 use utils::u256::U256;
 
 pub trait Stack {
-    fn new() -> Self;
     fn push(&mut self, elem: U256);
     fn pop(&mut self) -> U256;
     fn set(&mut self, no_from_top: usize, val: U256);
@@ -14,13 +13,15 @@ pub struct VectorStack {
     stack: Vec<U256>,
 }
 
-impl Stack for VectorStack {
-    fn new() -> VectorStack {
+impl VectorStack {
+    pub fn new() -> VectorStack {
         VectorStack {
             stack: Vec::new(),
         }
     }
+}
 
+impl Stack for VectorStack {
     fn push(&mut self, elem: U256) {
         self.stack.push(elem);
     }

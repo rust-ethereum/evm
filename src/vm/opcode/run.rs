@@ -1,7 +1,10 @@
-use super::Opcode;
 use utils::u256::U256;
+use utils::gas::Gas;
+use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
+use transaction::Transaction;
 
+use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
@@ -15,40 +18,42 @@ fn signed_abs(v: U256) -> U256 {
     }
 }
 
+macro_rules! op2 {
+    ( $machine:expr, $op:ident ) => ({
+        let op1 = $machine.stack_mut().pop();
+        let op2 = $machine.stack_mut().pop();
+        $machine.stack_mut().push(op1.$op(op2));
+    })
+}
+
+macro_rules! op2_ref {
+    ( $machine:expr, $op:ident ) => ({
+        let op1 = $machine.stack_mut().pop();
+        let op2 = $machine.stack_mut().pop();
+        $machine.stack_mut().push(op1.$op(&op2).into());
+    })
+}
+
 impl Opcode {
-    pub fn run<M: Memory, S: Stack>(&self, machine: &mut Machine<M, S>) {
+    pub fn run<M: Machine>(&self, machine: &mut M) {
         let opcode = self.clone();
 
         match opcode {
             Opcode::STOP => {
-                machine.pc.stop();
+                machine.pc_mut().stop();
             },
 
-            Opcode::ADD => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                machine.stack.push(op1 + op2);
-            },
-
-            Opcode::MUL => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                machine.stack.push(op1 * op2);
-            },
-
-            Opcode::SUB => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                machine.stack.push(op1 - op2);
-            },
+            Opcode::ADD => op2!(machine, add),
+            Opcode::MUL => op2!(machine, mul),
+            Opcode::SUB => op2!(machine, sub),
 
             Opcode::DIV => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
                 if op2 == 0.into() {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
-                    machine.stack.push(op1 / op2);
+                    machine.stack_mut().push(op1 / op2);
                 }
             },
 
@@ -63,106 +68,106 @@ impl Opcode {
                 let max: U256 = U256::max_value();
                 // This value is also -1 in two's complement.
 
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
                 if op2 == 0.into() {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else if op1 == negative && op2 == max {
-                    machine.stack.push(negative);
+                    machine.stack_mut().push(negative);
                 } else {
                     let aop1 = signed_abs(op1);
                     let aop2 = signed_abs(op2);
                     let r = op1 / op2;
 
                     if (op1 < negative && op2 < negative) || (op1 >= negative && op2 >= negative) {
-                        machine.stack.push(r);
+                        machine.stack_mut().push(r);
                     } else {
                         let sr = !r + 1.into();
-                        machine.stack.push(sr);
+                        machine.stack_mut().push(sr);
                     }
                 }
             },
 
             Opcode::MOD => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
 
                 if op2 == 0.into() {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
-                    machine.stack.push(op1 - (op1 / op2) * op2);
+                    machine.stack_mut().push(op1 - (op1 / op2) * op2);
                 }
             },
 
             Opcode::SMOD => {
                 let negative: U256 = U256::one() << 256;
 
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
 
                 if op2 == 0.into() {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
                     let aop1 = signed_abs(op1);
                     let aop2 = signed_abs(op2);
                     let r = aop1 - (aop1 / aop2) * aop2;
                     if op1 < negative && op2 < negative {
-                        machine.stack.push(r);
+                        machine.stack_mut().push(r);
                     } else if op1 >= negative && op2 < negative {
-                        machine.stack.push(!(op1 + r) + 1.into());
+                        machine.stack_mut().push(!(op1 + r) + 1.into());
                     } else if op1 < negative && op2 >= negative {
-                        machine.stack.push(op1 + r);
+                        machine.stack_mut().push(op1 + r);
                     } else if op1 >= negative && op2 >= negative {
-                        machine.stack.push(!r + 1.into());
+                        machine.stack_mut().push(!r + 1.into());
                     }
                 }
             },
 
             Opcode::ADDMOD => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                let op3 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
+                let op3 = machine.stack_mut().pop();
 
                 if op3 == 0.into() {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
                     // TODO: Handle the case where op1 + op2 > 2^256
                     let v = op1 + op2;
-                    machine.stack.push(v - (v / op3) * op3);
+                    machine.stack_mut().push(v - (v / op3) * op3);
                 }
             },
 
             Opcode::MULMOD => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                let op3 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
+                let op3 = machine.stack_mut().pop();
 
                 if op3 == 0.into() {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
                     // TODO: Handle the case where op1 * op2 > 2^256
                     let v = op1 * op2;
-                    machine.stack.push(v - (v / op3) * op3);
+                    machine.stack_mut().push(v - (v / op3) * op3);
                 }
             },
 
             Opcode::EXP => {
-                let op1 = machine.stack.pop();
-                let mut op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let mut op2 = machine.stack_mut().pop();
                 let mut r: U256 = 1.into();
 
                 while op2 != 0.into() {
                     r = r * op1;
                     op2 = op2 - 1.into();
                 }
-                machine.stack.push(r);
+                machine.stack_mut().push(r);
             },
 
             Opcode::SIGNEXTEND => {
                 // TODO: Check this confines with the yello paper
 
-                let mut op1 = machine.stack.pop();
-                let mut op2 = machine.stack.pop();
+                let mut op1 = machine.stack_mut().pop();
+                let mut op2 = machine.stack_mut().pop();
 
                 let mut negative: U256 = 1.into();
                 let mut s = 0;
@@ -177,223 +182,183 @@ impl Opcode {
                         op1 = op1 + (U256::one() << s);
                         s = s + 1;
                     }
-                    machine.stack.push(op1);
+                    machine.stack_mut().push(op1);
                 } else {
-                    machine.stack.push(op1);
+                    machine.stack_mut().push(op1);
                 }
             },
 
-            Opcode::LT => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                if op1 < op2 {
-                    machine.stack.push(1.into());
-                } else {
-                    machine.stack.push(0.into());
-                }
-            },
-
-            Opcode::GT => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-                if op1 > op2 {
-                    machine.stack.push(1.into());
-                } else {
-                    machine.stack.push(0.into());
-                }
-            },
+            Opcode::LT => op2_ref!(machine, lt),
+            Opcode::GT => op2_ref!(machine, gt),
 
             Opcode::SLT => {
                 let negative = U256::one() << 256;
 
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
 
                 if op1 < negative && op2 < negative {
                     if op1 < op2 {
-                        machine.stack.push(1.into());
+                        machine.stack_mut().push(1.into());
                     } else {
-                        machine.stack.push(0.into());
+                        machine.stack_mut().push(0.into());
                     }
                 } else if op2 >= negative && op2 >= negative {
                     if op1 < op2 {
-                        machine.stack.push(0.into());
+                        machine.stack_mut().push(0.into());
                     } else {
-                        machine.stack.push(1.into());
+                        machine.stack_mut().push(1.into());
                     }
                 } else if op1 < negative && op2 >= negative {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
-                    machine.stack.push(1.into());
+                    machine.stack_mut().push(1.into());
                 }
             },
 
             Opcode::SGT => {
                 let negative = U256::one() << 256;
 
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
 
                 if op1 < negative && op2 < negative {
                     if op1 < op2 {
-                        machine.stack.push(0.into());
+                        machine.stack_mut().push(0.into());
                     } else {
-                        machine.stack.push(1.into());
+                        machine.stack_mut().push(1.into());
                     }
                 } else if op2 >= negative && op2 >= negative {
                     if op1 < op2 {
-                        machine.stack.push(1.into());
+                        machine.stack_mut().push(1.into());
                     } else {
-                        machine.stack.push(0.into());
+                        machine.stack_mut().push(0.into());
                     }
                 } else if op1 < negative && op2 >= negative {
-                    machine.stack.push(1.into());
+                    machine.stack_mut().push(1.into());
                 } else {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 }
             },
 
-            Opcode::EQ => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-
-                if op1 == op2 {
-                    machine.stack.push(1.into());
-                } else {
-                    machine.stack.push(0.into());
-                }
-            },
+            Opcode::EQ => op2_ref!(machine, eq),
 
             Opcode::ISZERO => {
-                let op1 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
 
                 if op1 == 0.into() {
-                    machine.stack.push(1.into());
+                    machine.stack_mut().push(1.into());
                 } else {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 }
             },
 
-            Opcode::AND => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-
-                machine.stack.push(op1 & op2);
-            },
-
-            Opcode::OR => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-
-                machine.stack.push(op1 | op2);
-            },
-
-            Opcode::XOR => {
-                let op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
-
-                machine.stack.push(op1 ^ op2);
-            },
+            Opcode::AND => op2!(machine, bitand),
+            Opcode::OR => op2!(machine, bitor),
+            Opcode::XOR => op2!(machine, bitxor),
 
             Opcode::NOT => {
-                let op1 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
 
-                machine.stack.push(!op1);
+                machine.stack_mut().push(!op1);
             },
 
             Opcode::BYTE => {
-                let op1 = machine.stack.pop();
-                let op2: usize = machine.stack.pop().into(); // 256 / 8
+                let op1 = machine.stack_mut().pop();
+                let op2: usize = machine.stack_mut().pop().into(); // 256 / 8
                 let mark: U256 = 0xff.into();
 
                 if op2 >= 256 / 8 {
-                    machine.stack.push(0.into());
+                    machine.stack_mut().push(0.into());
                 } else {
-                    machine.stack.push((op1 >> (op2 * 8)) & mark);
+                    machine.stack_mut().push((op1 >> (op2 * 8)) & mark);
                 }
             },
 
             Opcode::SHA3 => {
-                let mut op1 = machine.stack.pop();
-                let op2 = machine.stack.pop();
+                let mut op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
 
                 let mut r: [u8; 32] = [0u8; 32];
                 let mut sha3 = Sha3::keccak256();
 
                 while op1 != op2 - 1.into() {
-                    let val = machine.memory.read(op1);
+                    let val = machine.memory_mut().read(op1);
                     sha3.input(val.as_ref());
                     op1 = op1 + 1.into();
                 }
                 sha3.result(&mut r);
-                machine.stack.push(U256::from(r.as_ref()))
+                machine.stack_mut().push(U256::from(r.as_ref()))
             },
 
             // TODO: implement opcode 0x21 to 0x4f
 
             Opcode::POP => {
-                machine.stack.pop();
+                machine.stack_mut().pop();
             },
 
             Opcode::MLOAD => {
-                let op1 = machine.stack.pop();
+                let op1 = machine.stack_mut().pop();
+                let val = machine.memory_mut().read(op1);
                 // u_i update is automatically handled by Memory.
-                machine.stack.push(machine.memory.read(op1));
+                machine.stack_mut().push(val);
             },
 
             Opcode::MSTORE => {
-                let op1 = machine.stack.pop(); // Index
-                let op2 = machine.stack.pop(); // Data
+                let op1 = machine.stack_mut().pop(); // Index
+                let op2 = machine.stack_mut().pop(); // Data
                 // u_i update is automatically handled by Memory.
-                machine.memory.write(op1, op2);
+                machine.memory_mut().write(op1, op2);
             },
 
             // TODO: implement storage related opcode SLOAD, SSTORE
 
             Opcode::JUMP => {
-                let op1_u: u64 = machine.stack.pop().into();
-                machine.pc.position = op1_u as usize;
+                let op1_u: u64 = machine.stack_mut().pop().into();
+                machine.pc_mut().jump(op1_u as usize);
             },
 
             Opcode::JUMPI => {
-                let op1_u: u64 = machine.stack.pop().into();
-                let op2 = machine.stack.pop();
+                let op1_u: u64 = machine.stack_mut().pop().into();
+                let op2 = machine.stack_mut().pop();
 
                 if op2 != 0.into() {
-                    machine.pc.position = op1_u as usize;
+                    machine.pc_mut().jump(op1_u as usize);
                 }
             },
 
             Opcode::PC => {
-                machine.stack.push((machine.pc.position - 1).into()); // PC increment for opcode is always an u8.
+                let position = machine.pc().position();
+                machine.stack_mut().push((position - 1).into()); // PC increment for opcode is always an u8.
             },
 
             Opcode::MSIZE => {
-                machine.stack.push(machine.memory.active_len().into());
+                let active_len = machine.memory().active_len();
+                machine.stack_mut().push(active_len.into());
             },
 
             Opcode::GAS => {
-                let gas: U256 = machine.available_gas().into();
-                machine.stack.push(gas);
+                let gas: U256 = machine.transaction().gas_limit().into();
+                machine.stack_mut().push(gas);
             },
 
             Opcode::JUMPDEST => (), // This operation has no effect on machine state during execution.
 
             Opcode::PUSH(v) => {
-                let val = machine.pc.read(v);
-                machine.stack.push(val);
+                let val = machine.pc_mut().read(v);
+                machine.stack_mut().push(val);
             },
 
             Opcode::DUP(v) => {
-                let val = machine.stack.peek(v - 1);
-                machine.stack.push(val);
+                let val = machine.stack().peek(v - 1);
+                machine.stack_mut().push(val);
             },
 
             Opcode::SWAP(v) => {
-                let val1 = machine.stack.peek(0);
-                let val2 = machine.stack.peek(v);
-                machine.stack.set(0, val2);
-                machine.stack.set(v, val1);
+                let val1 = machine.stack().peek(0);
+                let val2 = machine.stack().peek(v);
+                machine.stack_mut().set(0, val2);
+                machine.stack_mut().set(v, val1);
             },
 
             // TODO: Implement log entries LOG0, LOG1, LOG2, LOG3, LOG4

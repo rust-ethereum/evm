@@ -1,6 +1,7 @@
 use utils::u256::U256;
+use utils::gas::Gas;
 use super::Opcode;
-use vm::{Machine, Memory, Stack, PC, Gas};
+use vm::{Machine, Memory, Stack, PC};
 
 const G_ZERO: isize = 0;
 const G_BASE: isize = 2;
@@ -49,9 +50,9 @@ fn memory_cost(a: usize) -> Gas {
 // CALLDATACOPY, CODECOPY, EXTCODECOPY, LOG0-4, SHA3
 
 impl Opcode {
-    pub fn gas_cost_before<M: Memory, S: Stack>(&self, machine: &Machine<M, S>) -> Gas {
-        let ref stack = machine.stack;
-        let ref memory = machine.memory;
+    pub fn gas_cost_before<M: Machine>(&self, machine: &M) -> Gas {
+        let ref stack = machine.stack();
+        let ref memory = machine.memory();
         let opcode = self.clone();
         let self_cost: Gas = match opcode {
             // Unimplemented
@@ -134,10 +135,10 @@ impl Opcode {
             Opcode::BLOCKHASH => G_BLOCKHASH.into(),
             Opcode::INVALID => Gas::zero(),
         };
-        self_cost - memory_cost(machine.memory.active_len())
+        self_cost - memory_cost(machine.memory().active_len())
     }
 
-    pub fn gas_cost_after<M: Memory, S: Stack>(&self, machine: &Machine<M, S>) -> Gas {
-        memory_cost(machine.memory.active_len())
+    pub fn gas_cost_after<M: Machine>(&self, machine: &M) -> Gas {
+        memory_cost(machine.memory().active_len())
     }
 }

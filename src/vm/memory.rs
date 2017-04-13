@@ -1,7 +1,6 @@
 use utils::u256::U256;
 
 pub trait Memory {
-    fn new() -> Self;
     fn write(&mut self, index: U256, value: U256);
     fn read(&mut self, index: U256) -> U256;
     fn active_len(&self) -> usize;
@@ -11,13 +10,15 @@ pub struct VectorMemory {
     memory: Vec<U256>,
 }
 
-impl Memory for VectorMemory {
-    fn new() -> VectorMemory {
+impl VectorMemory {
+    pub fn new() -> VectorMemory {
         VectorMemory {
             memory: Vec::new(),
         }
     }
+}
 
+impl Memory for VectorMemory {
     fn write(&mut self, index: U256, value: U256) {
         // Vector only deals with usize, so the maximum size is
         // actually smaller than 2^256
