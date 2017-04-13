@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate capnp;
+extern crate libloading;
 
 mod hierarchy_capnp;
 mod vm_capnp;
@@ -50,17 +51,15 @@ fn main() {
     let top_level_tests = tests_reader.get_root::<directories::Reader>().expect("failed to get top level test root.");
     for dir in top_level_tests.get_dirs().expect("failed to directories.").iter() {
         let mut add_dir = false;
-        let mut dirname = dir.get_name().expect("failed to get directory name.");
-        let mut filename = "";
-        let mut testname = "";
+        let dirname = dir.get_name().expect("failed to get directory name.");
         if dirname == dir_to_run || dir_to_run == "" { add_dir = true; }
         for file in dir.get_files().expect("failed to files.").iter() {
             let mut add_file = false;
-            filename = file.get_name().expect("failed to get filename.");
+            let filename = file.get_name().expect("failed to get filename.");
             if filename == file_to_run || file_to_run == "" { add_file = true; }
             for test in file.get_tests().expect("failed to get tests.").iter() {
                 let mut add_test = false;
-                testname = test.get_name().expect("failed to get test name.");
+                let testname = test.get_name().expect("failed to get test name.");
                 if testname == test_to_run || test_to_run == "" {
                     add_test = true;
                     if add_dir && add_file && add_test {
@@ -86,6 +85,14 @@ fn test_scope(test_to_run: String) -> (String, String, String) {
     (vec[0].into(), vec[1].into(), vec[2].into())
 }
 
+fn evaluate(msg: vm_capnp::input_output::Reader) -> libloading::Result<vm_capnp::input_output::Reader> {
+    let lib = libloading::Library::new("libsputnikvm.so").expect("cannot load");
+    unsafe {
+        let func: libloading::Symbol<unsafe extern fn(vm_capnp::input_output::Reader) -> vm_capnp::input_output::Reader> = try!(lib.get(b"evaluate"));
+        Ok(func(msg))
+    }
+}
+
 fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going: bool) -> bool {
     println!("running {} tests", tests_to_execute.len());
     let mut has_all_tests_passed = true;
@@ -93,7 +100,8 @@ fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going
         print!("sputnikvm test {} ", test.name);
         let test = test.test;
         let eo = test.get_expected_output().expect("failed to get expected output");
-        let io = test.get_input_output().expect("failed to get actual input");
+        let io = test.get_input_output().expect("failed to get actual input output");
+        let io = evaluate(io).expect("failed to evaluate");
         let ao_gas = io.get_output().expect("").get_gas();
         let eo_gas = eo.get_gas();
         let ao_code = io.get_output().expect("").get_code().expect("").iter();
