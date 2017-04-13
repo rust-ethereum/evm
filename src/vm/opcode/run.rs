@@ -1,8 +1,11 @@
 use utils::u256::U256;
 use utils::gas::Gas;
+use utils::address::Address;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
+use account::Storage;
 use transaction::Transaction;
+use blockchain::{Block, Blockchain};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use crypto::sha3::Sha3;
@@ -291,6 +294,29 @@ impl Opcode {
                 machine.stack_mut().push(U256::from(r.as_ref()))
             },
 
+            Opcode::ADDRESS => {
+                let address = machine.transaction().callee();
+                machine.stack_mut().push(address.into());
+            },
+
+            Opcode::BALANCE => {
+                let address: Option<Address> = machine.stack_mut().pop().into();
+                let balance = address.map_or(None, |address| {
+                    machine.block().balance(address)
+                }).map_or(U256::zero(), |balance| balance);
+                machine.stack_mut().push(balance);
+            },
+
+            Opcode::ORIGIN => {
+                let address = machine.transaction().originator();
+                machine.stack_mut().push(address.into());
+            },
+
+            Opcode::CALLER => {
+                let address = machine.transaction().sender();
+                machine.stack_mut().push(address.into());
+            },
+
             // TODO: implement opcode 0x21 to 0x4f
 
             Opcode::POP => {
@@ -311,7 +337,17 @@ impl Opcode {
                 machine.memory_mut().write(op1, op2);
             },
 
-            // TODO: implement storage related opcode SLOAD, SSTORE
+            Opcode::SLOAD => {
+                let op1 = machine.stack_mut().pop();
+                let val = machine.storage_mut().read(op1);
+                machine.stack_mut().push(val);
+            },
+
+            Opcode::SSTORE => {
+                let op1 = machine.stack_mut().pop(); // Index
+                let op2 = machine.stack_mut().pop(); // Data
+                machine.storage_mut().write(op1, op2);
+            }
 
             Opcode::JUMP => {
                 let op1_u: u64 = machine.stack_mut().pop().into();
