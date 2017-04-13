@@ -39,13 +39,13 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
   name = "sputnikvm-${version}";
   version = "0.1.0";
   src = ./.;
-  depsSha256 = "0dz2nrrkmrqf06wn59xkwy0w2kjw3qfpbzlhfma9yz6cjqr1x3k6";
+  depsSha256 = "19ycnaj72489a3q6qnnzn0m2pj0acbycwq3gl0h7pwas72c4834p";
   buildInputs = [ capnproto perl ];
   doCheck = true;
   checkPhase = ''
-    ${capnproto}/bin/capnp eval -b tests/mod.capnp all >> tests.bin
+    ${capnproto}/bin/capnp eval -b tests/mod.capnp all > tests.bin
     cargo test
-    target/release/gaslighter --capnp_test_bin tests.bin --run_test ///
+    target/release/gaslighter --capnp_test_bin tests.bin --run_test /// -k
   '';
   });
 in {

@@ -33,3 +33,8 @@ $ cd sputnikvm
 $ capnp eval --binary tests/mod.capnp all > tests.bin
 $ RUST_LOG=gaslighter cargo run --bin gaslighter -- --capnp_test_bin tests.bin --run_test //
 ```
+for a quick compile tests then code, run this command chain:
+
+```
+$ capnp eval --binary tests/mod.capnp all > tests.bin && RUST_LOG=gaslighter cargo run --bin gaslighter -- -t tests.bin -r //
+```
