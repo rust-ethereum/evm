@@ -1,5 +1,6 @@
 use utils::u256::U256;
 
+#[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub struct Address([u8; 20]);
 
 impl Default for Address {
