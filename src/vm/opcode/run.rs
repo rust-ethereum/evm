@@ -2,6 +2,7 @@ use utils::u256::U256;
 use utils::gas::Gas;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
+use account::Storage;
 use transaction::Transaction;
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
@@ -311,7 +312,17 @@ impl Opcode {
                 machine.memory_mut().write(op1, op2);
             },
 
-            // TODO: implement storage related opcode SLOAD, SSTORE
+            Opcode::SLOAD => {
+                let op1 = machine.stack_mut().pop();
+                let val = machine.storage_mut().read(op1);
+                machine.stack_mut().push(val);
+            },
+
+            Opcode::SSTORE => {
+                let op1 = machine.stack_mut().pop(); // Index
+                let op2 = machine.stack_mut().pop(); // Data
+                machine.storage_mut().write(op1, op2);
+            }
 
             Opcode::JUMP => {
                 let op1_u: u64 = machine.stack_mut().pop().into();
