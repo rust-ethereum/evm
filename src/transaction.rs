@@ -3,9 +3,13 @@
 // handled by the invoking Ethereum Classic client, as copying the
 // world state every time the EVM gets invoked might be expensive.
 
+use utils::u256::U256;
+use utils::address::Address;
+use utils::gas::Gas;
+
 pub trait Transaction {
-    fn gas_price(&self) -> U256;
-    fn gas_limit(&self) -> U256;
+    fn gas_price(&self) -> Gas;
+    fn gas_limit(&self) -> Gas;
     fn sender(&self) -> Address;
     fn callee(&self) -> Address;
     fn originator(&self) -> Address;
@@ -14,9 +18,9 @@ pub trait Transaction {
     fn init(&self) -> Option<&[u8]>; // Only for account initialization procedure.
 }
 
-pub struct FakeTransaction {
-    gas_price: U256,
-    gas_limit: U256,
+pub struct VectorTransaction {
+    gas_price: Gas,
+    gas_limit: Gas,
     sender: Address,
     callee: Address,
     originator: Address,
@@ -25,11 +29,11 @@ pub struct FakeTransaction {
     init: Option<Vec<u8>>,
 }
 
-impl FakeTransaction {
-    pub fn message_call(value: U256, data: &[u8]) {
-        FakeTransaction {
-            gas_price: U256::zero(),
-            gas_limit: U256::zero(),
+impl VectorTransaction {
+    pub fn message_call(value: U256, data: &[u8], gas_limit: Gas) -> VectorTransaction {
+        VectorTransaction {
+            gas_price: Gas::zero(),
+            gas_limit: gas_limit,
             sender: Address::default(),
             callee: Address::default(),
             originator: Address::default(),
@@ -40,35 +44,25 @@ impl FakeTransaction {
     }
 }
 
-impl Transaction for FakeTransaction {
-    type A = FakeAccount;
-
-    fn gas_price(&self) -> U256 {
+impl Transaction for VectorTransaction {
+    fn gas_price(&self) -> Gas {
         self.gas_price
     }
 
-    fn gas_limit(&self) -> U256 {
+    fn gas_limit(&self) -> Gas {
         self.gas_limit
     }
 
-    fn sender(&self) -> &FakeAccount {
-        &self.sender
+    fn sender(&self) -> Address {
+        self.sender
     }
 
-    fn callee(&self) -> &FakeAccount {
-        &self.callee
+    fn callee(&self) -> Address {
+        self.callee
     }
 
-    fn callee_mut(&mut self) -> &mut FakeAccount {
-        &mut self.callee
-    }
-
-    fn originator(&self) -> &FakeAccount {
-        if self.originator.is_none() {
-            self.sender()
-        } else {
-            self.originator.as_ref().unwrap()
-        }
+    fn originator(&self) -> Address {
+        self.originator
     }
 
     fn value(&self) -> U256 {
@@ -76,10 +70,18 @@ impl Transaction for FakeTransaction {
     }
 
     fn data(&self) -> Option<&[u8]> {
-        self.data.map(|s| s.into())
+        if self.data.is_some() {
+            Some(self.data.as_ref().unwrap().as_ref())
+        } else {
+            None
+        }
     }
 
     fn init(&self) -> Option<&[u8]> {
-        self.init.map(|s| s.into())
+        if self.init.is_some() {
+            Some(self.init.as_ref().unwrap().as_ref())
+        } else {
+            None
+        }
     }
 }
