@@ -1,16 +1,16 @@
-@0xda7d72d8f4b3c0c1;
+@0xda7d72d8f4b3c0c6;
 
-using Test = import "../test.capnp";
-using Op = import "../opcodes.capnp";
-using Hierarchy = import "../hierarchy.capnp";
+using Test = import "../../src/schema/test.capnp";
+using Op = import "../../src/schema/opcodes.capnp";
+using Hierarchy = import "../../src/schema/hierarchy.capnp";
 
 const all: Hierarchy.Tests = (
-  name = "basic",
-  tests = [ .stop, .add ]
+  name = "div",
+  tests = [ .div1, .div2 ]
 );
 
-const stop: Test.InputOutput = (
-  name = "stop",
+const div1: Test.InputOutput = (
+  name = "div1",
   inputOutput = (
     input = (
       gas = 314159,
@@ -28,8 +28,8 @@ const stop: Test.InputOutput = (
   )
 );
 
-const add: Test.InputOutput = (
-  name = "add",
+const div2: Test.InputOutput = (
+  name = "div2",
   inputOutput = (
     input = (
       gas = 314159,

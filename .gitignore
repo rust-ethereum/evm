@@ -11,3 +11,4 @@ test/target/
 benchmark/target/
 **/result
 core
+tests.bin
