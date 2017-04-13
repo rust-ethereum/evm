@@ -1,4 +1,3 @@
-use super::{Machine, Memory, Stack};
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use utils::u256::U256;
 
