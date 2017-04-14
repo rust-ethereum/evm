@@ -499,6 +499,13 @@ impl Opcode {
 
             // TODO: Implement system operations 0xf0 to 0xff
 
+            // For call and create account opcodes, we will need to
+            // create a sub-machine that deal with sub-routines. This
+            // would require creating a Clone function or similar that
+            // can at least fork a new machine. (Persistes Block and
+            // Blockchain but replace PC, Memory, Stack, Storage and
+            // Transaction.)
+
             _ => {
                 unimplemented!();
             }
