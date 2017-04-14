@@ -7,7 +7,7 @@ pub trait Memory {
 }
 
 pub struct VectorMemory {
-    memory: Vec<U256>,
+    memory: Vec<u8>,
 }
 
 impl VectorMemory {
@@ -22,30 +22,34 @@ impl Memory for VectorMemory {
     fn write(&mut self, index: U256, value: U256) {
         // Vector only deals with usize, so the maximum size is
         // actually smaller than 2^256
-        let index_u64: u64 = index.into();
-        let index = index_u64 as usize;
+        let start: usize = index.into();
+        let end = start + 32;
 
-        if self.memory.len() <= index {
-            self.memory.resize(index, 0.into());
+        if self.memory.len() <= end - 1 {
+            self.memory.resize(end - 1, 0u8);
         }
 
-        self.memory[index] = value;
+        let a: &[u8] = value.as_ref();
+        for i in start..end {
+            self.memory[i] = a[i - start];
+        }
     }
 
     fn read(&mut self, index: U256) -> U256 {
         // This is required to be &mut self because a read might modify u_i
+        let start: usize = index.into();
+        let end = start + 32;
 
-        let index_u64: u64 = index.into();
-        let index = index_u64 as usize;
-
-        if self.memory.len() <= index {
-            self.memory.resize(index, 0.into());
+        if self.memory.len() <= end - 1 {
+            self.memory.resize(end - 1, 0.into());
         }
 
-        match self.memory.get(index) {
-            Some(&v) => v,
-            None => 0.into()
+        let mut a: [u8; 32] = [0u8; 32];
+        for i in start..end {
+            a[i - start] = self.memory[i];
         }
+
+        a.into()
     }
 
     fn active_len(&self) -> usize {
