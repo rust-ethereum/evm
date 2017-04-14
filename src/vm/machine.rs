@@ -1,5 +1,7 @@
 use utils::u256::U256;
 use utils::gas::Gas;
+use utils::address::Address;
+
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result};
 use account::{Storage, VectorStorage};
 use blockchain::{Block, Blockchain, FakeBlock, FakeBlockchain};
@@ -25,10 +27,20 @@ pub trait Machine {
 
     fn transaction(&self) -> &Self::T;
     fn block(&self) -> &Self::B;
+    fn block_mut(&mut self) -> &mut Self::B;
     fn blockchain(&self) -> &Self::Bc;
 
     fn use_gas(&mut self, gas: Gas);
     fn used_gas(&self) -> Gas;
+    fn return_values(&self) -> &[u8];
+    fn set_return_values(&mut self, data: &[u8]);
+
+    fn fork<F: FnOnce(&mut Self)>(&mut self, gas: Gas, from: Address,
+                                  to: Address, value: U256,
+                                  memory_in_start: U256,
+                                  memory_in_len: U256,
+                                  memory_out_start: U256,
+                                  memory_out_len: U256, f: F);
 
     fn step(&mut self) -> bool where Self: Sized {
         if self.pc().stopped() || !self.available_gas().is_valid() {
@@ -54,18 +66,22 @@ pub trait Machine {
     }
 }
 
-pub struct VectorMachine<B, Bc> {
+pub struct VectorMachine<'a, B: 'a, Bc: 'a> {
     pc: VectorPC,
     memory: VectorMemory,
     stack: VectorStack,
     storage: VectorStorage,
     transaction: VectorTransaction,
-    block: B,
-    blockchain: Bc,
+    return_values: Vec<u8>,
+    block: &'a mut B,
+    blockchain: &'a Bc,
     used_gas: Gas,
 }
 
-pub type FakeVectorMachine = VectorMachine<FakeBlock, FakeBlockchain>;
+pub type FakeVectorMachine = VectorMachine<'static, FakeBlock, FakeBlockchain>;
+
+static mut FAKE_BLOCK: FakeBlock = FakeBlock;
+static FAKE_BLOCKCHAIN: FakeBlockchain = FakeBlockchain;
 
 impl FakeVectorMachine {
     pub fn new(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
@@ -74,15 +90,17 @@ impl FakeVectorMachine {
             memory: VectorMemory::new(),
             stack: VectorStack::new(),
             storage: VectorStorage::new(),
-            transaction: VectorTransaction::message_call(U256::zero(), data, gas_limit),
-            block: FakeBlock,
-            blockchain: FakeBlockchain,
+            transaction: VectorTransaction::message_call(Address::default(), Address::default(),
+                                                         U256::zero(), data, gas_limit),
+            return_values: Vec::new(),
+            block: unsafe { &mut FAKE_BLOCK }, // FakeBlock doesn't contain any field. So this unsafe is okay.
+            blockchain: &FAKE_BLOCKCHAIN,
             used_gas: Gas::zero(),
         }
     }
 }
 
-impl<B0: Block, Bc0: Blockchain> Machine for VectorMachine<B0, Bc0> {
+impl<'a, B0: Block + 'a, Bc0: Blockchain + 'a> Machine for VectorMachine<'a, B0, Bc0> {
     type P = VectorPC;
     type M = VectorMemory;
     type Sta = VectorStack;
@@ -90,6 +108,14 @@ impl<B0: Block, Bc0: Blockchain> Machine for VectorMachine<B0, Bc0> {
     type T = VectorTransaction;
     type B = B0;
     type Bc = Bc0;
+
+    fn return_values(&self) -> &[u8] {
+        self.return_values.as_ref()
+    }
+
+    fn set_return_values(&mut self, val: &[u8]) {
+        self.return_values = val.into();
+    }
 
     fn use_gas(&mut self, gas: Gas) {
         self.used_gas += gas;
@@ -139,7 +165,64 @@ impl<B0: Block, Bc0: Blockchain> Machine for VectorMachine<B0, Bc0> {
         &self.block
     }
 
+    fn block_mut(&mut self) -> &mut Self::B {
+        &mut self.block
+    }
+
     fn blockchain(&self) -> &Self::Bc {
         &self.blockchain
+    }
+
+    fn fork<F: FnOnce(&mut Self)>(&mut self, gas: Gas, from: Address, to: Address,
+                                  value: U256,
+                                  memory_in_start: U256, memory_in_len: U256,
+                                  memory_out_start: U256, memory_out_len: U256,
+                                  f: F) {
+        use std::mem::swap;
+
+        let from = from;
+        let storage_data: Vec<U256> = self.storage().as_ref().into();
+        self.block_mut().set_account_storage(from, storage_data.as_ref());
+        let mem_in_start: usize = memory_in_start.into();
+        let mem_in_len: usize = memory_in_len.into();
+        let mem_in_end: usize = mem_in_start + mem_in_len;
+        let mem_in: Vec<u8> = self.memory().as_ref()[mem_in_start..mem_in_end].into();
+
+        let mut new_transaction = VectorTransaction::message_call(from, to, value, mem_in.as_ref(), gas);
+        // TODO: register this transaction to the block.
+        let mut new_pc = VectorPC::new(if to == from { self.pc().code() }
+                               else { self.block().account_code(to).unwrap() });
+        let mut new_stack = VectorStack::new();
+        let mut new_memory = VectorMemory::new();
+        let mut new_storage = VectorStorage::with_storage(if to == from { self.storage().as_ref() }
+                                                          else { self.block().account_storage(to) });
+        let mut new_return_values: Vec<u8> = Vec::new();
+        let mut new_used_gas = Gas::zero();
+
+        swap(&mut new_transaction, &mut self.transaction);
+        swap(&mut new_pc, &mut self.pc);
+        swap(&mut new_stack, &mut self.stack);
+        swap(&mut new_memory, &mut self.memory);
+        swap(&mut new_storage, &mut self.storage);
+        swap(&mut new_return_values, &mut self.return_values);
+        swap(&mut new_used_gas, &mut self.used_gas);
+
+        f(self);
+
+        swap(&mut new_transaction, &mut self.transaction);
+        swap(&mut new_pc, &mut self.pc);
+        swap(&mut new_stack, &mut self.stack);
+        swap(&mut new_memory, &mut self.memory);
+        swap(&mut new_storage, &mut self.storage);
+        swap(&mut new_return_values, &mut self.return_values);
+        swap(&mut new_used_gas, &mut self.used_gas);
+
+        let mem_out_start: usize = memory_out_start.into();
+        let mem_out_len: usize = memory_out_len.into();
+        let mem_out_end: usize = mem_out_start + mem_out_len;
+
+        for i in 0..mem_out_end {
+            self.memory_mut().write_raw(memory_out_start + i.into(), new_return_values[i]);
+        }
     }
 }

@@ -11,12 +11,20 @@ pub trait Block {
     fn number(&self) -> U256;
     fn difficulty(&self) -> U256;
     fn gas_limit(&self) -> Gas;
+    fn create_account(&mut self, code: &[u8]) -> Option<Address>;
+    fn account_storage(&self, address: Address) -> &[U256];
+    fn set_account_storage(&mut self, address: Address, storage: &[U256]);
+    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]);
 }
 
 pub struct FakeBlock;
 
 impl Block for FakeBlock {
     fn account_code(&self, address: Address) -> Option<&[u8]> {
+        None
+    }
+
+    fn create_account(&mut self, code: &[u8]) -> Option<Address> {
         None
     }
 
@@ -42,6 +50,18 @@ impl Block for FakeBlock {
 
     fn gas_limit(&self) -> Gas {
         Gas::zero()
+    }
+
+    fn account_storage(&self, address: Address) -> &[U256] {
+        unimplemented!()
+    }
+
+    fn set_account_storage(&mut self, address: Address, storage: &[U256]) {
+        unimplemented!()
+    }
+
+    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]) {
+        unimplemented!()
     }
 }
 

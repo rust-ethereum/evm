@@ -24,6 +24,12 @@ impl VectorStorage {
     }
 }
 
+impl AsRef<[U256]> for VectorStorage {
+    fn as_ref(&self) -> &[U256] {
+        self.storage.as_ref()
+    }
+}
+
 impl Storage for VectorStorage {
     fn write(&mut self, index: U256, value: U256) {
         let index: usize = index.into();
