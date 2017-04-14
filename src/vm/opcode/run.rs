@@ -317,6 +317,75 @@ impl Opcode {
                 machine.stack_mut().push(address.into());
             },
 
+            Opcode::CALLVALUE => {
+                let value = machine.transaction().value();
+                machine.stack_mut().push(value);
+            },
+
+            Opcode::CALLDATALOAD => {
+                let start_index: usize = machine.stack_mut().pop().into();
+                let load = U256::from(&machine.transaction().data()
+                                      .unwrap()[start_index..start_index+32]);
+                machine.stack_mut().push(load);
+            },
+
+            Opcode::CALLDATASIZE => {
+                let len = machine.transaction().data().map_or(0, |s| s.len());
+                machine.stack_mut().push(len.into());
+            },
+
+            Opcode::CALLDATACOPY => {
+                let memory_index = machine.stack_mut().pop();
+                let data_index: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+
+                for i in 0..len {
+                    let val = machine.transaction().data().unwrap()[data_index + i];
+                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                }
+            },
+
+            Opcode::CODESIZE => {
+                let len = machine.pc().code().len();
+                machine.stack_mut().push(len.into());
+            },
+
+            Opcode::CODECOPY => {
+                let memory_index = machine.stack_mut().pop();
+                let code_index: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+
+                for i in 0..len {
+                    let val = machine.pc().code()[code_index + i];
+                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                }
+            },
+
+            Opcode::GASPRICE => {
+                let price: U256 = machine.transaction().gas_price().into();
+                machine.stack_mut().push(price);
+            },
+
+            Opcode::EXTCODESIZE => {
+                let account: Option<Address> = machine.stack_mut().pop().into();
+                let account = account.unwrap();
+                let len = machine.block().account_code(account).map_or(0, |s| s.len());
+                machine.stack_mut().push(len.into());
+            },
+
+            Opcode::EXTCODECOPY => {
+                let account: Option<Address> = machine.stack_mut().pop().into();
+                let account = account.unwrap();
+                let memory_index = machine.stack_mut().pop();
+                let code_index: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+
+                for i in 0..len {
+                    let val = machine.block().account_code(account).unwrap()[code_index + i];
+                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                }
+            },
+
             // TODO: implement opcode 0x21 to 0x4f
 
             Opcode::POP => {
