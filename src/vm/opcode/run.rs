@@ -386,7 +386,36 @@ impl Opcode {
                 }
             },
 
-            // TODO: implement opcode 0x21 to 0x4f
+            Opcode::BLOCKHASH => {
+                let target = machine.stack_mut().pop();
+                let val = machine.blockchain().blockhash(target);
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::COINBASE => {
+                let val = machine.block().coinbase();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::TIMESTAMP => {
+                let val = machine.block().timestamp();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::NUMBER => {
+                let val = machine.block().number();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::DIFFICULTY => {
+                let val = machine.block().difficulty();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::GASLIMIT => {
+                let val = machine.block().gas_limit();
+                machine.stack_mut().push(val.into());
+            },
 
             Opcode::POP => {
                 machine.stack_mut().pop();
