@@ -52,13 +52,13 @@ impl Default for FakeBlock {
 }
 
 pub trait Blockchain {
-    fn blockhash(n: U256) -> H256;
+    fn blockhash(&self, n: U256) -> H256;
 }
 
 pub struct FakeBlockchain;
 
 impl Blockchain for FakeBlockchain {
-    fn blockhash(n: U256) -> H256 {
+    fn blockhash(&self, n: U256) -> H256 {
         H256::default()
     }
 }

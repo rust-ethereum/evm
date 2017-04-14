@@ -60,6 +60,7 @@ impl U256 {
         let mut ret = [0u64; 4];
         let mut carry = false;
         for i in 0..4 {
+            let i = 3 - i;
             let (v, o1) = me[i].overflowing_add(you[i]);
             let (v, o2) = v.overflowing_add(if carry { 1 } else { 0 });
             ret[i] = v;
@@ -71,7 +72,7 @@ impl U256 {
 
     pub fn low_u32(&self) -> u32 {
         let &U256(ref arr) = self;
-        arr[0] as u32
+        arr[3] as u32
     }
 
     pub fn mul_u32(self, other: u32) -> U256 {
@@ -79,6 +80,7 @@ impl U256 {
         let mut carry = [0u64; 4];
         let mut ret = [0u64; 4];
         for i in 0..4 {
+            let i = 3 - i;
             let upper = other as u64 * (arr[i] >> 32);
             let lower = other as u64 * (arr[i] & 0xFFFFFFFF);
             if i < 3 {
@@ -92,6 +94,7 @@ impl U256 {
     pub fn bits(&self) -> usize {
         let &U256(ref arr) = self;
         for i in 1..4 {
+            let i = 3 - i;
             if arr[4 - i] > 0 { return (0x40 * (4 - i + 1)) - arr[4 - i].leading_zeros() as usize; }
         }
         0x40 - arr[0].leading_zeros() as usize
@@ -101,6 +104,7 @@ impl U256 {
         assert!(*self != U256::zero());
         let mut l: isize = 256;
         for i in 0..4 {
+            let i = 3 - i;
             if self.0[3 - i] == 0u64 {
                 l -= 64;
             } else {
@@ -132,14 +136,14 @@ impl From<bool> for U256 {
 
 impl From<u64> for U256 {
     fn from(val: u64) -> U256 {
-        U256([val, 0, 0, 0])
+        U256([0, 0, 0, val])
     }
 }
 
 impl Into<u64> for U256 {
     fn into(self) -> u64 {
-        assert!(self.0[1] == 0 && self.0[2] == 0 && self.0[3] == 0);
-        self.0[0]
+        assert!(self.0[0] == 0 && self.0[1] == 0 && self.0[2] == 0);
+        self.0[3]
     }
 }
 
@@ -170,7 +174,7 @@ impl<'a> From<&'a [u8]> for U256 {
         for i in 0..val.len() {
             let rev = val.len() - 1 - i;
             let pos = rev / 8;
-            u256.0[pos] += (val[i] as u64) << ((rev % 8) * 8);
+            u256.0[3 - pos] += (val[i] as u64) << ((rev % 8) * 8);
         }
 
         u256
@@ -190,6 +194,7 @@ impl Not for U256 {
         let U256(ref arr) = self;
         let mut ret = [0u64; 4];
         for i in 0..4 {
+            let i = 3 - i;
             ret[i] = !arr[i];
         }
         U256(ret)
@@ -270,11 +275,11 @@ impl Ord for U256 {
     fn cmp(&self, other: &U256) -> Ordering {
 	let &U256(ref me) = self;
 	let &U256(ref you) = other;
-	let mut i = 4;
-	while i > 0 {
-	    i -= 1;
+	let mut i = 0;
+	while i < 4 {
 	    if me[i] < you[i] { return Ordering::Less; }
 	    if me[i] > you[i] { return Ordering::Greater; }
+            i -= 1;
 	}
 	Ordering::Equal
     }
@@ -295,6 +300,7 @@ impl Shl<usize> for U256 {
         let word_shift = shift / 64;
         let bit_shift = shift % 64;
         for i in 0..4 {
+            let i = 3 - i;
             // Shift
             if bit_shift < 64 && i + word_shift < 4 {
                 ret[i + word_shift] += original[i] << bit_shift;
@@ -317,6 +323,7 @@ impl Shr<usize> for U256 {
         let word_shift = shift / 64;
         let bit_shift = shift % 64;
         for i in word_shift..4 {
+            let i = 3 - i;
             // Shift
             ret[i - word_shift] += original[i] >> bit_shift;
             // Carry
@@ -371,9 +378,9 @@ mod tests {
     #[test]
     fn u256_add() {
         assert_eq!(
-            U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64]) +
-            U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64]),
-            U256([0xfffffffffffffffeu64, 1u64, 0u64, 0u64])
+            U256([0u64, 0u64, 0u64, 0xffffffffffffffffu64]) +
+            U256([0u64, 0u64, 0u64, 0xffffffffffffffffu64]),
+            U256([0u64, 0u64, 1u64, 0xfffffffffffffffeu64])
         );
     }
 
@@ -388,9 +395,9 @@ mod tests {
     #[test]
     fn u256_sub() {
         assert_eq!(
-            U256([0xfffffffffffffffeu64, 1u64, 0u64, 0u64]) -
-            U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64]),
-            U256([0xffffffffffffffffu64, 0u64, 0u64, 0u64])
+            U256([0u64, 0u64, 1u64, 0xfffffffffffffffeu64]) -
+            U256([0u64, 0u64, 0u64, 0xffffffffffffffffu64]),
+            U256([0u64, 0u64, 0u64, 0xffffffffffffffffu64])
         );
     }
 
@@ -430,7 +437,7 @@ mod tests {
                 .log2floor(),
             256, "testing log2floor for max value");
         assert_eq!(
-            U256([0x1u64, 0u64, 0u64, 0u64]).log2floor(),
+            U256([0u64, 0u64, 0u64, 1u64]).log2floor(),
             1, "testing log2floor for 1");
     }
 }

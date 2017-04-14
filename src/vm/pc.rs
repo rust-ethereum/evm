@@ -10,6 +10,7 @@ pub trait PC {
     fn read(&mut self, byte_count: usize) -> U256;
     fn position(&self) -> usize;
     fn jump(&mut self, position: usize);
+    fn code(&self) -> &[u8];
 }
 
 pub struct VectorPC {
@@ -29,6 +30,10 @@ impl VectorPC {
 }
 
 impl PC for VectorPC {
+    fn code(&self) -> &[u8] {
+        self.code.as_ref()
+    }
+
     fn jump(&mut self, position: usize) {
         self.position = position;
     }

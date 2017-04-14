@@ -317,7 +317,105 @@ impl Opcode {
                 machine.stack_mut().push(address.into());
             },
 
-            // TODO: implement opcode 0x21 to 0x4f
+            Opcode::CALLVALUE => {
+                let value = machine.transaction().value();
+                machine.stack_mut().push(value);
+            },
+
+            Opcode::CALLDATALOAD => {
+                let start_index: usize = machine.stack_mut().pop().into();
+                let load = U256::from(&machine.transaction().data()
+                                      .unwrap()[start_index..start_index+32]);
+                machine.stack_mut().push(load);
+            },
+
+            Opcode::CALLDATASIZE => {
+                let len = machine.transaction().data().map_or(0, |s| s.len());
+                machine.stack_mut().push(len.into());
+            },
+
+            Opcode::CALLDATACOPY => {
+                let memory_index = machine.stack_mut().pop();
+                let data_index: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+
+                for i in 0..len {
+                    let val = machine.transaction().data().unwrap()[data_index + i];
+                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                }
+            },
+
+            Opcode::CODESIZE => {
+                let len = machine.pc().code().len();
+                machine.stack_mut().push(len.into());
+            },
+
+            Opcode::CODECOPY => {
+                let memory_index = machine.stack_mut().pop();
+                let code_index: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+
+                for i in 0..len {
+                    let val = machine.pc().code()[code_index + i];
+                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                }
+            },
+
+            Opcode::GASPRICE => {
+                let price: U256 = machine.transaction().gas_price().into();
+                machine.stack_mut().push(price);
+            },
+
+            Opcode::EXTCODESIZE => {
+                let account: Option<Address> = machine.stack_mut().pop().into();
+                let account = account.unwrap();
+                let len = machine.block().account_code(account).map_or(0, |s| s.len());
+                machine.stack_mut().push(len.into());
+            },
+
+            Opcode::EXTCODECOPY => {
+                let account: Option<Address> = machine.stack_mut().pop().into();
+                let account = account.unwrap();
+                let memory_index = machine.stack_mut().pop();
+                let code_index: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+
+                for i in 0..len {
+                    let val = machine.block().account_code(account).unwrap()[code_index + i];
+                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                }
+            },
+
+            Opcode::BLOCKHASH => {
+                let target = machine.stack_mut().pop();
+                let val = machine.blockchain().blockhash(target);
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::COINBASE => {
+                let val = machine.block().coinbase();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::TIMESTAMP => {
+                let val = machine.block().timestamp();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::NUMBER => {
+                let val = machine.block().number();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::DIFFICULTY => {
+                let val = machine.block().difficulty();
+                machine.stack_mut().push(val.into());
+            },
+
+            Opcode::GASLIMIT => {
+                let val = machine.block().gas_limit();
+                machine.stack_mut().push(val.into());
+            },
 
             Opcode::POP => {
                 machine.stack_mut().pop();
@@ -400,6 +498,13 @@ impl Opcode {
             // TODO: Implement log entries LOG0, LOG1, LOG2, LOG3, LOG4
 
             // TODO: Implement system operations 0xf0 to 0xff
+
+            // For call and create account opcodes, we will need to
+            // create a sub-machine that deal with sub-routines. This
+            // would require creating a Clone function or similar that
+            // can at least fork a new machine. (Persistes Block and
+            // Blockchain but replace PC, Memory, Stack, Storage and
+            // Transaction.)
 
             _ => {
                 unimplemented!();
