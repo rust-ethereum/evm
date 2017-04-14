@@ -101,7 +101,7 @@ fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going
         let test = test.test;
         let eo = test.get_expected_output().expect("failed to get expected output");
         let io = test.get_input_output().expect("failed to get actual input output");
-        let io = evaluate(io).expect("failed to evaluate");
+        // let io = evaluate(io).expect("failed to evaluate");
         let ao_gas = io.get_output().expect("").get_gas();
         let eo_gas = eo.get_gas();
         let ao_code = io.get_output().expect("").get_code().expect("").iter();
