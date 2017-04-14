@@ -435,6 +435,13 @@ impl Opcode {
                 machine.memory_mut().write(op1, op2);
             },
 
+            Opcode::MSTORE8 => {
+                let op1 = machine.stack_mut().pop(); // Index
+                let op2 = machine.stack_mut().pop(); // Data
+                let val = op2.as_ref()[31];
+                machine.memory_mut().write_raw(op1, val);
+            },
+
             Opcode::SLOAD => {
                 let op1 = machine.stack_mut().pop();
                 let val = machine.storage_mut().read(op1);
@@ -495,19 +502,112 @@ impl Opcode {
                 machine.stack_mut().set(v, val1);
             },
 
-            // TODO: Implement log entries LOG0, LOG1, LOG2, LOG3, LOG4
+            Opcode::LOG(v) => {
+                let address = machine.transaction().callee();
+                let mut data: Vec<u8> = Vec::new();
+                let start = machine.stack_mut().pop();
+                let len: usize = machine.stack_mut().pop().into();
 
-            // TODO: Implement system operations 0xf0 to 0xff
+                for i in 0..len {
+                    data.push(machine.memory_mut().read_raw(start + i.into()));
+                }
 
-            // For call and create account opcodes, we will need to
-            // create a sub-machine that deal with sub-routines. This
-            // would require creating a Clone function or similar that
-            // can at least fork a new machine. (Persistes Block and
-            // Blockchain but replace PC, Memory, Stack, Storage and
-            // Transaction.)
+                let mut topics: Vec<U256> = Vec::new();
 
-            _ => {
-                unimplemented!();
+                for i in 0..v {
+                    topics.push(machine.stack_mut().pop());
+                }
+
+                machine.block_mut().log(address, data.as_ref(), topics.as_ref());
+            },
+
+            Opcode::CREATE => {
+                // TODO: Register the transaction for its value.
+                let value = machine.stack_mut().pop();
+                let start: usize = machine.stack_mut().pop().into();
+                let len: usize = machine.stack_mut().pop().into();
+                let code: Vec<u8> = machine.pc().code()[start..(start + len)].into();
+                let address = machine.block_mut().create_account(code.as_ref());
+                machine.stack_mut().push(address.unwrap().into());
+            },
+
+            Opcode::CALL => {
+                let gas: Gas = machine.stack_mut().pop().into();
+                let from = machine.transaction().callee();
+                let to: Option<Address> = machine.stack_mut().pop().into();
+                let to = to.unwrap();
+                let value = machine.stack_mut().pop().into();
+                let memory_in_start = machine.stack_mut().pop();
+                let memory_in_len = machine.stack_mut().pop();
+                let memory_out_start = machine.stack_mut().pop();
+                let memory_out_len = machine.stack_mut().pop();
+
+                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
+                             memory_out_start, memory_out_len, |machine| {
+                                 machine.fire();
+                             });
+
+                machine.stack_mut().push(U256::zero());
+            },
+
+            Opcode::CALLCODE => {
+                let gas: Gas = machine.stack_mut().pop().into();
+                machine.stack_mut().pop();
+                let from = machine.transaction().callee();
+                let to = machine.transaction().callee();
+                let value = machine.stack_mut().pop().into();
+                let memory_in_start = machine.stack_mut().pop();
+                let memory_in_len = machine.stack_mut().pop();
+                let memory_out_start = machine.stack_mut().pop();
+                let memory_out_len = machine.stack_mut().pop();
+
+                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
+                             memory_out_start, memory_out_len, |machine| {
+                                 machine.fire();
+                             });
+
+                machine.stack_mut().push(U256::zero());
+            },
+
+            Opcode::RETURN => {
+                let start = machine.stack_mut().pop();
+                let len: usize = machine.stack_mut().pop().into();
+                let mut vec: Vec<u8> = Vec::new();
+
+                for i in 0..len {
+                    vec.push(machine.memory_mut().read_raw(start + i.into()));
+                }
+
+                machine.set_return_values(vec.as_ref());
+                machine.pc_mut().stop();
+            },
+
+            Opcode::DELEGATECALL => {
+                let gas: Gas = machine.stack_mut().pop().into();
+                let from = machine.transaction().sender();
+                let to: Option<Address> = machine.stack_mut().pop().into();
+                let to = to.unwrap();
+                let value = machine.transaction().value();
+                let memory_in_start = machine.stack_mut().pop();
+                let memory_in_len = machine.stack_mut().pop();
+                let memory_out_start = machine.stack_mut().pop();
+                let memory_out_len = machine.stack_mut().pop();
+
+                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
+                             memory_out_start, memory_out_len, |machine| {
+                                 machine.fire();
+                             });
+
+                machine.stack_mut().push(U256::zero());
+            },
+
+            Opcode::SUICIDE => {
+                machine.stack_mut().pop();
+                machine.pc_mut().stop();
+            },
+
+            Opcode::INVALID => {
+                machine.pc_mut().stop();
             }
         }
     }

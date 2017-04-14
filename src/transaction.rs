@@ -30,13 +30,14 @@ pub struct VectorTransaction {
 }
 
 impl VectorTransaction {
-    pub fn message_call(value: U256, data: &[u8], gas_limit: Gas) -> VectorTransaction {
+    pub fn message_call(from: Address, to: Address,
+                        value: U256, data: &[u8], gas_limit: Gas) -> VectorTransaction {
         VectorTransaction {
             gas_price: Gas::zero(),
             gas_limit: gas_limit,
-            sender: Address::default(),
-            callee: Address::default(),
-            originator: Address::default(),
+            sender: from,
+            callee: to,
+            originator: from,
             value: value,
             data: Some(data.into()),
             init: None

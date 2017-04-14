@@ -37,6 +37,12 @@ impl VectorMemory {
     }
 }
 
+impl AsRef<[u8]> for VectorMemory {
+    fn as_ref(&self) -> &[u8] {
+        self.memory.as_ref()
+    }
+}
+
 impl Memory for VectorMemory {
     fn write(&mut self, index: U256, value: U256) {
         // Vector only deals with usize, so the maximum size is

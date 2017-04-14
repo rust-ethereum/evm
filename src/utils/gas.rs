@@ -13,6 +13,13 @@ impl From<isize> for Gas {
     fn from(val: isize) -> Gas { Gas(val) }
 }
 
+impl From<U256> for Gas {
+    fn from(val: U256) -> Self {
+        let u: usize = val.into();
+        Gas::from(u as isize)
+    }
+}
+
 impl Into<U256> for Gas {
     fn into(self) -> U256 {
         assert!(self.is_valid());
