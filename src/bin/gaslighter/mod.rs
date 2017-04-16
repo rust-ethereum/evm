@@ -17,7 +17,7 @@ use capnp::{serialize, message};
 
 struct ExecuteTest<'a> {
     pub name: String,
-    pub test: test_capnp::input_output::Reader<'a>,
+    pub capnp: test_capnp::input_output::Reader<'a>,
 }
 
 fn main() {
@@ -65,7 +65,7 @@ fn main() {
                     if add_dir && add_file && add_test {
                         let execute_test = ExecuteTest {
                             name: format!("{}::{}::{}", dirname, filename, testname),
-                            test: test,
+                            capnp: test,
                         };
                         tests_to_execute.push(execute_test);
                     }
@@ -85,10 +85,10 @@ fn test_scope(test_to_run: String) -> (String, String, String) {
     (vec[0].into(), vec[1].into(), vec[2].into())
 }
 
-fn evaluate(msg: vm_capnp::input_output::Reader) -> libloading::Result<vm_capnp::input_output::Reader> {
+fn evaluate(msg: std::vec::Vec<capnp::Word>) -> libloading::Result<std::vec::Vec<capnp::Word>> {
     let lib = libloading::Library::new("libsputnikvm.so").expect("cannot load");
     unsafe {
-        let func: libloading::Symbol<unsafe extern fn(vm_capnp::input_output::Reader) -> vm_capnp::input_output::Reader> = try!(lib.get(b"evaluate"));
+        let func: libloading::Symbol<unsafe extern fn(std::vec::Vec<capnp::Word>) -> std::vec::Vec<capnp::Word>> = try!(lib.get(b"evaluate"));
         Ok(func(msg))
     }
 }
@@ -98,12 +98,17 @@ fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going
     let mut has_all_tests_passed = true;
     for test in tests_to_execute {
         print!("sputnikvm test {} ", test.name);
-        let test = test.test;
+        let test = test.capnp;
         let eo = test.get_expected_output().expect("failed to get expected output");
         let io = test.get_input_output().expect("failed to get actual input output");
-        // let io = evaluate(io).expect("failed to evaluate");
-        let ao_gas = io.get_output().expect("").get_gas();
-        let eo_gas = eo.get_gas();
+        let mut message = message::Builder::new_default();
+        message.set_root(io);
+        let mut vm_resp = serialize::write_message_to_words(&message);
+        let vm_resp = evaluate(vm_resp).expect("failed to evaluate");
+        let io = serialize::read_message_from_words(vm_resp.as_slice(), message::ReaderOptions::new()).expect("failed to read vm response");
+        let io = io.get_root::<vm_capnp::input_output::Reader>().expect("failed to get root");
+        let ao_gas = io.get_output().expect("failed to get output").get_used_gas();
+        let eo_gas = eo.get_used_gas();
         let ao_code = io.get_output().expect("").get_code().expect("").iter();
         let eo_code = eo.get_code().expect("").iter();
         let mut ao_vec = Vec::new();

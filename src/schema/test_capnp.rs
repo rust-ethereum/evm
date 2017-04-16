@@ -50,7 +50,7 @@ pub mod expected_output {
       self.reader.total_size()
     }
     #[inline]
-    pub fn get_gas(self) -> i32 {
+    pub fn get_used_gas(self) -> i32 {
       self.reader.get_data_field::<i32>(0)
     }
     #[inline]
@@ -111,11 +111,11 @@ pub mod expected_output {
       self.builder.as_reader().total_size()
     }
     #[inline]
-    pub fn get_gas(self) -> i32 {
+    pub fn get_used_gas(self) -> i32 {
       self.builder.get_data_field::<i32>(0)
     }
     #[inline]
-    pub fn set_gas(&mut self, value: i32)  {
+    pub fn set_used_gas(&mut self, value: i32)  {
       self.builder.set_data_field::<i32>(0, value);
     }
     #[inline]
