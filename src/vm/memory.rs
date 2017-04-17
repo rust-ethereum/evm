@@ -50,8 +50,8 @@ impl Memory for VectorMemory {
         let start: usize = index.into();
         let end = start + 32;
 
-        if self.memory.len() <= end - 1 {
-            self.memory.resize(end - 1, 0u8);
+        if self.memory.len() <= end {
+            self.memory.resize(end, 0u8);
         }
 
         let a: &[u8] = value.as_ref();
@@ -64,7 +64,7 @@ impl Memory for VectorMemory {
         let index: usize = index.into();
 
         if self.memory.len() <= index {
-            self.memory.resize(index, 0u8);
+            self.memory.resize(index + 1, 0u8);
         }
 
         self.memory[index] = value;
@@ -75,8 +75,8 @@ impl Memory for VectorMemory {
         let start: usize = index.into();
         let end = start + 32;
 
-        if self.memory.len() <= end - 1 {
-            self.memory.resize(end - 1, 0u8);
+        if self.memory.len() <= end {
+            self.memory.resize(end, 0u8);
         }
 
         let mut a: [u8; 32] = [0u8; 32];
@@ -91,7 +91,7 @@ impl Memory for VectorMemory {
         let index: usize = index.into();
 
         if self.memory.len() <= index {
-            self.memory.resize(index, 0u8);
+            self.memory.resize(index + 1, 0u8);
         }
 
         self.memory[index]

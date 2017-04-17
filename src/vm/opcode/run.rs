@@ -46,9 +46,21 @@ impl Opcode {
                 machine.pc_mut().stop();
             },
 
-            Opcode::ADD => op2!(machine, add),
+            Opcode::ADD => {
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
+                let (r, o) = op1.overflowing_add(op2);
+                machine.stack_mut().push(r);
+            },
+
             Opcode::MUL => op2!(machine, mul),
-            Opcode::SUB => op2!(machine, sub),
+
+            Opcode::SUB => {
+                let op1 = machine.stack_mut().pop();
+                let op2 = machine.stack_mut().pop();
+                let (r, o) = op1.overflowing_sub(op2);
+                machine.stack_mut().push(r);
+            },
 
             Opcode::DIV => {
                 let op1 = machine.stack_mut().pop();
