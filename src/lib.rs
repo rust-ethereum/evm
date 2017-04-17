@@ -51,7 +51,7 @@ pub extern fn evaluate(ptr: *mut Reader) {
         }
     }
     {
-        msg.borrow().get_input().unwrap().set_gas(444);
+        msg.borrow().get_input().unwrap().set_initial_gas(444);
     }
     let msg_reader = msg.as_reader();
     let mut code_vec = Vec::new();
@@ -64,7 +64,7 @@ pub extern fn evaluate(ptr: *mut Reader) {
     for in_char in in_data {
         data_vec.push(in_char.expect("character expected")[0]);
     }
-    let gas = msg_reader.get_input().unwrap().get_gas();
+    let gas = msg_reader.get_input().unwrap().get_initial_gas();
 
     let mut machine = FakeVectorMachine::new(
         code_vec.as_slice()
