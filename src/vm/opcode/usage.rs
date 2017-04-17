@@ -58,7 +58,8 @@ impl Opcode {
             // Unimplemented
             Opcode::SSTORE | Opcode::CALL | Opcode::CALLCODE |
             Opcode::DELEGATECALL | Opcode::SUICIDE =>
-                unimplemented!(),
+                // unimplemented!(),
+                Gas::zero(),
 
             Opcode::SHA3 => {
                 let u_s1: u64 = (stack.peek(1)).into();
