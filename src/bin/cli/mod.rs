@@ -4,40 +4,13 @@ extern crate clap;
 extern crate log;
 extern crate sputnikvm;
 
-use sputnikvm::Gas;
+use sputnikvm::{read_hex, Gas};
 use sputnikvm::vm::{Machine, FakeVectorMachine};
 
 use std::error::Error;
 use std::fs::File;
 use std::io::prelude::*;
 use log::LogLevel;
-
-pub fn read_hex(s: &str) -> Option<Vec<u8>> {
-    let mut res = Vec::<u8>::new();
-
-    let mut cur = 0;
-    let mut len = 0;
-    for c in s.chars() {
-        len += 1;
-        let v_option = c.to_digit(16);
-        if v_option.is_none() {
-            return None;
-        }
-        let v = v_option.unwrap();
-        if len == 1 {
-            cur += v * 16;
-        } else { // len == 2
-            cur += v;
-        }
-        if len == 2 {
-            res.push(cur as u8);
-            cur = 0;
-            len = 0;
-        }
-    }
-
-    return Some(res);
-}
 
 fn main() {
     let matches = clap_app!(svm =>
