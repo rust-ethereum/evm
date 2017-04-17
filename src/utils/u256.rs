@@ -70,6 +70,12 @@ impl U256 {
         (U256(ret), carry)
     }
 
+    pub fn overflowing_sub(self, other: U256) -> (U256, bool) {
+        let (o, v) = self.overflowing_add(!other);
+        let (o, v2) = o.overflowing_add(U256::one());
+        (o, v || v2)
+    }
+
     pub fn low_u32(&self) -> u32 {
         let &U256(ref arr) = self;
         arr[3] as u32

@@ -1,4 +1,5 @@
 use utils::u256::U256;
+use utils::read_hex;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub struct Address([u8; 20]);
@@ -33,6 +34,24 @@ impl From<U256> for Option<Address> {
             }
 
             Some(Address(a))
+        }
+    }
+}
+
+impl Address {
+    pub fn from_str(s: &str) -> Option<Address> {
+        let v = read_hex(s);
+        if v.is_none() { return None; }
+        let v = v.unwrap();
+
+        if v.len() == 20 {
+            let mut a = [0u8; 20];
+            for i in 0..20 {
+                a[i] = v[i];
+            }
+            Some(Address(a))
+        } else {
+            None
         }
     }
 }
