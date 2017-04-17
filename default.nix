@@ -35,32 +35,17 @@ env = stdenv.mkDerivation {
     rustc cargo capnproto
   ];
 };
-jsontests = stdenv.mkDerivation {
-  name = "tests";
-  version = "0.1.0";
-  src = fetchFromGitHub {
-    owner = "ethereumproject";
-    repo = "tests";
-    rev = "d2081b17e81132e72f09a44f9d823bf6cbe6c281";
-    sha256 = "10n4m2jdicbbj3rz4s63g2jklj0gkckanfi35fwjbdwf68pahnkn";
-  };
-  installPhase = ''
-    mkdir -p $out
-    mv * $out
-  '';
-};
 sputnikvm = rustPlatform.buildRustPackage (rec {
   name = "sputnikvm-${version}";
   version = "0.1.0";
   src = ./.;
-  depsSha256 = "1fy3w93f786jvl903ikphw7zbrc3f5wjlmld3w4pr8vfglsga29r";
+  depsSha256 = "0a6wsmg6y5j0arknh9kjkyn9scvq3zk8dz5y8v18frdljla1h3yv";
   buildInputs = [ capnproto perl ];
   doCheck = true;
   checkPhase = ''
     ${capnproto}/bin/capnp eval -b tests/mod.capnp all > tests.bin
     cargo test
     target/release/gaslighter --capnp_test_bin tests.bin --run_test /// -k
-    RUST_BACKTRACE=1 target/release/jsonlighter --file ${jsontests}/VMTests/vmArithmeticTest.json --test add0
   '';
   });
 in {
