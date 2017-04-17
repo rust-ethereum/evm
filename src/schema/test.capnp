@@ -7,7 +7,7 @@ using Vm = import "vm.capnp";
 # see the struct ExpectedOutput for the expected output
 
 struct ExpectedOutput {
-  gas @0 :Int32;
+  usedGas @0 :Int32;
   code @1 :List(Data);
 }
 

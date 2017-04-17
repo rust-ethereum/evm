@@ -13,17 +13,17 @@ const add1: Test.InputOutput = (
   name = "add1",
   inputOutput = (
     input = (
-      gas = 314159,
+      initialGas = 314159,
       code = [ Op.STOP, Op.STOP ],
       data = [ Op.STOP, Op.STOP ]
     ),
     output = (
-      gas = 314159,
+      usedGas = 314159,
       code = [ Op.ADD, Op.LT, Op.GT, Op.GT ]
     )
   ),
   expectedOutput = (
-    gas = 314159,
+    usedGas = 314159,
     code = [ Op.ADD, Op.LT, Op.GT, Op.GT ]
   )
 );
@@ -32,17 +32,17 @@ const add2: Test.InputOutput = (
   name = "add2",
   inputOutput = (
     input = (
-      gas = 314159,
+      initialGas = 314159,
       code = [ Op.STOP, Op.STOP ],
       data = [ Op.STOP, Op.STOP ]
     ),
     output = (
-      gas = 314159,
+      usedGas = 314159,
       code = [ Op.STOP, Op.STOP ]
     )
   ),
   expectedOutput = (
-    gas = 314159,
+    usedGas = 314159,
     code = [ Op.STOP, Op.STOP]
   )
 );
