@@ -13,3 +13,4 @@ pub use utils::u256::U256;
 pub use utils::gas::Gas;
 pub use utils::hash::H256;
 pub use utils::address::Address;
+pub use utils::read_hex;

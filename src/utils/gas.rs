@@ -1,5 +1,6 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
 use utils::u256::U256;
+use utils::read_hex;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Gas(isize);
@@ -7,6 +8,19 @@ pub struct Gas(isize);
 impl Gas {
     pub fn zero() -> Gas { Gas(0) }
     pub fn is_valid(&self) -> bool { self.0 >= 0 }
+
+    pub fn from_str(s: &str) -> Option<Gas> {
+        let v = read_hex(s);
+        if v.is_none() { return None; }
+        let v = v.unwrap();
+
+        let mut g: isize = 0;
+        for i in 0..v.len() {
+            let j = v.len() - i - 1;
+            g += (v[i] as isize) << (j * 8);
+        }
+        Some(Gas(g))
+    }
 }
 
 impl From<isize> for Gas {
