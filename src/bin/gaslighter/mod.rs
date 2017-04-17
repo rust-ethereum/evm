@@ -104,7 +104,9 @@ fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going
         let mut message = message::Builder::new_default();
         message.set_root(io);
         let mut vm_resp = serialize::write_message_to_words(&message);
+        println!("\n\nbefore: {:?}\n\n", vm_resp);
         let vm_resp = evaluate(vm_resp).expect("failed to evaluate");
+        println!("\n\nafter: {:?}\n\n", vm_resp);
         let io = serialize::read_message_from_words(vm_resp.as_slice(), message::ReaderOptions::new()).expect("failed to read vm response");
         let io = io.get_root::<vm_capnp::input_output::Reader>().expect("failed to get root");
         let ao_gas = io.get_output().expect("failed to get output").get_used_gas();

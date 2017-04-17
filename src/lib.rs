@@ -8,6 +8,7 @@ pub mod vm;
 pub mod account;
 pub mod transaction;
 pub mod blockchain;
+
 mod utils;
 mod vm_capnp;
 
@@ -18,53 +19,30 @@ pub use utils::address::Address;
 pub use utils::read_hex;
 
 use std::io::BufReader;
-use capnp::{serialize, message};
+use capnp::{serialize, message, Word};
 use log::LogLevel;
-
 use vm_capnp::input_output::Reader;
 use vm::{Machine, FakeVectorMachine};
 
-
 #[no_mangle]
-pub extern fn evaluate(ptr: *mut Reader) {
+pub extern fn evaluate(ptr: *mut std::vec::Vec<capnp::Word>) {
     let msg = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    // let io_reader = serialize::read_message(&mut msg, message::ReaderOptions::new()).expect("read message failed.");
-    // let io = io_reader.get_root::<Reader>().expect("Failed to get VM IO.");
-    // println!("{}", io.get_input().expect("FAILED").get_gas());
-
-    let mut message = message::Builder::new_default();
-    let mut msg = message.init_root::<vm_capnp::input_output::Builder>();
-    msg.borrow().init_input();
-    {
-        let mut code = msg.borrow().get_input().unwrap().init_code(4);
-        for i in 0..code.len() {
-            code.set(i, &[b'0']);
-        }
-    }
-    {
-        let mut data = msg.borrow().get_input().unwrap().init_data(4);
-        for i in 0..data.len() {
-            data.set(i, &[b'0']);
-        }
-    }
-    {
-        msg.borrow().get_input().unwrap().set_initial_gas(444);
-    }
-    let msg_reader = msg.as_reader();
+    let message = serialize::read_message_from_words(&msg, message::ReaderOptions::new()).expect("");
+    let msg_reader = message.get_root::<vm_capnp::input_output::Reader>().expect("");
     let mut code_vec = Vec::new();
     let mut data_vec = Vec::new();
-    let in_code = msg_reader.get_input().unwrap().get_code().expect("").iter();
-    let in_data = msg_reader.get_input().unwrap().get_data().expect("").iter();
+    let in_code = msg_reader.get_input().expect("input fail").get_code().expect("input::code fail").iter();
+    let in_data = msg_reader.get_input().expect("input fail").get_data().expect("input::data fail").iter();
     for in_char in in_code {
         code_vec.push(in_char.expect("character expected")[0]);
     }
     for in_char in in_data {
         data_vec.push(in_char.expect("character expected")[0]);
     }
-    let gas = msg_reader.get_input().unwrap().get_initial_gas();
+    let gas = msg_reader.get_input().expect("failed3").get_initial_gas();
 
     let mut machine = FakeVectorMachine::new(
         code_vec.as_slice()
