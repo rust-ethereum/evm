@@ -35,7 +35,7 @@ impl Storage for VectorStorage {
         let index: usize = index.into();
 
         if self.storage.len() <= index {
-            self.storage.resize(index, 0.into());
+            self.storage.resize(index + 1, 0.into());
         }
 
         self.storage[index] = value;
