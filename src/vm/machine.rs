@@ -3,7 +3,6 @@ use utils::gas::Gas;
 use utils::address::Address;
 
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result};
-use account::{Storage, VectorStorage};
 use blockchain::{Block, FakeBlock};
 use transaction::{Transaction, VectorTransaction};
 
@@ -11,7 +10,6 @@ pub trait Machine {
     type P: PC;
     type M: Memory;
     type Sta: Stack;
-    type Sto: Storage;
     type T: Transaction;
     type B: Block;
 
@@ -21,8 +19,6 @@ pub trait Machine {
     fn memory_mut(&mut self) -> &mut Self::M;
     fn stack(&self) -> &Self::Sta;
     fn stack_mut(&mut self) -> &mut Self::Sta;
-    fn storage(&self) -> &Self::Sto;
-    fn storage_mut(&mut self) -> &mut Self::Sto;
 
     fn transaction(&self) -> &Self::T;
     fn block(&self) -> &Self::B;
@@ -68,10 +64,9 @@ pub struct VectorMachine<'a, B: 'a> {
     pc: VectorPC,
     memory: VectorMemory,
     stack: VectorStack,
-    storage: VectorStorage,
     transaction: VectorTransaction,
     return_values: Vec<u8>,
-    block: &'a mut B,
+    block: Option<&'a mut B>,
     used_gas: Gas,
 }
 
@@ -85,11 +80,10 @@ impl FakeVectorMachine {
             pc: VectorPC::new(code),
             memory: VectorMemory::new(),
             stack: VectorStack::new(),
-            storage: VectorStorage::new(),
             transaction: VectorTransaction::message_call(Address::default(), Address::default(),
                                                          U256::zero(), data, gas_limit),
             return_values: Vec::new(),
-            block: unsafe { &mut FAKE_BLOCK }, // FakeBlock doesn't contain any field. So this unsafe is okay.
+            block: Some(unsafe { &mut FAKE_BLOCK }), // FakeBlock doesn't contain any field. So this unsafe is okay.
             used_gas: Gas::zero(),
         }
     }
@@ -99,7 +93,6 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
     type P = VectorPC;
     type M = VectorMemory;
     type Sta = VectorStack;
-    type Sto = VectorStorage;
     type T = VectorTransaction;
     type B = B0;
 
@@ -143,24 +136,16 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
         &mut self.stack
     }
 
-    fn storage(&self) -> &Self::Sto {
-        &self.storage
-    }
-
-    fn storage_mut(&mut self) -> &mut Self::Sto {
-        &mut self.storage
-    }
-
     fn transaction(&self) -> &Self::T {
         &self.transaction
     }
 
     fn block(&self) -> &Self::B {
-        &self.block
+        self.block.as_ref().unwrap()
     }
 
     fn block_mut(&mut self) -> &mut Self::B {
-        &mut self.block
+        self.block.as_mut().unwrap()
     }
 
     fn fork<F: FnOnce(&mut Self)>(&mut self, gas: Gas, from: Address, to: Address,
@@ -171,48 +156,35 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
         use std::mem::swap;
 
         let from = from;
-        let storage_data: Vec<U256> = self.storage().as_ref().into();
-        self.block_mut().set_account_storage(from, storage_data.as_ref());
         let mem_in_start: usize = memory_in_start.into();
         let mem_in_len: usize = memory_in_len.into();
         let mem_in_end: usize = mem_in_start + mem_in_len;
         let mem_in: Vec<u8> = self.memory().as_ref()[mem_in_start..mem_in_end].into();
 
-        let mut new_transaction = VectorTransaction::message_call(from, to, value, mem_in.as_ref(), gas);
-        // TODO: register this transaction to the block.
-        let mut new_pc = VectorPC::new(if to == from { self.pc().code() }
-                               else { self.block().account_code(to).unwrap() });
-        let mut new_stack = VectorStack::new();
-        let mut new_memory = VectorMemory::new();
-        let mut new_storage = VectorStorage::with_storage(if to == from { self.storage().as_ref() }
-                                                          else { self.block().account_storage(to) });
-        let mut new_return_values: Vec<u8> = Vec::new();
-        let mut new_used_gas = Gas::zero();
+        let mut submachine = VectorMachine {
+            pc: VectorPC::new(if to == from { self.pc().code() }
+                              else { self.block().account_code(to).unwrap() }),
+            memory: VectorMemory::new(),
+            stack: VectorStack::new(),
+            transaction: VectorTransaction::message_call(from, to, value, mem_in.as_ref(), gas),
+            return_values: Vec::new(),
+            block: None,
+            used_gas: Gas::zero(),
+        };
 
-        swap(&mut new_transaction, &mut self.transaction);
-        swap(&mut new_pc, &mut self.pc);
-        swap(&mut new_stack, &mut self.stack);
-        swap(&mut new_memory, &mut self.memory);
-        swap(&mut new_storage, &mut self.storage);
-        swap(&mut new_return_values, &mut self.return_values);
-        swap(&mut new_used_gas, &mut self.used_gas);
-
+        // We swap the block into the sub-machine if necessary. The
+        // current old block should never be referenced and will be
+        // replaced back when the call finishes.
+        swap(&mut self.block, &mut submachine.block);
         f(self);
-
-        swap(&mut new_transaction, &mut self.transaction);
-        swap(&mut new_pc, &mut self.pc);
-        swap(&mut new_stack, &mut self.stack);
-        swap(&mut new_memory, &mut self.memory);
-        swap(&mut new_storage, &mut self.storage);
-        swap(&mut new_return_values, &mut self.return_values);
-        swap(&mut new_used_gas, &mut self.used_gas);
+        swap(&mut self.block, &mut submachine.block);
 
         let mem_out_start: usize = memory_out_start.into();
         let mem_out_len: usize = memory_out_len.into();
         let mem_out_end: usize = mem_out_start + mem_out_len;
 
         for i in 0..mem_out_end {
-            self.memory_mut().write_raw(memory_out_start + i.into(), new_return_values[i]);
+            self.memory_mut().write_raw(memory_out_start + i.into(), submachine.return_values[i]);
         }
     }
 }
