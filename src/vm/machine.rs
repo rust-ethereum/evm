@@ -3,8 +3,11 @@ use utils::gas::Gas;
 use utils::address::Address;
 
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result};
-use blockchain::{Block, FakeBlock};
+use blockchain::{Block, FakeVectorBlock};
 use transaction::{Transaction, VectorTransaction};
+
+use std::borrow::BorrowMut;
+use std::marker::PhantomData;
 
 pub trait Machine {
     type P: PC;
@@ -12,6 +15,7 @@ pub trait Machine {
     type Sta: Stack;
     type T: Transaction;
     type B: Block;
+    type Sub: Machine;
 
     fn pc(&self) -> &Self::P;
     fn pc_mut(&mut self) -> &mut Self::P;
@@ -29,12 +33,12 @@ pub trait Machine {
     fn return_values(&self) -> &[u8];
     fn set_return_values(&mut self, data: &[u8]);
 
-    fn fork<F: FnOnce(&mut Self)>(&mut self, gas: Gas, from: Address,
-                                  to: Address, value: U256,
-                                  memory_in_start: U256,
-                                  memory_in_len: U256,
-                                  memory_out_start: U256,
-                                  memory_out_len: U256, f: F);
+    fn fork<F: FnOnce(&mut Self::Sub)>(&mut self, gas: Gas, from:
+                                       Address, to: Address, value: U256,
+                                       memory_in_start: U256,
+                                       memory_in_len: U256,
+                                       memory_out_start: U256,
+                                       memory_out_len: U256, f: F);
 
     fn step(&mut self) -> bool where Self: Sized {
         if self.pc().stopped() || !self.available_gas().is_valid() {
@@ -60,41 +64,24 @@ pub trait Machine {
     }
 }
 
-pub struct VectorMachine<'a, B: 'a> {
+pub struct VectorMachine<B0, BR> {
     pc: VectorPC,
     memory: VectorMemory,
     stack: VectorStack,
     transaction: VectorTransaction,
     return_values: Vec<u8>,
-    block: Option<&'a mut B>,
+    block: Option<BR>,
     used_gas: Gas,
+    _block_typ: PhantomData<B0>,
 }
 
-pub type FakeVectorMachine = VectorMachine<'static, FakeBlock>;
-
-static mut FAKE_BLOCK: FakeBlock = FakeBlock;
-
-impl FakeVectorMachine {
-    pub fn new(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
-        VectorMachine {
-            pc: VectorPC::new(code),
-            memory: VectorMemory::new(),
-            stack: VectorStack::new(),
-            transaction: VectorTransaction::message_call(Address::default(), Address::default(),
-                                                         U256::zero(), data, gas_limit),
-            return_values: Vec::new(),
-            block: Some(unsafe { &mut FAKE_BLOCK }), // FakeBlock doesn't contain any field. So this unsafe is okay.
-            used_gas: Gas::zero(),
-        }
-    }
-}
-
-impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
+impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
     type P = VectorPC;
     type M = VectorMemory;
     type Sta = VectorStack;
     type T = VectorTransaction;
     type B = B0;
+    type Sub = Self;
 
     fn return_values(&self) -> &[u8] {
         self.return_values.as_ref()
@@ -141,18 +128,18 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
     }
 
     fn block(&self) -> &Self::B {
-        self.block.as_ref().unwrap()
+        self.block.as_ref().unwrap().as_ref()
     }
 
     fn block_mut(&mut self) -> &mut Self::B {
-        self.block.as_mut().unwrap()
+        self.block.as_mut().unwrap().as_mut()
     }
 
-    fn fork<F: FnOnce(&mut Self)>(&mut self, gas: Gas, from: Address, to: Address,
-                                  value: U256,
-                                  memory_in_start: U256, memory_in_len: U256,
-                                  memory_out_start: U256, memory_out_len: U256,
-                                  f: F) {
+    fn fork<F: FnOnce(&mut Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
+                                       value: U256,
+                                       memory_in_start: U256, memory_in_len: U256,
+                                       memory_out_start: U256, memory_out_len: U256,
+                                       f: F) {
         use std::mem::swap;
 
         let from = from;
@@ -161,7 +148,7 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
         let mem_in_end: usize = mem_in_start + mem_in_len;
         let mem_in: Vec<u8> = self.memory().as_ref()[mem_in_start..mem_in_end].into();
 
-        let mut submachine = VectorMachine {
+        let mut submachine = Self {
             pc: VectorPC::new(if to == from { self.pc().code() }
                               else { self.block().account_code(to).unwrap() }),
             memory: VectorMemory::new(),
@@ -170,6 +157,7 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
             return_values: Vec::new(),
             block: None,
             used_gas: Gas::zero(),
+            _block_typ: PhantomData,
         };
 
         // We swap the block into the sub-machine if necessary. The
@@ -185,6 +173,24 @@ impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
 
         for i in 0..mem_out_end {
             self.memory_mut().write_raw(memory_out_start + i.into(), submachine.return_values[i]);
+        }
+    }
+}
+
+pub type FakeVectorMachine = VectorMachine<FakeVectorBlock, Box<FakeVectorBlock>>;
+
+impl FakeVectorMachine {
+    pub fn new(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
+        VectorMachine {
+            pc: VectorPC::new(code),
+            memory: VectorMemory::new(),
+            stack: VectorStack::new(),
+            transaction: VectorTransaction::message_call(Address::default(), Address::default(),
+                                                         U256::zero(), data, gas_limit),
+            return_values: Vec::new(),
+            block: Some(Box::new(FakeVectorBlock::new())),
+            used_gas: Gas::zero(),
+            _block_typ: PhantomData,
         }
     }
 }

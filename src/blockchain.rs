@@ -3,6 +3,8 @@ use utils::gas::Gas;
 use utils::address::Address;
 use utils::hash::H256;
 
+use std::collections::HashMap;
+
 pub trait Block {
     fn account_code(&self, address: Address) -> Option<&[u8]>;
     fn coinbase(&self) -> Address;
@@ -18,9 +20,19 @@ pub trait Block {
     fn blockhash(&self, n: U256) -> H256;
 }
 
-pub struct FakeBlock;
+pub struct FakeVectorBlock {
+    storages: HashMap<Address, Vec<U256>>,
+}
 
-impl Block for FakeBlock {
+impl FakeVectorBlock {
+    pub fn new() -> FakeVectorBlock {
+        FakeVectorBlock {
+            storages: HashMap::new()
+        }
+    }
+}
+
+impl Block for FakeVectorBlock {
     fn account_code(&self, address: Address) -> Option<&[u8]> {
         None
     }
@@ -54,7 +66,17 @@ impl Block for FakeBlock {
     }
 
     fn account_storage(&self, address: Address, index: U256) -> U256 {
-        unimplemented!()
+        match self.storages.get(&address) {
+            None => U256::zero(),
+            Some(ref ve) => {
+                let index: usize = index.into();
+
+                match ve.get(index) {
+                    Some(&v) => v,
+                    None => U256::zero()
+                }
+            }
+        }
     }
 
     fn set_account_storage(&mut self, address: Address, index: U256, val: U256) {
@@ -67,11 +89,5 @@ impl Block for FakeBlock {
 
     fn blockhash(&self, n: U256) -> H256 {
         H256::default()
-    }
-}
-
-impl Default for FakeBlock {
-    fn default() -> FakeBlock {
-        FakeBlock
     }
 }

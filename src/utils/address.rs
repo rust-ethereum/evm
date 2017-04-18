@@ -1,7 +1,7 @@
 use utils::u256::U256;
 use utils::read_hex;
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct Address([u8; 20]);
 
 impl Default for Address {
