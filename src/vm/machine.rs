@@ -72,7 +72,7 @@ pub struct VectorMachine<B0, BR> {
     return_values: Vec<u8>,
     block: Option<BR>,
     used_gas: Gas,
-    _block_typ: PhantomData<B0>,
+    _block_marker: PhantomData<B0>,
 }
 
 impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
@@ -157,7 +157,7 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
             return_values: Vec::new(),
             block: None,
             used_gas: Gas::zero(),
-            _block_typ: PhantomData,
+            _block_marker: PhantomData,
         };
 
         // We swap the block into the sub-machine if necessary. The
@@ -190,7 +190,7 @@ impl FakeVectorMachine {
             return_values: Vec::new(),
             block: Some(Box::new(FakeVectorBlock::new())),
             used_gas: Gas::zero(),
-            _block_typ: PhantomData,
+            _block_marker: PhantomData,
         }
     }
 }
