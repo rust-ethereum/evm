@@ -37,6 +37,8 @@ use ::std::convert::{From, Into, AsRef};
 use ::std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use ::std::cmp::Ordering;
 
+use utils::read_hex;
+
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub struct U256([u64; 4]);
@@ -51,6 +53,12 @@ impl U256 {
 
     pub fn min_value() -> U256 {
         U256::zero()
+    }
+
+    pub fn from_str(s: &str) -> Option<U256> {
+        let v = read_hex(s);
+        if v.is_none() { return None; }
+        Some(U256::from(v.unwrap().as_ref()))
     }
 
     pub fn overflowing_add(self, other: U256) -> (U256, bool) {
