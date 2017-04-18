@@ -4,7 +4,7 @@ use utils::address::Address;
 
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result};
 use account::{Storage, VectorStorage};
-use blockchain::{Block, Blockchain, FakeBlock, FakeBlockchain};
+use blockchain::{Block, FakeBlock};
 use transaction::{Transaction, VectorTransaction};
 
 pub trait Machine {
@@ -14,7 +14,6 @@ pub trait Machine {
     type Sto: Storage;
     type T: Transaction;
     type B: Block;
-    type Bc: Blockchain;
 
     fn pc(&self) -> &Self::P;
     fn pc_mut(&mut self) -> &mut Self::P;
@@ -28,7 +27,6 @@ pub trait Machine {
     fn transaction(&self) -> &Self::T;
     fn block(&self) -> &Self::B;
     fn block_mut(&mut self) -> &mut Self::B;
-    fn blockchain(&self) -> &Self::Bc;
 
     fn use_gas(&mut self, gas: Gas);
     fn used_gas(&self) -> Gas;
@@ -66,7 +64,7 @@ pub trait Machine {
     }
 }
 
-pub struct VectorMachine<'a, B: 'a, Bc: 'a> {
+pub struct VectorMachine<'a, B: 'a> {
     pc: VectorPC,
     memory: VectorMemory,
     stack: VectorStack,
@@ -74,14 +72,12 @@ pub struct VectorMachine<'a, B: 'a, Bc: 'a> {
     transaction: VectorTransaction,
     return_values: Vec<u8>,
     block: &'a mut B,
-    blockchain: &'a Bc,
     used_gas: Gas,
 }
 
-pub type FakeVectorMachine = VectorMachine<'static, FakeBlock, FakeBlockchain>;
+pub type FakeVectorMachine = VectorMachine<'static, FakeBlock>;
 
 static mut FAKE_BLOCK: FakeBlock = FakeBlock;
-static FAKE_BLOCKCHAIN: FakeBlockchain = FakeBlockchain;
 
 impl FakeVectorMachine {
     pub fn new(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
@@ -94,20 +90,18 @@ impl FakeVectorMachine {
                                                          U256::zero(), data, gas_limit),
             return_values: Vec::new(),
             block: unsafe { &mut FAKE_BLOCK }, // FakeBlock doesn't contain any field. So this unsafe is okay.
-            blockchain: &FAKE_BLOCKCHAIN,
             used_gas: Gas::zero(),
         }
     }
 }
 
-impl<'a, B0: Block + 'a, Bc0: Blockchain + 'a> Machine for VectorMachine<'a, B0, Bc0> {
+impl<'a, B0: Block + 'a> Machine for VectorMachine<'a, B0> {
     type P = VectorPC;
     type M = VectorMemory;
     type Sta = VectorStack;
     type Sto = VectorStorage;
     type T = VectorTransaction;
     type B = B0;
-    type Bc = Bc0;
 
     fn return_values(&self) -> &[u8] {
         self.return_values.as_ref()
@@ -167,10 +161,6 @@ impl<'a, B0: Block + 'a, Bc0: Blockchain + 'a> Machine for VectorMachine<'a, B0,
 
     fn block_mut(&mut self) -> &mut Self::B {
         &mut self.block
-    }
-
-    fn blockchain(&self) -> &Self::Bc {
-        &self.blockchain
     }
 
     fn fork<F: FnOnce(&mut Self)>(&mut self, gas: Gas, from: Address, to: Address,

@@ -15,6 +15,7 @@ pub trait Block {
     fn account_storage(&self, address: Address) -> &[U256];
     fn set_account_storage(&mut self, address: Address, storage: &[U256]);
     fn log(&mut self, address: Address, data: &[u8], topics: &[U256]);
+    fn blockhash(&self, n: U256) -> H256;
 }
 
 pub struct FakeBlock;
@@ -63,28 +64,14 @@ impl Block for FakeBlock {
     fn log(&mut self, address: Address, data: &[u8], topics: &[U256]) {
         unimplemented!()
     }
-}
 
-impl Default for FakeBlock {
-    fn default() -> FakeBlock {
-        FakeBlock
-    }
-}
-
-pub trait Blockchain {
-    fn blockhash(&self, n: U256) -> H256;
-}
-
-pub struct FakeBlockchain;
-
-impl Blockchain for FakeBlockchain {
     fn blockhash(&self, n: U256) -> H256 {
         H256::default()
     }
 }
 
-impl Default for FakeBlockchain {
-    fn default() -> FakeBlockchain {
-        FakeBlockchain
+impl Default for FakeBlock {
+    fn default() -> FakeBlock {
+        FakeBlock
     }
 }

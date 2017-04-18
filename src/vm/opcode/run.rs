@@ -5,7 +5,7 @@ use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
 use account::Storage;
 use transaction::Transaction;
-use blockchain::{Block, Blockchain};
+use blockchain::Block;
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor};
 use crypto::sha3::Sha3;
@@ -400,7 +400,7 @@ impl Opcode {
 
             Opcode::BLOCKHASH => {
                 let target = machine.stack_mut().pop();
-                let val = machine.blockchain().blockhash(target);
+                let val = machine.block().blockhash(target);
                 machine.stack_mut().push(val.into());
             },
 
