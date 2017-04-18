@@ -3,7 +3,6 @@ use utils::gas::Gas;
 use utils::address::Address;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
-use account::Storage;
 use transaction::Transaction;
 use blockchain::Block;
 
@@ -456,14 +455,16 @@ impl Opcode {
 
             Opcode::SLOAD => {
                 let op1 = machine.stack_mut().pop();
-                let val = machine.storage_mut().read(op1);
+                let from = machine.transaction().callee();
+                let val = machine.block().account_storage(from, op1);
                 machine.stack_mut().push(val);
             },
 
             Opcode::SSTORE => {
                 let op1 = machine.stack_mut().pop(); // Index
                 let op2 = machine.stack_mut().pop(); // Data
-                machine.storage_mut().write(op1, op2);
+                let from = machine.transaction().callee();
+                machine.block_mut().set_account_storage(from, op1, op2);
             }
 
             Opcode::JUMP => {

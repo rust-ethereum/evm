@@ -5,7 +5,6 @@ extern crate merkle;
 extern crate capnp;
 
 pub mod vm;
-pub mod account;
 pub mod transaction;
 pub mod blockchain;
 
