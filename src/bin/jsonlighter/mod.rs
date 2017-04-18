@@ -3,8 +3,9 @@ extern crate clap;
 extern crate serde_json;
 extern crate sputnikvm;
 
-use sputnikvm::{read_hex, Gas};
+use sputnikvm::{read_hex, Gas, U256, Address};
 use sputnikvm::vm::{Machine, FakeVectorMachine};
+use sputnikvm::blockchain::Block;
 
 use serde_json::{Value, Error};
 use std::fs::File;
@@ -43,6 +44,16 @@ fn test_transaction(v: &Value) {
     let out_ref: &[u8] = out.as_ref();
     assert!(machine.return_values() == out_ref);
 
+    for (address, data) in post_addresses.as_object().unwrap() {
+        let address = Address::from_str(address.as_str()).unwrap();
+        let storage = data["storage"].as_object().unwrap();
+        for (index, value) in storage {
+            let index = U256::from_str(index.as_str()).unwrap();
+            let value = U256::from_str(value.as_str().unwrap()).unwrap();
+            // TODO: change Address::default() to the actual address
+            assert!(value == machine.block().account_storage(Address::default(), index));
+        }
+    }
 }
 
 fn main() {
