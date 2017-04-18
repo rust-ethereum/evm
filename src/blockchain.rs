@@ -80,7 +80,19 @@ impl Block for FakeVectorBlock {
     }
 
     fn set_account_storage(&mut self, address: Address, index: U256, val: U256) {
-        unimplemented!()
+        if self.storages.get(&address).is_none() {
+            self.storages.insert(address, Vec::new());
+        }
+
+        let v = self.storages.get_mut(&address).unwrap();
+
+        let index: usize = index.into();
+
+        if v.len() <= index {
+            v.resize(index + 1, 0.into());
+        }
+
+        v[index] = val;
     }
 
     fn log(&mut self, address: Address, data: &[u8], topics: &[U256]) {
