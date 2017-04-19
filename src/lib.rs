@@ -43,7 +43,7 @@ pub extern fn evaluate(ptr: *mut std::vec::Vec<capnp::Word>) {
     }
     let gas = msg_reader.get_input().expect("failed3").get_initial_gas();
 
-    let mut machine = FakeVectorMachine::new(
+    let mut machine = FakeVectorMachine::fake(
         code_vec.as_slice()
         , data_vec.as_slice()
         , Gas::from(gas as isize));

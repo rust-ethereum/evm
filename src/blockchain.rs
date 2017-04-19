@@ -6,18 +6,23 @@ use utils::hash::H256;
 use std::collections::HashMap;
 
 pub trait Block {
+    // Account information
     fn account_code(&self, address: Address) -> Option<&[u8]>;
-    fn coinbase(&self) -> Address;
     fn balance(&self, address: Address) -> Option<U256>;
+    fn account_storage(&self, address: Address, index: U256) -> U256;
+    fn set_account_storage(&mut self, address: Address, index: U256, val: U256);
+
+    // Block information
+    fn coinbase(&self) -> Address;
     fn timestamp(&self) -> U256;
     fn number(&self) -> U256;
     fn difficulty(&self) -> U256;
     fn gas_limit(&self) -> Gas;
-    fn create_account(&mut self, code: &[u8]) -> Option<Address>;
-    fn account_storage(&self, address: Address, index: U256) -> U256;
-    fn set_account_storage(&mut self, address: Address, index: U256, val: U256);
-    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]);
     fn blockhash(&self, n: U256) -> H256;
+
+    // Actions
+    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]);
+    fn create_account(&mut self, code: &[u8]) -> Option<Address>;
 }
 
 pub struct FakeVectorBlock {
