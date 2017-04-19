@@ -15,9 +15,12 @@ use sputnikvm::transaction::{Transaction, VectorTransaction};
 use serde_json::{Value, Error};
 use std::fs::File;
 use std::path::Path;
-use std::io::BufReader;
+use std::io::{BufReader, Write, stdout};
 
-fn test_transaction(v: &Value) {
+fn test_transaction(name: &str, v: &Value) {
+    print!("Testing {} ...", name);
+    stdout().flush();
+
     let mut block = JSONVectorBlock::new(&v["env"]);
 
     let current_gas_limit = Gas::from_str(v["env"]["currentGasLimit"].as_str().unwrap()).unwrap();
@@ -80,6 +83,8 @@ fn test_transaction(v: &Value) {
             assert!(value == machine.block().account_storage(address, index));
         }
     }
+
+    println!(" OK");
 }
 
 fn main() {
@@ -87,14 +92,22 @@ fn main() {
         (version: "0.1.0")
         (author: "SputnikVM Contributors")
         (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
-        (@arg TEST: -t --test +takes_value +required "test to run in the given file")
+        (@arg TEST: -t --test +takes_value "test to run in the given file")
     ).get_matches();
 
     let path = Path::new(app.value_of("FILE").unwrap());
     let file = File::open(&path).unwrap();
     let reader = BufReader::new(file);
     let json: Value = serde_json::from_reader(reader).unwrap();
-    let test = app.value_of("TEST").unwrap();
 
-    test_transaction(&json[test]);
+    match app.value_of("TEST") {
+        Some(test) => {
+            test_transaction(test, &json[test]);
+        },
+        None => {
+            for (test, data) in json.as_object().unwrap() {
+                test_transaction(test, &data);
+            }
+        },
+    }
 }
