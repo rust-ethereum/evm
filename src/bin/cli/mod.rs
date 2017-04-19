@@ -37,7 +37,7 @@ fn main() {
         None => "".as_bytes().into(),
     };
 
-    let mut machine = FakeVectorMachine::new(code.as_slice(), data, initial_gas);
+    let mut machine = FakeVectorMachine::fake(code.as_slice(), data, initial_gas);
     machine.fire();
     if log_enabled!(LogLevel::Info) {
         info!("gas used: {:?}", machine.used_gas());

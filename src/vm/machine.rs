@@ -75,6 +75,22 @@ pub struct VectorMachine<B0, BR> {
     _block_marker: PhantomData<B0>,
 }
 
+impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachine<B0, BR> {
+    pub fn new(code: &[u8], data: &[u8], gas_limit: Gas,
+               transaction: VectorTransaction, block: BR) -> Self {
+        VectorMachine {
+            pc: VectorPC::new(code),
+            memory: VectorMemory::new(),
+            stack: VectorStack::new(),
+            transaction: transaction,
+            return_values: Vec::new(),
+            block: Some(block),
+            used_gas: Gas::zero(),
+            _block_marker: PhantomData,
+        }
+    }
+}
+
 impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
     type P = VectorPC;
     type M = VectorMemory;
@@ -180,17 +196,10 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
 pub type FakeVectorMachine = VectorMachine<FakeVectorBlock, Box<FakeVectorBlock>>;
 
 impl FakeVectorMachine {
-    pub fn new(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
-        VectorMachine {
-            pc: VectorPC::new(code),
-            memory: VectorMemory::new(),
-            stack: VectorStack::new(),
-            transaction: VectorTransaction::message_call(Address::default(), Address::default(),
-                                                         U256::zero(), data, gas_limit),
-            return_values: Vec::new(),
-            block: Some(Box::new(FakeVectorBlock::new())),
-            used_gas: Gas::zero(),
-            _block_marker: PhantomData,
-        }
+    pub fn fake(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
+        VectorMachine::new(code, data, gas_limit,
+                           VectorTransaction::message_call(Address::default(), Address::default(),
+                                                           U256::zero(), data, gas_limit),
+                           Box::new(FakeVectorBlock::new()))
     }
 }
