@@ -1,4 +1,4 @@
-use utils::u256::U256;
+use utils::bigint::M256;
 use utils::read_hex;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
@@ -10,15 +10,15 @@ impl Default for Address {
     }
 }
 
-impl Into<U256> for Address {
-    fn into(self) -> U256 {
-        U256::from(self.0.as_ref())
+impl Into<M256> for Address {
+    fn into(self) -> M256 {
+        M256::from(self.0.as_ref())
     }
 }
 
-impl From<U256> for Option<Address> {
-    fn from(mut val: U256) -> Option<Address> {
-        let max: U256 = U256::one() << 161;
+impl From<M256> for Option<Address> {
+    fn from(mut val: M256) -> Option<Address> {
+        let max: M256 = M256::one() << 161;
         if val >= max {
             None
         } else {

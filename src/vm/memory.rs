@@ -1,7 +1,7 @@
-use utils::u256::U256;
+use utils::bigint::M256;
 
 pub trait Memory {
-    fn write(&mut self, index: U256, value: U256) {
+    fn write(&mut self, index: M256, value: M256) {
         // Vector only deals with usize, so the maximum size is
         // actually smaller than 2^256
         let end = index + 32.into();
@@ -11,7 +11,7 @@ pub trait Memory {
             self.write_raw(index + i.into(), a[i]);
         }
     }
-    fn read(&mut self, index: U256) -> U256 {
+    fn read(&mut self, index: M256) -> M256 {
         let end = index + 32.into();
         let mut a: [u8; 32] = [0u8; 32];
 
@@ -20,8 +20,8 @@ pub trait Memory {
         }
         a.into()
     }
-    fn write_raw(&mut self, index: U256, value: u8);
-    fn read_raw(&mut self, index: U256) -> u8;
+    fn write_raw(&mut self, index: M256, value: u8);
+    fn read_raw(&mut self, index: M256) -> u8;
     fn active_len(&self) -> usize;
 }
 
@@ -44,7 +44,7 @@ impl AsRef<[u8]> for VectorMemory {
 }
 
 impl Memory for VectorMemory {
-    fn write(&mut self, index: U256, value: U256) {
+    fn write(&mut self, index: M256, value: M256) {
         // Vector only deals with usize, so the maximum size is
         // actually smaller than 2^256
         let start: usize = index.into();
@@ -60,7 +60,7 @@ impl Memory for VectorMemory {
         }
     }
 
-    fn write_raw(&mut self, index: U256, value: u8) {
+    fn write_raw(&mut self, index: M256, value: u8) {
         let index: usize = index.into();
 
         if self.memory.len() <= index {
@@ -70,7 +70,7 @@ impl Memory for VectorMemory {
         self.memory[index] = value;
     }
 
-    fn read(&mut self, index: U256) -> U256 {
+    fn read(&mut self, index: M256) -> M256 {
         // This is required to be &mut self because a read might modify u_i
         let start: usize = index.into();
         let end = start + 32;
@@ -87,7 +87,7 @@ impl Memory for VectorMemory {
         a.into()
     }
 
-    fn read_raw(&mut self, index: U256) -> u8 {
+    fn read_raw(&mut self, index: M256) -> u8 {
         let index: usize = index.into();
 
         if self.memory.len() <= index {

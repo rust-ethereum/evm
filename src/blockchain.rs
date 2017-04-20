@@ -1,4 +1,4 @@
-use utils::u256::U256;
+use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::hash::H256;
@@ -9,24 +9,24 @@ pub trait Block {
     // Account information
     fn account_code(&self, address: Address) -> Option<&[u8]>;
     fn balance(&self, address: Address) -> Option<U256>;
-    fn account_storage(&self, address: Address, index: U256) -> U256;
-    fn set_account_storage(&mut self, address: Address, index: U256, val: U256);
+    fn account_storage(&self, address: Address, index: M256) -> M256;
+    fn set_account_storage(&mut self, address: Address, index: M256, val: M256);
 
     // Block information
     fn coinbase(&self) -> Address;
-    fn timestamp(&self) -> U256;
-    fn number(&self) -> U256;
-    fn difficulty(&self) -> U256;
+    fn timestamp(&self) -> M256;
+    fn number(&self) -> M256;
+    fn difficulty(&self) -> M256;
     fn gas_limit(&self) -> Gas;
-    fn blockhash(&self, n: U256) -> H256;
+    fn blockhash(&self, n: M256) -> H256;
 
     // Actions
-    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]);
+    fn log(&mut self, address: Address, data: &[u8], topics: &[M256]);
     fn create_account(&mut self, code: &[u8]) -> Option<Address>;
 }
 
 pub struct FakeVectorBlock {
-    storages: HashMap<Address, Vec<U256>>,
+    storages: HashMap<Address, Vec<M256>>,
 }
 
 impl FakeVectorBlock {
@@ -54,37 +54,37 @@ impl Block for FakeVectorBlock {
         None
     }
 
-    fn timestamp(&self) -> U256 {
-        U256::zero()
+    fn timestamp(&self) -> M256 {
+        M256::zero()
     }
 
-    fn number(&self) -> U256 {
-        U256::zero()
+    fn number(&self) -> M256 {
+        M256::zero()
     }
 
-    fn difficulty(&self) -> U256 {
-        U256::zero()
+    fn difficulty(&self) -> M256 {
+        M256::zero()
     }
 
     fn gas_limit(&self) -> Gas {
         Gas::zero()
     }
 
-    fn account_storage(&self, address: Address, index: U256) -> U256 {
+    fn account_storage(&self, address: Address, index: M256) -> M256 {
         match self.storages.get(&address) {
-            None => U256::zero(),
+            None => M256::zero(),
             Some(ref ve) => {
                 let index: usize = index.into();
 
                 match ve.get(index) {
                     Some(&v) => v,
-                    None => U256::zero()
+                    None => M256::zero()
                 }
             }
         }
     }
 
-    fn set_account_storage(&mut self, address: Address, index: U256, val: U256) {
+    fn set_account_storage(&mut self, address: Address, index: M256, val: M256) {
         if self.storages.get(&address).is_none() {
             self.storages.insert(address, Vec::new());
         }
@@ -100,11 +100,11 @@ impl Block for FakeVectorBlock {
         v[index] = val;
     }
 
-    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]) {
+    fn log(&mut self, address: Address, data: &[u8], topics: &[M256]) {
         unimplemented!()
     }
 
-    fn blockhash(&self, n: U256) -> H256 {
+    fn blockhash(&self, n: M256) -> H256 {
         H256::default()
     }
 }

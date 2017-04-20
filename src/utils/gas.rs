@@ -1,5 +1,5 @@
 use std::ops::{Add, AddAssign, Sub, SubAssign};
-use utils::u256::U256;
+use utils::bigint::M256;
 use utils::read_hex;
 
 #[derive(Clone, Copy, Debug)]
@@ -27,15 +27,15 @@ impl From<isize> for Gas {
     fn from(val: isize) -> Gas { Gas(val) }
 }
 
-impl From<U256> for Gas {
-    fn from(val: U256) -> Self {
+impl From<M256> for Gas {
+    fn from(val: M256) -> Self {
         let u: usize = val.into();
         Gas::from(u as isize)
     }
 }
 
-impl Into<U256> for Gas {
-    fn into(self) -> U256 {
+impl Into<M256> for Gas {
+    fn into(self) -> M256 {
         assert!(self.is_valid());
         (self.0 as u64).into()
     }
