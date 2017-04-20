@@ -7,7 +7,7 @@ mod blockchain;
 
 use blockchain::JSONVectorBlock;
 
-use sputnikvm::{read_hex, Gas, U256, Address};
+use sputnikvm::{read_hex, Gas, M256, Address};
 use sputnikvm::vm::{Machine, VectorMachine};
 use sputnikvm::blockchain::Block;
 use sputnikvm::transaction::{Transaction, VectorTransaction};
@@ -16,6 +16,7 @@ use serde_json::{Value, Error};
 use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader, Write, stdout};
+use std::str::FromStr;
 
 fn test_transaction(name: &str, v: &Value) {
     print!("Testing {} ...", name);
@@ -31,7 +32,7 @@ fn test_transaction(name: &str, v: &Value) {
     let gas = Gas::from_str(v["exec"]["gas"].as_str().unwrap()).unwrap();
     let gas_price = Gas::from_str(v["exec"]["gasPrice"].as_str().unwrap()).unwrap();
     let origin = Address::from_str(v["exec"]["origin"].as_str().unwrap()).unwrap();
-    let value = U256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
+    let value = M256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
 
     let transaction = VectorTransaction::message_call(
         caller, address, value, data.as_ref(), current_gas_limit
@@ -43,7 +44,7 @@ fn test_transaction(name: &str, v: &Value) {
 
     for (address, data) in pre_addresses.as_object().unwrap() {
         let address = Address::from_str(address.as_str()).unwrap();
-        let balance = U256::from_str(data["balance"].as_str().unwrap()).unwrap();
+        let balance = M256::from_str(data["balance"].as_str().unwrap()).unwrap();
         let code = read_hex(data["code"].as_str().unwrap()).unwrap();
 
         block.set_account_code(address, code.as_ref());
@@ -51,8 +52,8 @@ fn test_transaction(name: &str, v: &Value) {
 
         let storage = data["storage"].as_object().unwrap();
         for (index, value) in storage {
-            let index = U256::from_str(index.as_str()).unwrap();
-            let value = U256::from_str(value.as_str().unwrap()).unwrap();
+            let index = M256::from_str(index.as_str()).unwrap();
+            let value = M256::from_str(value.as_str().unwrap()).unwrap();
             block.set_account_storage(address, index, value);
         }
     }
@@ -70,16 +71,16 @@ fn test_transaction(name: &str, v: &Value) {
 
     for (address, data) in post_addresses.as_object().unwrap() {
         let address = Address::from_str(address.as_str()).unwrap();
-        let balance = U256::from_str(data["balance"].as_str().unwrap()).unwrap();
+        let balance = M256::from_str(data["balance"].as_str().unwrap()).unwrap();
         let code = read_hex(data["code"].as_str().unwrap()).unwrap();
 
         assert!(Some(code.as_ref()) == machine.block().account_code(address));
-        assert!(Some(balance) == machine.block().balance(address));
+        assert!(Some(balance.into()) == machine.block().balance(address));
 
         let storage = data["storage"].as_object().unwrap();
         for (index, value) in storage {
-            let index = U256::from_str(index.as_str()).unwrap();
-            let value = U256::from_str(value.as_str().unwrap()).unwrap();
+            let index = M256::from_str(index.as_str()).unwrap();
+            let value = M256::from_str(value.as_str().unwrap()).unwrap();
             assert!(value == machine.block().account_storage(address, index));
         }
     }

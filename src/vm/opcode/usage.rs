@@ -1,4 +1,4 @@
-use utils::u256::U256;
+use utils::bigint::M256;
 use utils::gas::Gas;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC};
@@ -84,10 +84,10 @@ impl Opcode {
             },
 
             Opcode::EXP => {
-                if stack.peek(1) == U256::zero() {
+                if stack.peek(1) == M256::zero() {
                     G_EXP.into()
                 } else {
-                    (G_EXP + G_EXPBYTE * (1 + stack.peek(1).log2floor())).into()
+                    (G_EXP + G_EXPBYTE * (1 + stack.peek(1).log2floor() as isize)).into()
                 }
             }
 

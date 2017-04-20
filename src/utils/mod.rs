@@ -1,4 +1,4 @@
-pub mod u256;
+pub mod bigint;
 pub mod address;
 pub mod hash;
 pub mod gas;

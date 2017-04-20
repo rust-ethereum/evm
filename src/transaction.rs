@@ -3,7 +3,7 @@
 // handled by the invoking Ethereum Classic client, as copying the
 // world state every time the EVM gets invoked might be expensive.
 
-use utils::u256::U256;
+use utils::bigint::M256;
 use utils::address::Address;
 use utils::gas::Gas;
 
@@ -13,7 +13,7 @@ pub trait Transaction {
     fn sender(&self) -> Address;
     fn callee(&self) -> Address;
     fn originator(&self) -> Address;
-    fn value(&self) -> U256;
+    fn value(&self) -> M256;
     fn data(&self) -> Option<&[u8]>; // Only for message call transaction.
     fn init(&self) -> Option<&[u8]>; // Only for account initialization procedure.
 }
@@ -24,14 +24,14 @@ pub struct VectorTransaction {
     sender: Address,
     callee: Address,
     originator: Address,
-    value: U256,
+    value: M256,
     data: Option<Vec<u8>>,
     init: Option<Vec<u8>>,
 }
 
 impl VectorTransaction {
     pub fn message_call(from: Address, to: Address,
-                        value: U256, data: &[u8], gas_limit: Gas) -> VectorTransaction {
+                        value: M256, data: &[u8], gas_limit: Gas) -> VectorTransaction {
         VectorTransaction {
             gas_price: Gas::zero(),
             gas_limit: gas_limit,
@@ -66,7 +66,7 @@ impl Transaction for VectorTransaction {
         self.originator
     }
 
-    fn value(&self) -> U256 {
+    fn value(&self) -> M256 {
         self.value
     }
 
