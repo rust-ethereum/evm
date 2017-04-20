@@ -8,7 +8,7 @@ description = "SputnikVM - the Ethereum Classic Virtual Machine"
 [lib]
 name = "sputnikvm"
 path = "./src/lib.rs"
-crate-type = ["rlib", "dylib"]
+crate-type = ["rlib", "cdylib"]
 
 [[bin]]
 name = "svm"
@@ -28,5 +28,6 @@ log = "0.3"
 capnp = "0.8"
 rust-crypto = "^0.2"
 merkle-sha3 = "0.1"
+libc = "0.2"
 libloading = "0.3"
 serde_json = "0.9"

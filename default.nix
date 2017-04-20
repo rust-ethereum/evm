@@ -32,7 +32,7 @@ let
 env = stdenv.mkDerivation {
   name = "sputnikvm-env";
   buildInputs = [
-    rustc cargo capnproto
+    rustc cargo capnproto gdb
   ];
 };
 sputnikvm = rustPlatform.buildRustPackage (rec {
