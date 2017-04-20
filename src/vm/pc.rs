@@ -1,4 +1,4 @@
-use utils::u256::U256;
+use utils::bigint::M256;
 use std::cmp::{min};
 use super::opcode::Opcode;
 
@@ -7,7 +7,7 @@ pub trait PC {
     fn read_opcode(&mut self) -> Opcode;
     fn stop(&mut self);
     fn stopped(&self) -> bool;
-    fn read(&mut self, byte_count: usize) -> U256;
+    fn read(&mut self, byte_count: usize) -> M256;
     fn position(&self) -> usize;
     fn jump(&mut self, position: usize);
     fn code(&self) -> &[u8];
@@ -63,10 +63,10 @@ impl PC for VectorPC {
         self.stopped || self.position >= self.code.len()
     }
 
-    fn read(&mut self, byte_count: usize) -> U256 {
+    fn read(&mut self, byte_count: usize) -> M256 {
         let position = self.position;
         self.position += byte_count;
         let max = min(position + byte_count, self.code.len());
-        U256::from(&self.code[position..max])
+        M256::from(&self.code[position..max])
     }
 }

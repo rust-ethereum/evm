@@ -11,7 +11,7 @@ pub mod blockchain;
 mod utils;
 mod vm_capnp;
 
-pub use utils::u256::U256;
+pub use utils::bigint::{U256, M256, MI256};
 pub use utils::gas::Gas;
 pub use utils::hash::H256;
 pub use utils::address::Address;

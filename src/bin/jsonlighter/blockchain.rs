@@ -1,19 +1,20 @@
-use sputnikvm::{Gas, H256, U256, Address};
+use sputnikvm::{Gas, H256, M256, U256, Address};
 use sputnikvm::vm::{Machine, VectorMachine};
 use sputnikvm::blockchain::Block;
 
 use serde_json::Value;
 use std::collections::HashMap;
+use std::str::FromStr;
 
 pub struct JSONVectorBlock {
     codes: HashMap<Address, Vec<u8>>,
-    balances: HashMap<Address, U256>,
-    storages: HashMap<Address, Vec<U256>>,
+    balances: HashMap<Address, M256>,
+    storages: HashMap<Address, Vec<M256>>,
 
     coinbase: Address,
-    timestamp: U256,
-    number: U256,
-    difficulty: U256,
+    timestamp: M256,
+    number: M256,
+    difficulty: M256,
     gas_limit: Gas
 }
 
@@ -31,10 +32,10 @@ impl JSONVectorBlock {
             codes: HashMap::new(),
 
             coinbase: Address::from_str(current_coinbase).unwrap(),
-            difficulty: U256::from_str(current_difficulty).unwrap(),
+            difficulty: M256::from_str(current_difficulty).unwrap(),
             gas_limit: Gas::from_str(current_gas_limit).unwrap(),
-            number: U256::from_str(current_number).unwrap(),
-            timestamp: U256::from_str(current_timestamp).unwrap(),
+            number: M256::from_str(current_number).unwrap(),
+            timestamp: M256::from_str(current_timestamp).unwrap(),
         }
     }
 
@@ -42,7 +43,7 @@ impl JSONVectorBlock {
         self.codes.insert(address, code.into());
     }
 
-    pub fn set_balance(&mut self, address: Address, balance: U256) {
+    pub fn set_balance(&mut self, address: Address, balance: M256) {
         self.balances.insert(address, balance);
     }
 }
@@ -61,18 +62,18 @@ impl Block for JSONVectorBlock {
     }
 
     fn balance(&self, address: Address) -> Option<U256> {
-        self.balances.get(&address).map(|s| *s)
+        self.balances.get(&address).map(|s| (*s).into())
     }
 
-    fn timestamp(&self) -> U256 {
+    fn timestamp(&self) -> M256 {
         self.timestamp
     }
 
-    fn number(&self) -> U256 {
+    fn number(&self) -> M256 {
         self.number
     }
 
-    fn difficulty(&self) -> U256 {
+    fn difficulty(&self) -> M256 {
         self.difficulty
     }
 
@@ -80,21 +81,21 @@ impl Block for JSONVectorBlock {
         self.gas_limit
     }
 
-    fn account_storage(&self, address: Address, index: U256) -> U256 {
+    fn account_storage(&self, address: Address, index: M256) -> M256 {
         match self.storages.get(&address) {
-            None => U256::zero(),
+            None => M256::zero(),
             Some(ref ve) => {
                 let index: usize = index.into();
 
                 match ve.get(index) {
                     Some(&v) => v,
-                    None => U256::zero()
+                    None => M256::zero()
                 }
             }
         }
     }
 
-    fn set_account_storage(&mut self, address: Address, index: U256, val: U256) {
+    fn set_account_storage(&mut self, address: Address, index: M256, val: M256) {
         if self.storages.get(&address).is_none() {
             self.storages.insert(address, Vec::new());
         }
@@ -110,11 +111,11 @@ impl Block for JSONVectorBlock {
         v[index] = val;
     }
 
-    fn log(&mut self, address: Address, data: &[u8], topics: &[U256]) {
+    fn log(&mut self, address: Address, data: &[u8], topics: &[M256]) {
         unimplemented!()
     }
 
-    fn blockhash(&self, n: U256) -> H256 {
+    fn blockhash(&self, n: M256) -> H256 {
         unimplemented!()
     }
 }

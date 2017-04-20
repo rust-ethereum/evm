@@ -1,4 +1,4 @@
-use utils::u256::U256;
+use utils::bigint::M256;
 use utils::gas::Gas;
 use utils::address::Address;
 
@@ -34,11 +34,11 @@ pub trait Machine {
     fn set_return_values(&mut self, data: &[u8]);
 
     fn fork<F: FnOnce(&mut Self::Sub)>(&mut self, gas: Gas, from:
-                                       Address, to: Address, value: U256,
-                                       memory_in_start: U256,
-                                       memory_in_len: U256,
-                                       memory_out_start: U256,
-                                       memory_out_len: U256, f: F);
+                                       Address, to: Address, value: M256,
+                                       memory_in_start: M256,
+                                       memory_in_len: M256,
+                                       memory_out_start: M256,
+                                       memory_out_len: M256, f: F);
 
     fn step(&mut self) -> bool where Self: Sized {
         if self.pc().stopped() || !self.available_gas().is_valid() {
@@ -152,9 +152,9 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
     }
 
     fn fork<F: FnOnce(&mut Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
-                                       value: U256,
-                                       memory_in_start: U256, memory_in_len: U256,
-                                       memory_out_start: U256, memory_out_len: U256,
+                                       value: M256,
+                                       memory_in_start: M256, memory_in_len: M256,
+                                       memory_out_start: M256, memory_out_len: M256,
                                        f: F) {
         use std::mem::swap;
 
@@ -199,7 +199,7 @@ impl FakeVectorMachine {
     pub fn fake(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {
         VectorMachine::new(code, data, gas_limit,
                            VectorTransaction::message_call(Address::default(), Address::default(),
-                                                           U256::zero(), data, gas_limit),
+                                                           M256::zero(), data, gas_limit),
                            Box::new(FakeVectorBlock::new()))
     }
 }

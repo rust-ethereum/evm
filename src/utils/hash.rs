@@ -1,4 +1,4 @@
-use utils::u256::U256;
+use utils::bigint::M256;
 use utils::read_hex;
 
 #[repr(C)]
@@ -11,9 +11,9 @@ impl Default for H256 {
     }
 }
 
-impl Into<U256> for H256 {
-    fn into(self) -> U256 {
-        U256::from(self.0.as_ref())
+impl Into<M256> for H256 {
+    fn into(self) -> M256 {
+        M256::from(self.0.as_ref())
     }
 }
 
