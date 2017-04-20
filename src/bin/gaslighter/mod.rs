@@ -28,6 +28,7 @@ fn main() {
         (about: "Gaslighter - Ethereum Virtual Machine tester.")
         (@arg CAPNPROTO_TYPECHECKED_TEST_BIN: -t --capnp_test_bin +takes_value "Path to a type checked binary compiled by the capnp tool. The source of this artefact is in the tests directory. Please run `$ capnp eval -b tests/mod.capnp all > tests.bin` in the root directory to generate the binary.")
         (@arg TESTS_TO_RUN: -r --run_test +takes_value +required "The format is [directory]/[file]/[test] e.g. `--run_test arith/add/add1` will run the arith/add/add1 test, `--run_test arith/add/` will run every test in the tests/arith/add.capnp file. Likewise `--run_test arith//` will run every test in every file of the `arith` directory. Lastly `--run_test //` will run every single test available.")
+        (@arg SPUTNIKVMSO_PATH: -s --sputnikvm_path +takes_value +required "Path to libsputnikvm.so")
         (@arg KEEP_GOING: -k --keep_going "Don't exit the program even if a test fails.")
     ).get_matches();
     let capnp_test_bin = match matches.value_of("CAPNPROTO_TYPECHECKED_TEST_BIN") {
@@ -35,6 +36,10 @@ fn main() {
         None => "",
     };
     let test_to_run = match matches.value_of("TESTS_TO_RUN") {
+        Some(c) => c,
+        None => "",
+    };
+    let sputnikvm_path = match matches.value_of("SPUTNIKVMSO_PATH") {
         Some(c) => c,
         None => "",
     };
@@ -74,7 +79,7 @@ fn main() {
             }
         }
     }
-    if has_all_tests_passed(tests_to_execute, keep_going) {
+    if has_all_tests_passed(tests_to_execute, keep_going, sputnikvm_path) {
         process::exit(0);
     } else {
         process::exit(1);
@@ -86,7 +91,6 @@ fn test_scope(test_to_run: String) -> (String, String, String) {
     (vec[0].into(), vec[1].into(), vec[2].into())
 }
 
-const LIB_PATH: &'static str = "libsputnikvm.so";
 use libc::size_t;
 use std::slice;
 
@@ -111,10 +115,10 @@ fn construct_vec_word(vm_io: *const capnp::Word, len: size_t) -> Vec<capnp::Word
     vm_input_output.to_vec()
 }
 
-fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going: bool) -> bool {
+fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going: bool, sputnikvm_path: &str) -> bool {
     println!("running {} tests", tests_to_execute.len());
     let mut has_all_tests_passed = true;
-    let mut sputnikvm = Sputnikvm(libloading::Library::new(LIB_PATH).unwrap_or_else(|error| panic!("{}", error)));
+    let mut sputnikvm = Sputnikvm(libloading::Library::new(sputnikvm_path).unwrap_or_else(|error| panic!("{}", error)));
     for test in tests_to_execute {
         print!("sputnikvm test {} ", test.name);
         let test = test.capnp;
