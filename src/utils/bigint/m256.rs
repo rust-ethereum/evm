@@ -3,7 +3,8 @@ use std::str::FromStr;
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::Ordering;
 
-use super::{U256, ParseU256Error};
+use super::{U256};
+use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
 pub struct M256(U256);
@@ -21,9 +22,9 @@ impl Default for M256 { fn default() -> M256 { M256::zero() } }
 impl AsRef<[u8]> for M256 { fn as_ref(&self) -> &[u8] { self.0.as_ref() } }
 
 impl FromStr for M256 {
-    type Err = ParseU256Error;
+    type Err = ParseHexError;
 
-    fn from_str(s: &str) -> Result<M256, ParseU256Error> {
+    fn from_str(s: &str) -> Result<M256, ParseHexError> {
         U256::from_str(s).map(|s| M256(s))
     }
 }

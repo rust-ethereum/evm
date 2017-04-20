@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use utils::bigint::M256;
-use utils::read_hex;
+use utils::{read_hex, ParseHexError};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone)]
@@ -17,23 +19,22 @@ impl Into<M256> for H256 {
     }
 }
 
-impl H256 {
-    pub fn from_str(s: &str) -> Option<H256> {
-        let v = read_hex(s);
-        if v.is_none() { return None; }
-        let v = v.unwrap();
+impl FromStr for H256 {
+    type Err = ParseHexError;
 
-        if v.len() > 32 {
-            None
-        } else {
-            let mut a = [0u8; 32];
-
-            for i in 0..v.len() {
-                let j = i + (32 - v.len());
-                a[j] = v[i];
+    fn from_str(s: &str) -> Result<H256, ParseHexError> {
+        read_hex(s).and_then(|v| {
+            if v.len() > 32 {
+                Err(ParseHexError::TooLong)
+            } else if v.len() < 32 {
+                Err(ParseHexError::TooShort)
+            } else {
+                let mut a = [0u8; 32];
+                for i in 0..32 {
+                    a[i] = v[i];
+                }
+                Ok(H256(a))
             }
-
-            Some(H256(a))
-        }
+        })
     }
 }

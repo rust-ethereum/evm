@@ -3,7 +3,15 @@ pub mod address;
 pub mod hash;
 pub mod gas;
 
-pub fn read_hex(s: &str) -> Option<Vec<u8>> {
+#[derive(Debug)]
+pub enum ParseHexError {
+    InvalidCharacter,
+    TooLong,
+    TooShort,
+    Other
+}
+
+pub fn read_hex(s: &str) -> Result<Vec<u8>, ParseHexError> {
     if s.starts_with("0x") {
         return read_hex(&s[2..s.len()]);
     }
@@ -16,7 +24,7 @@ pub fn read_hex(s: &str) -> Option<Vec<u8>> {
         len += 1;
         let v_option = c.to_digit(16);
         if v_option.is_none() {
-            return None;
+            return Err(ParseHexError::InvalidCharacter);
         }
         let v = v_option.unwrap();
         if len == 1 {
@@ -31,5 +39,5 @@ pub fn read_hex(s: &str) -> Option<Vec<u8>> {
         }
     }
 
-    return Some(res);
+    return Ok(res);
 }
