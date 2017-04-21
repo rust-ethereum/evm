@@ -11,10 +11,6 @@ path = "./src/lib.rs"
 crate-type = ["rlib", "cdylib"]
 
 [[bin]]
-name = "svm"
-path = "./src/bin/cli/mod.rs"
-
-[[bin]]
 name = "gaslighter"
 path = "./src/bin/gaslighter/mod.rs"
 
