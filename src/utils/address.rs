@@ -1,5 +1,7 @@
+use std::str::FromStr;
+
 use utils::bigint::M256;
-use utils::read_hex;
+use utils::{read_hex, ParseHexError};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct Address([u8; 20]);
@@ -38,20 +40,22 @@ impl From<M256> for Option<Address> {
     }
 }
 
-impl Address {
-    pub fn from_str(s: &str) -> Option<Address> {
-        let v = read_hex(s);
-        if v.is_none() { return None; }
-        let v = v.unwrap();
+impl FromStr for Address {
+    type Err = ParseHexError;
 
-        if v.len() == 20 {
-            let mut a = [0u8; 20];
-            for i in 0..20 {
-                a[i] = v[i];
+    fn from_str(s: &str) -> Result<Address, ParseHexError> {
+        read_hex(s).and_then(|v| {
+            if v.len() > 20 {
+                Err(ParseHexError::TooLong)
+            } else if v.len() < 20 {
+                Err(ParseHexError::TooShort)
+            } else {
+                let mut a = [0u8; 20];
+                for i in 0..20 {
+                    a[i] = v[i];
+                }
+                Ok(Address(a))
             }
-            Some(Address(a))
-        } else {
-            None
-        }
+        })
     }
 }

@@ -38,7 +38,7 @@ use std::str::FromStr;
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::Ordering;
 
-use utils::read_hex;
+use utils::{read_hex, ParseHexError};
 use super::Sign;
 use super::algorithms::{add2, mac3, from_signed, sub2_sign, big_digit};
 
@@ -135,21 +135,11 @@ impl AsRef<[u8]> for U256 {
     }
 }
 
-#[derive(Debug)]
-pub enum ParseU256Error {
-    ReadHexError,
-    Other
-}
-
 impl FromStr for U256 {
-    type Err = ParseU256Error;
+    type Err = ParseHexError;
 
-    fn from_str(s: &str) -> Result<U256, ParseU256Error> {
-        let v = read_hex(s);
-        match v {
-            Some(v) => Result::Ok(U256::from(v.as_ref())),
-            None => Result::Err(ParseU256Error::ReadHexError)
-        }
+    fn from_str(s: &str) -> Result<U256, ParseHexError> {
+        read_hex(s).map(|s| U256::from(s.as_ref()))
     }
 }
 
