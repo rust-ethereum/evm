@@ -127,19 +127,13 @@ impl Default for U256 {
     }
 }
 
-impl AsRef<[u8]> for U256 {
-    fn as_ref(&self) -> &[u8] {
-        use std::mem::transmute;
-        let r: &[u8; 32] = unsafe { transmute(&self.0) };
-        r
-    }
-}
-
 impl FromStr for U256 {
     type Err = ParseHexError;
 
     fn from_str(s: &str) -> Result<U256, ParseHexError> {
-        read_hex(s).map(|s| U256::from(s.as_ref()))
+        read_hex(s).map(|s| {
+            U256::from(s.as_ref())
+        })
     }
 }
 
@@ -184,22 +178,39 @@ impl Into<usize> for U256 {
 
 impl<'a> From<&'a [u8]> for U256 {
     fn from(val: &'a [u8]) -> U256 {
-        use std::mem::transmute;
         assert!(val.len() <= 256 / 8);
 
-        let mut r: [u8; 32] = [0u8; 32];
-        let reserved = r.len() - val.len();
+        let mut r = [0u8; 32];
+        let reserved = 32 - val.len();
 
         for i in 0..val.len() {
-            r[reserved + i] = val[i];
+            r[i + reserved] = val[i];
         }
-        U256(unsafe { transmute(r) })
+        r.into()
     }
 }
 
 impl From<[u8; 32]> for U256 {
     fn from(val: [u8; 32]) -> U256 {
-        val.as_ref().into()
+        let mut r = [0u32; 8];
+        for i in 0..32 {
+            let pos = i / 4;
+            r[pos] += (val[i] as u32) << (8 * (3 - (i - (pos * 4))));
+        }
+        U256(r)
+    }
+}
+
+impl Into<[u8; 32]> for U256 {
+    fn into(self) -> [u8; 32] {
+        let mut r = [0u8; 32];
+
+        for i in 0..32 {
+            let pos = i / 4;
+            r[i] = (self.0[pos] >> (8 * (3 - (i - (pos * 4)))) & 0xFF) as u8;
+        }
+
+        r
     }
 }
 

@@ -6,7 +6,7 @@ pub trait Memory {
         // actually smaller than 2^256
         let end = index + 32.into();
 
-        let a: &[u8] = value.as_ref();
+        let a: [u8; 32] = value.into();
         for i in 0..32 {
             self.write_raw(index + i.into(), a[i]);
         }
@@ -54,7 +54,7 @@ impl Memory for VectorMemory {
             self.memory.resize(end, 0u8);
         }
 
-        let a: &[u8] = value.as_ref();
+        let a: [u8; 32] = value.into();
         for i in start..end {
             self.memory[i] = a[i - start];
         }
