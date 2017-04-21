@@ -19,7 +19,6 @@ impl M256 {
 }
 
 impl Default for M256 { fn default() -> M256 { M256::zero() } }
-impl AsRef<[u8]> for M256 { fn as_ref(&self) -> &[u8] { self.0.as_ref() } }
 
 impl FromStr for M256 {
     type Err = ParseHexError;
@@ -36,6 +35,7 @@ impl From<usize> for M256 { fn from(val: usize) -> M256 { M256(U256::from(val)) 
 impl Into<usize> for M256 { fn into(self) -> usize { self.0.into() } }
 impl<'a> From<&'a [u8]> for M256 { fn from(val: &'a [u8]) -> M256 { M256(U256::from(val)) } }
 impl From<[u8; 32]> for M256 { fn from(val: [u8; 32]) -> M256 { M256(U256::from(val)) } }
+impl Into<[u8; 32]> for M256 { fn into(self) -> [u8; 32] { self.0.into() } }
 impl Into<[u32; 8]> for M256 { fn into(self) -> [u32; 8] { self.0.into() } }
 impl From<[u32; 8]> for M256 { fn from(val: [u32; 8]) -> M256 { M256(U256::from(val)) } }
 impl From<U256> for M256 { fn from(val: U256) -> M256 { M256(val) } }

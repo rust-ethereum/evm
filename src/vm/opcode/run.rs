@@ -75,7 +75,7 @@ impl Opcode {
                     machine.stack_mut().push(0.into());
                 } else {
                     let v = op1 + op2;
-                    machine.stack_mut().push(v - (v / op3) * op3);
+                    machine.stack_mut().push(v % op3);
                 }
             },
 
@@ -88,7 +88,7 @@ impl Opcode {
                     machine.stack_mut().push(0.into());
                 } else {
                     let v = op1 * op2;
-                    machine.stack_mut().push(v - (v / op3) * op3);
+                    machine.stack_mut().push(v % op3);
                 }
             },
 
@@ -225,7 +225,8 @@ impl Opcode {
 
                 while op1 != op2 - 1.into() {
                     let val = machine.memory_mut().read(op1);
-                    sha3.input(val.as_ref());
+                    let a: [u8; 32] = val.into();
+                    sha3.input(a.as_ref());
                     op1 = op1 + 1.into();
                 }
                 sha3.result(&mut r);
@@ -376,7 +377,8 @@ impl Opcode {
             Opcode::MSTORE8 => {
                 let op1 = machine.stack_mut().pop(); // Index
                 let op2 = machine.stack_mut().pop(); // Data
-                let val = op2.as_ref()[31];
+                let a: [u8; 32] = op2.into();
+                let val = a[31];
                 machine.memory_mut().write_raw(op1, val);
             },
 
