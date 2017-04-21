@@ -8,9 +8,9 @@ extern crate libc;
 mod hierarchy_capnp;
 mod vm_capnp;
 mod test_capnp;
-
 mod ffi;
 
+use std::process;
 use std::fs::File;
 use std::path::Path;
 
@@ -47,7 +47,7 @@ fn main() {
             (@arg TESTS_TO_RUN: -r --run_test +takes_value +required "The format is [directory]/[file]/[test] e.g. `--run_test arith/add/add1` will run the arith/add/add1 test, `--run_test arith/add/` will run every test in the tests/arith/add.capnp file. Likewise `--run_test arith//` will run every test in every file of the `arith` directory. Lastly `--run_test //` will run every single test available.")
         )
     ).get_matches();
-
+    let mut has_all_ffi_tests_passed = true;
     let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
     if let Some(ref matches) = matches.subcommand_matches("cli") {
         let code_hex = read_hex(match matches.value_of("CODE") {
@@ -83,6 +83,15 @@ fn main() {
             Err(_) => panic!("couldn't open {}", display),
             Ok(file) => file,
         };
-        ffi::execute(file, test_to_run, sputnikvm_path, keep_going);
+        if ffi::execute(file, test_to_run, sputnikvm_path, keep_going){
+            has_all_ffi_tests_passed = true;
+        } else {
+            has_all_ffi_tests_passed = false;
+        }
+    }
+    if has_all_ffi_tests_passed {
+        process::exit(0);
+    } else {
+        process::exit(1);
     }
 }

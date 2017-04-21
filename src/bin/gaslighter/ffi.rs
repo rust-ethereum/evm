@@ -2,10 +2,9 @@ use capnp;
 use libloading;
 use libc;
 
-use std::process;
+use std;
 use std::io::BufReader;
 use std::fs::File;
-use std;
 
 use hierarchy_capnp::directories;
 use vm_capnp;
@@ -47,11 +46,7 @@ pub fn execute(file: File, test_to_run: &str, sputnikvm_path: &str, keep_going: 
             }
         }
     }
-    if has_all_tests_passed(tests_to_execute, keep_going, sputnikvm_path) {
-        process::exit(0);
-    } else {
-        process::exit(1);
-    }
+    has_all_ffi_tests_passed(tests_to_execute, keep_going, sputnikvm_path)
 }
 
 fn test_scope(test_to_run: String) -> (String, String, String) {
@@ -83,9 +78,11 @@ fn construct_vec_word(vm_io: *const capnp::Word, len: size_t) -> Vec<capnp::Word
     vm_input_output.to_vec()
 }
 
-fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going: bool, sputnikvm_path: &str) -> bool {
+fn has_all_ffi_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>
+    , keep_going: bool
+    , sputnikvm_path: &str) -> bool {
     println!("running {} tests", tests_to_execute.len());
-    let mut has_all_tests_passed = true;
+    let mut has_all_ffi_tests_passed = true;
     let mut sputnikvm = Sputnikvm(libloading::Library::new(sputnikvm_path).unwrap_or_else(|error| panic!("{}", error)));
     for test in tests_to_execute {
         print!("sputnikvm test {} ", test.name);
@@ -128,13 +125,13 @@ fn has_all_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>, keep_going
         }
         if has_this_test_failed {
             print!("\n");
-            has_all_tests_passed = false;
+            has_all_ffi_tests_passed = false;
             if !keep_going {
-                return has_all_tests_passed;
+                return has_all_ffi_tests_passed;
             }
         } else {
             print!("... ok\n")
         }
     }
-    has_all_tests_passed
+    has_all_ffi_tests_passed
 }
