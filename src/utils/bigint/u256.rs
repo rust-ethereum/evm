@@ -84,24 +84,27 @@ impl U256 {
         let U256(ref mut a) = self;
         let U256(ref b) = other;
 
-        let mut carry = false;
+        let mut carry = 0;
 
-        for (i, bi) in b.iter().enumerate() {
-            let c = mac3(&mut ret[i..], a, *bi);
-            if c > 0 {
-                carry = true;
-            }
+        for (i, bi) in b.iter().rev().enumerate() {
+            carry = mac3(&mut ret[0..(8-i)], a, *bi);
         }
 
-        (U256(ret), carry)
+        (U256(ret), if carry > 0 { true } else { false })
     }
 
     pub fn bits(&self) -> usize {
+        let total = 0x40;
         let &U256(ref arr) = self;
-        for i in (1..4).rev() {
-            if arr[4 - i] > 0 { return (0x40 * (4 - i + 1)) - arr[4 - i].leading_zeros() as usize; }
+        let mut current_bits = 0;
+        for i in (0..8).rev() {
+            if arr[i] == 0 {
+                continue;
+            }
+
+            current_bits = (32 - arr[i].leading_zeros() as usize) + ((7 - i) * 32);
         }
-        0x40 - arr[0].leading_zeros() as usize
+        current_bits
     }
 
     pub fn log2floor(&self) -> usize {
@@ -233,10 +236,10 @@ impl Ord for U256 {
 	let &U256(ref me) = self;
 	let &U256(ref you) = other;
 	let mut i = 0;
-	while i < 4 {
+	while i < 8 {
 	    if me[i] < you[i] { return Ordering::Less; }
 	    if me[i] > you[i] { return Ordering::Greater; }
-            i -= 1;
+            i += 1;
 	}
 	Ordering::Equal
     }
@@ -294,12 +297,12 @@ impl Shl<usize> for U256 {
         let bit_shift = shift % 32;
         for i in (0..8).rev() {
             // Shift
-            if bit_shift < 32 && i + word_shift < 8 {
-                ret[i + word_shift] += original[i] << bit_shift;
+            if i >= word_shift {
+                ret[i - word_shift] += original[i] << bit_shift;
             }
             // Carry
-            if bit_shift > 0 && i + word_shift < 7 {
-                ret[i + word_shift + 1] += original[i] >> (32 - bit_shift);
+            if bit_shift > 0 && i >= word_shift + 1 {
+                ret[i - word_shift - 1] += original[i] >> (32 - bit_shift);
             }
         }
         U256(ret)
@@ -316,10 +319,12 @@ impl Shr<usize> for U256 {
         let bit_shift = shift % 32;
         for i in (word_shift..8).rev() {
             // Shift
-            ret[i - word_shift] += original[i] >> bit_shift;
+            if i + word_shift < 8 {
+                ret[i + word_shift] += original[i] >> bit_shift;
+            }
             // Carry
-            if bit_shift > 0 && i < 7 {
-                ret[i - word_shift] += original[i + 1] << (32 - bit_shift);
+            if bit_shift > 0 && i > 0 && i + word_shift < 8 {
+                ret[i + word_shift] += original[i - 1] << (32 - bit_shift);
             }
         }
         U256(ret)
@@ -380,7 +385,7 @@ impl Div for U256 {
         shift_copy = shift_copy << shift;
         loop {
             if sub_copy >= shift_copy {
-                ret[shift / 32] |= 1 << (shift % 32);
+                ret[7 - shift / 32] |= 1 << (shift % 32);
                 sub_copy = sub_copy - shift_copy;
             }
             shift_copy = shift_copy >> 1;
@@ -411,5 +416,40 @@ impl Not for U256 {
             ret[i] = !arr[i];
         }
         U256(ret)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::U256;
+
+    #[test]
+    pub fn mul() {
+        assert_eq!(U256([0, 0, 0, 0, 0, 0, 0, 2]) * U256([0, 0, 0, 0, 0, 0, 0, 3]),
+                   U256([0, 0, 0, 0, 0, 0, 0, 6]));
+        assert_eq!(U256([0x7FFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+                         0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF]) *
+                   U256([0, 0, 0, 0, 0, 0, 0, 2]),
+                   U256([0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+                         0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFE]));
+    }
+
+    #[test]
+    pub fn div() {
+        assert_eq!(U256([0, 0, 0, 0, 0, 0, 0, 3]) / U256([0, 0, 0, 0, 0, 0, 0, 2]),
+                   U256::one());
+        assert_eq!(U256([0, 0, 0, 0, 0, 0, 0, 1000000001]) / U256([0, 0, 0, 0, 0, 0, 0, 2]),
+                   U256([0, 0, 0, 0, 0, 0, 0, 500000000]));
+        assert_eq!(U256([0, 0, 0, 0, 0, 0, 0, 0xFFFFFFFD]) /
+                   U256([0, 0, 0, 0, 0, 0, 0, 2]),
+                   U256([0, 0, 0, 0, 0, 0, 0, 0x7FFFFFFE]));
+        assert_eq!(U256([0, 0, 0, 0, 0, 0, 0xFFFFFFFF, 0xFFFFFFFD]) /
+                   U256([0, 0, 0, 0, 0, 0, 0, 2]),
+                   U256([0, 0, 0, 0, 0, 0, 0x7FFFFFFF, 0xFFFFFFFE]));
+        assert_eq!(U256([0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+                         0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFD]) /
+                   U256([0, 0, 0, 0, 0, 0, 0, 2]),
+                   U256([0x7FFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF,
+                         0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFE]));
     }
 }

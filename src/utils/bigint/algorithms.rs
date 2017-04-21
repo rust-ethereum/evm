@@ -18,11 +18,11 @@ pub fn from_signed(sign: Sign, digits: &mut [BigDigit]) {
         Sign::Minus => {
             // Change the value to two's complement, note that adding
             // one should never overflow (we don't have minus zero).
-            let one = [1u32; 1];
             for digit in digits.as_mut() {
                 *digit = !*digit;
             }
-            add2(digits, one.as_ref());
+            let carry = inc(digits);
+            debug_assert!(carry == 0);
         },
     }
 }
@@ -99,6 +99,21 @@ pub fn mac_with_carry(a: BigDigit, b: BigDigit, c: BigDigit, carry: &mut BigDigi
                                                   (*carry as DoubleBigDigit));
     *carry = hi;
     lo
+}
+
+pub fn inc(a: &mut [BigDigit]) -> BigDigit {
+    let mut added = false;
+    let mut carry = 0;
+
+    for a in a.iter_mut().rev() {
+        let a: &mut BigDigit = a;
+        if !added {
+            *a = adc(*a, 1, &mut carry);
+            added = true;
+        }
+    }
+
+    carry
 }
 
 pub fn add2(a: &mut [BigDigit], b: &[BigDigit]) -> BigDigit {

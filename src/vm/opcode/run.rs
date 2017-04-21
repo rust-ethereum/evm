@@ -75,7 +75,7 @@ impl Opcode {
                     machine.stack_mut().push(0.into());
                 } else {
                     let v = op1 + op2;
-                    machine.stack_mut().push(v - (v / op3) * op3);
+                    machine.stack_mut().push(v % op3);
                 }
             },
 
@@ -88,7 +88,7 @@ impl Opcode {
                     machine.stack_mut().push(0.into());
                 } else {
                     let v = op1 * op2;
-                    machine.stack_mut().push(v - (v / op3) * op3);
+                    machine.stack_mut().push(v % op3);
                 }
             },
 
