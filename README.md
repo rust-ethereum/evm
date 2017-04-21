@@ -58,10 +58,10 @@ see the
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm
 $ capnp eval --binary tests/mod.capnp all > tests.bin
-$ RUST_LOG=gaslighter cargo run --bin gaslighter -- -s target/debug/libsputnikvm.so --capnp_test_bin tests.bin --run_test //
+$ RUST_LOG=gaslighter cargo run --bin gaslighter -- -k ffi -s target/debug/libsputnikvm.so --capnp_test_bin tests.bin --run_test //
 ```
-for a quick compile tests then code, run this command chain:
+for a quick compile, test, code cycle, run this command chain:
 
 ```
-$ capnp eval --binary tests/mod.capnp all > tests.bin && RUST_BACKTRACE=1 RUST_LOG=gaslighter cargo run --bin gaslighter -- -s target/debug/libsputnikvm.so -t tests.bin -r //
+capnp eval --binary tests/mod.capnp all > tests.bin && RUST_BACKTRACE=1 RUST_LOG=gaslighter cargo run --bin gaslighter -- -k ffi -s target/debug/libsputnikvm.so -t tests.bin -r ///
 ```
