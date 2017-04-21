@@ -20,7 +20,7 @@ Unless a business is specifically setup to earn money from supporting code, it b
 
 ## Solution
 
-SputnikVM is licensed under the Apache 2 License. Businesses may use the VM without sublicensing their code. Copyright is spread throughout the community, meaning the code isn't easily susceptible to corporate hijacking and sublicensing thereafter. It's requested that if you use this code you give proper acknowledgement and also we encourage you to send patches upstream. Please don't develop in the dark.
+SputnikVM is licensed under the Apache 2 License. Businesses may use the VM without relicensing their code. Copyright is spread throughout the community, meaning the code isn't easily susceptible to corporate hijacking and relicensing thereafter. It's requested that if you use this code you give proper acknowledgement and also we encourage you to send patches upstream. Please don't develop in the dark.
 
 ## Problem 3
 
