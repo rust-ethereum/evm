@@ -1,10 +1,34 @@
-use sputnikvm::{Gas, H256, M256, U256, Address};
+use sputnikvm::{Gas, H256, M256, U256, Address, read_hex};
 use sputnikvm::vm::{Machine, VectorMachine};
 use sputnikvm::blockchain::Block;
 
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
+
+pub fn create_block(v: &Value) -> JSONVectorBlock {
+    let mut block = JSONVectorBlock::new(&v["env"]);
+
+    let ref pre_addresses = v["pre"];
+
+    for (address, data) in pre_addresses.as_object().unwrap() {
+        let address = Address::from_str(address.as_str()).unwrap();
+        let balance = M256::from_str(data["balance"].as_str().unwrap()).unwrap();
+        let code = read_hex(data["code"].as_str().unwrap()).unwrap();
+
+        block.set_account_code(address, code.as_ref());
+        block.set_balance(address, balance);
+
+        let storage = data["storage"].as_object().unwrap();
+        for (index, value) in storage {
+            let index = M256::from_str(index.as_str()).unwrap();
+            let value = M256::from_str(value.as_str().unwrap()).unwrap();
+            block.set_account_storage(address, index, value);
+        }
+    }
+
+    block
+}
 
 pub struct JSONVectorBlock {
     codes: HashMap<Address, Vec<u8>>,

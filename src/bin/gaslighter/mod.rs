@@ -11,7 +11,9 @@ mod vm_capnp;
 mod test_capnp;
 mod ffi;
 mod crat;
-mod blockchain;
+#[path = "../json_schema/mod.rs"]
+mod json_schema;
+
 
 use serde_json::{Value, Error};
 use std::process;
