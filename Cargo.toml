@@ -14,10 +14,6 @@ crate-type = ["rlib", "cdylib"]
 name = "gaslighter"
 path = "./src/bin/gaslighter/mod.rs"
 
-[[bin]]
-name = "jsonlighter"
-path = "./src/bin/jsonlighter/mod.rs"
-
 [dependencies]
 clap = "2.22"
 log = "0.3"

@@ -1,9 +1,7 @@
-#[macro_use]
-extern crate clap;
-extern crate serde_json;
-extern crate sputnikvm;
+use serde_json;
+use sputnikvm;
 
-mod blockchain;
+use blockchain::*;
 
 use blockchain::JSONVectorBlock;
 
@@ -18,7 +16,7 @@ use std::path::Path;
 use std::io::{BufReader, Write, stdout};
 use std::str::FromStr;
 
-fn test_transaction(name: &str, v: &Value) {
+pub fn test_transaction(name: &str, v: &Value) {
     print!("Testing {} ...", name);
     stdout().flush();
 
@@ -88,27 +86,27 @@ fn test_transaction(name: &str, v: &Value) {
     println!(" OK");
 }
 
-fn main() {
-    let app = clap_app!(jsonlighter =>
-        (version: "0.1.0")
-        (author: "SputnikVM Contributors")
-        (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
-        (@arg TEST: -t --test +takes_value "test to run in the given file")
-    ).get_matches();
-
-    let path = Path::new(app.value_of("FILE").unwrap());
-    let file = File::open(&path).unwrap();
-    let reader = BufReader::new(file);
-    let json: Value = serde_json::from_reader(reader).unwrap();
-
-    match app.value_of("TEST") {
-        Some(test) => {
-            test_transaction(test, &json[test]);
-        },
-        None => {
-            for (test, data) in json.as_object().unwrap() {
-                test_transaction(test, &data);
-            }
-        },
-    }
-}
+// fn main() {
+//     let app = clap_app!(jsonlighter =>
+//         (version: "0.1.0")
+//         (author: "SputnikVM Contributors")
+//         (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
+//         (@arg TEST: -t --test +takes_value "test to run in the given file")
+//     ).get_matches();
+//
+//     let path = Path::new(app.value_of("FILE").unwrap());
+//     let file = File::open(&path).unwrap();
+//     let reader = BufReader::new(file);
+//     let json: Value = serde_json::from_reader(reader).unwrap();
+//
+//     match app.value_of("TEST") {
+//         Some(test) => {
+//             test_transaction(test, &json[test]);
+//         },
+//         None => {
+//             for (test, data) in json.as_object().unwrap() {
+//                 test_transaction(test, &data);
+//             }
+//         },
+//     }
+// }

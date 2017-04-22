@@ -4,18 +4,24 @@ extern crate sputnikvm;
 extern crate capnp;
 extern crate libloading;
 extern crate libc;
+extern crate serde_json;
 
 mod hierarchy_capnp;
 mod vm_capnp;
 mod test_capnp;
 mod ffi;
+mod crat;
+mod blockchain;
 
+use serde_json::{Value, Error};
 use std::process;
 use std::fs::File;
 use std::path::Path;
+use std::io::{BufReader, Write, stdout};
 
 use sputnikvm::{read_hex, Gas};
 use sputnikvm::vm::{Machine, FakeVectorMachine};
+use crat::{test_transaction};
 
 fn main() {
     let matches = clap_app!(gaslighter =>
@@ -26,8 +32,10 @@ fn main() {
         (@subcommand reg =>
             (about: "Performs a regression test by executing the entire ETC blockchain in this mode of execution.")
         )
-        (@subcommand crate =>
+        (@subcommand crat =>
             (about: "Execute the ethereumpoject/tests JSON files. The emphasis is on using rust crates directly there is no FFI nor socket activity.")
+            (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
+            (@arg TEST: -t --test +takes_value "test to run in the given file")
         )
         (@subcommand cli =>
             (version: "0.1.0")
@@ -63,6 +71,23 @@ fn main() {
         let mut machine = FakeVectorMachine::fake(code.as_slice(), data, initial_gas);
         machine.fire();
         println!("gas used: {:?}", machine.used_gas());
+    }
+    if let Some(ref matches) = matches.subcommand_matches("crate") {
+        let path = Path::new(matches.value_of("FILE").unwrap());
+        let file = File::open(&path).unwrap();
+        let reader = BufReader::new(file);
+        let json: Value = serde_json::from_reader(reader).unwrap();
+
+        match matches.value_of("TEST") {
+            Some(test) => {
+                test_transaction(test, &json[test]);
+            },
+            None => {
+                for (test, data) in json.as_object().unwrap() {
+                    test_transaction(test, &data);
+                }
+            },
+        }
     }
     if let Some(ref matches) = matches.subcommand_matches("ffi") {
         let capnp_test_bin = match matches.value_of("PATH_TO_CAPNPROTO_TYPECHECKED_TEST_BIN") {
