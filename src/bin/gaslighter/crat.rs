@@ -2,7 +2,7 @@ use serde_json;
 use sputnikvm;
 
 use sputnikvm::{read_hex, Gas, M256, Address};
-use sputnikvm::vm::{Machine, VectorMachine, Stack};
+use sputnikvm::vm::{Machine, VectorMachine, Stack, PC};
 use sputnikvm::blockchain::Block;
 use sputnikvm::transaction::{Transaction, VectorTransaction};
 
@@ -49,6 +49,7 @@ pub fn debug_transaction(v: &Value) {
                 rl.add_history_entry(&line);
                 match line.as_ref() {
                     "step" => {
+                        println!("{:?}", machine.pc().peek_opcode());
                         machine.step();
                     },
                     "fire" => {
@@ -56,7 +57,7 @@ pub fn debug_transaction(v: &Value) {
                     },
                     "print stack" => {
                         for i in 0..machine.stack().size() {
-                            println!("{}: {:?}", i, machine.stack().peek(i));
+                            println!("{}: {:x}", i, machine.stack().peek(i));
                         }
                     },
                     _ => {
