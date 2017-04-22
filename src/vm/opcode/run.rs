@@ -108,7 +108,7 @@ impl Opcode {
                 let mut r: M256 = 1.into();
 
                 while op2 != 0.into() {
-                    if (op2 & 1.into() != 0.into()) {
+                    if op2 & 1.into() != 0.into() {
                         r = r * op1;
                     }
                     op2 = op2 >> 1;
@@ -119,27 +119,28 @@ impl Opcode {
             },
 
             Opcode::SIGNEXTEND => {
-                // TODO: Check this confines with the yello paper
-
                 let mut op1 = machine.stack_mut().pop();
                 let mut op2 = machine.stack_mut().pop();
 
-                let mut negative: M256 = 1.into();
-                let mut s = 0;
-                while op2 != 0.into() {
-                    negative = M256::one() << s;
-                    s = s + 1;
-                    op2 = op2 - 1.into();
-                }
+                let mut ret = M256::zero();
 
-                if op1 >= negative {
-                    while s <= 256 {
-                        op1 = op1 + (M256::one() << s);
-                        s = s + 1;
-                    }
-                    machine.stack_mut().push(op1);
+                if op1 > M256::from(32) {
+                    machine.stack_mut().push(op2);
                 } else {
-                    machine.stack_mut().push(op1);
+                    let len: usize = op1.into();
+                    let t: usize = 8 * (len + 1) - 1;
+                    let t_bit_mask = M256::one() << t;
+                    let t_value = (op2 & t_bit_mask) >> t;
+                    for i in 0..256 {
+                        let bit_mask = M256::one() << i;
+                        let i_value = (op2 & bit_mask) >> i;
+                        if i <= t {
+                            ret = ret + (i_value << i);
+                        } else {
+                            ret = ret + (t_value << i);
+                        }
+                    }
+                    machine.stack_mut().push(ret);
                 }
             },
 

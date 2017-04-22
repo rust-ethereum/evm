@@ -316,7 +316,7 @@ impl Shr<usize> for U256 {
         let mut ret = [0u32; 8];
         let word_shift = shift / 32;
         let bit_shift = shift % 32;
-        for i in (word_shift..8).rev() {
+        for i in (0..8).rev() {
             // Shift
             if i + word_shift < 8 {
                 ret[i + word_shift] += original[i] >> bit_shift;
