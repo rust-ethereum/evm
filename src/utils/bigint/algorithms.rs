@@ -16,13 +16,10 @@ pub fn from_signed(sign: Sign, digits: &mut [BigDigit]) {
         },
         Sign::Plus => (),
         Sign::Minus => {
-            // Change the value to two's complement, note that adding
-            // one should never overflow (we don't have minus zero).
             for digit in digits.as_mut() {
                 *digit = !*digit;
             }
             let carry = inc(digits);
-            debug_assert!(carry == 0);
         },
     }
 }
