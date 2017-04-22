@@ -22,18 +22,22 @@ pub fn test_transaction(name: &str, v: &Value) {
     stdout().flush();
 
     let mut machine = create_machine(v);
+    let result = machine.fire();
 
     let out = v["out"].as_str();
 
     if out.is_some() {
-        machine.fire();
-        if test_machine(v, &machine) {
+        if result.is_ok() && test_machine(v, &machine) {
             println!(" OK");
         } else {
             println!(" Failed");
         }
     } else {
-        println!(" OK (no out value)");
+        if result.is_err() {
+            println!(" OK");
+        } else {
+            println!(" Failed");
+        }
     }
 }
 

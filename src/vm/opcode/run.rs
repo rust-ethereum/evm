@@ -2,7 +2,7 @@ use utils::bigint::{M256, MI256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
 use super::Opcode;
-use vm::{Machine, Memory, Stack, PC};
+use vm::{Machine, Memory, Stack, PC, Result, Error};
 use transaction::Transaction;
 use blockchain::Block;
 
@@ -22,22 +22,22 @@ fn signed_abs(v: M256) -> M256 {
 
 macro_rules! op2 {
     ( $machine:expr, $op:ident ) => ({
-        let op1 = $machine.stack_mut().pop();
-        let op2 = $machine.stack_mut().pop();
+        let op1 = $machine.stack_mut().pop()?;
+        let op2 = $machine.stack_mut().pop()?;
         $machine.stack_mut().push(op1.$op(op2));
     })
 }
 
 macro_rules! op2_ref {
     ( $machine:expr, $op:ident ) => ({
-        let op1 = $machine.stack_mut().pop();
-        let op2 = $machine.stack_mut().pop();
+        let op1 = $machine.stack_mut().pop()?;
+        let op2 = $machine.stack_mut().pop()?;
         $machine.stack_mut().push(op1.$op(&op2).into());
     })
 }
 
 impl Opcode {
-    pub fn run<M: Machine>(&self, machine: &mut M) {
+    pub fn run<M: Machine>(&self, machine: &mut M) -> Result<()> {
         let opcode = self.clone();
 
         match opcode {
@@ -51,8 +51,8 @@ impl Opcode {
             Opcode::DIV => op2!(machine, div),
 
             Opcode::SDIV => {
-                let op1: MI256 = machine.stack_mut().pop().into();
-                let op2: MI256 = machine.stack_mut().pop().into();
+                let op1: MI256 = machine.stack_mut().pop()?.into();
+                let op2: MI256 = machine.stack_mut().pop()?.into();
                 let r = op1 / op2;
                 machine.stack_mut().push(r.into());
             },
@@ -60,16 +60,16 @@ impl Opcode {
             Opcode::MOD => op2!(machine, rem),
 
             Opcode::SMOD => {
-                let op1: MI256 = machine.stack_mut().pop().into();
-                let op2: MI256 = machine.stack_mut().pop().into();
+                let op1: MI256 = machine.stack_mut().pop()?.into();
+                let op2: MI256 = machine.stack_mut().pop()?.into();
                 let r = op1 % op2;
                 machine.stack_mut().push(r.into());
             },
 
             Opcode::ADDMOD => {
-                let op1: U256 = machine.stack_mut().pop().into();
-                let op2: U256 = machine.stack_mut().pop().into();
-                let op3: U256 = machine.stack_mut().pop().into();
+                let op1: U256 = machine.stack_mut().pop()?.into();
+                let op2: U256 = machine.stack_mut().pop()?.into();
+                let op3: U256 = machine.stack_mut().pop()?.into();
 
                 let op1: U512 = op1.into();
                 let op2: U512 = op2.into();
@@ -85,9 +85,9 @@ impl Opcode {
             },
 
             Opcode::MULMOD => {
-                let op1: U256 = machine.stack_mut().pop().into();
-                let op2: U256 = machine.stack_mut().pop().into();
-                let op3: U256 = machine.stack_mut().pop().into();
+                let op1: U256 = machine.stack_mut().pop()?.into();
+                let op2: U256 = machine.stack_mut().pop()?.into();
+                let op3: U256 = machine.stack_mut().pop()?.into();
 
                 let op1: U512 = op1.into();
                 let op2: U512 = op2.into();
@@ -103,8 +103,8 @@ impl Opcode {
             },
 
             Opcode::EXP => {
-                let mut op1 = machine.stack_mut().pop();
-                let mut op2 = machine.stack_mut().pop();
+                let mut op1 = machine.stack_mut().pop()?;
+                let mut op2 = machine.stack_mut().pop()?;
                 let mut r: M256 = 1.into();
 
                 while op2 != 0.into() {
@@ -119,8 +119,8 @@ impl Opcode {
             },
 
             Opcode::SIGNEXTEND => {
-                let mut op1 = machine.stack_mut().pop();
-                let mut op2 = machine.stack_mut().pop();
+                let mut op1 = machine.stack_mut().pop()?;
+                let mut op2 = machine.stack_mut().pop()?;
 
                 let mut ret = M256::zero();
 
@@ -150,8 +150,8 @@ impl Opcode {
             Opcode::SLT => {
                 let negative = M256::one() << 256;
 
-                let op1 = machine.stack_mut().pop();
-                let op2 = machine.stack_mut().pop();
+                let op1 = machine.stack_mut().pop()?;
+                let op2 = machine.stack_mut().pop()?;
 
                 if op1 < negative && op2 < negative {
                     if op1 < op2 {
@@ -175,8 +175,8 @@ impl Opcode {
             Opcode::SGT => {
                 let negative = M256::one() << 256;
 
-                let op1 = machine.stack_mut().pop();
-                let op2 = machine.stack_mut().pop();
+                let op1 = machine.stack_mut().pop()?;
+                let op2 = machine.stack_mut().pop()?;
 
                 if op1 < negative && op2 < negative {
                     if op1 < op2 {
@@ -200,7 +200,7 @@ impl Opcode {
             Opcode::EQ => op2_ref!(machine, eq),
 
             Opcode::ISZERO => {
-                let op1 = machine.stack_mut().pop();
+                let op1 = machine.stack_mut().pop()?;
 
                 if op1 == 0.into() {
                     machine.stack_mut().push(1.into());
@@ -214,14 +214,14 @@ impl Opcode {
             Opcode::XOR => op2!(machine, bitxor),
 
             Opcode::NOT => {
-                let op1 = machine.stack_mut().pop();
+                let op1 = machine.stack_mut().pop()?;
 
                 machine.stack_mut().push(!op1);
             },
 
             Opcode::BYTE => {
-                let op1 = machine.stack_mut().pop();
-                let op2: usize = machine.stack_mut().pop().into(); // 256 / 8
+                let op1 = machine.stack_mut().pop()?;
+                let op2: usize = machine.stack_mut().pop()?.into(); // 256 / 8
                 let mark: M256 = 0xff.into();
 
                 if op2 >= 256 / 8 {
@@ -232,8 +232,8 @@ impl Opcode {
             },
 
             Opcode::SHA3 => {
-                let mut op1 = machine.stack_mut().pop();
-                let op2 = machine.stack_mut().pop();
+                let mut op1 = machine.stack_mut().pop()?;
+                let op2 = machine.stack_mut().pop()?;
 
                 let mut r: [u8; 32] = [0u8; 32];
                 let mut sha3 = Sha3::keccak256();
@@ -254,7 +254,7 @@ impl Opcode {
             },
 
             Opcode::BALANCE => {
-                let address: Option<Address> = machine.stack_mut().pop().into();
+                let address: Option<Address> = machine.stack_mut().pop()?.into();
                 let balance = address.map_or(None, |address| {
                     machine.block().balance(address)
                 }).map_or(M256::zero(), |balance| balance.into());
@@ -277,7 +277,7 @@ impl Opcode {
             },
 
             Opcode::CALLDATALOAD => {
-                let start_index: usize = machine.stack_mut().pop().into();
+                let start_index: usize = machine.stack_mut().pop()?.into();
                 let load = M256::from(&machine.transaction().data()
                                       .unwrap()[start_index..start_index+32]);
                 machine.stack_mut().push(load);
@@ -289,9 +289,9 @@ impl Opcode {
             },
 
             Opcode::CALLDATACOPY => {
-                let memory_index = machine.stack_mut().pop();
-                let data_index: usize = machine.stack_mut().pop().into();
-                let len: usize = machine.stack_mut().pop().into();
+                let memory_index = machine.stack_mut().pop()?;
+                let data_index: usize = machine.stack_mut().pop()?.into();
+                let len: usize = machine.stack_mut().pop()?.into();
 
                 for i in 0..len {
                     let val = machine.transaction().data().unwrap()[data_index + i];
@@ -305,9 +305,9 @@ impl Opcode {
             },
 
             Opcode::CODECOPY => {
-                let memory_index = machine.stack_mut().pop();
-                let code_index: usize = machine.stack_mut().pop().into();
-                let len: usize = machine.stack_mut().pop().into();
+                let memory_index = machine.stack_mut().pop()?;
+                let code_index: usize = machine.stack_mut().pop()?.into();
+                let len: usize = machine.stack_mut().pop()?.into();
 
                 for i in 0..len {
                     let val = machine.pc().code()[code_index + i];
@@ -321,18 +321,18 @@ impl Opcode {
             },
 
             Opcode::EXTCODESIZE => {
-                let account: Option<Address> = machine.stack_mut().pop().into();
+                let account: Option<Address> = machine.stack_mut().pop()?.into();
                 let account = account.unwrap();
                 let len = machine.block().account_code(account).map_or(0, |s| s.len());
                 machine.stack_mut().push(len.into());
             },
 
             Opcode::EXTCODECOPY => {
-                let account: Option<Address> = machine.stack_mut().pop().into();
+                let account: Option<Address> = machine.stack_mut().pop()?.into();
                 let account = account.unwrap();
-                let memory_index = machine.stack_mut().pop();
-                let code_index: usize = machine.stack_mut().pop().into();
-                let len: usize = machine.stack_mut().pop().into();
+                let memory_index = machine.stack_mut().pop()?;
+                let code_index: usize = machine.stack_mut().pop()?.into();
+                let len: usize = machine.stack_mut().pop()?.into();
 
                 for i in 0..len {
                     let val = machine.block().account_code(account).unwrap()[code_index + i];
@@ -341,7 +341,7 @@ impl Opcode {
             },
 
             Opcode::BLOCKHASH => {
-                let target = machine.stack_mut().pop();
+                let target = machine.stack_mut().pop()?;
                 let val = machine.block().blockhash(target);
                 machine.stack_mut().push(val.into());
             },
@@ -372,53 +372,53 @@ impl Opcode {
             },
 
             Opcode::POP => {
-                machine.stack_mut().pop();
+                machine.stack_mut().pop()?;
             },
 
             Opcode::MLOAD => {
-                let op1 = machine.stack_mut().pop();
+                let op1 = machine.stack_mut().pop()?;
                 let val = machine.memory_mut().read(op1);
                 // u_i update is automatically handled by Memory.
                 machine.stack_mut().push(val);
             },
 
             Opcode::MSTORE => {
-                let op1 = machine.stack_mut().pop(); // Index
-                let op2 = machine.stack_mut().pop(); // Data
+                let op1 = machine.stack_mut().pop()?; // Index
+                let op2 = machine.stack_mut().pop()?; // Data
                 // u_i update is automatically handled by Memory.
                 machine.memory_mut().write(op1, op2);
             },
 
             Opcode::MSTORE8 => {
-                let op1 = machine.stack_mut().pop(); // Index
-                let op2 = machine.stack_mut().pop(); // Data
+                let op1 = machine.stack_mut().pop()?; // Index
+                let op2 = machine.stack_mut().pop()?; // Data
                 let a: [u8; 32] = op2.into();
                 let val = a[31];
                 machine.memory_mut().write_raw(op1, val);
             },
 
             Opcode::SLOAD => {
-                let op1 = machine.stack_mut().pop();
+                let op1 = machine.stack_mut().pop()?;
                 let from = machine.transaction().callee();
                 let val = machine.block().account_storage(from, op1);
                 machine.stack_mut().push(val);
             },
 
             Opcode::SSTORE => {
-                let op1 = machine.stack_mut().pop(); // Index
-                let op2 = machine.stack_mut().pop(); // Data
+                let op1 = machine.stack_mut().pop()?; // Index
+                let op2 = machine.stack_mut().pop()?; // Data
                 let from = machine.transaction().callee();
                 machine.block_mut().set_account_storage(from, op1, op2);
             }
 
             Opcode::JUMP => {
-                let op1_u: u64 = machine.stack_mut().pop().into();
+                let op1_u: u64 = machine.stack_mut().pop()?.into();
                 machine.pc_mut().jump(op1_u as usize);
             },
 
             Opcode::JUMPI => {
-                let op1_u: u64 = machine.stack_mut().pop().into();
-                let op2 = machine.stack_mut().pop();
+                let op1_u: u64 = machine.stack_mut().pop()?.into();
+                let op2 = machine.stack_mut().pop()?;
 
                 if op2 != 0.into() {
                     machine.pc_mut().jump(op1_u as usize);
@@ -462,8 +462,8 @@ impl Opcode {
             Opcode::LOG(v) => {
                 let address = machine.transaction().callee();
                 let mut data: Vec<u8> = Vec::new();
-                let start = machine.stack_mut().pop();
-                let len: usize = machine.stack_mut().pop().into();
+                let start = machine.stack_mut().pop()?;
+                let len: usize = machine.stack_mut().pop()?.into();
 
                 for i in 0..len {
                     data.push(machine.memory_mut().read_raw(start + i.into()));
@@ -472,7 +472,7 @@ impl Opcode {
                 let mut topics: Vec<M256> = Vec::new();
 
                 for i in 0..v {
-                    topics.push(machine.stack_mut().pop());
+                    topics.push(machine.stack_mut().pop()?);
                 }
 
                 machine.block_mut().log(address, data.as_ref(), topics.as_ref());
@@ -480,24 +480,24 @@ impl Opcode {
 
             Opcode::CREATE => {
                 // TODO: Register the transaction for its value.
-                let value = machine.stack_mut().pop();
-                let start: usize = machine.stack_mut().pop().into();
-                let len: usize = machine.stack_mut().pop().into();
+                let value = machine.stack_mut().pop()?;
+                let start: usize = machine.stack_mut().pop()?.into();
+                let len: usize = machine.stack_mut().pop()?.into();
                 let code: Vec<u8> = machine.pc().code()[start..(start + len)].into();
                 let address = machine.block_mut().create_account(code.as_ref());
                 machine.stack_mut().push(address.unwrap().into());
             },
 
             Opcode::CALL => {
-                let gas: Gas = machine.stack_mut().pop().into();
+                let gas: Gas = machine.stack_mut().pop()?.into();
                 let from = machine.transaction().callee();
-                let to: Option<Address> = machine.stack_mut().pop().into();
+                let to: Option<Address> = machine.stack_mut().pop()?.into();
                 let to = to.unwrap();
-                let value = machine.stack_mut().pop().into();
-                let memory_in_start = machine.stack_mut().pop();
-                let memory_in_len = machine.stack_mut().pop();
-                let memory_out_start = machine.stack_mut().pop();
-                let memory_out_len = machine.stack_mut().pop();
+                let value = machine.stack_mut().pop()?.into();
+                let memory_in_start = machine.stack_mut().pop()?;
+                let memory_in_len = machine.stack_mut().pop()?;
+                let memory_out_start = machine.stack_mut().pop()?;
+                let memory_out_len = machine.stack_mut().pop()?;
 
                 machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
                              memory_out_start, memory_out_len, |machine| {
@@ -508,15 +508,15 @@ impl Opcode {
             },
 
             Opcode::CALLCODE => {
-                let gas: Gas = machine.stack_mut().pop().into();
-                machine.stack_mut().pop();
+                let gas: Gas = machine.stack_mut().pop()?.into();
+                machine.stack_mut().pop()?;
                 let from = machine.transaction().callee();
                 let to = machine.transaction().callee();
-                let value = machine.stack_mut().pop().into();
-                let memory_in_start = machine.stack_mut().pop();
-                let memory_in_len = machine.stack_mut().pop();
-                let memory_out_start = machine.stack_mut().pop();
-                let memory_out_len = machine.stack_mut().pop();
+                let value = machine.stack_mut().pop()?.into();
+                let memory_in_start = machine.stack_mut().pop()?;
+                let memory_in_len = machine.stack_mut().pop()?;
+                let memory_out_start = machine.stack_mut().pop()?;
+                let memory_out_len = machine.stack_mut().pop()?;
 
                 machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
                              memory_out_start, memory_out_len, |machine| {
@@ -527,8 +527,8 @@ impl Opcode {
             },
 
             Opcode::RETURN => {
-                let start = machine.stack_mut().pop();
-                let len: usize = machine.stack_mut().pop().into();
+                let start = machine.stack_mut().pop()?;
+                let len: usize = machine.stack_mut().pop()?.into();
                 let mut vec: Vec<u8> = Vec::new();
 
                 for i in 0..len {
@@ -540,15 +540,15 @@ impl Opcode {
             },
 
             Opcode::DELEGATECALL => {
-                let gas: Gas = machine.stack_mut().pop().into();
+                let gas: Gas = machine.stack_mut().pop()?.into();
                 let from = machine.transaction().sender();
-                let to: Option<Address> = machine.stack_mut().pop().into();
+                let to: Option<Address> = machine.stack_mut().pop()?.into();
                 let to = to.unwrap();
                 let value = machine.transaction().value();
-                let memory_in_start = machine.stack_mut().pop();
-                let memory_in_len = machine.stack_mut().pop();
-                let memory_out_start = machine.stack_mut().pop();
-                let memory_out_len = machine.stack_mut().pop();
+                let memory_in_start = machine.stack_mut().pop()?;
+                let memory_in_len = machine.stack_mut().pop()?;
+                let memory_out_start = machine.stack_mut().pop()?;
+                let memory_out_len = machine.stack_mut().pop()?;
 
                 machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
                              memory_out_start, memory_out_len, |machine| {
@@ -559,7 +559,7 @@ impl Opcode {
             },
 
             Opcode::SUICIDE => {
-                machine.stack_mut().pop();
+                machine.stack_mut().pop()?;
                 machine.pc_mut().stop();
             },
 
@@ -567,5 +567,6 @@ impl Opcode {
                 machine.pc_mut().stop();
             }
         }
+        Ok(())
     }
 }
