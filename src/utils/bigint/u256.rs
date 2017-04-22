@@ -158,7 +158,7 @@ impl From<u64> for U256 {
 impl Into<u64> for U256 {
     fn into(self) -> u64 {
         let p = self.0.iter().position(|s| *s != 0);
-        assert!(p.is_none() || p.unwrap() == 6);
+        assert!(p.is_none() || p.unwrap() >= 6);
         let lo = self.0[7] as u64;
         let hi = self.0[6] as u64;
         lo + (hi << 32)
