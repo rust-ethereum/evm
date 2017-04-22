@@ -94,7 +94,6 @@ impl U256 {
     }
 
     pub fn bits(&self) -> usize {
-        let total = 0x40;
         let &U256(ref arr) = self;
         let mut current_bits = 0;
         for i in (0..8).rev() {
@@ -256,7 +255,7 @@ impl BitAnd<U256> for U256 {
 
     fn bitand(self, other: U256) -> U256 {
         let mut r: U256 = self;
-        for i in 0..4 {
+        for i in 0..8 {
             r.0[i] = r.0[i] & other.0[i];
         }
         r
@@ -268,7 +267,7 @@ impl BitOr<U256> for U256 {
 
     fn bitor(self, other: U256) -> U256 {
         let mut r: U256 = self;
-        for i in 0..4 {
+        for i in 0..8 {
             r.0[i] = r.0[i] | other.0[i];
         }
         r
@@ -280,7 +279,7 @@ impl BitXor<U256> for U256 {
 
     fn bitxor(self, other: U256) -> U256 {
         let mut r: U256 = self;
-        for i in 0..4 {
+        for i in 0..8 {
             r.0[i] = r.0[i] ^ other.0[i];
         }
         r
