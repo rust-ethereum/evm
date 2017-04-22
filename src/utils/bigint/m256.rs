@@ -2,6 +2,7 @@ use std::convert::{From, Into, AsRef};
 use std::str::FromStr;
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::Ordering;
+use std::fmt;
 
 use super::{U256};
 use utils::ParseHexError;
@@ -145,5 +146,17 @@ impl Not for M256 {
 
     fn not(self) -> M256 {
         M256(self.0.not())
+    }
+}
+
+impl fmt::LowerHex for M256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:x}", self.0)
+    }
+}
+
+impl fmt::UpperHex for M256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:X}", self.0)
     }
 }
