@@ -37,6 +37,7 @@ use std::convert::{From, Into, AsRef};
 use std::str::FromStr;
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::Ordering;
+use std::fmt;
 
 use utils::{read_hex, ParseHexError};
 use super::Sign;
@@ -415,6 +416,24 @@ impl Not for U256 {
             ret[i] = !arr[i];
         }
         U256(ret)
+    }
+}
+
+impl fmt::LowerHex for U256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..8 {
+            write!(f, "{:08x}", self.0[i]);
+        }
+        Ok(())
+    }
+}
+
+impl fmt::UpperHex for U256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..8 {
+            write!(f, "{:08X}", self.0[i]);
+        }
+        Ok(())
     }
 }
 
