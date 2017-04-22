@@ -103,14 +103,18 @@ impl Opcode {
             },
 
             Opcode::EXP => {
-                let op1 = machine.stack_mut().pop();
+                let mut op1 = machine.stack_mut().pop();
                 let mut op2 = machine.stack_mut().pop();
                 let mut r: M256 = 1.into();
 
                 while op2 != 0.into() {
-                    r = r * op1;
-                    op2 = op2 - 1.into();
+                    if (op2 & 1.into() != 0.into()) {
+                        r = r * op1;
+                    }
+                    op2 = op2 >> 1;
+                    op1 = op1 * op1;
                 }
+
                 machine.stack_mut().push(r);
             },
 
