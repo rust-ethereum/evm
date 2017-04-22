@@ -38,8 +38,6 @@ fn test_transaction(name: &str, v: &Value) {
         caller, address, value, data.as_ref(), current_gas_limit
     );
 
-    let out = v["out"].as_str().unwrap();
-
     let ref pre_addresses = v["pre"];
 
     for (address, data) in pre_addresses.as_object().unwrap() {
@@ -61,11 +59,18 @@ fn test_transaction(name: &str, v: &Value) {
     let mut machine: VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>> =
                                    VectorMachine::new(code.as_ref(), data.as_ref(), gas,
                                                       transaction, Box::new(block));
-    machine.fire();
 
-    let out = read_hex(out).unwrap();
-    let out_ref: &[u8] = out.as_ref();
-    assert!(machine.return_values() == out_ref);
+    let out = v["out"].as_str();
+
+    if out.is_some() {
+        machine.fire();
+        let out = read_hex(out.unwrap()).unwrap();
+        let out_ref: &[u8] = out.as_ref();
+        assert!(machine.return_values() == out_ref);
+    } else {
+        println!(" OK (meant to fail, not running)");
+        return;
+    }
 
     let ref post_addresses = v["post"];
 

@@ -158,7 +158,7 @@ impl From<u64> for U256 {
 impl Into<u64> for U256 {
     fn into(self) -> u64 {
         let p = self.0.iter().position(|s| *s != 0);
-        assert!(p.is_none() || p.unwrap() == 6);
+        assert!(p.is_none() || p.unwrap() >= 6);
         let lo = self.0[7] as u64;
         let hi = self.0[6] as u64;
         lo + (hi << 32)
@@ -316,7 +316,7 @@ impl Shr<usize> for U256 {
         let mut ret = [0u32; 8];
         let word_shift = shift / 32;
         let bit_shift = shift % 32;
-        for i in (word_shift..8).rev() {
+        for i in (0..8).rev() {
             // Shift
             if i + word_shift < 8 {
                 ret[i + word_shift] += original[i] >> bit_shift;

@@ -25,7 +25,9 @@ impl From<M256> for MI256 {
         } else if val & SIGN_BIT_MASK.into() == val {
             MI256(Sign::Plus, val)
         } else {
-            MI256(Sign::Minus, val & SIGN_BIT_MASK.into())
+            let mut digits: [u32; 8] = val.into();
+            from_signed(Sign::Minus, &mut digits);
+            MI256(Sign::Minus, digits.into())
         }
     }
 }
@@ -44,6 +46,10 @@ impl Div for MI256 {
     fn div(self, other: MI256) -> MI256 {
         let d = (self.1 / other.1) & SIGN_BIT_MASK.into();
 
+        if d == M256::zero() {
+            return MI256::zero();
+        }
+
         match (self.0, other.0) {
             (Sign::Plus, Sign::Plus) |
             (Sign::Minus, Sign::Minus) => MI256(Sign::Plus, d),
@@ -60,12 +66,10 @@ impl Rem for MI256 {
     fn rem(self, other: MI256) -> MI256 {
         let r = (self.1 % other.1) & SIGN_BIT_MASK.into();
 
-        match (self.0, other.0) {
-            (Sign::Plus, Sign::Plus) => MI256(Sign::Plus, r),
-            (Sign::Minus, Sign::Plus) => MI256(Sign::Minus, other.1 - r),
-            (Sign::Plus, Sign::Minus) => MI256(Sign::Plus, other.1 - r),
-            (Sign::Minus, Sign::Minus) => MI256(Sign::Minus, r),
-            _ => MI256::zero()
+        if r == M256::zero() {
+            return MI256::zero()
         }
+
+        MI256(self.0, r)
     }
 }
