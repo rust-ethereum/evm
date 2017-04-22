@@ -13,6 +13,8 @@ pub use self::machine::{Machine, VectorMachine, FakeVectorMachine};
 #[derive(Debug)]
 pub enum Error {
     EmptyGas,
+    StackUnderflow,
+    Stopped
 }
 
 pub type Result<T> = ::std::result::Result<T, Error>;

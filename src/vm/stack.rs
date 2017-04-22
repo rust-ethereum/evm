@@ -1,8 +1,9 @@
 use utils::bigint::M256;
+use super::{Result, Error};
 
 pub trait Stack {
     fn push(&mut self, elem: M256);
-    fn pop(&mut self) -> M256;
+    fn pop(&mut self) -> Result<M256>;
     fn set(&mut self, no_from_top: usize, val: M256);
     fn peek(&self, no_from_top: usize) -> M256;
     fn has(&self, no_of_elems: usize) -> bool;
@@ -26,10 +27,10 @@ impl Stack for VectorStack {
         self.stack.push(elem);
     }
 
-    fn pop(&mut self) -> M256 {
+    fn pop(&mut self) -> Result<M256> {
         match self.stack.pop() {
-            Some(x) => x,
-            None => panic!("Empty stack pop.")
+            Some(x) => Ok(x),
+            None => Err(Error::StackUnderflow),
         }
     }
 

@@ -2,7 +2,7 @@ use utils::bigint::M256;
 use utils::gas::Gas;
 use utils::address::Address;
 
-use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result};
+use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result, Error};
 use blockchain::{Block, FakeVectorBlock};
 use transaction::{Transaction, VectorTransaction};
 
@@ -40,9 +40,13 @@ pub trait Machine {
                                        memory_out_start: M256,
                                        memory_out_len: M256, f: F);
 
-    fn step(&mut self) -> bool where Self: Sized {
-        if self.pc().stopped() || !self.available_gas().is_valid() {
-            return false;
+    fn step(&mut self) -> Result<()> where Self: Sized {
+        if self.pc().stopped() {
+            return Err(Error::Stopped)
+        }
+
+        if !self.available_gas().is_valid() {
+            return Err(Error::EmptyGas)
         }
 
         let opcode = self.pc_mut().read_opcode();
@@ -52,11 +56,20 @@ pub trait Machine {
         let after = opcode.gas_cost_after(self);
         self.use_gas(after);
 
-        true
+        Ok(())
     }
 
-    fn fire(&mut self) where Self: Sized {
-        while self.step() { }
+    fn fire(&mut self) -> Result<()> where Self: Sized {
+        loop {
+            let result = self.step();
+
+            if result.is_err() {
+                match result.err().unwrap() {
+                    Error::Stopped => return Ok(()),
+                    err => return Err(err),
+                }
+            }
+        }
     }
 
     fn available_gas(&self) -> Gas {
