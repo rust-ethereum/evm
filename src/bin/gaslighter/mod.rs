@@ -5,6 +5,7 @@ extern crate capnp;
 extern crate libloading;
 extern crate libc;
 extern crate serde_json;
+extern crate rustyline;
 
 mod hierarchy_capnp;
 mod vm_capnp;
@@ -12,7 +13,6 @@ mod test_capnp;
 mod ffi;
 mod crat;
 mod json_schema;
-
 
 use serde_json::{Value, Error};
 use std::process;
@@ -22,7 +22,7 @@ use std::io::{BufReader, Write, stdout};
 
 use sputnikvm::{read_hex, Gas};
 use sputnikvm::vm::{Machine, FakeVectorMachine};
-use crat::{test_transaction};
+use crat::{test_transaction, debug_transaction};
 
 fn main() {
     let matches = clap_app!(gaslighter =>
@@ -45,6 +45,11 @@ fn main() {
             (@arg DATA: -d --data +takes_value +required "Sets the data needed")
             (@arg CODE: -c --code +takes_value +required "Sets the path to a file which contains the vm byte code")
         )
+        (@subcommand cratedb =>
+            (version: "0.1.0")
+            (about: "Use the JSON schema to run a debug session, where machine inner state can be inspected.")
+            (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
+            (@arg TEST: -t --test +takes_value +required "test to run in the given file"))
         (@subcommand srv =>
             (about: "Allows SputnikVM to be run as a service.")
         )
@@ -87,6 +92,21 @@ fn main() {
                 for (test, data) in json.as_object().unwrap() {
                     test_transaction(test, &data);
                 }
+            },
+        }
+    }
+    if let Some(ref matches) = matches.subcommand_matches("cratedb") {
+        let path = Path::new(matches.value_of("FILE").unwrap());
+        let file = File::open(&path).unwrap();
+        let reader = BufReader::new(file);
+        let json: Value = serde_json::from_reader(reader).unwrap();
+
+        match matches.value_of("TEST") {
+            Some(test) => {
+                debug_transaction(&json[test]);
+            },
+            None => {
+                panic!()
             },
         }
     }
