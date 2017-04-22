@@ -11,7 +11,6 @@ mod vm_capnp;
 mod test_capnp;
 mod ffi;
 mod crat;
-#[path = "../json_schema/mod.rs"]
 mod json_schema;
 
 
