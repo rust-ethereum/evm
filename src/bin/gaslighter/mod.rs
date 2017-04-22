@@ -72,7 +72,7 @@ fn main() {
         machine.fire();
         println!("gas used: {:?}", machine.used_gas());
     }
-    if let Some(ref matches) = matches.subcommand_matches("crate") {
+    if let Some(ref matches) = matches.subcommand_matches("crat") {
         let path = Path::new(matches.value_of("FILE").unwrap());
         let file = File::open(&path).unwrap();
         let reader = BufReader::new(file);
