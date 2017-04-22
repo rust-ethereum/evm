@@ -1,4 +1,4 @@
-use utils::bigint::{M256, MI256};
+use utils::bigint::{M256, MI256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
 use super::Opcode;
@@ -67,28 +67,38 @@ impl Opcode {
             },
 
             Opcode::ADDMOD => {
-                let op1 = machine.stack_mut().pop();
-                let op2 = machine.stack_mut().pop();
-                let op3 = machine.stack_mut().pop();
+                let op1: U256 = machine.stack_mut().pop().into();
+                let op2: U256 = machine.stack_mut().pop().into();
+                let op3: U256 = machine.stack_mut().pop().into();
 
-                if op3 == 0.into() {
+                let op1: U512 = op1.into();
+                let op2: U512 = op2.into();
+                let op3: U512 = op3.into();
+
+                if op3 == U512::zero() {
                     machine.stack_mut().push(0.into());
                 } else {
-                    let v = op1 + op2;
-                    machine.stack_mut().push(v % op3);
+                    let v = (op1 + op2) % op3;
+                    let v: U256 = v.into();
+                    machine.stack_mut().push(v.into());
                 }
             },
 
             Opcode::MULMOD => {
-                let op1 = machine.stack_mut().pop();
-                let op2 = machine.stack_mut().pop();
-                let op3 = machine.stack_mut().pop();
+                let op1: U256 = machine.stack_mut().pop().into();
+                let op2: U256 = machine.stack_mut().pop().into();
+                let op3: U256 = machine.stack_mut().pop().into();
 
-                if op3 == 0.into() {
+                let op1: U512 = op1.into();
+                let op2: U512 = op2.into();
+                let op3: U512 = op3.into();
+
+                if op3 == U512::zero() {
                     machine.stack_mut().push(0.into());
                 } else {
-                    let v = op1 * op2;
-                    machine.stack_mut().push(v % op3);
+                    let v = (op1 * op2) % op3;
+                    let v: U256 = v.into();
+                    machine.stack_mut().push(v.into());
                 }
             },
 

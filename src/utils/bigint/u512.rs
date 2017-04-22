@@ -23,6 +23,10 @@ impl U512 {
         }
         current_bits
     }
+
+    pub fn zero() -> U512 {
+        U512([0u32; 16])
+    }
 }
 
 impl From<U256> for U512 {
@@ -201,5 +205,14 @@ impl Div for U512 {
         }
 
         U512(ret)
+    }
+}
+
+impl Rem for U512 {
+    type Output = U512;
+
+    fn rem(self, other: U512) -> U512 {
+        let d = self / other;
+        self - (other * d)
     }
 }
