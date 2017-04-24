@@ -221,14 +221,21 @@ impl Opcode {
 
             Opcode::BYTE => {
                 let op1 = machine.stack_mut().pop()?;
-                let op2: usize = machine.stack_mut().pop()?.into(); // 256 / 8
-                let mark: M256 = 0xff.into();
+                let op2 = machine.stack_mut().pop()?;
 
-                if op2 >= 256 / 8 {
-                    machine.stack_mut().push(0.into());
-                } else {
-                    machine.stack_mut().push((op1 >> (op2 * 8)) & mark);
+                let mut ret = M256::zero();
+
+                for i in 0..256 {
+                    if i < 8 && op1 < 32.into() {
+                        let o: usize = op1.into();
+                        let t = 255 - (7 - i + 8 * o);
+                        let bit_mask = M256::one() << t;
+                        let value = (op2 & bit_mask) >> t;
+                        ret = ret + (value << i);
+                    }
                 }
+
+                machine.stack_mut().push(ret);
             },
 
             Opcode::SHA3 => {
