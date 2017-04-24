@@ -86,11 +86,11 @@ fn main() {
 
         match matches.value_of("TEST") {
             Some(test) => {
-                test_transaction(test, &json[test]);
+                test_transaction(test, &json[test], true);
             },
             None => {
                 for (test, data) in json.as_object().unwrap() {
-                    test_transaction(test, &data);
+                    test_transaction(test, &data, false);
                 }
             },
         }

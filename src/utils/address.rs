@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::fmt;
 
 use utils::bigint::M256;
 use utils::{read_hex, ParseHexError};
@@ -57,5 +58,23 @@ impl FromStr for Address {
                 Ok(Address(a))
             }
         })
+    }
+}
+
+impl fmt::LowerHex for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..20 {
+            write!(f, "{:02x}", self.0[i]);
+        }
+        Ok(())
+    }
+}
+
+impl fmt::UpperHex for Address {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..20 {
+            write!(f, "{:02X}", self.0[i]);
+        }
+        Ok(())
     }
 }

@@ -17,8 +17,11 @@ use std::str::FromStr;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-pub fn test_transaction(name: &str, v: &Value) {
-    print!("Testing {} ...", name);
+pub fn test_transaction(name: &str, v: &Value, debug: bool) {
+    print!("Testing {} ... ", name);
+    if debug {
+        print!("\n");
+    }
     stdout().flush();
 
     let mut machine = create_machine(v);
@@ -27,16 +30,16 @@ pub fn test_transaction(name: &str, v: &Value) {
     let out = v["out"].as_str();
 
     if out.is_some() {
-        if result.is_ok() && test_machine(v, &machine) {
-            println!(" OK");
+        if result.is_ok() && test_machine(v, &machine, debug) {
+            println!("OK");
         } else {
-            println!(" Failed");
+            println!("Failed");
         }
     } else {
         if result.is_err() {
-            println!(" OK");
+            println!("OK");
         } else {
-            println!(" Failed");
+            println!("Failed");
         }
     }
 }
