@@ -56,8 +56,12 @@ pub fn debug_transaction(v: &Value) {
                 rl.add_history_entry(&line);
                 match line.as_ref() {
                     "step" => {
-                        println!("{:?}", machine.pc().peek_opcode());
-                        machine.step();
+                        if machine.pc().stopped() {
+                            println!("Stopped");
+                        } else {
+                            println!("{:?}", machine.pc().peek_opcode());
+                            machine.step();
+                        }
                     },
                     "fire" => {
                         machine.fire();
