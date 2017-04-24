@@ -1,4 +1,5 @@
 use std::str::FromStr;
+use std::fmt;
 
 use utils::bigint::M256;
 use utils::{read_hex, ParseHexError};
@@ -36,5 +37,23 @@ impl FromStr for H256 {
                 Ok(H256(a))
             }
         })
+    }
+}
+
+impl fmt::LowerHex for H256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..32 {
+            write!(f, "{:02x}", self.0[i]);
+        }
+        Ok(())
+    }
+}
+
+impl fmt::UpperHex for H256 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        for i in 0..32 {
+            write!(f, "{:02X}", self.0[i]);
+        }
+        Ok(())
     }
 }

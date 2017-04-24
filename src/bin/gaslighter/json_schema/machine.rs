@@ -20,7 +20,7 @@ pub fn create_machine(v: &Value) -> VectorMachine<JSONVectorBlock, Box<JSONVecto
                        transaction, Box::new(block))
 }
 
-pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>>) -> bool {
+pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>>, debug: bool) -> bool {
     let out = v["out"].as_str();
 
     if out.is_some() {
@@ -50,6 +50,13 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
             let index = M256::from_str(index.as_str()).unwrap();
             let value = M256::from_str(value.as_str().unwrap()).unwrap();
             if value != machine.block().account_storage(address, index) {
+                if debug {
+                    print!("\n");
+                    println!("Storage check failed for address 0x{:x} in storage index 0x{:x}",
+                             address, index);
+                    println!("Expected: 0x{:x}", value);
+                    println!("Actual:   0x{:x}", machine.block().account_storage(address, index));
+                }
                 return false;
             }
         }
