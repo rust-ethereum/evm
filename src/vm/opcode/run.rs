@@ -419,15 +419,15 @@ impl Opcode {
             },
 
             Opcode::DUP(v) => {
-                let val = machine.stack().peek(v - 1);
+                let val = machine.stack().peek(v - 1)?;
                 machine.stack_mut().push(val);
             },
 
             Opcode::SWAP(v) => {
-                let val1 = machine.stack().peek(0);
-                let val2 = machine.stack().peek(v);
-                machine.stack_mut().set(0, val2);
-                machine.stack_mut().set(v, val1);
+                let val1 = machine.stack().peek(0)?;
+                let val2 = machine.stack().peek(v)?;
+                machine.stack_mut().set(0, val2).unwrap();
+                machine.stack_mut().set(v, val1).unwrap();
             },
 
             Opcode::LOG(v) => {
