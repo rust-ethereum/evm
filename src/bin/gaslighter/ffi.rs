@@ -93,11 +93,11 @@ fn has_all_ffi_tests_passed(tests_to_execute: std::vec::Vec<ExecuteTest>
         message.set_root(io);
         let mut vm_resp = serialize::write_message_to_words(&message);
         let response = sputnikvm.evaluate(vm_resp.as_ptr(), vm_resp.len());
-        // let vm_resp = construct_vec_word(response.capnp, response.len);
+        let vm_resp = construct_vec_word(response.capnp, response.len);
         let io = serialize::read_message_from_words(&vm_resp, message::ReaderOptions::new()).expect("failed to read vm response");
         let io = io.get_root::<vm_capnp::input_output::Reader>().expect("failed to get root");
-        let ao_gas = io.get_output().expect("failed to get output").get_used_gas();
-        let eo_gas = eo.get_used_gas();
+        let ao_gas = io.get_output().expect("failed to get output").get_gas().expect("couldn't get eo gas")[0];
+        let eo_gas = eo.get_gas().expect("couldn't get ao gas")[0];
         let ao_code = io.get_output().expect("").get_code().expect("").iter();
         let eo_code = eo.get_code().expect("").iter();
         let mut ao_vec = Vec::new();

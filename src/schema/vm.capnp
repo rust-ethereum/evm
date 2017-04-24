@@ -1,14 +1,18 @@
 @0xc98fff04bdc3a38a;
 
 struct Input {
-  initialGas @0 :Int32;
+  gas @0 :Data;
   code @1 :List(Data);
   data @2 :List(Data);
 }
 
 struct Output {
-  usedGas @0 :Int32;
-  code @1 :List(Data);
+  gas @0 :Data;
+  out @1 :Data;
+  balance @2 :Data;
+  code @3 :List(Data);
+  nonce @4 :Data;
+  storage @5 :List(Data);
 }
 
 struct InputOutput {

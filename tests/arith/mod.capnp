@@ -6,5 +6,5 @@ using Div = import "div.capnp";
 
 const all: Hierarchy.Files = (
   name = "arith",
-  files = [ Add.all, Div.all ]
+  files = [ Add.all ]
 );

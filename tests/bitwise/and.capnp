@@ -13,17 +13,17 @@ const and1: Test.InputOutput = (
   name = "and1",
   inputOutput = (
     input = (
-      initialGas = 314159,
+      initialGas = 0x"314159",
       code = [ Op.STOP, Op.STOP ],
       data = [ Op.STOP, Op.STOP ]
     ),
     output = (
-      usedGas = 314159,
+      usedGas = 0x"314159",
       code = [ Op.STOP ]
     )
   ),
   expectedOutput = (
-    usedGas = 314159,
+    usedGas = 0x"314159",
     code = [ Op.STOP ]
   )
 );
@@ -32,17 +32,17 @@ const and2: Test.InputOutput = (
   name = "and2",
   inputOutput = (
     input = (
-      initialGas = 314159,
+      initialGas = 0x"314159",
       code = [ Op.STOP, Op.STOP ],
       data = [ Op.STOP, Op.STOP ]
     ),
     output = (
-      usedGas = 314159,
+      usedGas = 0x"314159",
       code = [ Op.STOP ]
     )
   ),
   expectedOutput = (
-    usedGas = 314159,
+    usedGas = 0x"314159",
     code = [ Op.STOP ]
   )
 );

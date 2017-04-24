@@ -50,13 +50,14 @@ pub extern fn evaluate(vm_io: *const capnp::Word, len: size_t) {
     for in_char in in_data {
         data_vec.push(in_char.expect("character expected")[0]);
     }
-    let gas = msg_reader.get_input().expect("failed").get_initial_gas();
+    let gas = msg_reader.get_input().expect("failed").get_gas().expect("couldn't get gas");
 
     let mut machine = FakeVectorMachine::fake(
         code_vec.as_slice()
         , data_vec.as_slice()
-        , Gas::from(gas as isize));
+        , Gas::from(gas[0] as isize));
     machine.fire();
+
     if log_enabled!(LogLevel::Info) {
         info!("gas used: {:?}", machine.used_gas());
     }

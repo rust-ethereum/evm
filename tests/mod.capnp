@@ -7,5 +7,5 @@ using Bitwise = import "bitwise/mod.capnp";
 
 const all: Hierarchy.Directories = (
   name = "top",
-  dirs = [ Arith.all, Bitwise.all ]
+  dirs = [ Arith.all]
 );

@@ -50,22 +50,25 @@ pub mod input {
       self.reader.total_size()
     }
     #[inline]
-    pub fn get_initial_gas(self) -> i32 {
-      self.reader.get_data_field::<i32>(0)
+    pub fn get_gas(self) -> Result<data::Reader<'a>> {
+      self.reader.get_pointer_field(0).get_data(::std::ptr::null(), 0)
     }
-    #[inline]
-    pub fn get_code(self) -> Result<data_list::Reader<'a>> {
-      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0))
-    }
-    pub fn has_code(&self) -> bool {
+    pub fn has_gas(&self) -> bool {
       !self.reader.get_pointer_field(0).is_null()
     }
     #[inline]
-    pub fn get_data(self) -> Result<data_list::Reader<'a>> {
+    pub fn get_code(self) -> Result<data_list::Reader<'a>> {
       ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(1))
     }
-    pub fn has_data(&self) -> bool {
+    pub fn has_code(&self) -> bool {
       !self.reader.get_pointer_field(1).is_null()
+    }
+    #[inline]
+    pub fn get_data(self) -> Result<data_list::Reader<'a>> {
+      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(2))
+    }
+    pub fn has_data(&self) -> bool {
+      !self.reader.get_pointer_field(2).is_null()
     }
   }
 
@@ -118,42 +121,49 @@ pub mod input {
       self.builder.as_reader().total_size()
     }
     #[inline]
-    pub fn get_initial_gas(self) -> i32 {
-      self.builder.get_data_field::<i32>(0)
+    pub fn get_gas(self) -> Result<data::Builder<'a>> {
+      self.builder.get_pointer_field(0).get_data(::std::ptr::null(), 0)
     }
     #[inline]
-    pub fn set_initial_gas(&mut self, value: i32)  {
-      self.builder.set_data_field::<i32>(0, value);
+    pub fn set_gas(&mut self, value: data::Reader)  {
+      self.builder.get_pointer_field(0).set_data(value);
     }
     #[inline]
-    pub fn get_code(self) -> Result<data_list::Builder<'a>> {
-      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0))
+    pub fn init_gas(self, size: u32) -> data::Builder<'a> {
+      self.builder.get_pointer_field(0).init_data(size)
     }
-    #[inline]
-    pub fn set_code(&mut self, value: data_list::Reader<'a>) -> Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(0), value)
-    }
-    #[inline]
-    pub fn init_code(self, size: u32) -> data_list::Builder<'a> {
-      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(0), size)
-    }
-    pub fn has_code(&self) -> bool {
+    pub fn has_gas(&self) -> bool {
       !self.builder.get_pointer_field(0).is_null()
     }
     #[inline]
-    pub fn get_data(self) -> Result<data_list::Builder<'a>> {
+    pub fn get_code(self) -> Result<data_list::Builder<'a>> {
       ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(1))
     }
     #[inline]
-    pub fn set_data(&mut self, value: data_list::Reader<'a>) -> Result<()> {
+    pub fn set_code(&mut self, value: data_list::Reader<'a>) -> Result<()> {
       ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(1), value)
     }
     #[inline]
-    pub fn init_data(self, size: u32) -> data_list::Builder<'a> {
+    pub fn init_code(self, size: u32) -> data_list::Builder<'a> {
       ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(1), size)
     }
-    pub fn has_data(&self) -> bool {
+    pub fn has_code(&self) -> bool {
       !self.builder.get_pointer_field(1).is_null()
+    }
+    #[inline]
+    pub fn get_data(self) -> Result<data_list::Builder<'a>> {
+      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(2))
+    }
+    #[inline]
+    pub fn set_data(&mut self, value: data_list::Reader<'a>) -> Result<()> {
+      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(2), value)
+    }
+    #[inline]
+    pub fn init_data(self, size: u32) -> data_list::Builder<'a> {
+      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(2), size)
+    }
+    pub fn has_data(&self) -> bool {
+      !self.builder.get_pointer_field(2).is_null()
     }
   }
 
@@ -167,7 +177,7 @@ pub mod input {
   }
   mod _private {
     use capnp::private::layout;
-    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 2 };
+    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 0, pointers: 3 };
     pub const TYPE_ID: u64 = 0x8da2b4986f3b8b8b;
   }
 }
@@ -219,15 +229,46 @@ pub mod output {
       self.reader.total_size()
     }
     #[inline]
-    pub fn get_used_gas(self) -> i32 {
-      self.reader.get_data_field::<i32>(0)
+    pub fn get_gas(self) -> Result<data::Reader<'a>> {
+      self.reader.get_pointer_field(0).get_data(::std::ptr::null(), 0)
+    }
+    pub fn has_gas(&self) -> bool {
+      !self.reader.get_pointer_field(0).is_null()
+    }
+    #[inline]
+    pub fn get_out(self) -> Result<data::Reader<'a>> {
+      self.reader.get_pointer_field(1).get_data(::std::ptr::null(), 0)
+    }
+    pub fn has_out(&self) -> bool {
+      !self.reader.get_pointer_field(1).is_null()
+    }
+    #[inline]
+    pub fn get_balance(self) -> Result<data::Reader<'a>> {
+      self.reader.get_pointer_field(2).get_data(::std::ptr::null(), 0)
+    }
+    pub fn has_balance(&self) -> bool {
+      !self.reader.get_pointer_field(2).is_null()
     }
     #[inline]
     pub fn get_code(self) -> Result<data_list::Reader<'a>> {
-      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(0))
+      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(3))
     }
     pub fn has_code(&self) -> bool {
-      !self.reader.get_pointer_field(0).is_null()
+      !self.reader.get_pointer_field(3).is_null()
+    }
+    #[inline]
+    pub fn get_nonce(self) -> Result<data::Reader<'a>> {
+      self.reader.get_pointer_field(4).get_data(::std::ptr::null(), 0)
+    }
+    pub fn has_nonce(&self) -> bool {
+      !self.reader.get_pointer_field(4).is_null()
+    }
+    #[inline]
+    pub fn get_storage(self) -> Result<data_list::Reader<'a>> {
+      ::capnp::traits::FromPointerReader::get_from_pointer(&self.reader.get_pointer_field(5))
+    }
+    pub fn has_storage(&self) -> bool {
+      !self.reader.get_pointer_field(5).is_null()
     }
   }
 
@@ -280,27 +321,94 @@ pub mod output {
       self.builder.as_reader().total_size()
     }
     #[inline]
-    pub fn get_used_gas(self) -> i32 {
-      self.builder.get_data_field::<i32>(0)
+    pub fn get_gas(self) -> Result<data::Builder<'a>> {
+      self.builder.get_pointer_field(0).get_data(::std::ptr::null(), 0)
     }
     #[inline]
-    pub fn set_used_gas(&mut self, value: i32)  {
-      self.builder.set_data_field::<i32>(0, value);
+    pub fn set_gas(&mut self, value: data::Reader)  {
+      self.builder.get_pointer_field(0).set_data(value);
+    }
+    #[inline]
+    pub fn init_gas(self, size: u32) -> data::Builder<'a> {
+      self.builder.get_pointer_field(0).init_data(size)
+    }
+    pub fn has_gas(&self) -> bool {
+      !self.builder.get_pointer_field(0).is_null()
+    }
+    #[inline]
+    pub fn get_out(self) -> Result<data::Builder<'a>> {
+      self.builder.get_pointer_field(1).get_data(::std::ptr::null(), 0)
+    }
+    #[inline]
+    pub fn set_out(&mut self, value: data::Reader)  {
+      self.builder.get_pointer_field(1).set_data(value);
+    }
+    #[inline]
+    pub fn init_out(self, size: u32) -> data::Builder<'a> {
+      self.builder.get_pointer_field(1).init_data(size)
+    }
+    pub fn has_out(&self) -> bool {
+      !self.builder.get_pointer_field(1).is_null()
+    }
+    #[inline]
+    pub fn get_balance(self) -> Result<data::Builder<'a>> {
+      self.builder.get_pointer_field(2).get_data(::std::ptr::null(), 0)
+    }
+    #[inline]
+    pub fn set_balance(&mut self, value: data::Reader)  {
+      self.builder.get_pointer_field(2).set_data(value);
+    }
+    #[inline]
+    pub fn init_balance(self, size: u32) -> data::Builder<'a> {
+      self.builder.get_pointer_field(2).init_data(size)
+    }
+    pub fn has_balance(&self) -> bool {
+      !self.builder.get_pointer_field(2).is_null()
     }
     #[inline]
     pub fn get_code(self) -> Result<data_list::Builder<'a>> {
-      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(0))
+      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(3))
     }
     #[inline]
     pub fn set_code(&mut self, value: data_list::Reader<'a>) -> Result<()> {
-      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(0), value)
+      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(3), value)
     }
     #[inline]
     pub fn init_code(self, size: u32) -> data_list::Builder<'a> {
-      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(0), size)
+      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(3), size)
     }
     pub fn has_code(&self) -> bool {
-      !self.builder.get_pointer_field(0).is_null()
+      !self.builder.get_pointer_field(3).is_null()
+    }
+    #[inline]
+    pub fn get_nonce(self) -> Result<data::Builder<'a>> {
+      self.builder.get_pointer_field(4).get_data(::std::ptr::null(), 0)
+    }
+    #[inline]
+    pub fn set_nonce(&mut self, value: data::Reader)  {
+      self.builder.get_pointer_field(4).set_data(value);
+    }
+    #[inline]
+    pub fn init_nonce(self, size: u32) -> data::Builder<'a> {
+      self.builder.get_pointer_field(4).init_data(size)
+    }
+    pub fn has_nonce(&self) -> bool {
+      !self.builder.get_pointer_field(4).is_null()
+    }
+    #[inline]
+    pub fn get_storage(self) -> Result<data_list::Builder<'a>> {
+      ::capnp::traits::FromPointerBuilder::get_from_pointer(self.builder.get_pointer_field(5))
+    }
+    #[inline]
+    pub fn set_storage(&mut self, value: data_list::Reader<'a>) -> Result<()> {
+      ::capnp::traits::SetPointerBuilder::set_pointer_builder(self.builder.get_pointer_field(5), value)
+    }
+    #[inline]
+    pub fn init_storage(self, size: u32) -> data_list::Builder<'a> {
+      ::capnp::traits::FromPointerBuilder::init_pointer(self.builder.get_pointer_field(5), size)
+    }
+    pub fn has_storage(&self) -> bool {
+      !self.builder.get_pointer_field(5).is_null()
     }
   }
 
@@ -314,7 +422,7 @@ pub mod output {
   }
   mod _private {
     use capnp::private::layout;
-    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 1, pointers: 1 };
+    pub const STRUCT_SIZE: layout::StructSize = layout::StructSize { data: 0, pointers: 6 };
     pub const TYPE_ID: u64 = 0x931da0bcd396ecef;
   }
 }
