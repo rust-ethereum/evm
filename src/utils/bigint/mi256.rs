@@ -40,6 +40,28 @@ impl Into<M256> for MI256 {
     }
 }
 
+impl Ord for MI256 {
+    fn cmp(&self, other: &MI256) -> Ordering {
+        match (self.0, other.0) {
+            (Sign::NoSign, Sign::NoSign) => Ordering::Equal,
+            (Sign::NoSign, Sign::Plus) => Ordering::Less,
+            (Sign::NoSign, Sign::Minus) => Ordering::Greater,
+            (Sign::Minus, Sign::NoSign) => Ordering::Less,
+            (Sign::Minus, Sign::Plus) => Ordering::Less,
+            (Sign::Minus, Sign::Minus) => self.1.cmp(&other.1).reverse(),
+            (Sign::Plus, Sign::Minus) => Ordering::Greater,
+            (Sign::Plus, Sign::NoSign) => Ordering::Greater,
+            (Sign::Plus, Sign::Plus) => self.1.cmp(&other.1),
+        }
+    }
+}
+
+impl PartialOrd for MI256 {
+    fn partial_cmp(&self, other: &MI256) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
 impl Div for MI256 {
     type Output = MI256;
 

@@ -148,53 +148,17 @@ impl Opcode {
             Opcode::GT => op2_ref!(machine, gt),
 
             Opcode::SLT => {
-                let negative = M256::one() << 256;
+                let op1: MI256 = machine.stack_mut().pop()?.into();
+                let op2: MI256 = machine.stack_mut().pop()?.into();
 
-                let op1 = machine.stack_mut().pop()?;
-                let op2 = machine.stack_mut().pop()?;
-
-                if op1 < negative && op2 < negative {
-                    if op1 < op2 {
-                        machine.stack_mut().push(1.into());
-                    } else {
-                        machine.stack_mut().push(0.into());
-                    }
-                } else if op2 >= negative && op2 >= negative {
-                    if op1 < op2 {
-                        machine.stack_mut().push(0.into());
-                    } else {
-                        machine.stack_mut().push(1.into());
-                    }
-                } else if op1 < negative && op2 >= negative {
-                    machine.stack_mut().push(0.into());
-                } else {
-                    machine.stack_mut().push(1.into());
-                }
+                machine.stack_mut().push(op1.lt(&op2).into());
             },
 
             Opcode::SGT => {
-                let negative = M256::one() << 256;
+                let op1: MI256 = machine.stack_mut().pop()?.into();
+                let op2: MI256 = machine.stack_mut().pop()?.into();
 
-                let op1 = machine.stack_mut().pop()?;
-                let op2 = machine.stack_mut().pop()?;
-
-                if op1 < negative && op2 < negative {
-                    if op1 < op2 {
-                        machine.stack_mut().push(0.into());
-                    } else {
-                        machine.stack_mut().push(1.into());
-                    }
-                } else if op2 >= negative && op2 >= negative {
-                    if op1 < op2 {
-                        machine.stack_mut().push(1.into());
-                    } else {
-                        machine.stack_mut().push(0.into());
-                    }
-                } else if op1 < negative && op2 >= negative {
-                    machine.stack_mut().push(1.into());
-                } else {
-                    machine.stack_mut().push(0.into());
-                }
+                machine.stack_mut().push(op1.gt(&op2).into());
             },
 
             Opcode::EQ => op2_ref!(machine, eq),
