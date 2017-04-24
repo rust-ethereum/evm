@@ -7,7 +7,7 @@ use std::fmt;
 use super::{U256};
 use utils::ParseHexError;
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct M256(U256);
 
 impl M256 {

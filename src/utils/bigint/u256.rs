@@ -48,7 +48,7 @@ pub const SIGN_BIT_MASK: U256 = U256([0b01111111111111111111111111111111u32,
                                       0xffffffffu32, 0xffffffffu32, 0xffffffffu32, 0xffffffffu32]);
 
 #[repr(C)]
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct U256([u32; 8]);
 
 impl U256 {

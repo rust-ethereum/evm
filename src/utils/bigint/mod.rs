@@ -9,7 +9,7 @@ pub use self::u256::U256;
 pub use self::mi256::MI256;
 pub use self::u512::U512;
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub enum Sign {
     Minus,
     NoSign,

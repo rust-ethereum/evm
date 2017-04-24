@@ -1,7 +1,7 @@
 use utils::bigint::M256;
 use utils::gas::Gas;
 use super::Opcode;
-use vm::{Machine, Memory, Stack, PC};
+use vm::{Machine, Memory, Stack, PC, Error, Result};
 
 const G_ZERO: isize = 0;
 const G_BASE: isize = 2;
@@ -50,7 +50,7 @@ fn memory_cost(a: usize) -> Gas {
 // CALLDATACOPY, CODECOPY, EXTCODECOPY, LOG0-4, SHA3
 
 impl Opcode {
-    pub fn gas_cost_before<M: Machine>(&self, machine: &M) -> Gas {
+    pub fn gas_cost_before<M: Machine>(&self, machine: &M) -> Result<Gas> {
         let ref stack = machine.stack();
         let ref memory = machine.memory();
         let opcode = self.clone();
@@ -62,32 +62,32 @@ impl Opcode {
                 Gas::zero(),
 
             Opcode::SHA3 => {
-                let u_s1: u64 = (stack.peek(1)).into();
+                let u_s1: u64 = (stack.peek(1)?).into();
                 (G_SHA3 + G_SHA3WORD * (u_s1 as isize / 32)).into()
             },
 
             Opcode::LOG(v) => {
-                let u_s1: u64 = (stack.peek(1)).into();
+                let u_s1: u64 = (stack.peek(1)?).into();
                 (G_LOG + G_LOGDATA * u_s1 as isize + (v as isize - 1) * G_LOGTOPIC).into()
             },
 
             Opcode::EXTCODECOPY => {
                 // TODO: this value might exceed isize::max_value()
-                let u_s3: u64 = (stack.peek(2)).into();
+                let u_s3: u64 = (stack.peek(2)?).into();
                 (G_EXTCODE + G_COPY * (u_s3 as isize / 32)).into()
             },
 
             Opcode::CALLDATACOPY | Opcode::CODECOPY => {
                 // TODO: this value might exceed isize::max_value()
-                let u_s2: u64 = (stack.peek(2)).into();
+                let u_s2: u64 = (stack.peek(2)?).into();
                 (G_VERYLOW + G_COPY * (u_s2 as isize / 32)).into()
             },
 
             Opcode::EXP => {
-                if stack.peek(1) == M256::zero() {
+                if stack.peek(1)? == M256::zero() {
                     G_EXP.into()
                 } else {
-                    (G_EXP + G_EXPBYTE * (1 + stack.peek(1).log2floor() as isize)).into()
+                    (G_EXP + G_EXPBYTE * (1 + stack.peek(1)?.log2floor() as isize)).into()
                 }
             }
 
@@ -136,7 +136,7 @@ impl Opcode {
             Opcode::BLOCKHASH => G_BLOCKHASH.into(),
             Opcode::INVALID => Gas::zero(),
         };
-        self_cost - memory_cost(machine.memory().active_len())
+        Ok(self_cost - memory_cost(machine.memory().active_len()))
     }
 
     pub fn gas_cost_after<M: Machine>(&self, machine: &M) -> Gas {

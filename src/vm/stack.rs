@@ -4,8 +4,8 @@ use super::{Result, Error};
 pub trait Stack {
     fn push(&mut self, elem: M256);
     fn pop(&mut self) -> Result<M256>;
-    fn set(&mut self, no_from_top: usize, val: M256);
-    fn peek(&self, no_from_top: usize) -> M256;
+    fn set(&mut self, no_from_top: usize, val: M256) -> Result<()>;
+    fn peek(&self, no_from_top: usize) -> Result<M256>;
     fn has(&self, no_of_elems: usize) -> bool;
     fn size(&self) -> usize;
 }
@@ -34,13 +34,22 @@ impl Stack for VectorStack {
         }
     }
 
-    fn set(&mut self, no_from_top: usize, val: M256) {
-        let len = self.stack.len();
-        self.stack[len - no_from_top - 1] = val;
+    fn set(&mut self, no_from_top: usize, val: M256) -> Result<()> {
+        if self.stack.len() > no_from_top {
+            let len = self.stack.len();
+            self.stack[len - no_from_top - 1] = val;
+            Ok(())
+        } else {
+            Err(Error::StackUnderflow)
+        }
     }
 
-    fn peek(&self, no_from_top: usize) -> M256 {
-        self.stack[self.stack.len() - no_from_top - 1]
+    fn peek(&self, no_from_top: usize) -> Result<M256> {
+        if self.stack.len() > no_from_top {
+            Ok(self.stack[self.stack.len() - no_from_top - 1])
+        } else {
+            Err(Error::StackUnderflow)
+        }
     }
 
     fn has(&self, no_of_elems: usize) -> bool {

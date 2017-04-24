@@ -227,7 +227,7 @@ impl Opcode {
             Opcode::BALANCE => {
                 let address: Option<Address> = machine.stack_mut().pop()?.into();
                 let balance = address.map_or(None, |address| {
-                    machine.block().balance(address)
+                    Some(machine.block().balance(address))
                 }).map_or(M256::zero(), |balance| balance.into());
                 machine.stack_mut().push(balance);
             },
@@ -294,7 +294,7 @@ impl Opcode {
             Opcode::EXTCODESIZE => {
                 let account: Option<Address> = machine.stack_mut().pop()?.into();
                 let account = account.unwrap();
-                let len = machine.block().account_code(account).map_or(0, |s| s.len());
+                let len = machine.block().account_code(account).len();
                 machine.stack_mut().push(len.into());
             },
 
@@ -306,7 +306,7 @@ impl Opcode {
                 let len: usize = machine.stack_mut().pop()?.into();
 
                 for i in 0..len {
-                    let val = machine.block().account_code(account).unwrap()[code_index + i];
+                    let val = machine.block().account_code(account)[code_index + i];
                     machine.memory_mut().write_raw(memory_index + i.into(), val);
                 }
             },
@@ -419,15 +419,15 @@ impl Opcode {
             },
 
             Opcode::DUP(v) => {
-                let val = machine.stack().peek(v - 1);
+                let val = machine.stack().peek(v - 1)?;
                 machine.stack_mut().push(val);
             },
 
             Opcode::SWAP(v) => {
-                let val1 = machine.stack().peek(0);
-                let val2 = machine.stack().peek(v);
-                machine.stack_mut().set(0, val2);
-                machine.stack_mut().set(v, val1);
+                let val1 = machine.stack().peek(0)?;
+                let val2 = machine.stack().peek(v)?;
+                machine.stack_mut().set(0, val2).unwrap();
+                machine.stack_mut().set(v, val1).unwrap();
             },
 
             Opcode::LOG(v) => {
@@ -532,6 +532,10 @@ impl Opcode {
             Opcode::SUICIDE => {
                 machine.stack_mut().pop()?;
                 machine.pc_mut().stop();
+
+                let callee = machine.transaction().callee();
+                let code: Vec<u8> = machine.pc().code().into();
+                machine.block_mut().set_account_code(callee, code.as_ref());
             },
 
             Opcode::INVALID => {
