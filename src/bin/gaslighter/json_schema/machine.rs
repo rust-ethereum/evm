@@ -1,4 +1,4 @@
-use sputnikvm::{read_hex, Gas, M256, Address};
+use sputnikvm::{read_hex, Gas, M256, U256, Address};
 use sputnikvm::vm::{Machine, VectorMachine};
 use sputnikvm::blockchain::Block;
 use sputnikvm::transaction::{Transaction, VectorTransaction};
@@ -35,13 +35,14 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
 
     for (address, data) in post_addresses.as_object().unwrap() {
         let address = Address::from_str(address.as_str()).unwrap();
-        let balance = M256::from_str(data["balance"].as_str().unwrap()).unwrap();
+        let balance = U256::from_str(data["balance"].as_str().unwrap()).unwrap();
         let code = read_hex(data["code"].as_str().unwrap()).unwrap();
+        let code_ref: &[u8] = code.as_ref();
 
-        if Some(code.as_ref()) != machine.block().account_code(address) {
+        if code_ref != machine.block().account_code(address) {
             return false;
         }
-        if Some(balance.into()) != machine.block().balance(address) {
+        if balance != machine.block().balance(address) {
             return false;
         }
 

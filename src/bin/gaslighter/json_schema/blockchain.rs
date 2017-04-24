@@ -13,7 +13,7 @@ pub fn create_block(v: &Value) -> JSONVectorBlock {
 
     for (address, data) in pre_addresses.as_object().unwrap() {
         let address = Address::from_str(address.as_str()).unwrap();
-        let balance = M256::from_str(data["balance"].as_str().unwrap()).unwrap();
+        let balance = U256::from_str(data["balance"].as_str().unwrap()).unwrap();
         let code = read_hex(data["code"].as_str().unwrap()).unwrap();
 
         block.set_account_code(address, code.as_ref());
@@ -32,8 +32,8 @@ pub fn create_block(v: &Value) -> JSONVectorBlock {
 
 pub struct JSONVectorBlock {
     codes: HashMap<Address, Vec<u8>>,
-    balances: HashMap<Address, M256>,
-    storages: HashMap<Address, Vec<M256>>,
+    balances: HashMap<Address, U256>,
+    storages: HashMap<Address, HashMap<M256, M256>>,
 
     coinbase: Address,
     timestamp: M256,
@@ -62,19 +62,21 @@ impl JSONVectorBlock {
             timestamp: M256::from_str(current_timestamp).unwrap(),
         }
     }
+}
 
-    pub fn set_account_code(&mut self, address: Address, code: &[u8]) {
+static EMPTY: [u8; 0] = [];
+
+impl Block for JSONVectorBlock {
+    fn account_code(&self, address: Address) -> &[u8] {
+        self.codes.get(&address).map_or(EMPTY.as_ref(), |s| s.as_ref())
+    }
+
+    fn set_account_code(&mut self, address: Address, code: &[u8]) {
         self.codes.insert(address, code.into());
     }
 
-    pub fn set_balance(&mut self, address: Address, balance: M256) {
+    fn set_balance(&mut self, address: Address, balance: U256) {
         self.balances.insert(address, balance);
-    }
-}
-
-impl Block for JSONVectorBlock {
-    fn account_code(&self, address: Address) -> Option<&[u8]> {
-        self.codes.get(&address).map(|s| s.as_ref())
     }
 
     fn create_account(&mut self, code: &[u8]) -> Option<Address> {
@@ -85,8 +87,8 @@ impl Block for JSONVectorBlock {
         self.coinbase
     }
 
-    fn balance(&self, address: Address) -> Option<U256> {
-        self.balances.get(&address).map(|s| (*s).into())
+    fn balance(&self, address: Address) -> U256 {
+        self.balances.get(&address).map_or(U256::zero(), |s| (*s).into())
     }
 
     fn timestamp(&self) -> M256 {
@@ -109,9 +111,7 @@ impl Block for JSONVectorBlock {
         match self.storages.get(&address) {
             None => M256::zero(),
             Some(ref ve) => {
-                let index: usize = index.into();
-
-                match ve.get(index) {
+                match ve.get(&index) {
                     Some(&v) => v,
                     None => M256::zero()
                 }
@@ -121,18 +121,11 @@ impl Block for JSONVectorBlock {
 
     fn set_account_storage(&mut self, address: Address, index: M256, val: M256) {
         if self.storages.get(&address).is_none() {
-            self.storages.insert(address, Vec::new());
+            self.storages.insert(address, HashMap::new());
         }
 
         let v = self.storages.get_mut(&address).unwrap();
-
-        let index: usize = index.into();
-
-        if v.len() <= index {
-            v.resize(index + 1, 0.into());
-        }
-
-        v[index] = val;
+        v.insert(index, val);
     }
 
     fn log(&mut self, address: Address, data: &[u8], topics: &[M256]) {

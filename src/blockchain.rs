@@ -4,11 +4,14 @@ use utils::address::Address;
 use utils::hash::H256;
 
 use std::collections::HashMap;
+use std::slice;
 
 pub trait Block {
     // Account information
-    fn account_code(&self, address: Address) -> Option<&[u8]>;
-    fn balance(&self, address: Address) -> Option<U256>;
+    fn account_code(&self, address: Address) -> &[u8];
+    fn set_account_code(&mut self, address: Address, code: &[u8]);
+    fn balance(&self, address: Address) -> U256;
+    fn set_balance(&mut self, address: Address, balance: U256);
     fn account_storage(&self, address: Address, index: M256) -> M256;
     fn set_account_storage(&mut self, address: Address, index: M256, val: M256);
 
@@ -37,9 +40,19 @@ impl FakeVectorBlock {
     }
 }
 
+static EMPTY: [u8; 0] = [];
+
 impl Block for FakeVectorBlock {
-    fn account_code(&self, address: Address) -> Option<&[u8]> {
-        None
+    fn account_code(&self, address: Address) -> &[u8] {
+        EMPTY.as_ref()
+    }
+
+    fn set_account_code(&mut self, address: Address, code: &[u8]) {
+        unimplemented!()
+    }
+
+    fn set_balance(&mut self, address: Address, balance: U256) {
+        unimplemented!()
     }
 
     fn create_account(&mut self, code: &[u8]) -> Option<Address> {
@@ -50,8 +63,8 @@ impl Block for FakeVectorBlock {
         Address::default()
     }
 
-    fn balance(&self, address: Address) -> Option<U256> {
-        None
+    fn balance(&self, address: Address) -> U256 {
+        U256::zero()
     }
 
     fn timestamp(&self) -> M256 {

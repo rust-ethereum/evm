@@ -179,7 +179,7 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
 
         let mut submachine = Self {
             pc: VectorPC::new(if to == from { self.pc().code() }
-                              else { self.block().account_code(to).unwrap() }),
+                              else { self.block().account_code(to) }),
             memory: VectorMemory::new(),
             stack: VectorStack::new(),
             transaction: VectorTransaction::message_call(from, to, value, mem_in.as_ref(), gas),

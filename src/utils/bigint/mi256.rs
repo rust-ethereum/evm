@@ -7,7 +7,7 @@ use super::{Sign, M256};
 use super::u256::SIGN_BIT_MASK;
 use super::algorithms::{add2, mac3, from_signed, sub2_sign};
 
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct MI256(Sign, M256);
 
 impl MI256 {

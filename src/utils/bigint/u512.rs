@@ -8,7 +8,7 @@ use super::U256;
 use super::algorithms::{add2, mac3, from_signed, sub2_sign, big_digit};
 
 #[repr(C)]
-#[derive(Eq, PartialEq, Debug, Copy, Clone)]
+#[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct U512([u32; 16]);
 
 impl U512 {
@@ -114,7 +114,7 @@ impl Shr<usize> for U512 {
         let mut ret = [0u32; 16];
         let word_shift = shift / 32;
         let bit_shift = shift % 32;
-        for i in (word_shift..16).rev() {
+        for i in (0..16).rev() {
             // Shift
             if i + word_shift < 16 {
                 ret[i + word_shift] += original[i] >> bit_shift;
