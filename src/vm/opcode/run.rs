@@ -28,21 +28,35 @@ macro_rules! will_pop_push {
 
 macro_rules! op2 {
     ( $machine:expr, $op:ident ) => ({
+        begin_rescuable!($machine, &mut M, __);
         will_pop_push!($machine, 2, 1);
 
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
+        on_rescue!(machine, {
+            machine.stack_mut().push(op2);
+            machine.stack_mut().push(op1);
+        }, __);
+
         $machine.stack_mut().push(op1.$op(op2));
+        end_rescuable!(__);
     })
 }
 
 macro_rules! op2_ref {
     ( $machine:expr, $op:ident ) => ({
+        begin_rescuable!($machine, &mut M, __);
         will_pop_push!($machine, 2, 1);
 
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
+        on_rescue!(machine, {
+            machine.stack_mut().push(op2);
+            machine.stack_mut().push(op1);
+        }, __);
+
         $machine.stack_mut().push(op1.$op(&op2).into());
+        end_rescuable!(__);
     })
 }
 

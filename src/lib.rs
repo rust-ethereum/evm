@@ -5,6 +5,9 @@ extern crate merkle;
 extern crate capnp;
 extern crate libc;
 
+#[macro_use]
+mod rescue;
+
 pub mod vm;
 pub mod transaction;
 pub mod blockchain;
