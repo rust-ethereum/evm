@@ -73,6 +73,10 @@ pub fn debug_transaction(v: &Value) {
                                      machine.step());
                         }
                     },
+                    "out" => {
+                        let ret = machine.return_values();
+                        println!("{:?}", ret);
+                    }
                     "print stack" => {
                         for i in 0..machine.stack().size() {
                             println!("{}: {:x}", i, machine.stack().peek(i).unwrap());
