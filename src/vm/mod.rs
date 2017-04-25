@@ -1,3 +1,13 @@
+macro_rules! try_restore {
+    ($e:expr, $r:expr) => (match $e {
+        Ok(val) => val,
+        Err(err) => {
+            $r;
+            return Err(err);
+        }
+    });
+}
+
 mod stack;
 mod opcode;
 mod pc;

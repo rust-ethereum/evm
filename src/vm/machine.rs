@@ -49,9 +49,12 @@ pub trait Machine {
             return Err(Error::EmptyGas)
         }
 
-        let opcode = self.pc_mut().read_opcode()?;
-        let before = opcode.gas_cost_before(self)?;
-        opcode.run(self)?;
+        let position = self.pc().position();
+        let restore = |machine: &mut Self| { machine.pc_mut().jump(position); };
+
+        let opcode = try_restore!(self.pc_mut().read_opcode(), restore(self));
+        let before = try_restore!(opcode.gas_cost_before(self), restore(self));
+        try_restore!(opcode.run(self), restore(self));
         let after = opcode.gas_cost_after(self);
 
         self.use_gas(before);
