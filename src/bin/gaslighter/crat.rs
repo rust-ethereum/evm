@@ -33,7 +33,7 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) {
         if result.is_ok() && test_machine(v, &machine, debug) {
             println!("OK");
         } else {
-            println!("Failed");
+            println!("Failed {:?}", result.err());
         }
     } else {
         if result.is_err() {
@@ -59,12 +59,13 @@ pub fn debug_transaction(v: &Value) {
                         if machine.pc().stopped() {
                             println!("Stopped");
                         } else {
-                            println!("{:?}", machine.pc().peek_opcode());
-                            machine.step();
+                            println!("Running {:?} ... {:?}.", machine.pc().peek_opcode(),
+                                     machine.step());
                         }
                     },
                     "fire" => {
-                        machine.fire();
+                        let result = machine.fire();
+                        println!("{:?}", result);
                     },
                     "print stack" => {
                         for i in 0..machine.stack().size() {
