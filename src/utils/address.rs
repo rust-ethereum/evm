@@ -19,25 +19,20 @@ impl Into<M256> for Address {
     }
 }
 
-impl From<M256> for Option<Address> {
-    fn from(mut val: M256) -> Option<Address> {
-        let max: M256 = M256::one() << 161;
-        if val >= max {
-            None
-        } else {
-            let mut i = 20;
-            let mut a = [0u8; 20];
+impl From<M256> for Address {
+    fn from(mut val: M256) -> Address {
+        let mut i = 20;
+        let mut a = [0u8; 20];
 
-            while i != 0 {
-                let u: u64 = (val & 0xFF.into()).into();
-                a[i-1] = u as u8;
+        while i != 0 {
+            let u: u64 = (val & 0xFF.into()).into();
+            a[i-1] = u as u8;
 
-                i -= 1;
-                val = val >> 8;
-            }
-
-            Some(Address(a))
+            i -= 1;
+            val = val >> 8;
         }
+
+        Address(a)
     }
 }
 
