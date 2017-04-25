@@ -27,6 +27,9 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
         let out = read_hex(out.unwrap()).unwrap();
         let out_ref: &[u8] = out.as_ref();
         if machine.return_values() != out_ref {
+            print!("\n");
+            println!("Return value check failed.");
+
             return false;
         }
     }
@@ -40,9 +43,19 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
         let code_ref: &[u8] = code.as_ref();
 
         if code_ref != machine.block().account_code(address) {
+            if debug {
+                print!("\n");
+                println!("Account code check failed for address 0x{:x}.", address);
+            }
+
             return false;
         }
         if balance != machine.block().balance(address) {
+            if debug {
+                print!("\n");
+                println!("Balance check failed for address 0x{:x}.", address);
+            }
+
             return false;
         }
 

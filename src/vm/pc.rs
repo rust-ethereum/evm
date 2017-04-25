@@ -75,8 +75,8 @@ impl PC for VectorPC {
 
     fn read(&mut self, byte_count: usize) -> Result<M256> {
         let position = self.position;
-        if position.checked_add(byte_count).is_none() || position.checked_add(byte_count).unwrap() >= self.code.len() {
-            return Err(Error::PCOverflow);
+        if position.checked_add(byte_count).is_none() {
+            return Err(Error::PCTooLarge);
         }
         self.position += byte_count;
         let max = min(position + byte_count, self.code.len());
