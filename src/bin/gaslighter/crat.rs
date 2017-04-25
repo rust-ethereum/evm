@@ -67,6 +67,12 @@ pub fn debug_transaction(v: &Value) {
                         let result = machine.fire();
                         println!("{:?}", result);
                     },
+                    "fire debug" => {
+                        while !machine.pc().stopped() {
+                            println!("Running {:?} ... {:?}.", machine.pc().peek_opcode(),
+                                     machine.step());
+                        }
+                    },
                     "print stack" => {
                         for i in 0..machine.stack().size() {
                             println!("{}: {:x}", i, machine.stack().peek(i).unwrap());
