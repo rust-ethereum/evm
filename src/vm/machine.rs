@@ -49,11 +49,12 @@ pub trait Machine {
             return Err(Error::EmptyGas)
         }
 
-        let opcode = self.pc_mut().read_opcode()?;
+        let opcode = self.pc_mut().peek_opcode()?;
         let before = opcode.gas_cost_before(self)?;
         opcode.run(self)?;
         let after = opcode.gas_cost_after(self);
 
+        self.pc_mut().read_opcode().unwrap();
         self.use_gas(before);
         self.use_gas(after);
 
