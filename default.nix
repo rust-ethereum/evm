@@ -32,20 +32,33 @@ let
 env = stdenv.mkDerivation {
   name = "sputnikvm-env";
   buildInputs = [
-    rustc cargo capnproto gdb
+    rustc cargo gdb
   ];
+};
+tests = stdenv.mkDerivation {
+  name = "tests";
+  src = fetchFromGitHub {
+    owner = "ethereumproject";
+    repo = "tests";
+    rev = "d2081b17e81132e72f09a44f9d823bf6cbe6c281";
+    sha256 = "10n4m2jdicbbj3rz4s63g2jklj0gkckanfi35fwjbdwf68pahnkn";
+  };
+  installPhase = ''
+    mkdir $out
+    mv * $out/
+  '';
 };
 sputnikvm = rustPlatform.buildRustPackage (rec {
   name = "sputnikvm-${version}";
   version = "0.1.0";
   src = ./.;
   depsSha256 = "1bz7101rwi6dhhkv5vglcndk00df3ajyagcb9fdfnrch575fdlnj";
-  buildInputs = [ capnproto perl ];
+  buildInputs = [ perl ];
   doCheck = true;
   checkPhase = ''
-    ${capnproto}/bin/capnp eval -b tests/mod.capnp all > tests.bin
     cargo test
-    target/release/gaslighter -k ffi --sputnikvm_path target/release/libsputnikvm.so --capnp_test_bin tests.bin --run_test ///
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmArithmeticTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmBitwiseLogicOperationTest.json
   '';
   });
 in {
