@@ -50,6 +50,11 @@ impl Opcode {
     pub fn run<M: Machine>(&self, machine: &mut M) -> Result<()> {
         let opcode = self.clone();
 
+        // Note: Please do not use try! or ? syntax in this opcode
+        // running function. Anything that might fail after the stack
+        // has poped may result the VM in invalid state. Instead, if
+        // an operation might fail, manually restore the stack as well
+        // as other VM structs before returning the error.
         match opcode {
             Opcode::STOP => {
                 machine.pc_mut().stop();
