@@ -520,15 +520,15 @@ impl Opcode {
             Opcode::DUP(v) => {
                 will_pop_push!(machine, v, v+1);
 
-                let val = machine.stack().peek(v - 1)?;
+                let val = machine.stack().peek(v - 1).unwrap();
                 machine.stack_mut().push(val);
             },
 
             Opcode::SWAP(v) => {
                 will_pop_push!(machine, v+1, v+1);
 
-                let val1 = machine.stack().peek(0)?;
-                let val2 = machine.stack().peek(v)?;
+                let val1 = machine.stack().peek(0).unwrap();
+                let val2 = machine.stack().peek(v).unwrap();
                 machine.stack_mut().set(0, val2).unwrap();
                 machine.stack_mut().set(v, val1).unwrap();
             },
