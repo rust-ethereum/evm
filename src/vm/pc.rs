@@ -1,13 +1,14 @@
 use utils::bigint::M256;
 use std::cmp::{min};
+use super::{Result, Error};
 use super::opcode::Opcode;
 
 pub trait PC {
-    fn peek_opcode(&self) -> Opcode;
-    fn read_opcode(&mut self) -> Opcode;
+    fn peek_opcode(&self) -> Result<Opcode>;
+    fn read_opcode(&mut self) -> Result<Opcode>;
     fn stop(&mut self);
     fn stopped(&self) -> bool;
-    fn read(&mut self, byte_count: usize) -> M256;
+    fn read(&mut self, byte_count: usize) -> Result<M256>;
     fn position(&self) -> usize;
     fn jump(&mut self, position: usize);
     fn code(&self) -> &[u8];
@@ -42,17 +43,26 @@ impl PC for VectorPC {
         self.position
     }
 
-    fn peek_opcode(&self) -> Opcode {
+    fn peek_opcode(&self) -> Result<Opcode> {
         let position = self.position;
+        if position >= self.code.len() {
+            return Err(Error::PCOverflow);
+        }
         let opcode: Opcode = self.code[position].into();
-        opcode
+        Ok(opcode)
     }
 
-    fn read_opcode(&mut self) -> Opcode {
+    fn read_opcode(&mut self) -> Result<Opcode> {
         let position = self.position;
+        if position.checked_add(1).is_none() {
+            return Err(Error::PCTooLarge);
+        }
+        if position >= self.code.len() {
+            return Err(Error::PCOverflow);
+        }
         let opcode: Opcode = self.code[position].into();
         self.position += 1;
-        opcode
+        Ok(opcode)
     }
 
     fn stop(&mut self) {
@@ -63,10 +73,13 @@ impl PC for VectorPC {
         self.stopped || self.position >= self.code.len()
     }
 
-    fn read(&mut self, byte_count: usize) -> M256 {
+    fn read(&mut self, byte_count: usize) -> Result<M256> {
         let position = self.position;
+        if position.checked_add(byte_count).is_none() || position.checked_add(byte_count).unwrap() >= self.code.len() {
+            return Err(Error::PCOverflow);
+        }
         self.position += byte_count;
         let max = min(position + byte_count, self.code.len());
-        M256::from(&self.code[position..max])
+        Ok(M256::from(&self.code[position..max]))
     }
 }
