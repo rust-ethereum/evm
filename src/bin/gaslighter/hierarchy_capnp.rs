@@ -1,1 +1,0 @@
-../../schema/hierarchy_capnp.rs
