@@ -49,12 +49,32 @@ pub trait Machine {
             return Err(Error::EmptyGas)
         }
 
-        let opcode = self.pc_mut().peek_opcode()?;
-        let before = opcode.gas_cost_before(self)?;
-        opcode.run(self)?;
+        let position = self.pc().position();
+        let restore = |machine: &mut Self| { machine.pc_mut().jump(position); };
+
+        let opcode = match self.pc_mut().read_opcode() {
+            Ok(opcode) => opcode,
+            Err(e) => {
+                restore(self);
+                return Err(e);
+            }
+        };
+        let before = match opcode.gas_cost_before(self) {
+            Ok(gas) => gas,
+            Err(e) => {
+                restore(self);
+                return Err(e);
+            }
+        };
+        match opcode.run(self) {
+            Ok(()) => (),
+            Err(e) => {
+                restore(self);
+                return Err(e);
+            }
+        };
         let after = opcode.gas_cost_after(self);
 
-        self.pc_mut().read_opcode().unwrap();
         self.use_gas(before);
         self.use_gas(after);
 
