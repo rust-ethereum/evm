@@ -14,6 +14,7 @@ pub use self::machine::{Machine, VectorMachine, FakeVectorMachine};
 pub enum Error {
     EmptyGas,
     StackUnderflow,
+    InvalidOpcode,
     Stopped
 }
 
