@@ -6,6 +6,9 @@ extern crate capnp;
 extern crate libc;
 extern crate serde_json;
 
+#[macro_use]
+mod rescue;
+
 pub mod vm;
 pub mod transaction;
 pub mod blockchain;

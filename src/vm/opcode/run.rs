@@ -28,21 +28,35 @@ macro_rules! will_pop_push {
 
 macro_rules! op2 {
     ( $machine:expr, $op:ident ) => ({
+        begin_rescuable!($machine, &mut M, __);
         will_pop_push!($machine, 2, 1);
 
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
+        on_rescue!(machine, {
+            machine.stack_mut().push(op2);
+            machine.stack_mut().push(op1);
+        }, __);
+
         $machine.stack_mut().push(op1.$op(op2));
+        end_rescuable!(__);
     })
 }
 
 macro_rules! op2_ref {
     ( $machine:expr, $op:ident ) => ({
+        begin_rescuable!($machine, &mut M, __);
         will_pop_push!($machine, 2, 1);
 
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
+        on_rescue!(machine, {
+            machine.stack_mut().push(op2);
+            machine.stack_mut().push(op1);
+        }, __);
+
         $machine.stack_mut().push(op1.$op(&op2).into());
+        end_rescuable!(__);
     })
 }
 
@@ -268,10 +282,8 @@ impl Opcode {
             Opcode::BALANCE => {
                 will_pop_push!(machine, 1, 1);
 
-                let address: Option<Address> = machine.stack_mut().pop().unwrap().into();
-                let balance = address.map_or(None, |address| {
-                    Some(machine.block().balance(address))
-                }).map_or(M256::zero(), |balance| balance.into());
+                let address: Address = machine.stack_mut().pop().unwrap().into();
+                let balance = machine.block().balance(address).into();
                 machine.stack_mut().push(balance);
             },
 
@@ -316,12 +328,40 @@ impl Opcode {
                 will_pop_push!(machine, 3, 0);
 
                 let memory_index = machine.stack_mut().pop().unwrap();
-                let data_index: usize = machine.stack_mut().pop().unwrap().into();
-                let len: usize = machine.stack_mut().pop().unwrap().into();
+                let data_index = machine.stack_mut().pop().unwrap();
+                let len = machine.stack_mut().pop().unwrap();
+
+                let restore = |machine: &mut M| {
+                    machine.stack_mut().push(len);
+                    machine.stack_mut().push(data_index);
+                    machine.stack_mut().push(memory_index);
+                };
+
+                if data_index > usize::max_value().into() {
+                    restore(machine);
+                    return Err(Error::DataTooLarge);
+                }
+                let data_index: usize = data_index.into();
+
+                if len > usize::max_value().into() {
+                    restore(machine);
+                    return Err(Error::DataTooLarge);
+                }
+                let len: usize = len.into();
+
+                if data_index.checked_add(len).is_none() {
+                    restore(machine);
+                    return Err(Error::DataTooLarge);
+                }
 
                 for i in 0..len {
-                    let val = machine.transaction().data().unwrap()[data_index + i];
-                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                    if machine.transaction().data().is_some() {
+                        let data: Vec<u8> = machine.transaction().data().unwrap().into();
+                        if data_index + i < data.len() {
+                            let val = data[data_index + i];
+                            machine.memory_mut().write_raw(memory_index + i.into(), val);
+                        }
+                    }
                 }
             },
 
@@ -336,12 +376,38 @@ impl Opcode {
                 will_pop_push!(machine, 1, 1);
 
                 let memory_index = machine.stack_mut().pop().unwrap();
-                let code_index: usize = machine.stack_mut().pop().unwrap().into();
-                let len: usize = machine.stack_mut().pop().unwrap().into();
+                let code_index = machine.stack_mut().pop().unwrap();
+                let len = machine.stack_mut().pop().unwrap();
+
+                let restore = |machine: &mut M| {
+                    machine.stack_mut().push(len);
+                    machine.stack_mut().push(code_index);
+                    machine.stack_mut().push(memory_index);
+                };
+
+                if code_index > usize::max_value().into() {
+                    restore(machine);
+                    return Err(Error::CodeTooLarge);
+                }
+                let code_index: usize = code_index.into();
+
+                if len > usize::max_value().into() {
+                    restore(machine);
+                    return Err(Error::CodeTooLarge);
+                }
+                let len: usize = len.into();
+
+                if code_index.checked_add(len).is_none() {
+                    restore(machine);
+                    return Err(Error::CodeTooLarge);
+                }
 
                 for i in 0..len {
-                    let val = machine.pc().code()[code_index + i];
-                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                    let code: Vec<u8> = machine.pc().code().into();
+                    if code_index + i < code.len() {
+                        let val = code[code_index + i];
+                        machine.memory_mut().write_raw(memory_index + i.into(), val);
+                    }
                 }
             },
 
@@ -355,8 +421,7 @@ impl Opcode {
             Opcode::EXTCODESIZE => {
                 will_pop_push!(machine, 1, 1);
 
-                let account: Option<Address> = machine.stack_mut().pop().unwrap().into();
-                let account = account.unwrap();
+                let account: Address = machine.stack_mut().pop().unwrap().into();
                 let len = machine.block().account_code(account).len();
                 machine.stack_mut().push(len.into());
             },
@@ -364,15 +429,43 @@ impl Opcode {
             Opcode::EXTCODECOPY => {
                 will_pop_push!(machine, 4, 0);
 
-                let account: Option<Address> = machine.stack_mut().pop().unwrap().into();
-                let account = account.unwrap();
+                let account = machine.stack_mut().pop().unwrap();
                 let memory_index = machine.stack_mut().pop().unwrap();
-                let code_index: usize = machine.stack_mut().pop().unwrap().into();
-                let len: usize = machine.stack_mut().pop().unwrap().into();
+                let code_index = machine.stack_mut().pop().unwrap();
+                let len = machine.stack_mut().pop().unwrap();
+
+                let restore = |machine: &mut M| {
+                    machine.stack_mut().push(len);
+                    machine.stack_mut().push(code_index);
+                    machine.stack_mut().push(memory_index);
+                    machine.stack_mut().push(account);
+                };
+
+                let account: Address = account.into();
+
+                if code_index > usize::max_value().into() {
+                    restore(machine);
+                    return Err(Error::CodeTooLarge);
+                }
+                let code_index: usize = code_index.into();
+
+                if len > usize::max_value().into() {
+                    restore(machine);
+                    return Err(Error::CodeTooLarge);
+                }
+                let len: usize = len.into();
+
+                if code_index.checked_add(len).is_none() {
+                    restore(machine);
+                    return Err(Error::CodeTooLarge);
+                }
 
                 for i in 0..len {
-                    let val = machine.block().account_code(account)[code_index + i];
-                    machine.memory_mut().write_raw(memory_index + i.into(), val);
+                    let code: Vec<u8> = machine.block().account_code(account).into();
+                    if code_index + i < code.len() {
+                        let val = code[code_index + i];
+                        machine.memory_mut().write_raw(memory_index + i.into(), val);
+                    }
                 }
             },
 
@@ -588,8 +681,7 @@ impl Opcode {
 
                 let gas: Gas = machine.stack_mut().pop().unwrap().into();
                 let from = machine.transaction().callee();
-                let to: Option<Address> = machine.stack_mut().pop().unwrap().into();
-                let to = to.unwrap();
+                let to: Address = machine.stack_mut().pop().unwrap().into();
                 let value = machine.stack_mut().pop().unwrap().into();
                 let memory_in_start = machine.stack_mut().pop().unwrap();
                 let memory_in_len = machine.stack_mut().pop().unwrap();
@@ -645,8 +737,7 @@ impl Opcode {
 
                 let gas: Gas = machine.stack_mut().pop().unwrap().into();
                 let from = machine.transaction().sender();
-                let to: Option<Address> = machine.stack_mut().pop().unwrap().into();
-                let to = to.unwrap();
+                let to: Address = machine.stack_mut().pop().unwrap().into();
                 let value = machine.transaction().value();
                 let memory_in_start = machine.stack_mut().pop().unwrap();
                 let memory_in_len = machine.stack_mut().pop().unwrap();
