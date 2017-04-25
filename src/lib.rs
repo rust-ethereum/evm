@@ -4,13 +4,14 @@ extern crate crypto;
 extern crate merkle;
 extern crate capnp;
 extern crate libc;
+extern crate serde_json;
 
 pub mod vm;
 pub mod transaction;
 pub mod blockchain;
 
 mod utils;
-mod vm_capnp;
+mod ffi;
 
 pub use utils::bigint::{U256, M256, MI256};
 pub use utils::gas::Gas;
@@ -21,43 +22,58 @@ pub use utils::read_hex;
 use std::io::BufReader;
 use capnp::{serialize, message, Word};
 use log::LogLevel;
-use vm_capnp::input_output::Reader;
-use vm::{Machine, FakeVectorMachine};
+use vm::{Machine, FakeVectorMachine, VectorMachine};
+use ffi::{JSONVectorBlock, create_block, create_transaction};
+use serde_json::{Value, Error};
 
 use libc::size_t;
 use std::slice;
+use std::str::FromStr;
 
-fn construct_vec_word(vm_io: *const capnp::Word, len: size_t) -> Vec<capnp::Word> {
-    let vm_input_output = unsafe {
-        assert!(!vm_io.is_null());
-        slice::from_raw_parts(vm_io, len as usize)
-    };
-    vm_input_output.to_vec()
+#[repr(C)]
+pub struct SputnikVM {
+    svm: VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>>
+}
+
+impl SputnikVM {
+    fn new(v: &Value) -> SputnikVM {
+        let block = create_block(v);
+        let transaction = create_transaction(v);
+
+        let gas = Gas::from_str(v["exec"]["gas"].as_str().unwrap()).unwrap();
+        let code = read_hex(v["exec"]["code"].as_str().unwrap()).unwrap();
+        let data = read_hex(v["exec"]["data"].as_str().unwrap()).unwrap();
+
+        SputnikVM {
+            svm: VectorMachine::new(code.as_ref(), data.as_ref(), gas, transaction, Box::new(block))
+        }
+    }
+
+    fn return_values(&mut self) ->  &[u8] {
+        self.svm.return_values()
+    }
+
+    fn fire(&mut self) {
+        self.svm.fire();
+    }
 }
 
 #[no_mangle]
-pub extern fn evaluate(vm_io: *const capnp::Word, len: size_t) {
-    let msg = construct_vec_word(vm_io, len);
-    let message = serialize::read_message_from_words(&msg, message::ReaderOptions::new()).expect("");
-    let msg_reader = message.get_root::<vm_capnp::input_output::Reader>().expect("");
-    let mut code_vec = Vec::new();
-    let mut data_vec = Vec::new();
-    let in_code = msg_reader.get_input().expect("input fail").get_code().expect("input::code fail").iter();
-    let in_data = msg_reader.get_input().expect("input fail").get_data().expect("input::data fail").iter();
-    for in_char in in_code {
-        code_vec.push(in_char.expect("character expected")[0]);
-    }
-    for in_char in in_data {
-        data_vec.push(in_char.expect("character expected")[0]);
-    }
-    let gas = msg_reader.get_input().expect("failed").get_initial_gas();
+pub extern fn sputnikvm_new(v: &Value) -> *mut SputnikVM {
+    Box::into_raw(Box::new(SputnikVM::new(v)))
+}
 
-    let mut machine = FakeVectorMachine::fake(
-        code_vec.as_slice()
-        , data_vec.as_slice()
-        , Gas::from(gas as isize));
-    machine.fire();
-    if log_enabled!(LogLevel::Info) {
-        info!("gas used: {:?}", machine.used_gas());
-    }
+#[no_mangle]
+pub extern fn sputnikvm_fire(ptr: *mut SputnikVM) {
+    let mut svm = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    svm.fire();
+}
+
+#[no_mangle]
+pub extern fn sputnikvm_free(ptr: *mut SputnikVM) {
+    if ptr.is_null() { return }
+    unsafe { Box::from_raw(ptr); }
 }
