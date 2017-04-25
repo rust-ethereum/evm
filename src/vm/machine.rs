@@ -51,9 +51,10 @@ pub trait Machine {
 
         let opcode = self.pc_mut().read_opcode();
         let before = opcode.gas_cost_before(self)?;
-        self.use_gas(before);
         opcode.run(self)?;
         let after = opcode.gas_cost_after(self);
+
+        self.use_gas(before);
         self.use_gas(after);
 
         Ok(())
