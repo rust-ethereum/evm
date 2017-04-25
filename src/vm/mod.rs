@@ -15,6 +15,8 @@ pub enum Error {
     EmptyGas,
     StackUnderflow,
     InvalidOpcode,
+    PCOverflow,
+    PCTooLarge, // The current implementation only support code size with usize::maximum.
     Stopped
 }
 
