@@ -474,18 +474,30 @@ impl Opcode {
             Opcode::JUMP => {
                 will_pop_push!(machine, 1, 0);
 
-                let op1_u: u64 = machine.stack_mut().pop().unwrap().into();
-                machine.pc_mut().jump(op1_u as usize);
+                let op1 = machine.stack_mut().pop().unwrap();
+
+                if op1 > usize::max_value().into() {
+                    machine.stack_mut().push(op1);
+                    return Err(Error::PCTooLarge);
+                }
+
+                machine.pc_mut().jump(op1.into());
             },
 
             Opcode::JUMPI => {
                 will_pop_push!(machine, 2, 0);
 
-                let op1_u: u64 = machine.stack_mut().pop().unwrap().into();
+                let op1 = machine.stack_mut().pop().unwrap();
+
+                if op1 > usize::max_value().into() {
+                    machine.stack_mut().push(op1);
+                    return Err(Error::PCTooLarge);
+                }
+
                 let op2 = machine.stack_mut().pop().unwrap();
 
                 if op2 != 0.into() {
-                    machine.pc_mut().jump(op1_u as usize);
+                    machine.pc_mut().jump(op1.into());
                 }
             },
 
@@ -518,7 +530,7 @@ impl Opcode {
             Opcode::PUSH(v) => {
                 will_pop_push!(machine, 0, 1);
 
-                let val = machine.pc_mut().read(v);
+                let val = machine.pc_mut().read(v)?; // We don't have any stack to restore, so this ? is okay.
                 machine.stack_mut().push(val);
             },
 
