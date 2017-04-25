@@ -7,9 +7,6 @@ extern crate libc;
 extern crate serde_json;
 extern crate rustyline;
 
-mod hierarchy_capnp;
-mod vm_capnp;
-mod test_capnp;
 mod ffi;
 mod crat;
 mod json_schema;
@@ -23,6 +20,7 @@ use std::io::{BufReader, Write, stdout};
 use sputnikvm::{read_hex, Gas};
 use sputnikvm::vm::{Machine, FakeVectorMachine};
 use crat::{test_transaction, debug_transaction};
+use ffi::{test_ffi_transaction};
 
 fn main() {
     let matches = clap_app!(gaslighter =>
@@ -30,9 +28,6 @@ fn main() {
         (author: "Ethereum Classic Contributors")
         (about: "Gaslighter - Tests the Ethereum Classic Virtual Machine in 5 different ways.")
         (@arg KEEP_GOING: -k --keep_going "Don't exit the program even if a test fails.")
-        (@subcommand reg =>
-            (about: "Performs a regression test by executing the entire ETC blockchain in this mode of execution.")
-        )
         (@subcommand crat =>
             (about: "Execute the ethereumpoject/tests JSON files. The emphasis is on using rust crates directly there is no FFI nor socket activity.")
             (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
@@ -54,14 +49,15 @@ fn main() {
             (about: "Allows SputnikVM to be run as a service.")
         )
         (@subcommand ffi =>
-            (about: "Tests Foreign Function Interfacing (FFI) in this mode of execution. Capnproto schema define the input and output of the vm. Gaslighter also provide callbacks over the ABI which mock the blockchain and retrieving data about transactions.")
+            (about: "Executes the ethereumproject/tests JSON files over Foreign Function Interface.")
             (version: "0.1")
-            (@arg PATH_TO_CAPNPROTO_TYPECHECKED_TEST_BIN: -t --capnp_test_bin +takes_value +required "Path to a type checked binary compiled by the capnp tool. The source of this artefact is in the tests directory. Please run `$ capnp eval -b tests/mod.capnp all > tests.bin` in the root directory to generate the binary.")
+            (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
+            (@arg TEST: -t --test +takes_value "test to run in the given file")
             (@arg SPUTNIKVMSO_PATH: -s --sputnikvm_path +takes_value +required "Path to libsputnikvm.so, typically it is `-s target/release/libsputnikvm.so`")
-            (@arg TESTS_TO_RUN: -r --run_test +takes_value +required "The format is [directory]/[file]/[test] e.g. `--run_test arith/add/add1` will run the arith/add/add1 test, `--run_test arith/add/` will run every test in the tests/arith/add.capnp file. Likewise `--run_test arith//` will run every test in every file of the `arith` directory. Lastly `--run_test //` will run every single test available.")
         )
     ).get_matches();
     let mut has_all_ffi_tests_passed = true;
+    let mut has_all_crat_tests_passed = true;
     let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
     if let Some(ref matches) = matches.subcommand_matches("cli") {
         let code_hex = read_hex(match matches.value_of("CODE") {
@@ -111,28 +107,23 @@ fn main() {
         }
     }
     if let Some(ref matches) = matches.subcommand_matches("ffi") {
-        let capnp_test_bin = match matches.value_of("PATH_TO_CAPNPROTO_TYPECHECKED_TEST_BIN") {
-            Some(c) => c,
-            None => "",
-        };
-        let test_to_run = match matches.value_of("TESTS_TO_RUN") {
-            Some(c) => c,
-            None => "",
-        };
+        let path = Path::new(matches.value_of("FILE").unwrap());
+        let file = File::open(&path).unwrap();
+        let reader = BufReader::new(file);
+        let json: Value = serde_json::from_reader(reader).unwrap();
         let sputnikvm_path = match matches.value_of("SPUTNIKVMSO_PATH") {
             Some(c) => c,
             None => "",
         };
-        let path = Path::new(capnp_test_bin);
-        let display = path.display();
-        let file = match File::open(&path) {
-            Err(_) => panic!("couldn't open {}", display),
-            Ok(file) => file,
-        };
-        if ffi::execute(file, test_to_run, sputnikvm_path, keep_going){
-            has_all_ffi_tests_passed = true;
-        } else {
-            has_all_ffi_tests_passed = false;
+        match matches.value_of("TEST") {
+            Some(test) => {
+                test_ffi_transaction(test, &json[test], true, sputnikvm_path);
+            },
+            None => {
+                for (test, data) in json.as_object().unwrap() {
+                    test_ffi_transaction(test, &data, false, sputnikvm_path);
+                }
+            },
         }
     }
     if has_all_ffi_tests_passed {
