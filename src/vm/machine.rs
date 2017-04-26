@@ -40,6 +40,11 @@ pub trait Machine {
                                        memory_out_start: M256,
                                        memory_out_len: M256, f: F);
 
+    fn peek_gas_cost(&self) -> Result<Gas> where Self: Sized {
+        let opcode = self.pc().peek_opcode()?;
+        opcode.gas_cost(self)
+    }
+
     fn step(&mut self) -> Result<()> where Self: Sized {
         // Constraints and assumptions for when the VM is running
         debug_assert!(self.transaction().data().is_some());
@@ -50,13 +55,14 @@ pub trait Machine {
             trr!(Err(Error::Stopped), __);
         }
 
+        let gas_cost = trr!(self.peek_gas_cost(), __);
+
         let position = self.pc().position();
         on_rescue!(|machine| {
             machine.pc_mut().jump(position);
         }, __);
 
         let opcode = trr!(self.pc_mut().read_opcode(), __);
-        let gas_cost = trr!(opcode.gas_cost(self), __);
         if gas_cost > self.available_gas() {
             trr!(Err(Error::EmptyGas), __);
         }
