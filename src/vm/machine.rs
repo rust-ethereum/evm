@@ -43,7 +43,7 @@ pub trait Machine {
     fn step(&mut self) -> Result<()> where Self: Sized {
         // Constraints and assumptions for when the VM is running
         debug_assert!(self.transaction().data().is_some());
-        debug_assert!(self.transaction().gas_price() < Gas::from(U256::max_value()));
+        debug_assert!(self.transaction().gas_price() <= Gas::from(U256::max_value()));
 
         begin_rescuable!(self, &mut Self, __);
         if self.pc().stopped() {
