@@ -22,7 +22,7 @@ macro_rules! begin_rescuable {
 
         macro_rules! end_rescuable {
             ($j:ident) => (
-                ::std::mem::forget($j);
+                ::std::mem::drop($j);
             )
         }
     )
