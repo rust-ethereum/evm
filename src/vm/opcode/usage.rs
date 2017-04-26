@@ -1,4 +1,4 @@
-use utils::bigint::{M256, U256};
+use utils::bigint::{M256, U256, U512};
 use utils::gas::Gas;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC, Error, Result};
@@ -40,9 +40,8 @@ const G_SHA3WORD: usize = 6;
 const G_COPY: usize = 3;
 const G_BLOCKHASH: usize = 20;
 
-fn memory_cost(a: U256) -> Gas {
-    let a = Gas::from(a);
-    (Gas::from(G_MEMORY) * a + a * a / Gas::from(512)).into()
+fn memory_cost(a: Gas) -> Gas {
+    (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
 }
 
 // TODO: Implement C_SSTORE, C_CALL and C_SELFDESTRUCT
@@ -61,20 +60,24 @@ impl Opcode {
             Opcode::SHA3 | Opcode::CODECOPY | Opcode::RETURN => {
                 let from: U256 = stack.peek(0)?.into();
                 let len: U256 = stack.peek(1)?.into();
-                memory_cost(max(from + len, machine.memory().active_len().into()))
+                memory_cost(max(Gas::from(from) + Gas::from(len),
+                                machine.memory().active_len().into()))
             },
             Opcode::MLOAD | Opcode::MSTORE => {
                 let from: U256 = stack.peek(0)?.into();
-                memory_cost(max(from + U256::from(32u64), machine.memory().active_len().into()))
+                memory_cost(max(Gas::from(from) + Gas::from(32u64),
+                                machine.memory().active_len().into()))
             },
             Opcode::MSTORE8 => {
                 let from: U256 = stack.peek(0)?.into();
-                memory_cost(max(from + U256::from(1u64), machine.memory().active_len().into()))
+                memory_cost(max(Gas::from(from) + Gas::from(1u64),
+                                machine.memory().active_len().into()))
             },
             Opcode::CREATE => {
                 let from: U256 = stack.peek(1)?.into();
                 let len: U256 = stack.peek(2)?.into();
-                memory_cost(max(from + len, machine.memory().active_len().into()))
+                memory_cost(max(Gas::from(from) + Gas::from(len),
+                                machine.memory().active_len().into()))
             },
             _ => {
                 memory_cost(machine.memory().active_len().into())
@@ -96,7 +99,7 @@ impl Opcode {
 
             Opcode::SHA3 => {
                 let len = stack.peek(1)?;
-                (Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * (Gas::from(len) / Gas::from(32))).into()
+                (Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * (Gas::from(len) / Gas::from(32u64))).into()
             },
 
             Opcode::LOG(v) => {
@@ -106,12 +109,12 @@ impl Opcode {
 
             Opcode::EXTCODECOPY => {
                 let len = stack.peek(2)?;
-                (Gas::from(G_EXTCODE) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32))).into()
+                (Gas::from(G_EXTCODE) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
             },
 
             Opcode::CALLDATACOPY | Opcode::CODECOPY => {
                 let len = stack.peek(2)?;
-                (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32))).into()
+                (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
             },
 
             Opcode::EXP => {

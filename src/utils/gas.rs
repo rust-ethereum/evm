@@ -3,19 +3,15 @@ use std::fmt;
 use std::str::FromStr;
 use std::cmp::Ordering;
 
-use utils::bigint::{M256, U256};
+use utils::bigint::{M256, U512, U256};
 use utils::{read_hex, ParseHexError};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
-pub struct Gas(U256);
+pub struct Gas(U512);
 
 impl Gas {
-    pub fn zero() -> Gas { Gas(U256::zero()) }
-    pub fn one() -> Gas { Gas(U256::one()) }
-    pub fn max_value() -> Gas { Gas(U256::max_value()) }
-    pub fn min_value() -> Gas { Gas(U256::min_value()) }
+    pub fn zero() -> Gas { Gas(U512::zero()) }
     pub fn bits(self) -> usize { self.0.bits() }
-    pub fn log2floor(self) -> usize { self.0.log2floor() }
 }
 
 impl Default for Gas { fn default() -> Gas { Gas::zero() } }
@@ -24,25 +20,26 @@ impl FromStr for Gas {
     type Err = ParseHexError;
 
     fn from_str(s: &str) -> Result<Gas, ParseHexError> {
-        U256::from_str(s).map(|s| Gas(s))
+        U256::from_str(s).map(|s| Gas::from(s))
     }
 }
 
-impl From<bool> for Gas { fn from(val: bool) -> Gas { Gas(U256::from(val)) } }
-impl From<u64> for Gas { fn from(val: u64) -> Gas { Gas(U256::from(val)) } }
-impl Into<u64> for Gas { fn into(self) -> u64 { self.0.into() } }
-impl From<usize> for Gas { fn from(val: usize) -> Gas { Gas(U256::from(val)) } }
-impl Into<usize> for Gas { fn into(self) -> usize { self.0.into() } }
-impl<'a> From<&'a [u8]> for Gas { fn from(val: &'a [u8]) -> Gas { Gas(U256::from(val)) } }
-impl From<[u8; 32]> for Gas { fn from(val: [u8; 32]) -> Gas { Gas(U256::from(val)) } }
-impl Into<[u8; 32]> for Gas { fn into(self) -> [u8; 32] { self.0.into() } }
-impl Into<[u32; 8]> for Gas { fn into(self) -> [u32; 8] { self.0.into() } }
-impl From<[u32; 8]> for Gas { fn from(val: [u32; 8]) -> Gas { Gas(U256::from(val)) } }
-impl From<U256> for Gas { fn from(val: U256) -> Gas { Gas(val) } }
-impl Into<U256> for Gas { fn into(self) -> U256 { self.0 } }
-impl From<M256> for Gas { fn from(val: M256) -> Gas { Gas(val.into()) } }
-impl Into<M256> for Gas { fn into(self) -> M256 { M256::from(self.0) } }
-impl From<i32> for Gas { fn from(val: i32) -> Gas { (val as u64).into() } }
+impl From<u64> for Gas { fn from(val: u64) -> Gas { Gas::from(U256::from(val)) } }
+impl From<usize> for Gas { fn from(val: usize) -> Gas { Gas::from(U256::from(val)) } }
+impl Into<U256> for Gas { fn into(self) -> U256 { self.0.into() } }
+impl From<U256> for Gas { fn from(val: U256) -> Gas { Gas(U512::from(val)) } }
+impl From<M256> for Gas {
+    fn from(val: M256) -> Gas {
+        let val: U256 = val.into();
+        Gas::from(val)
+    }
+}
+impl Into<M256> for Gas {
+    fn into(self) -> M256 {
+        let val: U256 = self.0.into();
+        M256::from(val)
+    }
+}
 
 impl Ord for Gas { fn cmp(&self, other: &Gas) -> Ordering { self.0.cmp(&other.0) } }
 impl PartialOrd for Gas {
@@ -88,14 +85,6 @@ impl Rem for Gas {
 
     fn rem(self, other: Gas) -> Gas {
         Gas(self.0.rem(other.0))
-    }
-}
-
-impl Not for Gas {
-    type Output = Gas;
-
-    fn not(self) -> Gas {
-        Gas(self.0.not())
     }
 }
 
