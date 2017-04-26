@@ -25,13 +25,14 @@ pub use utils::read_hex;
 use std::io::BufReader;
 use capnp::{serialize, message, Word};
 use log::LogLevel;
-use vm::{Machine, FakeVectorMachine, VectorMachine};
+use vm::{Machine, VectorMachine};
 use ffi::{JSONVectorBlock, create_block, create_transaction};
 use serde_json::{Value, Error};
+use libc::{size_t, uint8_t};
 
-use libc::size_t;
-use std::slice;
+use std::os::raw::c_char;
 use std::str::FromStr;
+use std::ffi::CStr;
 
 #[repr(C)]
 pub struct SputnikVM {
@@ -75,6 +76,23 @@ pub extern fn sputnikvm_fire(ptr: *mut SputnikVM) {
     svm.fire();
 }
 
+#[repr(C)]
+pub struct Tuple {
+    data: *const uint8_t,
+    len: size_t,
+}
+
+#[no_mangle]
+pub extern fn sputnikvm_return_values(ptr: *mut SputnikVM) -> Tuple {
+    let mut svm = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+    Tuple {
+        data: svm.return_values().as_ptr(),
+        len: svm.return_values().len(),
+    }
+}
 #[no_mangle]
 pub extern fn sputnikvm_free(ptr: *mut SputnikVM) {
     if ptr.is_null() { return }
