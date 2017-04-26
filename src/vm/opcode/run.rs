@@ -7,6 +7,7 @@ use transaction::Transaction;
 use blockchain::Block;
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
+use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
@@ -256,20 +257,21 @@ impl Opcode {
             Opcode::SHA3 => {
                 will_pop_push!(machine, 2, 1);
 
-                let mut op1 = machine.stack_mut().pop().unwrap();
-                let op2 = machine.stack_mut().pop().unwrap();
+                let mut from = machine.stack_mut().pop().unwrap();
+                let len = machine.stack_mut().pop().unwrap();
+                let ender = from + len;
 
-                let mut r: [u8; 32] = [0u8; 32];
+                let mut ret = [0u8; 32];
                 let mut sha3 = Sha3::keccak256();
 
-                while op1 != op2 - 1.into() {
-                    let val = machine.memory_mut().read(op1);
-                    let a: [u8; 32] = val.into();
+                while from < ender {
+                    let val = machine.memory_mut().read_raw(from);
+                    let a: [u8; 1] = [ val ];
                     sha3.input(a.as_ref());
-                    op1 = op1 + 1.into();
+                    from = from + 1.into();
                 }
-                sha3.result(&mut r);
-                machine.stack_mut().push(M256::from(r.as_ref()))
+                sha3.result(&mut ret);
+                machine.stack_mut().push(M256::from(ret.as_ref()))
             },
 
             Opcode::ADDRESS => {
@@ -309,12 +311,27 @@ impl Opcode {
             },
 
             Opcode::CALLDATALOAD => {
+                begin_rescuable!(machine, &mut M, __);
                 will_pop_push!(machine, 1, 1);
 
-                let start_index: usize = machine.stack_mut().pop().unwrap().into();
-                let load = M256::from(&machine.transaction().data()
-                                      .unwrap()[start_index..start_index+32]);
+                let start_index = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(start_index);
+                }, __);
+
+                if start_index > usize::max_value().into() {
+                    trr!(Err(Error::DataTooLarge), __);
+                }
+                let start_index: usize = start_index.into();
+
+                let data: Vec<u8> = machine.transaction().data().unwrap().into();
+                let load = if start_index >= data.len() {
+                    M256::zero()
+                } else {
+                    M256::from(&data[start_index..min(start_index+32, data.len())])
+                };
                 machine.stack_mut().push(load);
+                end_rescuable!(__);
             },
 
             Opcode::CALLDATASIZE => {

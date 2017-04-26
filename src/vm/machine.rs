@@ -1,4 +1,4 @@
-use utils::bigint::M256;
+use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use utils::address::Address;
 
@@ -41,25 +41,30 @@ pub trait Machine {
                                        memory_out_len: M256, f: F);
 
     fn step(&mut self) -> Result<()> where Self: Sized {
-        if self.pc().stopped() {
-            return Err(Error::Stopped)
-        }
+        // Constraints and assumptions for when the VM is running
+        debug_assert!(self.transaction().data().is_some());
+        debug_assert!(self.transaction().gas_price() <= Gas::from(U256::max_value()));
 
-        if !self.available_gas().is_valid() {
-            return Err(Error::EmptyGas)
+        begin_rescuable!(self, &mut Self, __);
+        if self.pc().stopped() {
+            trr!(Err(Error::Stopped), __);
         }
 
         let position = self.pc().position();
-        let restore = |machine: &mut Self| { machine.pc_mut().jump(position); };
+        on_rescue!(|machine| {
+            machine.pc_mut().jump(position);
+        }, __);
 
-        let opcode = try_restore!(self.pc_mut().read_opcode(), restore(self));
-        let before = try_restore!(opcode.gas_cost_before(self), restore(self));
-        try_restore!(opcode.run(self), restore(self));
-        let after = opcode.gas_cost_after(self);
+        let opcode = trr!(self.pc_mut().read_opcode(), __);
+        let gas_cost = trr!(opcode.gas_cost(self), __);
+        if gas_cost > self.available_gas() {
+            trr!(Err(Error::EmptyGas), __);
+        }
 
-        self.use_gas(before);
-        self.use_gas(after);
+        trr!(opcode.run(self), __);
+        self.use_gas(gas_cost);
 
+        end_rescuable!(__);
         Ok(())
     }
 
@@ -125,7 +130,7 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
     }
 
     fn use_gas(&mut self, gas: Gas) {
-        self.used_gas += gas;
+        self.used_gas = self.used_gas + gas;
     }
 
     fn used_gas(&self) -> Gas {

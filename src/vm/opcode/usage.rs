@@ -1,47 +1,47 @@
-use utils::bigint::M256;
+use utils::bigint::{M256, U256, U512};
 use utils::gas::Gas;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC, Error, Result};
+use std::cmp::max;
 
-const G_ZERO: isize = 0;
-const G_BASE: isize = 2;
-const G_VERYLOW: isize = 3;
-const G_LOW: isize = 5;
-const G_MID: isize = 8;
-const G_HIGH: isize = 10;
-const G_EXTCODE: isize = 700;
-const G_BALANCE: isize = 400;
-const G_SLOAD: isize = 200;
-const G_JUMPDEST: isize = 1;
-const G_SSET: isize = 20000;
-const G_SRESET: isize = 5000;
-const R_SCLEAR: isize = 15000;
-const R_SELFDESTRUCT: isize = 24000;
-const G_SELFDESTRUCT: isize = 5000;
-const G_CREATE: isize = 32000;
-const G_CODEDEPOSITE: isize = 200;
-const G_CALL: isize = 700;
-const G_CALLVALUE: isize = 9000;
-const G_CALLSTIPEND: isize = 2300;
-const G_NEWACCOUNT: isize = 25000;
-const G_EXP: isize = 10;
-const G_EXPBYTE: isize = 10;
-const G_MEMORY: isize = 3;
-const G_TXCREATE: isize = 32000;
-const G_TXDATAZERO: isize = 4;
-const G_TXDATANONZERO: isize = 68;
-const G_TRANSACTION: isize = 21000;
-const G_LOG: isize = 375;
-const G_LOGDATA: isize = 8;
-const G_LOGTOPIC: isize = 375;
-const G_SHA3: isize = 30;
-const G_SHA3WORD: isize = 6;
-const G_COPY: isize = 3;
-const G_BLOCKHASH: isize = 20;
+const G_ZERO: usize = 0;
+const G_BASE: usize = 2;
+const G_VERYLOW: usize = 3;
+const G_LOW: usize = 5;
+const G_MID: usize = 8;
+const G_HIGH: usize = 10;
+const G_EXTCODE: usize = 700;
+const G_BALANCE: usize = 400;
+const G_SLOAD: usize = 200;
+const G_JUMPDEST: usize = 1;
+const G_SSET: usize = 20000;
+const G_SRESET: usize = 5000;
+const R_SCLEAR: usize = 15000;
+const R_SELFDESTRUCT: usize = 24000;
+const G_SELFDESTRUCT: usize = 5000;
+const G_CREATE: usize = 32000;
+const G_CODEDEPOSITE: usize = 200;
+const G_CALL: usize = 700;
+const G_CALLVALUE: usize = 9000;
+const G_CALLSTIPEND: usize = 2300;
+const G_NEWACCOUNT: usize = 25000;
+const G_EXP: usize = 10;
+const G_EXPBYTE: usize = 10;
+const G_MEMORY: usize = 3;
+const G_TXCREATE: usize = 32000;
+const G_TXDATAZERO: usize = 4;
+const G_TXDATANONZERO: usize = 68;
+const G_TRANSACTION: usize = 21000;
+const G_LOG: usize = 375;
+const G_LOGDATA: usize = 8;
+const G_LOGTOPIC: usize = 375;
+const G_SHA3: usize = 30;
+const G_SHA3WORD: usize = 6;
+const G_COPY: usize = 3;
+const G_BLOCKHASH: usize = 20;
 
-fn memory_cost(a: usize) -> Gas {
-    let a = a as isize;
-    (G_MEMORY * a + a * a / 512).into()
+fn memory_cost(a: Gas) -> Gas {
+    (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
 }
 
 // TODO: Implement C_SSTORE, C_CALL and C_SELFDESTRUCT
@@ -50,7 +50,43 @@ fn memory_cost(a: usize) -> Gas {
 // CALLDATACOPY, CODECOPY, EXTCODECOPY, LOG0-4, SHA3
 
 impl Opcode {
-    pub fn gas_cost_before<M: Machine>(&self, machine: &M) -> Result<Gas> {
+    fn gas_cost_memory<M: Machine>(&self, machine: &M) -> Result<Gas> {
+        let ref stack = machine.stack();
+        let ref memory = machine.memory();
+        let opcode = self.clone();
+
+        let current = memory_cost(machine.memory().active_len().into());
+        let next = match opcode {
+            Opcode::SHA3 | Opcode::CODECOPY | Opcode::RETURN => {
+                let from: U256 = stack.peek(0)?.into();
+                let len: U256 = stack.peek(1)?.into();
+                memory_cost(max(Gas::from(from) + Gas::from(len),
+                                machine.memory().active_len().into()))
+            },
+            Opcode::MLOAD | Opcode::MSTORE => {
+                let from: U256 = stack.peek(0)?.into();
+                memory_cost(max(Gas::from(from) + Gas::from(32u64),
+                                machine.memory().active_len().into()))
+            },
+            Opcode::MSTORE8 => {
+                let from: U256 = stack.peek(0)?.into();
+                memory_cost(max(Gas::from(from) + Gas::from(1u64),
+                                machine.memory().active_len().into()))
+            },
+            Opcode::CREATE => {
+                let from: U256 = stack.peek(1)?.into();
+                let len: U256 = stack.peek(2)?.into();
+                memory_cost(max(Gas::from(from) + Gas::from(len),
+                                machine.memory().active_len().into()))
+            },
+            _ => {
+                memory_cost(machine.memory().active_len().into())
+            }
+        };
+        Ok(next - current)
+    }
+
+    pub fn gas_cost<M: Machine>(&self, machine: &M) -> Result<Gas> {
         let ref stack = machine.stack();
         let ref memory = machine.memory();
         let opcode = self.clone();
@@ -62,32 +98,30 @@ impl Opcode {
                 Gas::zero(),
 
             Opcode::SHA3 => {
-                let u_s1: u64 = (stack.peek(1)?).into();
-                (G_SHA3 + G_SHA3WORD * (u_s1 as isize / 32)).into()
+                let len = stack.peek(1)?;
+                (Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * (Gas::from(len) / Gas::from(32u64))).into()
             },
 
             Opcode::LOG(v) => {
-                let u_s1: u64 = (stack.peek(1)?).into();
-                (G_LOG + G_LOGDATA * u_s1 as isize + (v as isize - 1) * G_LOGTOPIC).into()
+                let len = stack.peek(1)?;
+                (Gas::from(G_LOG) + Gas::from(G_LOGDATA) * Gas::from(len) + Gas::from(G_LOGTOPIC) * Gas::from(v)).into()
             },
 
             Opcode::EXTCODECOPY => {
-                // TODO: this value might exceed isize::max_value()
-                let u_s3: u64 = (stack.peek(2)?).into();
-                (G_EXTCODE + G_COPY * (u_s3 as isize / 32)).into()
+                let len = stack.peek(2)?;
+                (Gas::from(G_EXTCODE) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
             },
 
             Opcode::CALLDATACOPY | Opcode::CODECOPY => {
-                // TODO: this value might exceed isize::max_value()
-                let u_s2: u64 = (stack.peek(2)?).into();
-                (G_VERYLOW + G_COPY * (u_s2 as isize / 32)).into()
+                let len = stack.peek(2)?;
+                (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
             },
 
             Opcode::EXP => {
                 if stack.peek(1)? == M256::zero() {
-                    G_EXP.into()
+                    Gas::from(G_EXP)
                 } else {
-                    (G_EXP + G_EXPBYTE * (1 + stack.peek(1)?.log2floor() as isize)).into()
+                    (Gas::from(G_EXP) + Gas::from(G_EXPBYTE) * (Gas::from(1u64) + Gas::from(stack.peek(1)?.log2floor()))).into()
                 }
             }
 
@@ -136,10 +170,6 @@ impl Opcode {
             Opcode::BLOCKHASH => G_BLOCKHASH.into(),
             Opcode::INVALID => Gas::zero(),
         };
-        Ok(self_cost - memory_cost(machine.memory().active_len()))
-    }
-
-    pub fn gas_cost_after<M: Machine>(&self, machine: &M) -> Gas {
-        memory_cost(machine.memory().active_len())
+        Ok(self_cost + self.gas_cost_memory(machine)?)
     }
 }
