@@ -33,7 +33,7 @@ macro_rules! op2 {
 
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
-        on_rescue!(machine, {
+        on_rescue!(|machine| {
             machine.stack_mut().push(op2);
             machine.stack_mut().push(op1);
         }, __);
@@ -50,7 +50,7 @@ macro_rules! op2_ref {
 
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
-        on_rescue!(machine, {
+        on_rescue!(|machine| {
             machine.stack_mut().push(op2);
             machine.stack_mut().push(op1);
         }, __);
@@ -325,33 +325,31 @@ impl Opcode {
             },
 
             Opcode::CALLDATACOPY => {
+                begin_rescuable!(machine, &mut M, __);
                 will_pop_push!(machine, 3, 0);
 
                 let memory_index = machine.stack_mut().pop().unwrap();
                 let data_index = machine.stack_mut().pop().unwrap();
                 let len = machine.stack_mut().pop().unwrap();
 
-                let restore = |machine: &mut M| {
+                on_rescue!(|machine| {
                     machine.stack_mut().push(len);
                     machine.stack_mut().push(data_index);
                     machine.stack_mut().push(memory_index);
-                };
+                }, __);
 
                 if data_index > usize::max_value().into() {
-                    restore(machine);
-                    return Err(Error::DataTooLarge);
+                    trr!(Err(Error::DataTooLarge), __);
                 }
                 let data_index: usize = data_index.into();
 
                 if len > usize::max_value().into() {
-                    restore(machine);
-                    return Err(Error::DataTooLarge);
+                    trr!(Err(Error::DataTooLarge), __);
                 }
                 let len: usize = len.into();
 
                 if data_index.checked_add(len).is_none() {
-                    restore(machine);
-                    return Err(Error::DataTooLarge);
+                    trr!(Err(Error::DataTooLarge), __);
                 }
 
                 for i in 0..len {
@@ -363,6 +361,7 @@ impl Opcode {
                         }
                     }
                 }
+                end_rescuable!(__);
             },
 
             Opcode::CODESIZE => {

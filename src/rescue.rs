@@ -3,7 +3,7 @@ macro_rules! begin_rescuable {
         let mut $i = |v: $t| {};
 
         macro_rules! on_rescue {
-            ($v:ident, $e:expr, $j:ident) => (
+            (|$v:ident| $e:expr, $j:ident) => (
                 let mut $j = |$v: $t| {
                     $e;
                     $j($v);
@@ -15,14 +15,15 @@ macro_rules! begin_rescuable {
             ($e:expr, $j:ident) => (match $e {
                 Ok(val) => val,
                 Err(err) => {
-                    return $j($param);
+                    $j($param);
+                    return Err(err);
                 }
             });
         }
 
         macro_rules! end_rescuable {
             ($j:ident) => (
-                ::std::mem::forget($j);
+                ::std::mem::drop($j);
             )
         }
     )
