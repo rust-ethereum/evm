@@ -30,10 +30,14 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) {
     let out = v["out"].as_str();
 
     if out.is_some() {
-        if result.is_ok() && test_machine(v, &machine, debug) {
-            println!("OK");
+        if result.is_ok() {
+            if test_machine(v, &machine, debug) {
+                println!("OK");
+            } else {
+                println!("Failed (result not match)");
+            }
         } else {
-            println!("Failed {:?}", result.err());
+            println!("Failed {:?}", result.err().unwrap());
         }
     } else {
         if result.is_err() {

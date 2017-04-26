@@ -65,7 +65,7 @@ fn main() {
             None => "",
         });
         let code = code_hex.expect("code must be provided");
-        let initial_gas = (value_t!(matches, "GAS", isize).unwrap_or(0xff)).into();
+        let initial_gas = (value_t!(matches, "GAS", usize).unwrap_or(0xff)).into();
         let data = match matches.value_of("DATA") {
             Some(d) => d.as_bytes().into(),
             None => "".as_bytes().into(),
