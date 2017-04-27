@@ -197,7 +197,7 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
             if stack.peek(1)? == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                (Gas::from(G_EXP) + Gas::from(G_EXPBYTE) * (Gas::from(1u64) + Gas::from(stack.peek(1)?.log2floor()))).into()
+                Gas::from(G_EXP) + Gas::from(G_EXPBYTE) * (Gas::from(1u64) + Gas::from(stack.peek(1)?.log2floor()) / Gas::from(8u64))
             }
         }
 

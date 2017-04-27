@@ -110,12 +110,16 @@ impl U256 {
     pub fn log2floor(&self) -> usize {
         assert!(*self != U256::zero());
         let mut l: usize = 256;
-        for i in 0..4 {
+        for i in 0..8 {
             if self.0[i] == 0u32 {
-                l -= 64;
+                l -= 32;
             } else {
                 l -= self.0[i].leading_zeros() as usize;
-                return l;
+                if l == 0 {
+                    return l
+                } else {
+                    return l-1;
+                }
             }
         }
         return l;
