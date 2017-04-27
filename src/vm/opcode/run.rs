@@ -63,7 +63,7 @@ macro_rules! op2_ref {
 }
 
 impl Opcode {
-    pub fn run<M: MachineState>(&self, machine: &mut M, active_memory_len: M256) -> Result<()> {
+    pub fn run<M: MachineState>(&self, machine: &mut M) -> Result<()> {
         let opcode = self.clone();
 
         // Note: Please do not use try! or ? syntax in this opcode
@@ -621,6 +621,7 @@ impl Opcode {
             Opcode::MSIZE => {
                 will_pop_push!(machine, 0, 1);
 
+                let active_memory_len = machine.active_memory_len();
                 machine.stack_mut().push(active_memory_len);
             },
 

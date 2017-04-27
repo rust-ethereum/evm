@@ -32,6 +32,13 @@ pub trait MachineState {
     fn return_values(&self) -> &[u8];
     fn set_return_values(&mut self, data: &[u8]);
 
+    fn cost_aggregrator(&self) -> CostAggregrator;
+    fn set_cost_aggregrator(&mut self, aggregrator: CostAggregrator);
+
+    fn active_memory_len(&self) -> M256 {
+        self.cost_aggregrator().active_memory_len()
+    }
+
     fn fork<R, F: FnOnce(Self::Sub) -> (R, Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
                                                        value: M256, data: &[u8], code: &[u8], f: F) -> R;
 }
@@ -43,6 +50,7 @@ pub struct VectorMachineState<B0, BR> {
     transaction: VectorTransaction,
     return_values: Vec<u8>,
     block: Option<BR>,
+    cost_aggregrator: CostAggregrator,
     _block_marker: PhantomData<B0>,
 }
 
@@ -56,6 +64,7 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachineState<B0, BR> {
             transaction: transaction,
             return_values: Vec::new(),
             block: Some(block),
+            cost_aggregrator: CostAggregrator::default(),
             _block_marker: PhantomData,
         }
     }
@@ -113,14 +122,24 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> MachineState for VectorMachineState<B
         self.return_values = val.into();
     }
 
-    fn fork<R, F: FnOnce(Self::Sub) -> (R, Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
-                                                       value: M256, data: &[u8], code: &[u8], f: F) -> R {
+    fn cost_aggregrator(&self) -> CostAggregrator {
+        self.cost_aggregrator
+    }
+
+    fn set_cost_aggregrator(&mut self, aggregrator: CostAggregrator) {
+        self.cost_aggregrator = aggregrator;
+    }
+
+    fn fork<R, F: FnOnce(Self::Sub) -> (R, Self::Sub)>
+        (&mut self, gas: Gas, from: Address, to: Address,
+         value: M256, data: &[u8], code: &[u8], f: F) -> R {
         let mut state = Self {
             pc: VectorPC::new(code),
             memory: VectorMemory::new(),
             stack: VectorStack::new(),
             transaction: VectorTransaction::message_call(from, to, value, data, gas),
             return_values: Vec::new(),
+            cost_aggregrator: CostAggregrator::default(),
             block: self.block.take(),
             _block_marker: PhantomData,
         };
@@ -133,7 +152,6 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> MachineState for VectorMachineState<B
 
 pub struct Machine<S> {
     state: S,
-    cost_aggregrator: CostAggregrator,
     used_gas: Gas,
 }
 
@@ -141,7 +159,6 @@ impl<S: MachineState> Machine<S> {
     pub fn from_state(state: S) -> Self {
         Machine {
             state: state,
-            cost_aggregrator: CostAggregrator::default(),
             used_gas: Gas::zero()
         }
     }
@@ -176,7 +193,8 @@ impl<S: MachineState> Machine<S> {
 
     pub fn peek_cost(&self) -> Result<Gas> {
         let opcode = self.pc().peek_opcode()?;
-        let (gas, agg) = gas_cost(opcode, &self.state, self.available_gas(), self.cost_aggregrator)?;
+        let aggregrator = self.state.cost_aggregrator();
+        let (gas, agg) = gas_cost(opcode, &self.state, self.available_gas(), aggregrator)?;
         Ok(gas)
     }
 
@@ -197,7 +215,7 @@ impl<S: MachineState> Machine<S> {
 
         let opcode = trr!(self.state.pc_mut().read_opcode(), __);
         let available_gas = self.available_gas();
-        let cost_aggregrator = self.cost_aggregrator;
+        let cost_aggregrator = self.state.cost_aggregrator();
         let (gas, agg) = trr!(gas_cost(opcode, &mut self.state,
                                        available_gas, cost_aggregrator), __);
 
@@ -205,9 +223,9 @@ impl<S: MachineState> Machine<S> {
             trr!(Err(Error::EmptyGas), __);
         }
 
-        trr!(opcode.run(&mut self.state, self.cost_aggregrator.active_memory_len()), __);
+        trr!(opcode.run(&mut self.state), __);
 
-        self.cost_aggregrator = agg;
+        self.state.set_cost_aggregrator(agg);
         self.used_gas = self.used_gas + gas;
 
         end_rescuable!(__);
