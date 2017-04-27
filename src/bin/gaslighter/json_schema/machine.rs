@@ -22,13 +22,29 @@ pub fn create_machine(v: &Value) -> VectorMachine<JSONVectorBlock, Box<JSONVecto
 
 pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>>, debug: bool) -> bool {
     let out = v["out"].as_str();
+    let gas = v["gas"].as_str();
 
     if out.is_some() {
         let out = read_hex(out.unwrap()).unwrap();
         let out_ref: &[u8] = out.as_ref();
         if machine.return_values() != out_ref {
-            print!("\n");
-            println!("Return value check failed.");
+            if debug {
+                print!("\n");
+                println!("Return value check failed.");
+            }
+
+            return false;
+        }
+    }
+
+    if gas.is_some() {
+        let gas = Gas::from_str(gas.unwrap()).unwrap();
+        if machine.available_gas() != gas {
+            if debug {
+                print!("\n");
+                println!("Gas check failed, VM returned: 0x{:x}, expected: 0x{:x}",
+                         machine.available_gas(), gas);
+            }
 
             return false;
         }

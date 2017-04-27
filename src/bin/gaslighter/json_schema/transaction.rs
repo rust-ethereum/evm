@@ -18,6 +18,6 @@ pub fn create_transaction(v: &Value) -> VectorTransaction {
     let value = M256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
 
     VectorTransaction::message_call(
-        caller, address, value, data.as_ref(), current_gas_limit
+        caller, address, value, data.as_ref(), gas
     )
 }
