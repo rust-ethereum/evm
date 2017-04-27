@@ -1,8 +1,11 @@
 use utils::bigint::{M256, U256, U512};
 use utils::gas::Gas;
+use utils::address::Address;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC, Error, Result};
-use std::cmp::max;
+use transaction::Transaction;
+use blockchain::Block;
+use std::cmp::{min, max};
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -17,8 +20,8 @@ const G_JUMPDEST: usize = 1;
 const G_SSET: usize = 20000;
 const G_SRESET: usize = 5000;
 const R_SCLEAR: usize = 15000;
-const R_SELFDESTRUCT: usize = 24000;
-const G_SELFDESTRUCT: usize = 5000;
+const R_SUICIDE: usize = 24000;
+const G_SUICIDE: usize = 5000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSITE: usize = 200;
 const G_CALL: usize = 700;
@@ -42,6 +45,73 @@ const G_BLOCKHASH: usize = 20;
 
 fn memory_cost(a: Gas) -> Gas {
     (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
+}
+
+fn sstore_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    let index = machine.stack().peek(0)?;
+    let value = machine.stack().peek(1)?;
+    let address = machine.transaction().callee();
+
+    if value != M256::zero() && machine.block().account_storage(address, index) == M256::zero() {
+        Ok(G_SSET.into())
+    } else {
+        Ok(G_SRESET.into())
+    }
+}
+
+fn call_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    Ok(gascap_cost(machine)? + extra_cost(machine)?)
+}
+
+fn callgas_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    let val = machine.stack().peek(2)?;
+    if val != M256::zero() {
+        Ok(gascap_cost(machine)? + G_CALLSTIPEND.into())
+    } else {
+        Ok(gascap_cost(machine)?)
+    }
+}
+
+fn gascap_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    let base1 = machine.available_gas() - extra_cost(machine)?;
+    let base2 = machine.stack().peek(0)?.into();
+
+    if machine.available_gas() >= extra_cost(machine)? {
+        Ok(min(base1 - base1 / Gas::from(64u64), base2))
+    } else {
+        Ok(base2)
+    }
+}
+
+fn extra_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    Ok(Gas::from(G_CALL) + xfer_cost(machine)? + new_cost(machine)?)
+}
+
+fn xfer_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    let val = machine.stack().peek(2)?;
+    if val != M256::zero() {
+        Ok(G_CALLVALUE.into())
+    } else {
+        Ok(Gas::zero())
+    }
+}
+
+fn new_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    let address: Address = machine.stack().peek(1)?.into();
+    if address == Address::default() {
+        Ok(G_NEWACCOUNT.into())
+    } else {
+        Ok(Gas::zero())
+    }
+}
+
+fn suicide_cost<M: Machine>(machine: &M) -> Result<Gas> {
+    let address: Address = machine.stack().peek(1)?.into();
+    Ok(Gas::from(G_SUICIDE) + if address == Address::default() {
+        Gas::from(G_NEWACCOUNT)
+    } else {
+        Gas::zero()
+    })
 }
 
 // TODO: Implement C_SSTORE, C_CALL and C_SELFDESTRUCT
@@ -91,11 +161,12 @@ impl Opcode {
         let ref memory = machine.memory();
         let opcode = self.clone();
         let self_cost: Gas = match opcode {
-            // Unimplemented
-            Opcode::SSTORE | Opcode::CALL | Opcode::CALLCODE |
-            Opcode::DELEGATECALL | Opcode::SUICIDE =>
-                // unimplemented!(),
-                Gas::zero(),
+            Opcode::CALL | Opcode::CALLCODE |
+            Opcode::DELEGATECALL => call_cost(machine)?,
+
+            Opcode::SUICIDE => suicide_cost(machine)?,
+
+            Opcode::SSTORE => sstore_cost(machine)?,
 
             Opcode::SHA3 => {
                 let len = stack.peek(1)?;
