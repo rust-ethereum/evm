@@ -140,20 +140,28 @@ fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: Co
         Opcode::SHA3 | Opcode::CODECOPY | Opcode::RETURN => {
             let from: U256 = stack.peek(0)?.into();
             let len: U256 = stack.peek(1)?.into();
-            max(Gas::from(from) + Gas::from(len), current)
+            if len == U256::zero() {
+                current
+            } else {
+                max((Gas::from(from) + Gas::from(len)) / Gas::from(32u64), current)
+            }
         },
         Opcode::MLOAD | Opcode::MSTORE => {
             let from: U256 = stack.peek(0)?.into();
-            max(Gas::from(from) + Gas::from(32u64), current)
+            max((Gas::from(from) + Gas::from(32u64)) / Gas::from(32u64), current)
         },
         Opcode::MSTORE8 => {
             let from: U256 = stack.peek(0)?.into();
-            max(Gas::from(from) + Gas::from(1u64), current)
+            max((Gas::from(from) + Gas::from(1u64)) / Gas::from(32u64), current)
         },
         Opcode::CREATE => {
             let from: U256 = stack.peek(1)?.into();
             let len: U256 = stack.peek(2)?.into();
-            max(Gas::from(from) + Gas::from(len), current)
+            if len == U256::zero() {
+                current
+            } else {
+                max((Gas::from(from) + Gas::from(len)) / Gas::from(32u64), current)
+            }
         },
         _ => {
             current
