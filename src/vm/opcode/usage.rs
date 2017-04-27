@@ -114,11 +114,6 @@ fn suicide_cost<M: Machine>(machine: &M) -> Result<Gas> {
     })
 }
 
-// TODO: Implement C_SSTORE, C_CALL and C_SELFDESTRUCT
-// TODO: Use a machine_state struct instead of u_ip, u_i and u_s
-// TODO: Use machine_state to implement gas cost for EXP,
-// CALLDATACOPY, CODECOPY, EXTCODECOPY, LOG0-4, SHA3
-
 impl Opcode {
     fn gas_cost_memory<M: Machine>(&self, machine: &M) -> Result<Gas> {
         let ref stack = machine.stack();
