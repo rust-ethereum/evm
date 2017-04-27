@@ -3,6 +3,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC, Result, Error};
+use vm::machine::MachineState;
 use transaction::Transaction;
 use blockchain::Block;
 
@@ -62,7 +63,7 @@ macro_rules! op2_ref {
 }
 
 impl Opcode {
-    pub fn run<M: Machine>(&self, machine: &mut M) -> Result<()> {
+    pub fn run<M: MachineState>(&self, machine: &mut M, active_memory_len: M256) -> Result<()> {
         let opcode = self.clone();
 
         // Note: Please do not use try! or ? syntax in this opcode
@@ -620,8 +621,7 @@ impl Opcode {
             Opcode::MSIZE => {
                 will_pop_push!(machine, 0, 1);
 
-                let active_len = machine.memory().active_len();
-                machine.stack_mut().push(active_len.into());
+                machine.stack_mut().push(active_memory_len);
             },
 
             Opcode::GAS => {
@@ -699,15 +699,43 @@ impl Opcode {
                 let from = machine.transaction().callee();
                 let to: Address = machine.stack_mut().pop().unwrap().into();
                 let value = machine.stack_mut().pop().unwrap().into();
-                let memory_in_start = machine.stack_mut().pop().unwrap();
+                let mut memory_in_start = machine.stack_mut().pop().unwrap();
                 let memory_in_len = machine.stack_mut().pop().unwrap();
-                let memory_out_start = machine.stack_mut().pop().unwrap();
+                let mut memory_out_start = machine.stack_mut().pop().unwrap();
                 let memory_out_len = machine.stack_mut().pop().unwrap();
 
-                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
-                             memory_out_start, memory_out_len, |machine| {
-                                 machine.fire();
-                             });
+                let mut mem_in: Vec<u8> = Vec::new();
+
+                let memory_in_end = memory_in_start + memory_in_len;
+                while memory_in_start < memory_in_end {
+                    mem_in.push(machine.memory().read_raw(memory_in_start));
+                    memory_in_start = memory_in_start + M256::one();
+                }
+
+                let code: Vec<u8> =
+                    if to == from {
+                        machine.pc().code().into()
+                    } else {
+                        machine.block().account_code(to).into()
+                    };
+                let mem_out: Vec<u8> = machine.fork(
+                    gas, from, to, value, mem_in.as_ref(), code.as_ref(),
+                    |state| {
+                        let mut submachine = Machine::from_state(state);
+                        submachine.fire();
+
+                        let out: Vec<u8> = submachine.return_values().into();
+                        (out, submachine.into_state())
+                    });
+
+                let memory_out_end = memory_out_start + memory_out_len;
+                let mut i = 0;
+                while memory_out_start < memory_out_end {
+                    machine.memory_mut().write_raw(memory_out_start,
+                                                   mem_out[i]);
+                    memory_out_start = memory_out_start + M256::one();
+                    i += 1;
+                }
 
                 machine.stack_mut().push(M256::zero());
             },
@@ -720,15 +748,43 @@ impl Opcode {
                 let from = machine.transaction().callee();
                 let to = machine.transaction().callee();
                 let value = machine.stack_mut().pop().unwrap().into();
-                let memory_in_start = machine.stack_mut().pop().unwrap();
+                let mut memory_in_start = machine.stack_mut().pop().unwrap();
                 let memory_in_len = machine.stack_mut().pop().unwrap();
-                let memory_out_start = machine.stack_mut().pop().unwrap();
+                let mut memory_out_start = machine.stack_mut().pop().unwrap();
                 let memory_out_len = machine.stack_mut().pop().unwrap();
 
-                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
-                             memory_out_start, memory_out_len, |machine| {
-                                 machine.fire();
-                             });
+                let mut mem_in: Vec<u8> = Vec::new();
+
+                let memory_in_end = memory_in_start + memory_in_len;
+                while memory_in_start < memory_in_end {
+                    mem_in.push(machine.memory().read_raw(memory_in_start));
+                    memory_in_start = memory_in_start + M256::one();
+                }
+
+                let code: Vec<u8> =
+                    if to == from {
+                        machine.pc().code().into()
+                    } else {
+                        machine.block().account_code(to).into()
+                    };
+                let mem_out: Vec<u8> = machine.fork(
+                    gas, from, to, value, mem_in.as_ref(), code.as_ref(),
+                    |state| {
+                        let mut submachine = Machine::from_state(state);
+                        submachine.fire();
+
+                        let out: Vec<u8> = submachine.return_values().into();
+                        (out, submachine.into_state())
+                    });
+
+                let memory_out_end = memory_out_start + memory_out_len;
+                let mut i = 0;
+                while memory_out_start < memory_out_end {
+                    machine.memory_mut().write_raw(memory_out_start,
+                                                   mem_out[i]);
+                    memory_out_start = memory_out_start + M256::one();
+                    i += 1;
+                }
 
                 machine.stack_mut().push(M256::zero());
             },
@@ -755,15 +811,43 @@ impl Opcode {
                 let from = machine.transaction().sender();
                 let to: Address = machine.stack_mut().pop().unwrap().into();
                 let value = machine.transaction().value();
-                let memory_in_start = machine.stack_mut().pop().unwrap();
+                let mut memory_in_start = machine.stack_mut().pop().unwrap();
                 let memory_in_len = machine.stack_mut().pop().unwrap();
-                let memory_out_start = machine.stack_mut().pop().unwrap();
+                let mut memory_out_start = machine.stack_mut().pop().unwrap();
                 let memory_out_len = machine.stack_mut().pop().unwrap();
 
-                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
-                             memory_out_start, memory_out_len, |machine| {
-                                 machine.fire();
-                             });
+                let mut mem_in: Vec<u8> = Vec::new();
+
+                let memory_in_end = memory_in_start + memory_in_len;
+                while memory_in_start < memory_in_end {
+                    mem_in.push(machine.memory().read_raw(memory_in_start));
+                    memory_in_start = memory_in_start + M256::one();
+                }
+
+                let code: Vec<u8> =
+                    if to == from {
+                        machine.pc().code().into()
+                    } else {
+                        machine.block().account_code(to).into()
+                    };
+                let mem_out: Vec<u8> = machine.fork(
+                    gas, from, to, value, mem_in.as_ref(), code.as_ref(),
+                    |state| {
+                        let mut submachine = Machine::from_state(state);
+                        submachine.fire();
+
+                        let out: Vec<u8> = submachine.return_values().into();
+                        (out, submachine.into_state())
+                    });
+
+                let memory_out_end = memory_out_start + memory_out_len;
+                let mut i = 0;
+                while memory_out_start < memory_out_end {
+                    machine.memory_mut().write_raw(memory_out_start,
+                                                   mem_out[i]);
+                    memory_out_start = memory_out_start + M256::one();
+                    i += 1;
+                }
 
                 machine.stack_mut().push(M256::zero());
             },

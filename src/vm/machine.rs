@@ -3,19 +3,20 @@ use utils::gas::Gas;
 use utils::address::Address;
 
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result, Error};
+use super::cost::{gas_cost, CostAggregrator};
 use blockchain::{Block, FakeVectorBlock};
 use transaction::{Transaction, VectorTransaction};
 
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 
-pub trait Machine {
+pub trait MachineState {
     type P: PC;
     type M: Memory;
     type Sta: Stack;
     type T: Transaction;
     type B: Block;
-    type Sub: Machine;
+    type Sub: MachineState;
 
     fn pc(&self) -> &Self::P;
     fn pc_mut(&mut self) -> &mut Self::P;
@@ -28,120 +29,45 @@ pub trait Machine {
     fn block(&self) -> &Self::B;
     fn block_mut(&mut self) -> &mut Self::B;
 
-    fn use_gas(&mut self, gas: Gas);
-    fn used_gas(&self) -> Gas;
     fn return_values(&self) -> &[u8];
     fn set_return_values(&mut self, data: &[u8]);
 
-    fn fork<F: FnOnce(&mut Self::Sub)>(&mut self, gas: Gas, from:
-                                       Address, to: Address, value: M256,
-                                       memory_in_start: M256,
-                                       memory_in_len: M256,
-                                       memory_out_start: M256,
-                                       memory_out_len: M256, f: F);
-
-    fn peek_gas_cost(&self) -> Result<Gas> where Self: Sized {
-        let opcode = self.pc().peek_opcode()?;
-        opcode.gas_cost(self)
-    }
-
-    fn step(&mut self) -> Result<()> where Self: Sized {
-        // Constraints and assumptions for when the VM is running
-        debug_assert!(self.transaction().data().is_some());
-        debug_assert!(self.transaction().gas_price() <= Gas::from(U256::max_value()));
-
-        begin_rescuable!(self, &mut Self, __);
-        if self.pc().stopped() {
-            trr!(Err(Error::Stopped), __);
-        }
-
-        let gas_cost = trr!(self.peek_gas_cost(), __);
-
-        let position = self.pc().position();
-        on_rescue!(|machine| {
-            machine.pc_mut().jump(position);
-        }, __);
-
-        let opcode = trr!(self.pc_mut().read_opcode(), __);
-        if gas_cost > self.available_gas() {
-            trr!(Err(Error::EmptyGas), __);
-        }
-
-        trr!(opcode.run(self), __);
-        self.use_gas(gas_cost);
-
-        end_rescuable!(__);
-        Ok(())
-    }
-
-    fn fire(&mut self) -> Result<()> where Self: Sized {
-        loop {
-            let result = self.step();
-
-            if result.is_err() {
-                match result.err().unwrap() {
-                    Error::Stopped => return Ok(()),
-                    err => return Err(err),
-                }
-            }
-        }
-    }
-
-    fn available_gas(&self) -> Gas {
-        self.transaction().gas_limit() - self.used_gas()
-    }
+    fn fork<R, F: FnOnce(Self::Sub) -> (R, Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
+                                                       value: M256, data: &[u8], code: &[u8], f: F) -> R;
 }
 
-pub struct VectorMachine<B0, BR> {
+pub struct VectorMachineState<B0, BR> {
     pc: VectorPC,
     memory: VectorMemory,
     stack: VectorStack,
     transaction: VectorTransaction,
     return_values: Vec<u8>,
     block: Option<BR>,
-    used_gas: Gas,
     _block_marker: PhantomData<B0>,
 }
 
-impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachine<B0, BR> {
+impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachineState<B0, BR> {
     pub fn new(code: &[u8], data: &[u8], gas_limit: Gas,
                transaction: VectorTransaction, block: BR) -> Self {
-        VectorMachine {
+        VectorMachineState {
             pc: VectorPC::new(code),
             memory: VectorMemory::new(),
             stack: VectorStack::new(),
             transaction: transaction,
             return_values: Vec::new(),
             block: Some(block),
-            used_gas: Gas::zero(),
             _block_marker: PhantomData,
         }
     }
 }
 
-impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
+impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> MachineState for VectorMachineState<B0, BR> {
     type P = VectorPC;
     type M = VectorMemory;
     type Sta = VectorStack;
     type T = VectorTransaction;
     type B = B0;
     type Sub = Self;
-
-    fn return_values(&self) -> &[u8] {
-        self.return_values.as_ref()
-    }
-
-    fn set_return_values(&mut self, val: &[u8]) {
-        self.return_values = val.into();
-    }
-
-    fn use_gas(&mut self, gas: Gas) {
-        self.used_gas = self.used_gas + gas;
-    }
-
-    fn used_gas(&self) -> Gas {
-        self.used_gas
-    }
 
     fn pc(&self) -> &Self::P {
         &self.pc
@@ -179,49 +105,143 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> Machine for VectorMachine<B0, BR> {
         self.block.as_mut().unwrap().as_mut()
     }
 
-    fn fork<F: FnOnce(&mut Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
-                                       value: M256,
-                                       memory_in_start: M256, memory_in_len: M256,
-                                       memory_out_start: M256, memory_out_len: M256,
-                                       f: F) {
-        use std::mem::swap;
+    fn return_values(&self) -> &[u8] {
+        self.return_values.as_ref()
+    }
 
-        let from = from;
-        let mem_in_start: usize = memory_in_start.into();
-        let mem_in_len: usize = memory_in_len.into();
-        let mem_in_end: usize = mem_in_start + mem_in_len;
-        let mem_in: Vec<u8> = self.memory().as_ref()[mem_in_start..mem_in_end].into();
+    fn set_return_values(&mut self, val: &[u8]) {
+        self.return_values = val.into();
+    }
 
-        let mut submachine = Self {
-            pc: VectorPC::new(if to == from { self.pc().code() }
-                              else { self.block().account_code(to) }),
+    fn fork<R, F: FnOnce(Self::Sub) -> (R, Self::Sub)>(&mut self, gas: Gas, from: Address, to: Address,
+                                                       value: M256, data: &[u8], code: &[u8], f: F) -> R {
+        let mut state = Self {
+            pc: VectorPC::new(code),
             memory: VectorMemory::new(),
             stack: VectorStack::new(),
-            transaction: VectorTransaction::message_call(from, to, value, mem_in.as_ref(), gas),
+            transaction: VectorTransaction::message_call(from, to, value, data, gas),
             return_values: Vec::new(),
-            block: None,
-            used_gas: Gas::zero(),
+            block: self.block.take(),
             _block_marker: PhantomData,
         };
 
-        // We swap the block into the sub-machine if necessary. The
-        // current old block should never be referenced and will be
-        // replaced back when the call finishes.
-        swap(&mut self.block, &mut submachine.block);
-        f(self);
-        swap(&mut self.block, &mut submachine.block);
-
-        let mem_out_start: usize = memory_out_start.into();
-        let mem_out_len: usize = memory_out_len.into();
-        let mem_out_end: usize = mem_out_start + mem_out_len;
-
-        for i in 0..mem_out_end {
-            self.memory_mut().write_raw(memory_out_start + i.into(), submachine.return_values[i]);
-        }
+        let (ret, mut state) = f(state);
+        self.block = state.block.take();
+        ret
     }
 }
 
+pub struct Machine<S> {
+    state: S,
+    cost_aggregrator: CostAggregrator,
+    used_gas: Gas,
+}
+
+impl<S: MachineState> Machine<S> {
+    pub fn from_state(state: S) -> Self {
+        Machine {
+            state: state,
+            cost_aggregrator: CostAggregrator::default(),
+            used_gas: Gas::zero()
+        }
+    }
+
+    pub fn into_state(self) -> S {
+        self.state
+    }
+
+    pub fn pc(&self) -> &S::P {
+        self.state.pc()
+    }
+
+    pub fn memory(&self) -> &S::M {
+        self.state.memory()
+    }
+
+    pub fn stack(&self) -> &S::Sta {
+        self.state.stack()
+    }
+
+    pub fn transaction(&self) -> &S::T {
+        self.state.transaction()
+    }
+
+    pub fn block(&self) -> &S::B {
+        self.state.block()
+    }
+
+    pub fn return_values(&self) -> &[u8] {
+        self.state.return_values()
+    }
+
+    pub fn peek_cost(&self) -> Result<Gas> {
+        let opcode = self.pc().peek_opcode()?;
+        let (gas, agg) = gas_cost(opcode, &self.state, self.available_gas(), self.cost_aggregrator)?;
+        Ok(gas)
+    }
+
+    pub fn step(&mut self) -> Result<()> {
+        // Constraints and assumptions for when the VM is running
+        debug_assert!(self.transaction().data().is_some());
+        debug_assert!(self.transaction().gas_price() <= Gas::from(U256::max_value()));
+
+        begin_rescuable!(self, &mut Self, __);
+        if self.pc().stopped() {
+            trr!(Err(Error::Stopped), __);
+        }
+
+        let position = self.pc().position();
+        on_rescue!(|machine| {
+            machine.state.pc_mut().jump(position);
+        }, __);
+
+        let opcode = trr!(self.state.pc_mut().read_opcode(), __);
+        let available_gas = self.available_gas();
+        let cost_aggregrator = self.cost_aggregrator;
+        let (gas, agg) = trr!(gas_cost(opcode, &mut self.state,
+                                       available_gas, cost_aggregrator), __);
+
+        if gas > self.available_gas() {
+            trr!(Err(Error::EmptyGas), __);
+        }
+
+        trr!(opcode.run(&mut self.state, self.cost_aggregrator.active_memory_len()), __);
+
+        self.cost_aggregrator = agg;
+        self.used_gas = self.used_gas + gas;
+
+        end_rescuable!(__);
+        Ok(())
+    }
+
+    pub fn fire(&mut self) -> Result<()> {
+        loop {
+            let result = self.step();
+
+            if result.is_err() {
+                match result.err().unwrap() {
+                    Error::Stopped => return Ok(()),
+                    err => return Err(err),
+                }
+            }
+        }
+    }
+
+    pub fn available_gas(&self) -> Gas {
+        self.transaction().gas_limit() - self.used_gas
+    }
+}
+
+pub type VectorMachine<B0, BR> = Machine<VectorMachineState<B0, BR>>;
 pub type FakeVectorMachine = VectorMachine<FakeVectorBlock, Box<FakeVectorBlock>>;
+
+impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachine<B0, BR> {
+    pub fn new(code: &[u8], data: &[u8], gas_limit: Gas,
+               transaction: VectorTransaction, block: BR) -> Self {
+        VectorMachine::from_state(VectorMachineState::new(code, data, gas_limit,
+                                                    transaction, block))
+    }
+}
 
 impl FakeVectorMachine {
     pub fn fake(code: &[u8], data: &[u8], gas_limit: Gas) -> FakeVectorMachine {

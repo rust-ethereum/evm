@@ -11,7 +11,7 @@ pub trait Memory {
             self.write_raw(index + i.into(), a[i]);
         }
     }
-    fn read(&mut self, index: M256) -> M256 {
+    fn read(&self, index: M256) -> M256 {
         let end = index + 32.into();
         let mut a: [u8; 32] = [0u8; 32];
 
@@ -21,8 +21,7 @@ pub trait Memory {
         a.into()
     }
     fn write_raw(&mut self, index: M256, value: u8);
-    fn read_raw(&mut self, index: M256) -> u8;
-    fn active_len(&self) -> usize;
+    fn read_raw(&self, index: M256) -> u8;
 }
 
 pub struct VectorMemory {
@@ -44,22 +43,6 @@ impl AsRef<[u8]> for VectorMemory {
 }
 
 impl Memory for VectorMemory {
-    fn write(&mut self, index: M256, value: M256) {
-        // Vector only deals with usize, so the maximum size is
-        // actually smaller than 2^256
-        let start: usize = index.into();
-        let end = start + 32;
-
-        if self.memory.len() <= end {
-            self.memory.resize(end, 0u8);
-        }
-
-        let a: [u8; 32] = value.into();
-        for i in start..end {
-            self.memory[i] = a[i - start];
-        }
-    }
-
     fn write_raw(&mut self, index: M256, value: u8) {
         let index: usize = index.into();
 
@@ -70,34 +53,13 @@ impl Memory for VectorMemory {
         self.memory[index] = value;
     }
 
-    fn read(&mut self, index: M256) -> M256 {
-        // This is required to be &mut self because a read might modify u_i
-        let start: usize = index.into();
-        let end = start + 32;
-
-        if self.memory.len() <= end {
-            self.memory.resize(end, 0u8);
-        }
-
-        let mut a: [u8; 32] = [0u8; 32];
-        for i in start..end {
-            a[i - start] = self.memory[i];
-        }
-
-        a.into()
-    }
-
-    fn read_raw(&mut self, index: M256) -> u8 {
+    fn read_raw(&self, index: M256) -> u8 {
         let index: usize = index.into();
 
         if self.memory.len() <= index {
-            self.memory.resize(index + 1, 0u8);
+            return 0u8;
         }
 
         self.memory[index]
-    }
-
-    fn active_len(&self) -> usize {
-        self.memory.len()
     }
 }
