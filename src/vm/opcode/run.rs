@@ -12,16 +12,6 @@ use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
-fn signed_abs(v: M256) -> M256 {
-    let negative: M256 = M256::one() << 256;
-
-    if v >= negative {
-        !v + 1.into()
-    } else {
-        v
-    }
-}
-
 macro_rules! will_pop_push {
     ( $machine:expr, $pop_size:expr, $push_size:expr ) => ({
         if $machine.stack_mut().size() < $pop_size { return Err(Error::StackUnderflow); }
