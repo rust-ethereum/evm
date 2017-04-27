@@ -72,7 +72,6 @@ fn main() {
         };
         let mut machine = FakeVectorMachine::fake(code.as_slice(), data, initial_gas);
         machine.fire();
-        println!("gas used: {:?}", machine.used_gas());
     }
     if let Some(ref matches) = matches.subcommand_matches("crat") {
         let path = Path::new(matches.value_of("FILE").unwrap());

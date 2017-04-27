@@ -13,6 +13,7 @@ mod opcode;
 mod pc;
 mod memory;
 mod machine;
+mod cost;
 
 pub use self::opcode::Opcode;
 pub use self::memory::{Memory, VectorMemory};

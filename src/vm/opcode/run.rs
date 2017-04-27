@@ -3,6 +3,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 use super::Opcode;
 use vm::{Machine, Memory, Stack, PC, Result, Error};
+use vm::machine::MachineState;
 use transaction::Transaction;
 use blockchain::Block;
 
@@ -11,14 +12,45 @@ use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
-fn signed_abs(v: M256) -> M256 {
-    let negative: M256 = M256::one() << 256;
+fn call_code<M: MachineState>(
+    machine: &mut M, gas: Gas, from: Address, to: Address, value: M256,
+    mut memory_in_start: M256, memory_in_len: M256,
+    mut memory_out_start: M256, memory_out_len: M256) -> M256 {
 
-    if v >= negative {
-        !v + 1.into()
-    } else {
-        v
+    let mut mem_in: Vec<u8> = Vec::new();
+
+    let memory_in_end = memory_in_start + memory_in_len;
+    while memory_in_start < memory_in_end {
+        mem_in.push(machine.memory().read_raw(memory_in_start));
+        memory_in_start = memory_in_start + M256::one();
     }
+
+    let code: Vec<u8> =
+        if to == from {
+            machine.pc().code().into()
+        } else {
+            machine.block().account_code(to).into()
+        };
+    let mem_out: Vec<u8> = machine.fork(
+        gas, from, to, value, mem_in.as_ref(), code.as_ref(),
+        |state| {
+            let mut submachine = Machine::from_state(state);
+            submachine.fire();
+
+            let out: Vec<u8> = submachine.return_values().into();
+            (out, submachine.into_state())
+        });
+
+    let memory_out_end = memory_out_start + memory_out_len;
+    let mut i = 0;
+    while memory_out_start < memory_out_end {
+        machine.memory_mut().write_raw(memory_out_start,
+                                       mem_out[i]);
+        memory_out_start = memory_out_start + M256::one();
+        i += 1;
+    }
+
+    M256::zero()
 }
 
 macro_rules! will_pop_push {
@@ -62,7 +94,7 @@ macro_rules! op2_ref {
 }
 
 impl Opcode {
-    pub fn run<M: Machine>(&self, machine: &mut M) -> Result<()> {
+    pub fn run<M: MachineState>(&self, machine: &mut M) -> Result<()> {
         let opcode = self.clone();
 
         // Note: Please do not use try! or ? syntax in this opcode
@@ -620,8 +652,8 @@ impl Opcode {
             Opcode::MSIZE => {
                 will_pop_push!(machine, 0, 1);
 
-                let active_len = machine.memory().active_len();
-                machine.stack_mut().push(active_len.into());
+                let active_memory_len = machine.active_memory_len();
+                machine.stack_mut().push(active_memory_len);
             },
 
             Opcode::GAS => {
@@ -704,12 +736,11 @@ impl Opcode {
                 let memory_out_start = machine.stack_mut().pop().unwrap();
                 let memory_out_len = machine.stack_mut().pop().unwrap();
 
-                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
-                             memory_out_start, memory_out_len, |machine| {
-                                 machine.fire();
-                             });
+                let ret = call_code(machine, gas, from, to, value,
+                                    memory_in_start, memory_in_len,
+                                    memory_out_start, memory_out_len);
 
-                machine.stack_mut().push(M256::zero());
+                machine.stack_mut().push(ret);
             },
 
             Opcode::CALLCODE => {
@@ -725,12 +756,11 @@ impl Opcode {
                 let memory_out_start = machine.stack_mut().pop().unwrap();
                 let memory_out_len = machine.stack_mut().pop().unwrap();
 
-                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
-                             memory_out_start, memory_out_len, |machine| {
-                                 machine.fire();
-                             });
+                let ret = call_code(machine, gas, from, to, value,
+                                    memory_in_start, memory_in_len,
+                                    memory_out_start, memory_out_len);
 
-                machine.stack_mut().push(M256::zero());
+                machine.stack_mut().push(ret);
             },
 
             Opcode::RETURN => {
@@ -760,12 +790,11 @@ impl Opcode {
                 let memory_out_start = machine.stack_mut().pop().unwrap();
                 let memory_out_len = machine.stack_mut().pop().unwrap();
 
-                machine.fork(gas, from, to, value, memory_in_start, memory_in_len,
-                             memory_out_start, memory_out_len, |machine| {
-                                 machine.fire();
-                             });
+                let ret = call_code(machine, gas, from, to, value,
+                                    memory_in_start, memory_in_len,
+                                    memory_out_start, memory_out_len);
 
-                machine.stack_mut().push(M256::zero());
+                machine.stack_mut().push(ret);
             },
 
             Opcode::SUICIDE => {

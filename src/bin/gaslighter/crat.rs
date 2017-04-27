@@ -78,7 +78,7 @@ pub fn debug_transaction(v: &Value) {
                         }
                     },
                     "gas" => {
-                        let gas = machine.peek_gas_cost();
+                        let gas = machine.peek_cost();
                         if gas.is_ok() {
                             println!("0x{:x}", gas.unwrap());
                         } else {
