@@ -31,6 +31,18 @@ pub struct Tuple {
     data: *const uint8_t,
     len: size_t,
 }
+
+impl Drop for Tuple {
+    fn drop(&mut self) {
+        let values = unsafe {
+            assert!(!self.data.is_null());
+            slice::from_raw_parts(self.data, self.len as usize)
+        };
+        println!("> Dropping {:?}", values);
+        println!("> Dropping {:?}", self.data);
+        println!("> Dropping {:?}", self.len);
+    }
+}
 struct FFI(libloading::Library);
 
 impl FFI {
