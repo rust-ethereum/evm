@@ -57,7 +57,7 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
   doCheck = true;
   checkPhase = ''
     cargo test
-    ./target/release/gaslighter -k ffi -s target/debug/libsputnikvm.so -f ${tests}/VMTests/vmArithmeticTest.json -t add0
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmArithmeticTest.json
     ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmBitwiseLogicOperationTest.json
   '';
   });
