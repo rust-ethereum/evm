@@ -73,8 +73,19 @@ pub fn debug_transaction(v: &Value) {
                     },
                     "fire debug" => {
                         while !machine.pc().stopped() {
-                            println!("Running {:?} ... {:?}.", machine.pc().peek_opcode(),
-                                     machine.step());
+                            println!("Running {:?} ...", machine.pc().peek_opcode());
+                            let gas = machine.peek_cost().unwrap();
+                            if gas < Gas::from(u64::max_value()) {
+                                let gas: u64 = gas.into();
+                                println!("Cost: {}", gas);
+                            } else {
+                                println!("Cost: 0x{:x}", gas);
+                            }
+                            for i in 0..machine.stack().size() {
+                                println!("{}: {:x}", i, machine.stack().peek(i).unwrap());
+                            }
+                            println!("Result: {:?}", machine.step());
+                            print!("\n");
                         }
                     },
                     "gas" => {

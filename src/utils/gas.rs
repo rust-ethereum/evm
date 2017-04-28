@@ -25,6 +25,12 @@ impl FromStr for Gas {
 }
 
 impl From<u64> for Gas { fn from(val: u64) -> Gas { Gas::from(U256::from(val)) } }
+impl Into<u64> for Gas {
+    fn into(self) -> u64 {
+        let gas: U256 = self.into();
+        gas.into()
+    }
+}
 impl From<usize> for Gas { fn from(val: usize) -> Gas { Gas::from(U256::from(val)) } }
 impl Into<U256> for Gas { fn into(self) -> U256 { self.0.into() } }
 impl From<U256> for Gas { fn from(val: U256) -> Gas { Gas(U512::from(val)) } }
