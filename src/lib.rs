@@ -2,7 +2,6 @@
 extern crate log;
 extern crate crypto;
 extern crate merkle;
-extern crate capnp;
 extern crate libc;
 extern crate serde_json;
 
@@ -23,7 +22,6 @@ pub use utils::address::Address;
 pub use utils::read_hex;
 
 use std::io::BufReader;
-use capnp::{serialize, message, Word};
 use log::LogLevel;
 use vm::{Machine, VectorMachine};
 use ffi::{JSONVectorBlock, create_block, create_transaction};
