@@ -3,7 +3,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 
 use super::{Memory, VectorMemory, Stack, VectorStack, PC, VectorPC, Result, Error};
-use super::cost::{gas_cost, CostAggregrator};
+use super::cost::{gas_cost, gas_refund, CostAggregrator};
 use blockchain::{Block, FakeVectorBlock};
 use transaction::{Transaction, VectorTransaction};
 
@@ -153,13 +153,15 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> MachineState for VectorMachineState<B
 pub struct Machine<S> {
     state: S,
     used_gas: Gas,
+    refunded_gas: Gas,
 }
 
 impl<S: MachineState> Machine<S> {
     pub fn from_state(state: S) -> Self {
         Machine {
             state: state,
-            used_gas: Gas::zero()
+            used_gas: Gas::zero(),
+            refunded_gas: Gas::zero(),
         }
     }
 
@@ -218,6 +220,7 @@ impl<S: MachineState> Machine<S> {
         let cost_aggregrator = self.state.cost_aggregrator();
         let (gas, agg) = trr!(gas_cost(opcode, &mut self.state,
                                        available_gas, cost_aggregrator), __);
+        let refunded = trr!(gas_refund(opcode, &mut self.state), __);
 
         if gas > self.available_gas() {
             trr!(Err(Error::EmptyGas), __);
@@ -227,6 +230,7 @@ impl<S: MachineState> Machine<S> {
 
         self.state.set_cost_aggregrator(agg);
         self.used_gas = self.used_gas + gas;
+        self.refunded_gas = self.refunded_gas + refunded;
 
         end_rescuable!(__);
         Ok(())
@@ -247,6 +251,10 @@ impl<S: MachineState> Machine<S> {
 
     pub fn available_gas(&self) -> Gas {
         self.transaction().gas_limit() - self.used_gas
+    }
+
+    pub fn remaining_gas(&self) -> Gas {
+        self.transaction().gas_limit() + self.refunded_gas - self.used_gas
     }
 }
 
