@@ -130,6 +130,20 @@ impl Default for CostAggregrator {
     }
 }
 
+fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
+    if len == Gas::zero() {
+        return current;
+    }
+
+    let rem = (from + len) % Gas::from(32u64);
+    let new = if rem == Gas::zero() {
+        (from + len) / Gas::from(32u64)
+    } else {
+        (from + len) / Gas::from(32u64) + Gas::from(1u64)
+    };
+    max(current, new)
+}
+
 fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: CostAggregrator)
                                -> Result<(Gas, CostAggregrator)> {
     let ref stack = machine.stack();
@@ -140,28 +154,20 @@ fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: Co
         Opcode::SHA3 | Opcode::CODECOPY | Opcode::RETURN => {
             let from: U256 = stack.peek(0)?.into();
             let len: U256 = stack.peek(1)?.into();
-            if len == U256::zero() {
-                current
-            } else {
-                max((Gas::from(from) + Gas::from(len)) / Gas::from(32u64), current)
-            }
+            memory_expand(current, Gas::from(from), Gas::from(len))
         },
         Opcode::MLOAD | Opcode::MSTORE => {
             let from: U256 = stack.peek(0)?.into();
-            max((Gas::from(from) + Gas::from(32u64)) / Gas::from(32u64), current)
+            memory_expand(current, Gas::from(from), Gas::from(32u64))
         },
         Opcode::MSTORE8 => {
             let from: U256 = stack.peek(0)?.into();
-            max((Gas::from(from) + Gas::from(1u64)) / Gas::from(32u64), current)
+            memory_expand(current, Gas::from(from), Gas::from(1u64))
         },
         Opcode::CREATE => {
             let from: U256 = stack.peek(1)?.into();
             let len: U256 = stack.peek(2)?.into();
-            if len == U256::zero() {
-                current
-            } else {
-                max((Gas::from(from) + Gas::from(len)) / Gas::from(32u64), current)
-            }
+            memory_expand(current, Gas::from(from), Gas::from(len))
         },
         _ => {
             current
