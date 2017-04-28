@@ -355,14 +355,18 @@ impl Opcode {
                     trr!(Err(Error::DataTooLarge), __);
                 }
                 let start_index: usize = start_index.into();
+                if start_index.checked_add(32).is_none() {
+                    trr!(Err(Error::DataTooLarge), __);
+                }
 
                 let data: Vec<u8> = machine.transaction().data().unwrap().into();
-                let load = if start_index >= data.len() {
-                    M256::zero()
-                } else {
-                    M256::from(&data[start_index..min(start_index+32, data.len())])
-                };
-                machine.stack_mut().push(load);
+                let mut load: [u8; 32] = [0u8; 32];
+                for i in 0..32 {
+                    if start_index + i < data.len() {
+                        load[i] = data[start_index + i];
+                    }
+                }
+                machine.stack_mut().push(load.into());
                 end_rescuable!(__);
             },
 
