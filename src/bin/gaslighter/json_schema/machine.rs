@@ -39,7 +39,7 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
 
     if gas.is_some() {
         let gas = Gas::from_str(gas.unwrap()).unwrap();
-        if machine.available_gas() != gas {
+        if machine.remaining_gas() != gas {
             if debug {
                 print!("\n");
                 println!("Gas check failed, VM returned: 0x{:x}, expected: 0x{:x}",

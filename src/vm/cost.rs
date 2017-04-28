@@ -263,3 +263,24 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
     let (memory_gas, agg) = memory_gas_cost(opcode, machine, aggregrator)?;
     Ok((self_cost + memory_gas, agg))
 }
+
+pub fn gas_refund<M: MachineState>(opcode: Opcode, machine: &M) -> Result<Gas> {
+    match opcode {
+        Opcode::SSTORE => {
+            let index = machine.stack().peek(0)?;
+            let value = machine.stack().peek(1)?;
+            let address = machine.transaction().callee();
+
+            if value == M256::zero() && machine.block().account_storage(address, index) != M256::zero() {
+                Ok(Gas::from(R_SCLEAR))
+            } else {
+                Ok(Gas::zero())
+            }
+        },
+        Opcode::SUICIDE => {
+            // TODO: check whether I_a belongs to A_s
+            Ok(Gas::zero())
+        },
+        _ => Ok(Gas::zero())
+    }
+}
