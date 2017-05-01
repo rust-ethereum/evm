@@ -14,23 +14,29 @@ const G_VERYLOW: usize = 3;
 const G_LOW: usize = 5;
 const G_MID: usize = 8;
 const G_HIGH: usize = 10;
-const G_EXTCODE: usize = 700;
-const G_BALANCE: usize = 400;
-const G_SLOAD: usize = 200;
+const G_EXTCODE_DEFAULT: usize = 20;
+const G_EXTCODE_EIP150: usize = 700;
+const G_BALANCE_DEFAULT: usize = 20;
+const G_BALANCE_EIP150: usize = 400;
+const G_SLOAD_DEFAULT: usize = 50;
+const G_SLOAD_EIP150: usize = 200;
 const G_JUMPDEST: usize = 1;
 const G_SSET: usize = 20000;
 const G_SRESET: usize = 5000;
 const R_SCLEAR: usize = 15000;
 const R_SUICIDE: usize = 24000;
-const G_SUICIDE: usize = 5000;
+const G_SUICIDE_DEFAULT: usize = 0;
+const G_SUICIDE_EIP150: usize = 5000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSITE: usize = 200;
-const G_CALL: usize = 700;
+const G_CALL_DEFAULT: usize = 20;
+const G_CALL_EIP150: usize = 700;
 const G_CALLVALUE: usize = 9000;
 const G_CALLSTIPEND: usize = 2300;
 const G_NEWACCOUNT: usize = 25000;
 const G_EXP: usize = 10;
-const G_EXPBYTE: usize = 10;
+const G_EXPBYTE_DEFAULT: usize = 10;
+const G_EXPBYTE_EIP160: usize = 50;
 const G_MEMORY: usize = 3;
 const G_TXCREATE: usize = 32000;
 const G_TXDATAZERO: usize = 4;
@@ -85,7 +91,7 @@ fn gascap_cost<M: MachineState>(machine: &M, available_gas: Gas) -> Result<Gas> 
 }
 
 fn extra_cost<M: MachineState>(machine: &M) -> Result<Gas> {
-    Ok(Gas::from(G_CALL) + xfer_cost(machine)? + new_cost(machine)?)
+    Ok(Gas::from(if machine.eip150() { G_CALL_EIP150 } else { G_CALL_DEFAULT }) + xfer_cost(machine)? + new_cost(machine)?)
 }
 
 fn xfer_cost<M: MachineState>(machine: &M) -> Result<Gas> {
@@ -108,7 +114,7 @@ fn new_cost<M: MachineState>(machine: &M) -> Result<Gas> {
 
 fn suicide_cost<M: MachineState>(machine: &M) -> Result<Gas> {
     let address: Address = machine.stack().peek(1)?.into();
-    Ok(Gas::from(G_SUICIDE) + if address == Address::default() {
+    Ok(Gas::from(if machine.eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -199,7 +205,7 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
 
         Opcode::EXTCODECOPY => {
             let len = stack.peek(2)?;
-            (Gas::from(G_EXTCODE) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
+            (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
         },
 
         Opcode::CALLDATACOPY | Opcode::CODECOPY => {
@@ -211,13 +217,13 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
             if stack.peek(1)? == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(G_EXPBYTE) * (Gas::from(1u64) + Gas::from(stack.peek(1)?.log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + Gas::from(if machine.eip160() { G_EXPBYTE_EIP160 } else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(stack.peek(1)?.log2floor()) / Gas::from(8u64))
             }
         }
 
         Opcode::CREATE => G_CREATE.into(),
         Opcode::JUMPDEST => G_JUMPDEST.into(),
-        Opcode::SLOAD => G_SLOAD.into(),
+        Opcode::SLOAD => (if machine.eip150() { G_SLOAD_EIP150 } else { G_SLOAD_DEFAULT }).into(),
 
         // W_zero
         Opcode::STOP | Opcode::RETURN
@@ -254,9 +260,9 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
         Opcode::JUMPI => G_HIGH.into(),
 
         // W_extcode
-        Opcode::EXTCODESIZE => G_EXTCODE.into(),
+        Opcode::EXTCODESIZE => (if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }).into(),
 
-        Opcode::BALANCE => G_BALANCE.into(),
+        Opcode::BALANCE => (if machine.eip150() { G_BALANCE_EIP150 } else { G_BALANCE_DEFAULT }).into(),
         Opcode::BLOCKHASH => G_BLOCKHASH.into(),
         Opcode::INVALID => Gas::zero(),
     };
