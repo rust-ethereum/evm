@@ -1,12 +1,13 @@
 #[macro_use]
 extern crate clap;
 extern crate sputnikvm;
-extern crate capnp;
 extern crate libloading;
 extern crate libc;
 extern crate serde_json;
 extern crate rustyline;
+extern crate rocksdb;
 
+mod reg;
 mod ffi;
 mod crat;
 mod json_schema;
@@ -21,6 +22,7 @@ use sputnikvm::{read_hex, Gas};
 use sputnikvm::vm::{Machine, FakeVectorMachine};
 use crat::{test_transaction, debug_transaction};
 use ffi::{test_ffi_transaction};
+use reg::{perform_regression};
 
 fn main() {
     let matches = clap_app!(gaslighter =>
@@ -32,6 +34,10 @@ fn main() {
             (about: "Execute the ethereumpoject/tests JSON files. The emphasis is on using rust crates directly there is no FFI nor socket activity.")
             (@arg FILE: -f --file +takes_value +required "ethereumproject/tests JSON file to run for this test")
             (@arg TEST: -t --test +takes_value "test to run in the given file")
+        )
+        (@subcommand reg =>
+            (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Parity 1.4.10 with this command: `$ cargo install --git https://github.com/paritytech/parity.git parity`.\n* Run Parity with this command: `[~/.cargo/bin]$ ./parity --chain classic --db-path /path/to/regression/dir`.\n* Wait for the chain to sync.\n* <ctrl-c>\n* Run this command: `$ cargo run --bin gaslighter -- -k reg -c /path/to/regression/dir/classic/db/906a34e69aec8c0d/`")
+            (@arg CHAINDATA: -c --chaindata +takes_value +required "Path to parity's `chaindata` folder. e.g. `-c /path/to/regression/dir/classic/db/906a34e69aec8c0d/`, note the 906a34e69aec8c0d will probably be different.")
         )
         (@subcommand cli =>
             (version: "0.1.0")
@@ -58,6 +64,7 @@ fn main() {
     ).get_matches();
     let mut has_all_ffi_tests_passed = true;
     let mut has_all_crat_tests_passed = true;
+    let mut has_regression_test_passed = true;
     let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
     if let Some(ref matches) = matches.subcommand_matches("cli") {
         let code_hex = read_hex(match matches.value_of("CODE") {
@@ -89,6 +96,10 @@ fn main() {
                 }
             },
         }
+    }
+    if let Some(ref matches) = matches.subcommand_matches("reg") {
+        let path = matches.value_of("CHAINDATA").unwrap();
+        has_regression_test_passed = reg::perform_regression(path);
     }
     if let Some(ref matches) = matches.subcommand_matches("cratedb") {
         let path = Path::new(matches.value_of("FILE").unwrap());
@@ -125,7 +136,7 @@ fn main() {
             },
         }
     }
-    if has_all_ffi_tests_passed {
+    if has_all_ffi_tests_passed || has_regression_test_passed {
         process::exit(0);
     } else {
         process::exit(1);

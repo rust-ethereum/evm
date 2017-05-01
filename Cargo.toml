@@ -17,7 +17,7 @@ path = "./src/bin/gaslighter/mod.rs"
 [dependencies]
 clap = "2.22"
 log = "0.3"
-capnp = "0.8"
+rocksdb = "0.6"
 rust-crypto = "^0.2"
 merkle-sha3 = "0.1"
 libc = "0.2"
