@@ -35,6 +35,13 @@ pub trait MachineState {
     fn cost_aggregrator(&self) -> CostAggregrator;
     fn set_cost_aggregrator(&mut self, aggregrator: CostAggregrator);
 
+    fn homestead(&self) -> bool;
+    fn set_homestead(&mut self, val: bool);
+    fn eip150(&self) -> bool;
+    fn set_eip150(&mut self, val: bool);
+    fn eip160(&self) -> bool;
+    fn set_eip160(&mut self, val: bool);
+
     fn active_memory_len(&self) -> M256 {
         self.cost_aggregrator().active_memory_len()
     }
@@ -52,6 +59,10 @@ pub struct VectorMachineState<B0, BR> {
     block: Option<BR>,
     cost_aggregrator: CostAggregrator,
     _block_marker: PhantomData<B0>,
+
+    homestead: bool,
+    eip150: bool,
+    eip160: bool,
 }
 
 impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachineState<B0, BR> {
@@ -66,6 +77,10 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> VectorMachineState<B0, BR> {
             block: Some(block),
             cost_aggregrator: CostAggregrator::default(),
             _block_marker: PhantomData,
+
+            homestead: false,
+            eip150: false,
+            eip160: false,
         }
     }
 }
@@ -130,6 +145,30 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> MachineState for VectorMachineState<B
         self.cost_aggregrator = aggregrator;
     }
 
+    fn homestead(&self) -> bool {
+        self.homestead
+    }
+
+    fn set_homestead(&mut self, val: bool) {
+        self.homestead = val;
+    }
+
+    fn eip150(&self) -> bool {
+        self.eip150
+    }
+
+    fn set_eip150(&mut self, val: bool) {
+        self.eip150 = val;
+    }
+
+    fn eip160(&self) -> bool {
+        self.eip160
+    }
+
+    fn set_eip160(&mut self, val: bool) {
+        self.eip160 = val;
+    }
+
     fn fork<R, F: FnOnce(Self::Sub) -> (R, Self::Sub)>
         (&mut self, gas: Gas, from: Address, to: Address,
          value: M256, data: &[u8], code: &[u8], f: F) -> R {
@@ -142,6 +181,10 @@ impl<B0: Block, BR: AsRef<B0> + AsMut<B0>> MachineState for VectorMachineState<B
             cost_aggregrator: CostAggregrator::default(),
             block: self.block.take(),
             _block_marker: PhantomData,
+
+            homestead: false,
+            eip150: false,
+            eip160: false,
         };
 
         let (ret, mut state) = f(state);
