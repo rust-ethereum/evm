@@ -15,34 +15,15 @@ pub fn test_ffi_transaction(name: &str, v: &Value, debug: bool, sputnikvm_path: 
 
     let svm = ffi.sputnikvm_new(v);
     ffi.sputnikvm_fire(svm);
-    let values = ffi.sputnikvm_return_values(svm);
-    let values = unsafe {
-        assert!(!values.data.is_null());
-        slice::from_raw_parts(values.data, values.len as usize)
-    };
-    // println!("values: {:?}", values);
-    // uncomment the above to trigger the segfault
+    let len = ffi.sputnikvm_return_values_len(svm);
 
+    let mut return_values = [0u8; 32];
+    ffi.sputnikvm_return_values_copy(svm, &mut return_values);
+
+    println!("values: {:?}", return_values);
     ffi.sputnikvm_free(svm);
 }
 
-#[repr(C)]
-pub struct Tuple {
-    data: *const uint8_t,
-    len: size_t,
-}
-
-impl Drop for Tuple {
-    fn drop(&mut self) {
-        let values = unsafe {
-            assert!(!self.data.is_null());
-            slice::from_raw_parts(self.data, self.len as usize)
-        };
-        println!("> Dropping {:?}", values);
-        println!("> Dropping {:?}", self.data);
-        println!("> Dropping {:?}", self.len);
-    }
-}
 struct FFI(libloading::Library);
 
 impl FFI {
@@ -63,14 +44,25 @@ impl FFI {
         }
     }
 
-    fn sputnikvm_return_values(&self, svm: *mut SputnikVM) -> Tuple {
+    fn sputnikvm_return_values_copy(&self, svm: *mut SputnikVM, array: &mut [u8]) {
         unsafe {
-            let f = self.0.get::<fn(svm: *mut SputnikVM) -> Tuple> (
-                b"sputnikvm_return_values\0"
+            let f = self.0.get::<fn(svm: *mut SputnikVM, array_ptr: *mut uint8_t, len: size_t)>(
+                b"sputnikvm_return_values_copy\0"
             ).unwrap();
-            f(svm)
+            f(svm, array.as_mut_ptr(), array.len() as size_t);
         }
     }
+
+    fn sputnikvm_return_values_len(&self, svm: *mut SputnikVM) -> usize {
+        unsafe {
+            let f = self.0.get::<fn(svm: *mut SputnikVM) -> size_t> (
+                b"sputnikvm_return_values_len\0"
+            ).unwrap();
+            let len = f(svm);
+            len
+        }
+    }
+
     fn sputnikvm_free(&self, svm: *mut SputnikVM) {
         unsafe {
             let f = self.0.get::<fn(svm: *mut SputnikVM)> (

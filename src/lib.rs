@@ -52,7 +52,8 @@ impl SputnikVM {
     }
 
     fn return_values(&mut self) ->  &[u8] {
-        self.svm.return_values()
+        let ret = self.svm.return_values();
+        ret
     }
 
     fn fire(&mut self) {
@@ -74,21 +75,33 @@ pub extern fn sputnikvm_fire(ptr: *mut SputnikVM) {
     svm.fire();
 }
 
-#[repr(C)]
-pub struct Tuple {
-    data: *const uint8_t,
-    len: size_t,
-}
-
 #[no_mangle]
-pub extern fn sputnikvm_return_values(ptr: *mut SputnikVM) -> Tuple {
+pub extern fn sputnikvm_return_values_len(ptr: *mut SputnikVM) -> size_t {
     let mut svm = unsafe {
         assert!(!ptr.is_null());
         &mut *ptr
     };
-    Tuple {
-        data: svm.return_values().as_ptr(),
-        len: svm.return_values().len(),
+    let ret = svm.return_values();
+    ret.len()
+}
+
+#[no_mangle]
+pub extern fn sputnikvm_return_values_copy(ptr: *mut SputnikVM, array_ptr: *mut uint8_t, len: size_t) {
+    use std::slice::from_raw_parts_mut;
+    assert!(!array_ptr.is_null());
+
+    let mut svm = unsafe {
+        assert!(!ptr.is_null());
+        &mut *ptr
+    };
+
+    let ret = svm.return_values();
+    let s = unsafe { from_raw_parts_mut(array_ptr, len) };
+
+    for i in 0..len {
+        if i < ret.len() {
+            s[i] = ret[i];
+        }
     }
 }
 #[no_mangle]
