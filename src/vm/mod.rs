@@ -28,6 +28,7 @@ pub enum Error {
     InvalidOpcode,
     PCOverflow,
     PCTooLarge, // The current implementation only support code size with usize::maximum.
+    MemoryTooLarge,
     DataTooLarge,
     CodeTooLarge,
     Stopped

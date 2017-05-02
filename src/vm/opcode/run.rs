@@ -21,7 +21,7 @@ fn call_code<M: MachineState>(
 
     let memory_in_end = memory_in_start + memory_in_len;
     while memory_in_start < memory_in_end {
-        mem_in.push(machine.memory().read_raw(memory_in_start));
+        mem_in.push(machine.memory().read_raw(memory_in_start).unwrap());
         memory_in_start = memory_in_start + M256::one();
     }
 
@@ -61,9 +61,9 @@ macro_rules! will_pop_push {
 
 macro_rules! op2 {
     ( $machine:expr, $op:ident ) => ({
-        begin_rescuable!($machine, &mut M, __);
         will_pop_push!($machine, 2, 1);
 
+        begin_rescuable!($machine, &mut M, __);
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
         on_rescue!(|machine| {
@@ -78,9 +78,9 @@ macro_rules! op2 {
 
 macro_rules! op2_ref {
     ( $machine:expr, $op:ident ) => ({
-        begin_rescuable!($machine, &mut M, __);
         will_pop_push!($machine, 2, 1);
 
+        begin_rescuable!($machine, &mut M, __);
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
         on_rescue!(|machine| {
@@ -289,21 +289,31 @@ impl Opcode {
             Opcode::SHA3 => {
                 will_pop_push!(machine, 2, 1);
 
+                begin_rescuable!(machine, &mut M, __);
                 let mut from = machine.stack_mut().pop().unwrap();
+                let from0 = from;
                 let len = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(len);
+                    machine.stack_mut().push(from0);
+                }, __);
                 let ender = from + len;
+                if ender < from {
+                    trr!(Err(Error::MemoryTooLarge), __);
+                }
 
                 let mut ret = [0u8; 32];
                 let mut sha3 = Sha3::keccak256();
 
                 while from < ender {
-                    let val = machine.memory_mut().read_raw(from);
+                    let val = trr!(machine.memory_mut().read_raw(from), __);
                     let a: [u8; 1] = [ val ];
                     sha3.input(a.as_ref());
                     from = from + 1.into();
                 }
                 sha3.result(&mut ret);
-                machine.stack_mut().push(M256::from(ret.as_ref()))
+                machine.stack_mut().push(M256::from(ret.as_ref()));
+                end_rescuable!(__);
             },
 
             Opcode::ADDRESS => {
@@ -343,9 +353,9 @@ impl Opcode {
             },
 
             Opcode::CALLDATALOAD => {
-                begin_rescuable!(machine, &mut M, __);
                 will_pop_push!(machine, 1, 1);
 
+                begin_rescuable!(machine, &mut M, __);
                 let start_index = machine.stack_mut().pop().unwrap();
                 on_rescue!(|machine| {
                     machine.stack_mut().push(start_index);
@@ -378,9 +388,9 @@ impl Opcode {
             },
 
             Opcode::CALLDATACOPY => {
-                begin_rescuable!(machine, &mut M, __);
                 will_pop_push!(machine, 3, 0);
 
+                begin_rescuable!(machine, &mut M, __);
                 let memory_index = machine.stack_mut().pop().unwrap();
                 let data_index = machine.stack_mut().pop().unwrap();
                 let len = machine.stack_mut().pop().unwrap();
@@ -573,10 +583,14 @@ impl Opcode {
             Opcode::MLOAD => {
                 will_pop_push!(machine, 1, 1);
 
+                begin_rescuable!(machine, &mut M, __);
                 let op1 = machine.stack_mut().pop().unwrap();
-                let val = machine.memory_mut().read(op1);
-                // u_i update is automatically handled by Memory.
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op1);
+                }, __);
+                let val = trr!(machine.memory_mut().read(op1), __);
                 machine.stack_mut().push(val);
+                end_rescuable!(__);
             },
 
             Opcode::MSTORE => {
@@ -698,14 +712,26 @@ impl Opcode {
             Opcode::LOG(v) => {
                 will_pop_push!(machine, v+2, 0);
 
+                begin_rescuable!(machine, &mut M, __);
                 let address = machine.transaction().callee();
                 let mut data: Vec<u8> = Vec::new();
-                let start = machine.stack_mut().pop().unwrap();
-                let len: usize = machine.stack_mut().pop().unwrap().into();
-
-                for i in 0..len {
-                    data.push(machine.memory_mut().read_raw(start + i.into()));
+                let mut start = machine.stack_mut().pop().unwrap();
+                let start0 = start;
+                let len = machine.stack_mut().pop().unwrap();
+                let ender = start + len;
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(len);
+                    machine.stack_mut().push(start0);
+                }, __);
+                if ender < start {
+                    trr!(Err(Error::MemoryTooLarge), __);
                 }
+
+                while start < ender {
+                    data.push(trr!(machine.memory().read_raw(start), __));
+                    start = start + M256::one();
+                }
+                end_rescuable!(__);
 
                 let mut topics: Vec<M256> = Vec::new();
 
@@ -770,16 +796,28 @@ impl Opcode {
             Opcode::RETURN => {
                 will_pop_push!(machine, 2, 0);
 
-                let start = machine.stack_mut().pop().unwrap();
-                let len: usize = machine.stack_mut().pop().unwrap().into();
+                begin_rescuable!(machine, &mut M, __);
+                let mut start = machine.stack_mut().pop().unwrap();
+                let start0 = start;
+                let len = machine.stack_mut().pop().unwrap();
+                let ender = start + len;
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(len);
+                    machine.stack_mut().push(start0);
+                }, __);
+                if ender < start {
+                    trr!(Err(Error::MemoryTooLarge), __);
+                }
                 let mut vec: Vec<u8> = Vec::new();
 
-                for i in 0..len {
-                    vec.push(machine.memory_mut().read_raw(start + i.into()));
+                while start < ender {
+                    vec.push(trr!(machine.memory().read_raw(start), __));
+                    start = start + M256::one();
                 }
 
                 machine.set_return_values(vec.as_ref());
                 machine.pc_mut().stop();
+                end_rescuable!(__);
             },
 
             Opcode::DELEGATECALL => {
