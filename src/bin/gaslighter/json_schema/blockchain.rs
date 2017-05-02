@@ -39,7 +39,15 @@ pub struct JSONVectorBlock {
     timestamp: M256,
     number: M256,
     difficulty: M256,
-    gas_limit: Gas
+    gas_limit: Gas,
+
+    logs: Vec<JSONVectorLog>,
+}
+
+struct JSONVectorLog {
+    address: Address,
+    data: Vec<u8>,
+    topics: Vec<M256>,
 }
 
 impl JSONVectorBlock {
@@ -60,7 +68,18 @@ impl JSONVectorBlock {
             gas_limit: Gas::from_str(current_gas_limit).unwrap(),
             number: M256::from_str(current_number).unwrap(),
             timestamp: M256::from_str(current_timestamp).unwrap(),
+
+            logs: Vec::new(),
         }
+    }
+
+    pub fn find_log(&self, address: Address, data: &[u8], topics: &[M256]) -> bool {
+        for log in &self.logs {
+            if log.address == address && log.data.as_slice() == data && log.topics.as_slice() == topics {
+                return true;
+            }
+        }
+        return false;
     }
 }
 
@@ -129,7 +148,11 @@ impl Block for JSONVectorBlock {
     }
 
     fn log(&mut self, address: Address, data: &[u8], topics: &[M256]) {
-        unimplemented!()
+        self.logs.push(JSONVectorLog {
+            address: address,
+            data: data.into(),
+            topics: topics.into(),
+        });
     }
 
     fn blockhash(&self, n: M256) -> H256 {
