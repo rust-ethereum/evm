@@ -91,5 +91,35 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
             }
         }
     }
+
+    let ref logs = v["logs"].as_array();
+
+    if logs.is_some() {
+        let logs = logs.unwrap();
+
+        for log in logs {
+            let log = log.as_object().unwrap();
+
+            let address = Address::from_str(log["address"].as_str().unwrap()).unwrap();
+            let bloom = log["bloom"].as_str().unwrap();
+            let data = read_hex(log["data"].as_str().unwrap()).unwrap();
+            let mut topics: Vec<M256> = Vec::new();
+
+            for topic in log["topics"].as_array().unwrap() {
+                topics.push(M256::from_str(topic.as_str().unwrap()).unwrap());
+            }
+
+            // TODO: implement bloom check
+
+            if !machine.block().find_log(address, data.as_slice(), topics.as_slice()) {
+                if debug {
+                    print!("\n");
+                    println!("Log match failed.");
+                }
+                return false;
+            }
+        }
+    }
+
     return true;
 }
