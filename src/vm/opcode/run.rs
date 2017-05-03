@@ -671,7 +671,7 @@ impl Opcode {
                 will_pop_push!(machine, 0, 1);
 
                 let active_memory_len = machine.active_memory_len();
-                machine.stack_mut().push(active_memory_len);
+                machine.stack_mut().push(M256::from(32u64) * active_memory_len);
             },
 
             Opcode::GAS => {
