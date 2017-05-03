@@ -633,31 +633,42 @@ impl Opcode {
             Opcode::JUMP => {
                 will_pop_push!(machine, 1, 0);
 
+                begin_rescuable!(machine, &mut M, __);
                 let op1 = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op1);
+                }, __);
 
                 if op1 > usize::max_value().into() {
-                    machine.stack_mut().push(op1);
-                    return Err(Error::PCTooLarge);
+                    trr!(Err(Error::PCTooLarge), __);
                 }
 
-                machine.pc_mut().jump(op1.into());
+                trr!(machine.pc_mut().jump(op1.into()), __);
+                end_rescuable!(__);
             },
 
             Opcode::JUMPI => {
                 will_pop_push!(machine, 2, 0);
 
+                begin_rescuable!(machine, &mut M, __);
                 let op1 = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op1);
+                }, __);
 
                 if op1 > usize::max_value().into() {
-                    machine.stack_mut().push(op1);
-                    return Err(Error::PCTooLarge);
+                    trr!(Err(Error::PCTooLarge), __);
                 }
 
                 let op2 = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op2);
+                }, __);
 
-                if op2 != 0.into() {
-                    machine.pc_mut().jump(op1.into());
+                if op2 != M256::zero() {
+                    trr!(machine.pc_mut().jump(op1.into()), __);
                 }
+                end_rescuable!(__);
             },
 
             Opcode::PC => {

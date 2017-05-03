@@ -10,7 +10,7 @@ pub trait PC {
     fn stopped(&self) -> bool;
     fn read(&mut self, byte_count: usize) -> Result<M256>;
     fn position(&self) -> usize;
-    fn jump(&mut self, position: usize);
+    fn jump(&mut self, position: usize) -> Result<()>;
     fn code(&self) -> &[u8];
 }
 
@@ -35,8 +35,18 @@ impl PC for VectorPC {
         self.code.as_ref()
     }
 
-    fn jump(&mut self, position: usize) {
+    fn jump(&mut self, position: usize) -> Result<()> {
+        if position >= self.code.len() {
+            return Err(Error::PCOverflow);
+        }
+
+        let opcode: Opcode = self.code[position].into();
+        if opcode != Opcode::JUMPDEST {
+            return Err(Error::PCBadJumpDest);
+        }
+
         self.position = position;
+        Ok(())
     }
 
     fn position(&self) -> usize {

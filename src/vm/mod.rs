@@ -27,6 +27,7 @@ pub enum Error {
     StackUnderflow,
     InvalidOpcode,
     PCOverflow,
+    PCBadJumpDest,
     PCTooLarge, // The current implementation only support code size with usize::maximum.
     MemoryTooLarge,
     DataTooLarge,
