@@ -157,9 +157,19 @@ fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: Co
 
     let current = aggregrator.0;
     let next = match opcode {
-        Opcode::SHA3 | Opcode::CODECOPY | Opcode::RETURN => {
+        Opcode::SHA3 | Opcode::RETURN => {
             let from: U256 = stack.peek(0)?.into();
             let len: U256 = stack.peek(1)?.into();
+            memory_expand(current, Gas::from(from), Gas::from(len))
+        },
+        Opcode::CODECOPY | Opcode::CALLDATACOPY => {
+            let from: U256 = stack.peek(0)?.into();
+            let len: U256 = stack.peek(2)?.into();
+            memory_expand(current, Gas::from(from), Gas::from(len))
+        },
+        Opcode::EXTCODECOPY => {
+            let from: U256 = stack.peek(1)?.into();
+            let len: U256 = stack.peek(3)?.into();
             memory_expand(current, Gas::from(from), Gas::from(len))
         },
         Opcode::MLOAD | Opcode::MSTORE => {
