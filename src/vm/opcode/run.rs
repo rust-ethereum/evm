@@ -94,7 +94,7 @@ macro_rules! op2_ref {
 }
 
 impl Opcode {
-    pub fn run<M: MachineState>(&self, machine: &mut M) -> Result<()> {
+    pub fn run<M: MachineState>(&self, machine: &mut M, after_gas: Gas) -> Result<()> {
         let opcode = self.clone();
 
         // Note: Please do not use try! or ? syntax in this opcode
@@ -688,8 +688,7 @@ impl Opcode {
             Opcode::GAS => {
                 will_pop_push!(machine, 0, 1);
 
-                let gas: M256 = machine.transaction().gas_limit().into();
-                machine.stack_mut().push(gas);
+                machine.stack_mut().push(after_gas.into());
             },
 
             Opcode::JUMPDEST => {
