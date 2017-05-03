@@ -207,12 +207,16 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
 
         Opcode::EXTCODECOPY => {
             let len = stack.peek(2)?;
-            (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
+            let wordd = Gas::from(len) / Gas::from(32u64);
+            let wordr = Gas::from(len) % Gas::from(32u64);
+            (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::CALLDATACOPY | Opcode::CODECOPY => {
             let len = stack.peek(2)?;
-            (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
+            let wordd = Gas::from(len) / Gas::from(32u64);
+            let wordr = Gas::from(len) % Gas::from(32u64);
+            (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::EXP => {
