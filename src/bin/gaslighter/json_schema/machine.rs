@@ -92,6 +92,30 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
         }
     }
 
+    let ref expect = v["expect"];
+
+    if expect.as_object().is_some() {
+        for (address, data) in expect.as_object().unwrap() {
+            let address = Address::from_str(address.as_str()).unwrap();
+
+            let storage = data["storage"].as_object().unwrap();
+            for (index, value) in storage {
+                let index = M256::from_str(index.as_str()).unwrap();
+                let value = M256::from_str(value.as_str().unwrap()).unwrap();
+                if value != machine.block().account_storage(address, index) {
+                    if debug {
+                        print!("\n");
+                        println!("Storage check (expect) failed for address 0x{:x} in storage index 0x{:x}",
+                                 address, index);
+                        println!("Expected: 0x{:x}", value);
+                        println!("Actual:   0x{:x}", machine.block().account_storage(address, index));
+                    }
+                    return false;
+                }
+            }
+        }
+    }
+
     let ref logs = v["logs"].as_array();
 
     if logs.is_some() {
