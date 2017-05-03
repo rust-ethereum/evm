@@ -2,7 +2,7 @@ use utils::bigint::M256;
 use super::{Result, Error};
 
 pub trait Stack {
-    fn push(&mut self, elem: M256);
+    fn push(&mut self, elem: M256) -> Result<()>;
     fn pop(&mut self) -> Result<M256>;
     fn set(&mut self, no_from_top: usize, val: M256) -> Result<()>;
     fn peek(&self, no_from_top: usize) -> Result<M256>;
@@ -23,8 +23,14 @@ impl VectorStack {
 }
 
 impl Stack for VectorStack {
-    fn push(&mut self, elem: M256) {
+    fn push(&mut self, elem: M256) -> Result<()> {
         self.stack.push(elem);
+        if self.size() > 1024 {
+            self.stack.pop();
+            Err(Error::StackOverflow)
+        } else {
+            Ok(())
+        }
     }
 
     fn pop(&mut self) -> Result<M256> {

@@ -25,6 +25,7 @@ pub use self::machine::{Machine, VectorMachine, FakeVectorMachine};
 pub enum Error {
     EmptyGas,
     StackUnderflow,
+    StackOverflow,
     InvalidOpcode,
     PCOverflow,
     PCBadJumpDest,
