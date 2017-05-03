@@ -30,7 +30,7 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
         if machine.return_values() != out_ref {
             if debug {
                 print!("\n");
-                println!("Return value check failed.");
+                println!("Return value check failed. {:?} != {:?}", machine.return_values(), out_ref);
             }
 
             return false;
