@@ -56,6 +56,7 @@ fn call_code<M: MachineState>(
 macro_rules! will_pop_push {
     ( $machine:expr, $pop_size:expr, $push_size:expr ) => ({
         if $machine.stack_mut().size() < $pop_size { return Err(Error::StackUnderflow); }
+        if $machine.stack_mut().size() - $pop_size + $push_size > 1024 { return Err(Error::StackOverflow); }
     })
 }
 
@@ -67,11 +68,11 @@ macro_rules! op2 {
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
         on_rescue!(|machine| {
-            machine.stack_mut().push(op2);
-            machine.stack_mut().push(op1);
+            machine.stack_mut().push(op2).unwrap();
+            machine.stack_mut().push(op1).unwrap();
         }, __);
 
-        $machine.stack_mut().push(op1.$op(op2));
+        $machine.stack_mut().push(op1.$op(op2)).unwrap();
         end_rescuable!(__);
     })
 }
@@ -84,17 +85,17 @@ macro_rules! op2_ref {
         let op1 = $machine.stack_mut().pop().unwrap();
         let op2 = $machine.stack_mut().pop().unwrap();
         on_rescue!(|machine| {
-            machine.stack_mut().push(op2);
-            machine.stack_mut().push(op1);
+            machine.stack_mut().push(op2).unwrap();
+            machine.stack_mut().push(op1).unwrap();
         }, __);
 
-        $machine.stack_mut().push(op1.$op(&op2).into());
+        $machine.stack_mut().push(op1.$op(&op2).into()).unwrap();
         end_rescuable!(__);
     })
 }
 
 impl Opcode {
-    pub fn run<M: MachineState>(&self, machine: &mut M) -> Result<()> {
+    pub fn run<M: MachineState>(&self, machine: &mut M, after_gas: Gas) -> Result<()> {
         let opcode = self.clone();
 
         // Note: Please do not use try! or ? syntax in this opcode
@@ -118,7 +119,7 @@ impl Opcode {
                 let op1: MI256 = machine.stack_mut().pop().unwrap().into();
                 let op2: MI256 = machine.stack_mut().pop().unwrap().into();
                 let r = op1 / op2;
-                machine.stack_mut().push(r.into());
+                machine.stack_mut().push(r.into()).unwrap();
             },
 
             Opcode::MOD => op2!(machine, rem),
@@ -129,7 +130,7 @@ impl Opcode {
                 let op1: MI256 = machine.stack_mut().pop().unwrap().into();
                 let op2: MI256 = machine.stack_mut().pop().unwrap().into();
                 let r = op1 % op2;
-                machine.stack_mut().push(r.into());
+                machine.stack_mut().push(r.into()).unwrap();
             },
 
             Opcode::ADDMOD => {
@@ -144,11 +145,11 @@ impl Opcode {
                 let op3: U512 = op3.into();
 
                 if op3 == U512::zero() {
-                    machine.stack_mut().push(0.into());
+                    machine.stack_mut().push(0.into()).unwrap();
                 } else {
                     let v = (op1 + op2) % op3;
                     let v: U256 = v.into();
-                    machine.stack_mut().push(v.into());
+                    machine.stack_mut().push(v.into()).unwrap();
                 }
             },
 
@@ -164,11 +165,11 @@ impl Opcode {
                 let op3: U512 = op3.into();
 
                 if op3 == U512::zero() {
-                    machine.stack_mut().push(0.into());
+                    machine.stack_mut().push(0.into()).unwrap();
                 } else {
                     let v = (op1 * op2) % op3;
                     let v: U256 = v.into();
-                    machine.stack_mut().push(v.into());
+                    machine.stack_mut().push(v.into()).unwrap();
                 }
             },
 
@@ -187,7 +188,7 @@ impl Opcode {
                     op1 = op1 * op1;
                 }
 
-                machine.stack_mut().push(r);
+                machine.stack_mut().push(r).unwrap();
             },
 
             Opcode::SIGNEXTEND => {
@@ -199,7 +200,7 @@ impl Opcode {
                 let mut ret = M256::zero();
 
                 if op1 > M256::from(32) {
-                    machine.stack_mut().push(op2);
+                    machine.stack_mut().push(op2).unwrap();
                 } else {
                     let len: usize = op1.into();
                     let t: usize = 8 * (len + 1) - 1;
@@ -214,7 +215,7 @@ impl Opcode {
                             ret = ret + (t_value << i);
                         }
                     }
-                    machine.stack_mut().push(ret);
+                    machine.stack_mut().push(ret).unwrap();
                 }
             },
 
@@ -227,7 +228,7 @@ impl Opcode {
                 let op1: MI256 = machine.stack_mut().pop().unwrap().into();
                 let op2: MI256 = machine.stack_mut().pop().unwrap().into();
 
-                machine.stack_mut().push(op1.lt(&op2).into());
+                machine.stack_mut().push(op1.lt(&op2).into()).unwrap();
             },
 
             Opcode::SGT => {
@@ -236,7 +237,7 @@ impl Opcode {
                 let op1: MI256 = machine.stack_mut().pop().unwrap().into();
                 let op2: MI256 = machine.stack_mut().pop().unwrap().into();
 
-                machine.stack_mut().push(op1.gt(&op2).into());
+                machine.stack_mut().push(op1.gt(&op2).into()).unwrap();
             },
 
             Opcode::EQ => op2_ref!(machine, eq),
@@ -247,9 +248,9 @@ impl Opcode {
                 let op1 = machine.stack_mut().pop().unwrap();
 
                 if op1 == 0.into() {
-                    machine.stack_mut().push(1.into());
+                    machine.stack_mut().push(1.into()).unwrap();
                 } else {
-                    machine.stack_mut().push(0.into());
+                    machine.stack_mut().push(0.into()).unwrap();
                 }
             },
 
@@ -262,7 +263,7 @@ impl Opcode {
 
                 let op1 = machine.stack_mut().pop().unwrap();
 
-                machine.stack_mut().push(!op1);
+                machine.stack_mut().push(!op1).unwrap();
             },
 
             Opcode::BYTE => {
@@ -283,7 +284,7 @@ impl Opcode {
                     }
                 }
 
-                machine.stack_mut().push(ret);
+                machine.stack_mut().push(ret).unwrap();
             },
 
             Opcode::SHA3 => {
@@ -294,8 +295,8 @@ impl Opcode {
                 let from0 = from;
                 let len = machine.stack_mut().pop().unwrap();
                 on_rescue!(|machine| {
-                    machine.stack_mut().push(len);
-                    machine.stack_mut().push(from0);
+                    machine.stack_mut().push(len).unwrap();
+                    machine.stack_mut().push(from0).unwrap();
                 }, __);
                 let ender = from + len;
                 if ender < from {
@@ -312,7 +313,7 @@ impl Opcode {
                     from = from + 1.into();
                 }
                 sha3.result(&mut ret);
-                machine.stack_mut().push(M256::from(ret.as_ref()));
+                machine.stack_mut().push(M256::from(ret.as_ref())).unwrap();
                 end_rescuable!(__);
             },
 
@@ -320,7 +321,7 @@ impl Opcode {
                 will_pop_push!(machine, 0, 1);
 
                 let address = machine.transaction().callee();
-                machine.stack_mut().push(address.into());
+                machine.stack_mut().push(address.into()).unwrap();
             },
 
             Opcode::BALANCE => {
@@ -328,28 +329,28 @@ impl Opcode {
 
                 let address: Address = machine.stack_mut().pop().unwrap().into();
                 let balance = machine.block().balance(address).into();
-                machine.stack_mut().push(balance);
+                machine.stack_mut().push(balance).unwrap();
             },
 
             Opcode::ORIGIN => {
                 will_pop_push!(machine, 0, 1);
 
                 let address = machine.transaction().originator();
-                machine.stack_mut().push(address.into());
+                machine.stack_mut().push(address.into()).unwrap();
             },
 
             Opcode::CALLER => {
                 will_pop_push!(machine, 0, 1);
 
                 let address = machine.transaction().sender();
-                machine.stack_mut().push(address.into());
+                machine.stack_mut().push(address.into()).unwrap();
             },
 
             Opcode::CALLVALUE => {
                 will_pop_push!(machine, 0, 1);
 
                 let value = machine.transaction().value();
-                machine.stack_mut().push(value);
+                machine.stack_mut().push(value).unwrap();
             },
 
             Opcode::CALLDATALOAD => {
@@ -358,7 +359,7 @@ impl Opcode {
                 begin_rescuable!(machine, &mut M, __);
                 let start_index = machine.stack_mut().pop().unwrap();
                 on_rescue!(|machine| {
-                    machine.stack_mut().push(start_index);
+                    machine.stack_mut().push(start_index).unwrap();
                 }, __);
 
                 if start_index > usize::max_value().into() {
@@ -376,7 +377,7 @@ impl Opcode {
                         load[i] = data[start_index + i];
                     }
                 }
-                machine.stack_mut().push(load.into());
+                machine.stack_mut().push(load.into()).unwrap();
                 end_rescuable!(__);
             },
 
@@ -384,7 +385,7 @@ impl Opcode {
                 will_pop_push!(machine, 0, 1);
 
                 let len = machine.transaction().data().map_or(0, |s| s.len());
-                machine.stack_mut().push(len.into());
+                machine.stack_mut().push(len.into()).unwrap();
             },
 
             Opcode::CALLDATACOPY => {
@@ -396,9 +397,9 @@ impl Opcode {
                 let len = machine.stack_mut().pop().unwrap();
 
                 on_rescue!(|machine| {
-                    machine.stack_mut().push(len);
-                    machine.stack_mut().push(data_index);
-                    machine.stack_mut().push(memory_index);
+                    machine.stack_mut().push(len).unwrap();
+                    machine.stack_mut().push(data_index).unwrap();
+                    machine.stack_mut().push(memory_index).unwrap();
                 }, __);
 
                 if data_index > usize::max_value().into() {
@@ -431,7 +432,7 @@ impl Opcode {
                 will_pop_push!(machine, 0, 1);
 
                 let len = machine.pc().code().len();
-                machine.stack_mut().push(len.into());
+                machine.stack_mut().push(len.into()).unwrap();
             },
 
             Opcode::CODECOPY => {
@@ -442,9 +443,9 @@ impl Opcode {
                 let len = machine.stack_mut().pop().unwrap();
 
                 let restore = |machine: &mut M| {
-                    machine.stack_mut().push(len);
-                    machine.stack_mut().push(code_index);
-                    machine.stack_mut().push(memory_index);
+                    machine.stack_mut().push(len).unwrap();
+                    machine.stack_mut().push(code_index).unwrap();
+                    machine.stack_mut().push(memory_index).unwrap();
                 };
 
                 if code_index > usize::max_value().into() {
@@ -477,7 +478,7 @@ impl Opcode {
                 will_pop_push!(machine, 0, 1);
 
                 let price: M256 = machine.transaction().gas_price().into();
-                machine.stack_mut().push(price);
+                machine.stack_mut().push(price).unwrap();
             },
 
             Opcode::EXTCODESIZE => {
@@ -485,7 +486,7 @@ impl Opcode {
 
                 let account: Address = machine.stack_mut().pop().unwrap().into();
                 let len = machine.block().account_code(account).len();
-                machine.stack_mut().push(len.into());
+                machine.stack_mut().push(len.into()).unwrap();
             },
 
             Opcode::EXTCODECOPY => {
@@ -497,10 +498,10 @@ impl Opcode {
                 let len = machine.stack_mut().pop().unwrap();
 
                 let restore = |machine: &mut M| {
-                    machine.stack_mut().push(len);
-                    machine.stack_mut().push(code_index);
-                    machine.stack_mut().push(memory_index);
-                    machine.stack_mut().push(account);
+                    machine.stack_mut().push(len).unwrap();
+                    machine.stack_mut().push(code_index).unwrap();
+                    machine.stack_mut().push(memory_index).unwrap();
+                    machine.stack_mut().push(account).unwrap();
                 };
 
                 let account: Address = account.into();
@@ -536,42 +537,42 @@ impl Opcode {
 
                 let target = machine.stack_mut().pop().unwrap();
                 let val = machine.block().blockhash(target);
-                machine.stack_mut().push(val.into());
+                machine.stack_mut().push(val.into()).unwrap();
             },
 
             Opcode::COINBASE => {
                 will_pop_push!(machine, 0, 1);
 
                 let val = machine.block().coinbase();
-                machine.stack_mut().push(val.into());
+                machine.stack_mut().push(val.into()).unwrap();
             },
 
             Opcode::TIMESTAMP => {
                 will_pop_push!(machine, 0, 1);
 
                 let val = machine.block().timestamp();
-                machine.stack_mut().push(val.into());
+                machine.stack_mut().push(val.into()).unwrap();
             },
 
             Opcode::NUMBER => {
                 will_pop_push!(machine, 0, 1);
 
                 let val = machine.block().number();
-                machine.stack_mut().push(val.into());
+                machine.stack_mut().push(val.into()).unwrap();
             },
 
             Opcode::DIFFICULTY => {
                 will_pop_push!(machine, 0, 1);
 
                 let val = machine.block().difficulty();
-                machine.stack_mut().push(val.into());
+                machine.stack_mut().push(val.into()).unwrap();
             },
 
             Opcode::GASLIMIT => {
                 will_pop_push!(machine, 0, 1);
 
                 let val = machine.block().gas_limit();
-                machine.stack_mut().push(val.into());
+                machine.stack_mut().push(val.into()).unwrap();
             },
 
             Opcode::POP => {
@@ -586,10 +587,10 @@ impl Opcode {
                 begin_rescuable!(machine, &mut M, __);
                 let op1 = machine.stack_mut().pop().unwrap();
                 on_rescue!(|machine| {
-                    machine.stack_mut().push(op1);
+                    machine.stack_mut().push(op1).unwrap();
                 }, __);
                 let val = trr!(machine.memory_mut().read(op1), __);
-                machine.stack_mut().push(val);
+                machine.stack_mut().push(val).unwrap();
                 end_rescuable!(__);
             },
 
@@ -618,7 +619,7 @@ impl Opcode {
                 let op1 = machine.stack_mut().pop().unwrap();
                 let from = machine.transaction().callee();
                 let val = machine.block().account_storage(from, op1);
-                machine.stack_mut().push(val);
+                machine.stack_mut().push(val).unwrap();
             },
 
             Opcode::SSTORE => {
@@ -633,52 +634,62 @@ impl Opcode {
             Opcode::JUMP => {
                 will_pop_push!(machine, 1, 0);
 
+                begin_rescuable!(machine, &mut M, __);
                 let op1 = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op1).unwrap();
+                }, __);
 
                 if op1 > usize::max_value().into() {
-                    machine.stack_mut().push(op1);
-                    return Err(Error::PCTooLarge);
+                    trr!(Err(Error::PCTooLarge), __);
                 }
 
-                machine.pc_mut().jump(op1.into());
+                trr!(machine.pc_mut().jump(op1.into()), __);
+                end_rescuable!(__);
             },
 
             Opcode::JUMPI => {
                 will_pop_push!(machine, 2, 0);
 
+                begin_rescuable!(machine, &mut M, __);
                 let op1 = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op1).unwrap();
+                }, __);
 
                 if op1 > usize::max_value().into() {
-                    machine.stack_mut().push(op1);
-                    return Err(Error::PCTooLarge);
+                    trr!(Err(Error::PCTooLarge), __);
                 }
 
                 let op2 = machine.stack_mut().pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack_mut().push(op2).unwrap();
+                }, __);
 
-                if op2 != 0.into() {
-                    machine.pc_mut().jump(op1.into());
+                if op2 != M256::zero() {
+                    trr!(machine.pc_mut().jump(op1.into()), __);
                 }
+                end_rescuable!(__);
             },
 
             Opcode::PC => {
                 will_pop_push!(machine, 0, 1);
 
                 let position = machine.pc().position();
-                machine.stack_mut().push((position - 1).into()); // PC increment for opcode is always an u8.
+                machine.stack_mut().push((position - 1).into()).unwrap(); // PC increment for opcode is always an u8.
             },
 
             Opcode::MSIZE => {
                 will_pop_push!(machine, 0, 1);
 
                 let active_memory_len = machine.active_memory_len();
-                machine.stack_mut().push(active_memory_len);
+                machine.stack_mut().push(M256::from(32u64) * active_memory_len).unwrap();
             },
 
             Opcode::GAS => {
                 will_pop_push!(machine, 0, 1);
 
-                let gas: M256 = machine.transaction().gas_limit().into();
-                machine.stack_mut().push(gas);
+                machine.stack_mut().push(after_gas.into()).unwrap();
             },
 
             Opcode::JUMPDEST => {
@@ -690,14 +701,14 @@ impl Opcode {
                 will_pop_push!(machine, 0, 1);
 
                 let val = machine.pc_mut().read(v)?; // We don't have any stack to restore, so this ? is okay.
-                machine.stack_mut().push(val);
+                machine.stack_mut().push(val).unwrap();
             },
 
             Opcode::DUP(v) => {
                 will_pop_push!(machine, v, v+1);
 
                 let val = machine.stack().peek(v - 1).unwrap();
-                machine.stack_mut().push(val);
+                machine.stack_mut().push(val).unwrap();
             },
 
             Opcode::SWAP(v) => {
@@ -720,8 +731,8 @@ impl Opcode {
                 let len = machine.stack_mut().pop().unwrap();
                 let ender = start + len;
                 on_rescue!(|machine| {
-                    machine.stack_mut().push(len);
-                    machine.stack_mut().push(start0);
+                    machine.stack_mut().push(len).unwrap();
+                    machine.stack_mut().push(start0).unwrap();
                 }, __);
                 if ender < start {
                     trr!(Err(Error::MemoryTooLarge), __);
@@ -751,7 +762,7 @@ impl Opcode {
                 let len: usize = machine.stack_mut().pop().unwrap().into();
                 let code: Vec<u8> = machine.pc().code()[start..(start + len)].into();
                 let address = machine.block_mut().create_account(code.as_ref());
-                machine.stack_mut().push(address.unwrap().into());
+                machine.stack_mut().push(address.unwrap().into()).unwrap();
             },
 
             Opcode::CALL => {
@@ -770,7 +781,7 @@ impl Opcode {
                                     memory_in_start, memory_in_len,
                                     memory_out_start, memory_out_len);
 
-                machine.stack_mut().push(ret);
+                machine.stack_mut().push(ret).unwrap();
             },
 
             Opcode::CALLCODE => {
@@ -790,7 +801,7 @@ impl Opcode {
                                     memory_in_start, memory_in_len,
                                     memory_out_start, memory_out_len);
 
-                machine.stack_mut().push(ret);
+                machine.stack_mut().push(ret).unwrap();
             },
 
             Opcode::RETURN => {
@@ -802,8 +813,8 @@ impl Opcode {
                 let len = machine.stack_mut().pop().unwrap();
                 let ender = start + len;
                 on_rescue!(|machine| {
-                    machine.stack_mut().push(len);
-                    machine.stack_mut().push(start0);
+                    machine.stack_mut().push(len).unwrap();
+                    machine.stack_mut().push(start0).unwrap();
                 }, __);
                 if ender < start {
                     trr!(Err(Error::MemoryTooLarge), __);
@@ -836,7 +847,7 @@ impl Opcode {
                                     memory_in_start, memory_in_len,
                                     memory_out_start, memory_out_len);
 
-                machine.stack_mut().push(ret);
+                machine.stack_mut().push(ret).unwrap();
             },
 
             Opcode::SUICIDE => {

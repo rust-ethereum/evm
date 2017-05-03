@@ -269,7 +269,7 @@ impl<S: MachineState> Machine<S> {
             trr!(Err(Error::EmptyGas), __);
         }
 
-        trr!(opcode.run(&mut self.state), __);
+        trr!(opcode.run(&mut self.state, available_gas - gas), __);
 
         self.state.set_cost_aggregrator(agg);
         self.used_gas = self.used_gas + gas;

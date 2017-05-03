@@ -91,9 +91,13 @@ fn main() {
                 test_transaction(test, &json[test], true);
             },
             None => {
+                let mut failed = 0;
                 for (test, data) in json.as_object().unwrap() {
-                    test_transaction(test, &data, false);
+                    if !test_transaction(test, &data, false) {
+                        failed = failed + 1;
+                    }
                 }
+                println!("\n{} failed.", failed);
             },
         }
     }

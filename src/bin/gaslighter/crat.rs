@@ -17,7 +17,7 @@ use std::str::FromStr;
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 
-pub fn test_transaction(name: &str, v: &Value, debug: bool) {
+pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
     print!("Testing {} ... ", name);
     if debug {
         print!("\n");
@@ -33,17 +33,22 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) {
         if result.is_ok() {
             if test_machine(v, &machine, debug) {
                 println!("OK");
+                return true;
             } else {
                 println!("Failed (result not match)");
+                return false;
             }
         } else {
             println!("Failed {:?}", result.err().unwrap());
+            return false;
         }
     } else {
         if result.is_err() {
             println!("OK");
+            return true;
         } else {
             println!("Failed");
+            return false;
         }
     }
 }

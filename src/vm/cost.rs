@@ -157,9 +157,19 @@ fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: Co
 
     let current = aggregrator.0;
     let next = match opcode {
-        Opcode::SHA3 | Opcode::CODECOPY | Opcode::RETURN => {
+        Opcode::SHA3 | Opcode::RETURN | Opcode::LOG(_) => {
             let from: U256 = stack.peek(0)?.into();
             let len: U256 = stack.peek(1)?.into();
+            memory_expand(current, Gas::from(from), Gas::from(len))
+        },
+        Opcode::CODECOPY | Opcode::CALLDATACOPY => {
+            let from: U256 = stack.peek(0)?.into();
+            let len: U256 = stack.peek(2)?.into();
+            memory_expand(current, Gas::from(from), Gas::from(len))
+        },
+        Opcode::EXTCODECOPY => {
+            let from: U256 = stack.peek(1)?.into();
+            let len: U256 = stack.peek(3)?.into();
             memory_expand(current, Gas::from(from), Gas::from(len))
         },
         Opcode::MLOAD | Opcode::MSTORE => {
@@ -207,12 +217,16 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
 
         Opcode::EXTCODECOPY => {
             let len = stack.peek(2)?;
-            (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
+            let wordd = Gas::from(len) / Gas::from(32u64);
+            let wordr = Gas::from(len) % Gas::from(32u64);
+            (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::CALLDATACOPY | Opcode::CODECOPY => {
             let len = stack.peek(2)?;
-            (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * (Gas::from(len) / Gas::from(32u64))).into()
+            let wordd = Gas::from(len) / Gas::from(32u64);
+            let wordr = Gas::from(len) % Gas::from(32u64);
+            (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::EXP => {
