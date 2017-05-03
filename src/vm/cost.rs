@@ -157,7 +157,7 @@ fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: Co
 
     let current = aggregrator.0;
     let next = match opcode {
-        Opcode::SHA3 | Opcode::RETURN => {
+        Opcode::SHA3 | Opcode::RETURN | Opcode::LOG(_) => {
             let from: U256 = stack.peek(0)?.into();
             let len: U256 = stack.peek(1)?.into();
             memory_expand(current, Gas::from(from), Gas::from(len))
