@@ -9,7 +9,7 @@ mod run;
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::PC;
-pub use self::params::{Block, Transaction};
+pub use self::params::{BlockHeader, Transaction};
 pub use self::account::{Commitment, Account, Storage, HashMapStorage, Log};
 
 use self::cost::{gas_cost, gas_refund, CostAggregrator};
@@ -44,12 +44,14 @@ pub enum CommitError {
 
 pub type ExecutionResult<T> = ::std::result::Result<T, ExecutionError>;
 
+pub type SeqMachine = Machine<SeqMemory, HashMapStorage>;
+
 pub struct Machine<M, S> {
     pc: PC,
     memory: M,
     stack: Stack,
     transaction: Transaction,
-    block: Block,
+    block: BlockHeader,
     cost_aggregrator: CostAggregrator,
     return_values: Vec<u8>,
     accounts: hash_map::HashMap<Address, Account<S>>,
@@ -63,7 +65,7 @@ pub struct Machine<M, S> {
 }
 
 impl<M: Memory + Default, S: Storage> Machine<M, S> {
-    pub fn new(transaction: Transaction, block: Block) -> Self {
+    pub fn new(transaction: Transaction, block: BlockHeader) -> Self {
         Self {
             pc: PC::default(),
             memory: M::default(),
@@ -105,7 +107,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         &self.transaction
     }
 
-    pub fn block(&self) -> &Block {
+    pub fn block(&self) -> &BlockHeader {
         &self.block
     }
 

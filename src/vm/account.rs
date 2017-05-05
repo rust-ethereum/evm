@@ -104,6 +104,12 @@ pub trait Storage {
 
 pub struct HashMapStorage(hash_map::HashMap<M256, M256>);
 
+impl From<hash_map::HashMap<M256, M256>> for HashMapStorage {
+    fn from(val: hash_map::HashMap<M256, M256>) -> HashMapStorage {
+        HashMapStorage(val)
+    }
+}
+
 impl Default for HashMapStorage {
     fn default() -> HashMapStorage {
         HashMapStorage(hash_map::HashMap::new())

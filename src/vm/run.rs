@@ -2,7 +2,7 @@ use utils::bigint::{M256, MI256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::opcode::Opcode;
-use vm::{Machine, Memory, Stack, PC, ExecutionResult, ExecutionError, Storage, Block, Transaction};
+use vm::{Machine, Memory, Stack, PC, ExecutionResult, ExecutionError, Storage, BlockHeader, Transaction};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::min;

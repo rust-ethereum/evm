@@ -2,7 +2,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{M256, U256};
 
-pub struct Block {
+pub struct BlockHeader {
     pub coinbase: Address,
     pub timestamp: M256,
     pub number: M256,

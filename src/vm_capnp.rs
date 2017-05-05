@@ -1,1 +1,0 @@
-schema/vm_capnp.rs
