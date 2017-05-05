@@ -32,7 +32,7 @@ pub struct SeqMemory {
 
 impl Default for SeqMemory {
     fn default() -> SeqMemory {
-        VectorMemory {
+        SeqMemory {
             memory: Vec::new(),
         }
     }

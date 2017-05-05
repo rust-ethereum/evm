@@ -6,15 +6,15 @@ pub struct Stack {
 }
 
 impl Default for Stack {
-    fn default() -> VectorStack {
-        VectorStack {
+    fn default() -> Stack {
+        Stack {
             stack: Vec::new(),
         }
     }
 }
 
 impl Stack {
-    fn push(&mut self, elem: M256) -> Result<()> {
+    pub fn push(&mut self, elem: M256) -> Result<()> {
         self.stack.push(elem);
         if self.size() > 1024 {
             self.stack.pop();
@@ -24,14 +24,14 @@ impl Stack {
         }
     }
 
-    fn pop(&mut self) -> Result<M256> {
+    pub fn pop(&mut self) -> Result<M256> {
         match self.stack.pop() {
             Some(x) => Ok(x),
             None => Err(Error::StackUnderflow),
         }
     }
 
-    fn set(&mut self, no_from_top: usize, val: M256) -> Result<()> {
+    pub fn set(&mut self, no_from_top: usize, val: M256) -> Result<()> {
         if self.stack.len() > no_from_top {
             let len = self.stack.len();
             self.stack[len - no_from_top - 1] = val;
@@ -41,7 +41,7 @@ impl Stack {
         }
     }
 
-    fn peek(&self, no_from_top: usize) -> Result<M256> {
+    pub fn peek(&self, no_from_top: usize) -> Result<M256> {
         if self.stack.len() > no_from_top {
             Ok(self.stack[self.stack.len() - no_from_top - 1])
         } else {
@@ -49,7 +49,7 @@ impl Stack {
         }
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.stack.len()
     }
 }

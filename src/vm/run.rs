@@ -1,9 +1,8 @@
 use utils::bigint::{M256, MI256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
-use super::Opcode;
-use vm::{Machine, Memory, Stack, PC, Result, Error};
-use vm::machine::MachineState;
+use utils::opcode::Opcode;
+use vm::{Machine, Memory, Stack, PC, ExecutionResult, ExecutionError, Storage};
 use transaction::Transaction;
 use blockchain::Block;
 
@@ -12,8 +11,8 @@ use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
-fn call_code<M: MachineState>(
-    machine: &mut M, gas: Gas, from: Address, to: Address, value: M256,
+fn call_code<M: Memory, S: Storage>(
+    machine: &mut Machine<M, S>, gas: Gas, from: Address, to: Address, value: M256,
     mut memory_in_start: M256, memory_in_len: M256,
     mut memory_out_start: M256, memory_out_len: M256) -> M256 {
 
@@ -55,8 +54,8 @@ fn call_code<M: MachineState>(
 
 macro_rules! will_pop_push {
     ( $machine:expr, $pop_size:expr, $push_size:expr ) => ({
-        if $machine.stack_mut().size() < $pop_size { return Err(Error::StackUnderflow); }
-        if $machine.stack_mut().size() - $pop_size + $push_size > 1024 { return Err(Error::StackOverflow); }
+        if $machine.stack_mut().size() < $pop_size { return Err(ExecutionError::StackUnderflow); }
+        if $machine.stack_mut().size() - $pop_size + $push_size > 1024 { return Err(ExecutionError::StackOverflow); }
     })
 }
 
@@ -95,7 +94,7 @@ macro_rules! op2_ref {
 }
 
 impl<M: Memory, S: Storage> Machine<M, S> {
-    fn opcode_run(&mut self, opcode: Opcode, after_gas: Gas) -> Result<()> {
+    fn opcode_run(&mut self, opcode: Opcode, after_gas: Gas) -> ExecutionResult<()> {
         let machine = &mut self;
 
         // Note: Please do not use try! or ? syntax in this opcode
@@ -300,7 +299,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 }, __);
                 let ender = from + len;
                 if ender < from {
-                    trr!(Err(Error::MemoryTooLarge), __);
+                    trr!(Err(ExecutionError::MemoryTooLarge), __);
                 }
 
                 let mut ret = [0u8; 32];
@@ -363,11 +362,11 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 }, __);
 
                 if start_index > usize::max_value().into() {
-                    trr!(Err(Error::DataTooLarge), __);
+                    trr!(Err(ExecutionError::DataTooLarge), __);
                 }
                 let start_index: usize = start_index.into();
                 if start_index.checked_add(32).is_none() {
-                    trr!(Err(Error::DataTooLarge), __);
+                    trr!(Err(ExecutionError::DataTooLarge), __);
                 }
 
                 let data: Vec<u8> = machine.transaction().data().unwrap().into();
@@ -403,17 +402,17 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 }, __);
 
                 if data_index > usize::max_value().into() {
-                    trr!(Err(Error::DataTooLarge), __);
+                    trr!(Err(ExecutionError::DataTooLarge), __);
                 }
                 let data_index: usize = data_index.into();
 
                 if len > usize::max_value().into() {
-                    trr!(Err(Error::DataTooLarge), __);
+                    trr!(Err(ExecutionError::DataTooLarge), __);
                 }
                 let len: usize = len.into();
 
                 if data_index.checked_add(len).is_none() {
-                    trr!(Err(Error::DataTooLarge), __);
+                    trr!(Err(ExecutionError::DataTooLarge), __);
                 }
 
                 for i in 0..len {
@@ -450,19 +449,19 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
                 if code_index > usize::max_value().into() {
                     restore(machine);
-                    return Err(Error::CodeTooLarge);
+                    return Err(ExecutionError::CodeTooLarge);
                 }
                 let code_index: usize = code_index.into();
 
                 if len > usize::max_value().into() {
                     restore(machine);
-                    return Err(Error::CodeTooLarge);
+                    return Err(ExecutionError::CodeTooLarge);
                 }
                 let len: usize = len.into();
 
                 if code_index.checked_add(len).is_none() {
                     restore(machine);
-                    return Err(Error::CodeTooLarge);
+                    return Err(ExecutionError::CodeTooLarge);
                 }
 
                 for i in 0..len {
@@ -508,19 +507,19 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
                 if code_index > usize::max_value().into() {
                     restore(machine);
-                    return Err(Error::CodeTooLarge);
+                    return Err(ExecutionError::CodeTooLarge);
                 }
                 let code_index: usize = code_index.into();
 
                 if len > usize::max_value().into() {
                     restore(machine);
-                    return Err(Error::CodeTooLarge);
+                    return Err(ExecutionError::CodeTooLarge);
                 }
                 let len: usize = len.into();
 
                 if code_index.checked_add(len).is_none() {
                     restore(machine);
-                    return Err(Error::CodeTooLarge);
+                    return Err(ExecutionError::CodeTooLarge);
                 }
 
                 for i in 0..len {
@@ -641,7 +640,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 }, __);
 
                 if op1 > usize::max_value().into() {
-                    trr!(Err(Error::PCTooLarge), __);
+                    trr!(Err(ExecutionError::PCTooLarge), __);
                 }
 
                 trr!(machine.pc_mut().jump(op1.into()), __);
@@ -658,7 +657,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 }, __);
 
                 if op1 > usize::max_value().into() {
-                    trr!(Err(Error::PCTooLarge), __);
+                    trr!(Err(ExecutionError::PCTooLarge), __);
                 }
 
                 let op2 = machine.stack_mut().pop().unwrap();
@@ -735,7 +734,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                     machine.stack_mut().push(start0).unwrap();
                 }, __);
                 if ender < start {
-                    trr!(Err(Error::MemoryTooLarge), __);
+                    trr!(Err(ExecutionError::MemoryTooLarge), __);
                 }
 
                 while start < ender {
@@ -817,7 +816,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                     machine.stack_mut().push(start0).unwrap();
                 }, __);
                 if ender < start {
-                    trr!(Err(Error::MemoryTooLarge), __);
+                    trr!(Err(ExecutionError::MemoryTooLarge), __);
                 }
                 let mut vec: Vec<u8> = Vec::new();
 
@@ -863,7 +862,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
             Opcode::INVALID => {
                 machine.pc_mut().stop();
-                return Err(Error::InvalidOpcode);
+                return Err(ExecutionError::InvalidOpcode);
             }
         }
         Ok(())

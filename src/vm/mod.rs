@@ -6,7 +6,6 @@ mod account;
 mod cost;
 mod run;
 
-pub use self::opcode::Opcode;
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::PC;
@@ -52,7 +51,7 @@ pub struct Machine<M, S> {
     block: Block,
     cost_aggregrator: CostAggregrator,
     return_values: Vec<u8>,
-    accounts: hash_map::HashMap<Address, Account>,
+    accounts: hash_map::HashMap<Address, Account<S>>,
     valid_pc: bool,
 
     homestead: bool,
@@ -101,7 +100,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         &self.block
     }
 
-    pub fn accounts(&self) -> hash_map::Iter<Address, Account> {
+    pub fn accounts(&self) -> hash_map::Iter<Address, Account<S>> {
 
     }
 
@@ -241,7 +240,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         Ok(gas)
     }
 
-    pub fn step(&mut self) -> Result<()> {
+    pub fn step(&mut self) -> ExecutionResult<()> {
         if !self.valid_pc {
             return Err(ExecutionError::RequireAccount(self.owner()));
         }
@@ -277,7 +276,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         Ok(())
     }
 
-    pub fn fire(&mut self) -> Result<()> {
+    pub fn fire(&mut self) -> ExecutionResult<()> {
         loop {
             let result = self.step();
 

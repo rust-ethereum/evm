@@ -1,3 +1,7 @@
+use utils::gas::Gas;
+use utils::address::Address;
+use utils::bigint::{M256, U256};
+
 pub struct Block {
     pub coinbase: Address,
     pub timestamp: M256,

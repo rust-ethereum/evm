@@ -1,11 +1,8 @@
 use utils::bigint::{M256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
-use vm::{Machine, Memory, Stack, PC, Error, Result};
-use vm::opcode::Opcode;
-use vm::machine::MachineState;
-use transaction::Transaction;
-use blockchain::Block;
+use utils::opcode::Opcode;
+use vm::{Machine, Memory, Stack, PC, ExecutionError, ExecutionResult, Storage};
 use std::cmp::{min, max};
 
 const G_ZERO: usize = 0;
@@ -54,7 +51,7 @@ fn memory_cost(a: Gas) -> Gas {
     (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
 }
 
-fn sstore_cost<M: MachineState>(machine: &M) -> Result<Gas> {
+fn sstore_cost<M: Memory, S: Storage>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let index = machine.stack().peek(0)?;
     let value = machine.stack().peek(1)?;
     let address = machine.transaction().callee();
@@ -66,11 +63,11 @@ fn sstore_cost<M: MachineState>(machine: &M) -> Result<Gas> {
     }
 }
 
-fn call_cost<M: MachineState>(machine: &M, available_gas: Gas) -> Result<Gas> {
+fn call_cost<M: Memory, S: Storage>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
     Ok(gascap_cost(machine, available_gas)? + extra_cost(machine)?)
 }
 
-fn callgas_cost<M: MachineState>(machine: &M, available_gas: Gas) -> Result<Gas> {
+fn callgas_cost<M: Memory, S: Storage>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
     let val = machine.stack().peek(2)?;
     if val != M256::zero() {
         Ok(gascap_cost(machine, available_gas)? + G_CALLSTIPEND.into())
@@ -79,7 +76,7 @@ fn callgas_cost<M: MachineState>(machine: &M, available_gas: Gas) -> Result<Gas>
     }
 }
 
-fn gascap_cost<M: MachineState>(machine: &M, available_gas: Gas) -> Result<Gas> {
+fn gascap_cost<M: Memory, S: Storage>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
     let base2 = machine.stack().peek(0)?.into();
 
     if available_gas >= extra_cost(machine)? {
@@ -90,11 +87,11 @@ fn gascap_cost<M: MachineState>(machine: &M, available_gas: Gas) -> Result<Gas> 
     }
 }
 
-fn extra_cost<M: MachineState>(machine: &M) -> Result<Gas> {
+fn extra_cost<M: Memory, S: Storage>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     Ok(Gas::from(if machine.eip150() { G_CALL_EIP150 } else { G_CALL_DEFAULT }) + xfer_cost(machine)? + new_cost(machine)?)
 }
 
-fn xfer_cost<M: MachineState>(machine: &M) -> Result<Gas> {
+fn xfer_cost<M: Memory, S: Storage>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let val = machine.stack().peek(2)?;
     if val != M256::zero() {
         Ok(G_CALLVALUE.into())
@@ -103,7 +100,7 @@ fn xfer_cost<M: MachineState>(machine: &M) -> Result<Gas> {
     }
 }
 
-fn new_cost<M: MachineState>(machine: &M) -> Result<Gas> {
+fn new_cost<M: Memory, S: Storage>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let address: Address = machine.stack().peek(1)?.into();
     if address == Address::default() {
         Ok(G_NEWACCOUNT.into())
@@ -112,7 +109,7 @@ fn new_cost<M: MachineState>(machine: &M) -> Result<Gas> {
     }
 }
 
-fn suicide_cost<M: MachineState>(machine: &M) -> Result<Gas> {
+fn suicide_cost<M: Memory, S: Storage>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let address: Address = machine.stack().peek(1)?.into();
     Ok(Gas::from(if machine.eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
@@ -150,8 +147,9 @@ fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
     max(current, new)
 }
 
-fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: CostAggregrator)
-                               -> Result<(Gas, CostAggregrator)> {
+fn memory_gas_cost<M: Memory, S: Storage>(opcode: Opcode, machine: &Machine<M, S>,
+                                          aggregrator: CostAggregrator)
+                               -> ExecutionResult<(Gas, CostAggregrator)> {
     let ref stack = machine.stack();
     let ref memory = machine.memory();
 
@@ -192,8 +190,9 @@ fn memory_gas_cost<M: MachineState>(opcode: Opcode, machine: &M, aggregrator: Co
     Ok((memory_cost(next) - memory_cost(current), CostAggregrator(next)))
 }
 
-pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas, aggregrator: CostAggregrator)
-                            -> Result<(Gas, CostAggregrator)> {
+pub fn gas_cost<M: Memory, S: Storage>(opcode: Opcode, machine: &Machine<M, S>,
+                                       aggregrator: CostAggregrator)
+                            -> ExecutionResult<(Gas, CostAggregrator)> {
     let ref stack = machine.stack();
     let ref memory = machine.memory();
 
@@ -286,7 +285,7 @@ pub fn gas_cost<M: MachineState>(opcode: Opcode, machine: &M, available_gas: Gas
     Ok((self_cost + memory_gas, agg))
 }
 
-pub fn gas_refund<M: MachineState>(opcode: Opcode, machine: &M) -> Result<Gas> {
+pub fn gas_refund<M: Memory, S: Storage>(opcode: Opcode, machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     match opcode {
         Opcode::SSTORE => {
             let index = machine.stack().peek(0)?;

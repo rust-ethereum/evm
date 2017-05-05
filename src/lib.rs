@@ -11,17 +11,18 @@ mod rescue;
 pub mod vm;
 
 mod utils;
-mod ffi;
+// mod ffi;
 
 pub use utils::bigint::{U256, M256, MI256};
 pub use utils::gas::Gas;
 pub use utils::hash::H256;
 pub use utils::address::Address;
+pub use utils::opcode::Opcode;
 pub use utils::read_hex;
 
 use std::io::BufReader;
 use log::LogLevel;
-use vm::{Machine, VectorMachine};
+use vm::{Machine};
 use ffi::{JSONVectorBlock, create_block, create_transaction};
 use serde_json::{Value, Error};
 use libc::{size_t, uint8_t};

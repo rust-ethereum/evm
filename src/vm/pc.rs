@@ -44,7 +44,7 @@ impl PC {
             }
         }
 
-        VectorPC {
+        PC {
             position: 0,
             code: code,
             valids: valids,
@@ -52,11 +52,11 @@ impl PC {
         }
     }
 
-    fn code(&self) -> &[u8] {
+    pub fn code(&self) -> &[u8] {
         self.code.as_ref()
     }
 
-    fn jump(&mut self, position: usize) -> Result<()> {
+    pub fn jump(&mut self, position: usize) -> Result<()> {
         if position >= self.code.len() {
             return Err(Error::PCOverflow);
         }
@@ -69,15 +69,15 @@ impl PC {
         Ok(())
     }
 
-    fn jump_unchecked(&mut self, position: usize) {
+    pub fn jump_unchecked(&mut self, position: usize) {
         self.position = position;
     }
 
-    fn position(&self) -> usize {
+    pub fn position(&self) -> usize {
         self.position
     }
 
-    fn peek_opcode(&self) -> Result<Opcode> {
+    pub fn peek_opcode(&self) -> Result<Opcode> {
         let position = self.position;
         if position >= self.code.len() {
             return Err(Error::PCOverflow);
@@ -86,7 +86,7 @@ impl PC {
         Ok(opcode)
     }
 
-    fn read_opcode(&mut self) -> Result<Opcode> {
+    pub fn read_opcode(&mut self) -> Result<Opcode> {
         let position = self.position;
         if position.checked_add(1).is_none() {
             return Err(Error::PCTooLarge);
@@ -99,15 +99,15 @@ impl PC {
         Ok(opcode)
     }
 
-    fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.stopped = true;
     }
 
-    fn stopped(&self) -> bool {
+    pub fn stopped(&self) -> bool {
         self.stopped || self.position >= self.code.len()
     }
 
-    fn read(&mut self, byte_count: usize) -> Result<M256> {
+    pub fn read(&mut self, byte_count: usize) -> Result<M256> {
         let position = self.position;
         if position.checked_add(byte_count).is_none() {
             return Err(Error::PCTooLarge);
