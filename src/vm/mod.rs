@@ -7,10 +7,17 @@ mod cost;
 mod run;
 
 pub use self::opcode::Opcode;
-pub use self::memory::{Memory, VectorMemory};
-pub use self::stack::{Stack, VectorStack};
-pub use self::pc::{PC, VectorPC};
-pub use self::machine::{Machine, VectorMachine, FakeVectorMachine};
+pub use self::memory::{Memory, SeqMemory};
+pub use self::stack::Stack;
+pub use self::pc::PC;
+pub use self::params::{Block, Transaction};
+pub use self::account::{Commitment, Account, Storage, MapStorage, Log};
+
+use self::cost::{gas_cost, gas_refund, CostAggregrator};
+use std::collections::hash_map;
+use utils::gas::Gas;
+use utils::address::Address;
+use utils::bigint::{M256, U256};
 
 #[derive(Debug)]
 pub enum ExecutionError {
@@ -45,7 +52,7 @@ pub struct Machine<M, S> {
     block: Block,
     cost_aggregrator: CostAggregrator,
     return_values: Vec<u8>,
-    accounts: Map<Address, Account>,
+    accounts: hash_map::HashMap<Address, Account>,
     valid_pc: bool,
 
     homestead: bool,
@@ -56,14 +63,14 @@ pub struct Machine<M, S> {
 impl<M: Memory + Default, S: Storage> Machine<M, S> {
     pub fn new(transaction: Transaction, block: Block) -> Self {
         Self {
-            pc: PC,
+            pc: PC::default(),
             memory: M::default(),
             stack: Stack::default(),
             transaction: transaction,
             block: block,
             cost_aggregrator: CostAggregrator::default(),
             return_values: Vec::new(),
-            accounts: Vec::new(),
+            accounts: hash_map::HashMap::new(),
             valid_pc: false,
 
             homestead: false,
@@ -94,7 +101,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         &self.block
     }
 
-    pub fn accounts(&self) -> Iter<Address, Account> {
+    pub fn accounts(&self) -> hash_map::Iter<Address, Account> {
 
     }
 
@@ -225,7 +232,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
     pub fn peek_cost(&self) -> ExecutionResult<Gas> {
         if !self.valid_pc {
-            return Err(Error::RequireAccount(self.owner()));
+            return Err(ExecutionError::RequireAccount(self.owner()));
         }
 
         let opcode = self.pc.peek_opcode()?;
@@ -241,7 +248,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
         begin_rescuable!(self, &mut Self, __);
         if self.pc.stopped() {
-            trr!(Err(Error::Stopped), __);
+            trr!(Err(ExecutionError::Stopped), __);
         }
 
         let position = self.pc.position();
