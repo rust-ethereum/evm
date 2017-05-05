@@ -188,9 +188,9 @@ impl<M: Memory, S: Storage> Machine<M, S> {
     }
 
     fn account_log(&mut self, address: Address, data: &[u8], topics: &[M256]) -> ExecutionResult<()> {
-        match self.accounts.get(&address) {
-            Some(&Account::Full {
-                appending_logs: ref appending_logs,
+        match self.accounts.get_mut(&address) {
+            Some(&mut Account::Full {
+                appending_logs: ref mut appending_logs,
                 ..
             }) => {
                 appending_logs.push(Log {
@@ -297,14 +297,14 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         let opcode = trr!(self.pc.read_opcode(), __);
         let available_gas = self.available_gas();
         let cost_aggregrator = self.cost_aggregrator;
-        let (gas, agg) = trr!(gas_cost(opcode, &mut self, cost_aggregrator), __);
-        let refunded = trr!(gas_refund(opcode, &mut self), __);
+        let (gas, agg) = trr!(gas_cost(opcode, self, cost_aggregrator), __);
+        let refunded = trr!(gas_refund(opcode, self), __);
 
         if gas > self.available_gas() {
             trr!(Err(ExecutionError::EmptyGas), __);
         }
 
-        trr!(run_opcode(opcode, &mut self, available_gas - gas), __);
+        trr!(run_opcode(opcode, self, available_gas - gas), __);
 
         self.cost_aggregrator = agg;
         self.used_gas = self.used_gas + gas;

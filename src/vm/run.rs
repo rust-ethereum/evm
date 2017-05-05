@@ -402,24 +402,21 @@ pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M
                 trr!(Err(ExecutionError::DataTooLarge), __);
             }
 
+            let data = match machine.transaction() {
+                &Transaction::MessageCall {
+                    data: ref data,
+                    ..
+                } => data.clone(),
+                &Transaction::ContractCreation {
+                    ..
+                } => Vec::new(),
+            };
             for i in 0..len {
-                match machine.transaction() {
-                    &Transaction::MessageCall {
-                        data: ref data,
-                        ..
-                    } => {
-                        if data_index + i < data.len() {
-                            let val = data[data_index + i];
-                            machine.memory.write_raw(memory_index + i.into(), val);
-                        } else {
-                            machine.memory.write_raw(memory_index + i.into(), 0);
-                        }
-                    },
-                    &Transaction::ContractCreation {
-                        ..
-                    } => {
-                        machine.memory.write_raw(memory_index + i.into(), 0);
-                    },
+                if data_index + i < data.len() {
+                    let val = data[data_index + i];
+                    machine.memory.write_raw(memory_index + i.into(), val);
+                } else {
+                    machine.memory.write_raw(memory_index + i.into(), 0);
                 }
             }
             end_rescuable!(__);
@@ -487,7 +484,7 @@ pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M
                 machine.stack.push(account).unwrap();
             }, __);
             let account: Address = account.into();
-            let len = trr!(machine.account_code(account), __).len();
+            let len = trr!(machine.account_code(account).and_then(|code| Ok(code.len())), __);
             machine.stack.push(len.into()).unwrap();
             end_rescuable!(__);
         },
@@ -524,7 +521,7 @@ pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M
             }
 
             for i in 0..len {
-                let code: Vec<u8> = trr!(machine.account_code(account), __).into();
+                let code: Vec<u8> = trr!(machine.account_code(account).and_then(|code| Ok(code.into())), __);
                 if code_index + i < code.len() {
                     let val = code[code_index + i];
                     machine.memory.write_raw(memory_index + i.into(), val);
@@ -623,7 +620,7 @@ pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M
             }, __);
 
             let from = machine.owner();
-            let val = trr!(trr!(machine.account_storage(from), __).read(op1), __);
+            let val = trr!(machine.account_storage(from).and_then(|storage| storage.read(op1)), __);
             machine.stack.push(val).unwrap();
         },
 
@@ -639,7 +636,7 @@ pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M
             }, __);
 
             let from = machine.owner();
-            trr!(trr!(machine.account_storage_mut(from), __).write(op1, op2), __);
+            trr!(machine.account_storage_mut(from).and_then(|storage| storage.write(op1, op2)), __);
             end_rescuable!(__);
         }
 
