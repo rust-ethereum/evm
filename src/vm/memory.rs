@@ -26,25 +26,19 @@ pub trait Memory {
     fn read_raw(&self, index: M256) -> Result<u8>;
 }
 
-pub struct VectorMemory {
+pub struct SeqMemory {
     memory: Vec<u8>,
 }
 
-impl VectorMemory {
-    pub fn new() -> VectorMemory {
+impl Default for SeqMemory {
+    fn default() -> SeqMemory {
         VectorMemory {
             memory: Vec::new(),
         }
     }
 }
 
-impl AsRef<[u8]> for VectorMemory {
-    fn as_ref(&self) -> &[u8] {
-        self.memory.as_ref()
-    }
-}
-
-impl Memory for VectorMemory {
+impl Memory for SeqMemory {
     fn write(&mut self, index: M256, value: M256) -> Result<()> {
         let end = index + 32.into();
         if end > M256::from(usize::max_value()) {

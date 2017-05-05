@@ -3,25 +3,25 @@ use std::cmp::{min};
 use super::{Result, Error};
 use super::opcode::Opcode;
 
-pub trait PC {
-    fn peek_opcode(&self) -> Result<Opcode>;
-    fn read_opcode(&mut self) -> Result<Opcode>;
-    fn stop(&mut self);
-    fn stopped(&self) -> bool;
-    fn read(&mut self, byte_count: usize) -> Result<M256>;
-    fn position(&self) -> usize;
-    fn jump(&mut self, position: usize) -> Result<()>;
-    fn code(&self) -> &[u8];
-}
-
-pub struct VectorPC {
+pub struct PC {
     position: usize,
     code: Vec<u8>,
     valids: Vec<bool>,
     stopped: bool
 }
 
-impl VectorPC {
+impl Default for PC {
+    fn default() -> PC {
+        PC {
+            position: 0,
+            code: Vec::new(),
+            valids: Vec::new(),
+            stopped: true,
+        }
+    }
+}
+
+impl PC {
     pub fn new(code: &[u8]) -> Self {
         let code: Vec<u8> = code.into();
         let mut valids: Vec<bool> = Vec::with_capacity(code.len());
@@ -51,9 +51,7 @@ impl VectorPC {
             stopped: false,
         }
     }
-}
 
-impl PC for VectorPC {
     fn code(&self) -> &[u8] {
         self.code.as_ref()
     }
@@ -69,6 +67,10 @@ impl PC for VectorPC {
 
         self.position = position;
         Ok(())
+    }
+
+    fn jump_unchecked(&mut self, position: usize) {
+        self.position = position;
     }
 
     fn position(&self) -> usize {

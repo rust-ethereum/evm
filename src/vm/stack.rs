@@ -1,28 +1,19 @@
 use utils::bigint::M256;
 use super::{Result, Error};
 
-pub trait Stack {
-    fn push(&mut self, elem: M256) -> Result<()>;
-    fn pop(&mut self) -> Result<M256>;
-    fn set(&mut self, no_from_top: usize, val: M256) -> Result<()>;
-    fn peek(&self, no_from_top: usize) -> Result<M256>;
-    fn has(&self, no_of_elems: usize) -> bool;
-    fn size(&self) -> usize;
-}
-
-pub struct VectorStack {
+pub struct Stack {
     stack: Vec<M256>,
 }
 
-impl VectorStack {
-    pub fn new() -> VectorStack {
+impl Default for Stack {
+    fn default() -> VectorStack {
         VectorStack {
             stack: Vec::new(),
         }
     }
 }
 
-impl Stack for VectorStack {
+impl Stack {
     fn push(&mut self, elem: M256) -> Result<()> {
         self.stack.push(elem);
         if self.size() > 1024 {
@@ -58,11 +49,7 @@ impl Stack for VectorStack {
         }
     }
 
-    fn has(&self, no_of_elems: usize) -> bool {
-        self.stack.len() >= no_of_elems
-    }
-
-    fn size(&self) -> usize {
+    fn len(&self) -> usize {
         self.stack.len()
     }
 }

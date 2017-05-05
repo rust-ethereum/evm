@@ -94,9 +94,9 @@ macro_rules! op2_ref {
     })
 }
 
-impl Opcode {
-    pub fn run<M: MachineState>(&self, machine: &mut M, after_gas: Gas) -> Result<()> {
-        let opcode = self.clone();
+impl<M: Memory, S: Storage> Machine<M, S> {
+    fn opcode_run(&mut self, opcode: Opcode, after_gas: Gas) -> Result<()> {
+        let machine = &mut self;
 
         // Note: Please do not use try! or ? syntax in this opcode
         // running function. Anything that might fail after the stack
