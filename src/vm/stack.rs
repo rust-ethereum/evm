@@ -1,68 +1,55 @@
 use utils::bigint::M256;
-use super::{Result, Error};
+use super::{ExecutionResult, ExecutionError};
 
-pub trait Stack {
-    fn push(&mut self, elem: M256) -> Result<()>;
-    fn pop(&mut self) -> Result<M256>;
-    fn set(&mut self, no_from_top: usize, val: M256) -> Result<()>;
-    fn peek(&self, no_from_top: usize) -> Result<M256>;
-    fn has(&self, no_of_elems: usize) -> bool;
-    fn size(&self) -> usize;
-}
-
-pub struct VectorStack {
+pub struct Stack {
     stack: Vec<M256>,
 }
 
-impl VectorStack {
-    pub fn new() -> VectorStack {
-        VectorStack {
+impl Default for Stack {
+    fn default() -> Stack {
+        Stack {
             stack: Vec::new(),
         }
     }
 }
 
-impl Stack for VectorStack {
-    fn push(&mut self, elem: M256) -> Result<()> {
+impl Stack {
+    pub fn push(&mut self, elem: M256) -> ExecutionResult<()> {
         self.stack.push(elem);
-        if self.size() > 1024 {
+        if self.len() > 1024 {
             self.stack.pop();
-            Err(Error::StackOverflow)
+            Err(ExecutionError::StackOverflow)
         } else {
             Ok(())
         }
     }
 
-    fn pop(&mut self) -> Result<M256> {
+    pub fn pop(&mut self) -> ExecutionResult<M256> {
         match self.stack.pop() {
             Some(x) => Ok(x),
-            None => Err(Error::StackUnderflow),
+            None => Err(ExecutionError::StackUnderflow),
         }
     }
 
-    fn set(&mut self, no_from_top: usize, val: M256) -> Result<()> {
+    pub fn set(&mut self, no_from_top: usize, val: M256) -> ExecutionResult<()> {
         if self.stack.len() > no_from_top {
             let len = self.stack.len();
             self.stack[len - no_from_top - 1] = val;
             Ok(())
         } else {
-            Err(Error::StackUnderflow)
+            Err(ExecutionError::StackUnderflow)
         }
     }
 
-    fn peek(&self, no_from_top: usize) -> Result<M256> {
+    pub fn peek(&self, no_from_top: usize) -> ExecutionResult<M256> {
         if self.stack.len() > no_from_top {
             Ok(self.stack[self.stack.len() - no_from_top - 1])
         } else {
-            Err(Error::StackUnderflow)
+            Err(ExecutionError::StackUnderflow)
         }
     }
 
-    fn has(&self, no_of_elems: usize) -> bool {
-        self.stack.len() >= no_of_elems
-    }
-
-    fn size(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.stack.len()
     }
 }

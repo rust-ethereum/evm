@@ -2,11 +2,9 @@ use serde_json;
 use sputnikvm;
 
 use sputnikvm::{read_hex, Gas, M256, Address};
-use sputnikvm::vm::{Machine, VectorMachine, Stack, PC};
-use sputnikvm::blockchain::Block;
-use sputnikvm::transaction::{Transaction, VectorTransaction};
+use sputnikvm::vm::{Machine, Stack, PC};
 
-use super::json_schema::{create_machine, test_machine};
+use super::json::{create_machine, create_block, test_machine, apply_to_block, fire_with_block};
 
 use serde_json::{Value, Error};
 use std::fs::File;
@@ -24,14 +22,16 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
     }
     stdout().flush();
 
-    let mut machine = create_machine(v);
-    let result = machine.fire();
+    let mut block = create_block(v);
+    let mut machine = create_machine(v, &block);
+    let result = fire_with_block(&mut machine, &block);
+    apply_to_block(&machine, &mut block);
 
     let out = v["out"].as_str();
 
     if out.is_some() {
         if result.is_ok() {
-            if test_machine(v, &machine, debug) {
+            if test_machine(v, &machine, &block, debug) {
                 println!("OK");
                 return true;
             } else {
@@ -55,7 +55,8 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
 
 
 pub fn debug_transaction(v: &Value) {
-    let mut machine = create_machine(v);
+    let mut block = create_block(v);
+    let mut machine = create_machine(v, &block);
     let mut rl = Editor::<()>::new();
 
     loop {
@@ -65,10 +66,10 @@ pub fn debug_transaction(v: &Value) {
                 rl.add_history_entry(&line);
                 match line.as_ref() {
                     "step" => {
-                        if machine.pc().stopped() {
+                        if machine.pc().unwrap().stopped() {
                             println!("Stopped");
                         } else {
-                            println!("Running {:?} ... {:?}.", machine.pc().peek_opcode(),
+                            println!("Running {:?} ... {:?}.", machine.pc().unwrap().peek_opcode(),
                                      machine.step());
                         }
                     },
@@ -77,8 +78,8 @@ pub fn debug_transaction(v: &Value) {
                         println!("{:?}", result);
                     },
                     "fire debug" => {
-                        while !machine.pc().stopped() {
-                            println!("Running {:?} ...", machine.pc().peek_opcode());
+                        while !machine.pc().unwrap().stopped() {
+                            println!("Running {:?} ...", machine.pc().unwrap().peek_opcode());
                             let gas = machine.peek_cost().unwrap();
                             if gas < Gas::from(u64::max_value()) {
                                 let gas: u64 = gas.into();
@@ -86,7 +87,7 @@ pub fn debug_transaction(v: &Value) {
                             } else {
                                 println!("Cost: 0x{:x}", gas);
                             }
-                            for i in 0..machine.stack().size() {
+                            for i in 0..machine.stack().len() {
                                 println!("{}: {:x}", i, machine.stack().peek(i).unwrap());
                             }
                             println!("Result: {:?}", machine.step());
@@ -106,7 +107,7 @@ pub fn debug_transaction(v: &Value) {
                         println!("{:?}", ret);
                     }
                     "print stack" => {
-                        for i in 0..machine.stack().size() {
+                        for i in 0..machine.stack().len() {
                             println!("{}: {:x}", i, machine.stack().peek(i).unwrap());
                         }
                     },

@@ -1,27 +1,27 @@
 use utils::bigint::M256;
+use utils::opcode::Opcode;
 use std::cmp::{min};
-use super::{Result, Error};
-use super::opcode::Opcode;
+use super::{ExecutionResult, ExecutionError};
 
-pub trait PC {
-    fn peek_opcode(&self) -> Result<Opcode>;
-    fn read_opcode(&mut self) -> Result<Opcode>;
-    fn stop(&mut self);
-    fn stopped(&self) -> bool;
-    fn read(&mut self, byte_count: usize) -> Result<M256>;
-    fn position(&self) -> usize;
-    fn jump(&mut self, position: usize) -> Result<()>;
-    fn code(&self) -> &[u8];
-}
-
-pub struct VectorPC {
+pub struct PC {
     position: usize,
     code: Vec<u8>,
     valids: Vec<bool>,
     stopped: bool
 }
 
-impl VectorPC {
+impl Default for PC {
+    fn default() -> PC {
+        PC {
+            position: 0,
+            code: Vec::new(),
+            valids: Vec::new(),
+            stopped: true,
+        }
+    }
+}
+
+impl PC {
     pub fn new(code: &[u8]) -> Self {
         let code: Vec<u8> = code.into();
         let mut valids: Vec<bool> = Vec::with_capacity(code.len());
@@ -44,71 +44,73 @@ impl VectorPC {
             }
         }
 
-        VectorPC {
+        PC {
             position: 0,
             code: code,
             valids: valids,
             stopped: false,
         }
     }
-}
 
-impl PC for VectorPC {
-    fn code(&self) -> &[u8] {
+    pub fn code(&self) -> &[u8] {
         self.code.as_ref()
     }
 
-    fn jump(&mut self, position: usize) -> Result<()> {
+    pub fn jump(&mut self, position: usize) -> ExecutionResult<()> {
         if position >= self.code.len() {
-            return Err(Error::PCOverflow);
+            return Err(ExecutionError::PCOverflow);
         }
 
         if !self.valids[position] {
-            return Err(Error::PCBadJumpDest);
+            return Err(ExecutionError::PCBadJumpDest);
         }
 
         self.position = position;
         Ok(())
     }
 
-    fn position(&self) -> usize {
+    pub fn jump_unchecked(&mut self, position: usize) {
+        self.position = position;
+    }
+
+    pub fn position(&self) -> usize {
         self.position
     }
 
-    fn peek_opcode(&self) -> Result<Opcode> {
+    pub fn peek_opcode(&self) -> ExecutionResult<Opcode> {
         let position = self.position;
         if position >= self.code.len() {
-            return Err(Error::PCOverflow);
+            return Err(ExecutionError::PCOverflow);
         }
         let opcode: Opcode = self.code[position].into();
         Ok(opcode)
     }
 
-    fn read_opcode(&mut self) -> Result<Opcode> {
+    pub fn read_opcode(&mut self) -> ExecutionResult<Opcode> {
         let position = self.position;
         if position.checked_add(1).is_none() {
-            return Err(Error::PCTooLarge);
+            return Err(ExecutionError::PCTooLarge);
         }
         if position >= self.code.len() {
-            return Err(Error::PCOverflow);
+            return Err(ExecutionError::PCOverflow);
         }
         let opcode: Opcode = self.code[position].into();
         self.position += 1;
         Ok(opcode)
     }
 
-    fn stop(&mut self) {
+    pub fn stop(&mut self) {
         self.stopped = true;
     }
 
-    fn stopped(&self) -> bool {
+    pub fn stopped(&self) -> bool {
         self.stopped || self.position >= self.code.len()
     }
 
-    fn read(&mut self, byte_count: usize) -> Result<M256> {
+    pub fn read(&mut self, byte_count: usize) -> ExecutionResult<M256> {
         let position = self.position;
         if position.checked_add(byte_count).is_none() {
-            return Err(Error::PCTooLarge);
+            return Err(ExecutionError::PCTooLarge);
         }
         self.position += byte_count;
         let max = min(position + byte_count, self.code.len());
