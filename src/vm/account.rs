@@ -5,10 +5,11 @@ use utils::bigint::{M256, U256};
 
 use super::{ExecutionResult, ExecutionError};
 
+#[derive(Clone)]
 pub enum Account<S> {
     Full {
         address: Address,
-        balance: M256,
+        balance: U256,
         storage: S,
         code: Vec<u8>,
         appending_logs: Vec<Log>,
@@ -18,7 +19,7 @@ pub enum Account<S> {
         code: Vec<u8>,
     },
     Remove(Address),
-    Topup(Address, M256),
+    Topup(Address, U256),
 }
 
 impl<S: Storage> Account<S> {
@@ -67,10 +68,11 @@ impl<S: Storage> From<Commitment<S>> for Account<S> {
     }
 }
 
+#[derive(Clone)]
 pub enum Commitment<S> {
     Full {
         address: Address,
-        balance: M256,
+        balance: U256,
         storage: S,
         code: Vec<u8>,
     },
@@ -102,11 +104,18 @@ pub trait Storage {
     fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()>;
 }
 
+#[derive(Clone)]
 pub struct HashMapStorage(hash_map::HashMap<M256, M256>);
 
 impl From<hash_map::HashMap<M256, M256>> for HashMapStorage {
     fn from(val: hash_map::HashMap<M256, M256>) -> HashMapStorage {
         HashMapStorage(val)
+    }
+}
+
+impl Into<hash_map::HashMap<M256, M256>> for HashMapStorage {
+    fn into(self) -> hash_map::HashMap<M256, M256> {
+        self.0
     }
 }
 
@@ -130,6 +139,7 @@ impl Storage for HashMapStorage {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Log {
     pub data: Vec<u8>,
     pub topics: Vec<M256>,

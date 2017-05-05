@@ -1,26 +1,42 @@
-use sputnikvm::{read_hex, Gas, M256, U256, Address};
-use sputnikvm::vm::{Machine, VectorMachine};
-use sputnikvm::blockchain::Block;
-use sputnikvm::transaction::{Transaction, VectorTransaction};
+mod blockchain;
 
-use super::{create_block, create_transaction, JSONVectorBlock};
+pub use self::blockchain::{JSONBlock, create_block, create_transaction};
 
-use serde_json::{Value, Error};
+use serde_json::Value;
 use std::str::FromStr;
+use sputnikvm::{Gas, H256, M256, U256, Address, read_hex};
+use sputnikvm::vm::{SeqMachine, ExecutionError, ExecutionResult, Transaction, Account, HashMapStorage};
 
-pub fn create_machine(v: &Value) -> VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>> {
-    let block = create_block(v);
-    let transaction = create_transaction(v);
-
-    let gas = Gas::from_str(v["exec"]["gas"].as_str().unwrap()).unwrap();
-    let code = read_hex(v["exec"]["code"].as_str().unwrap()).unwrap();
-    let data = read_hex(v["exec"]["data"].as_str().unwrap()).unwrap();
-
-    VectorMachine::new(code.as_ref(), data.as_ref(), gas,
-                       transaction, Box::new(block))
+pub fn fire_with_block(machine: &mut SeqMachine, block: &JSONBlock) -> ExecutionResult<()> {
+    loop {
+        match machine.fire() {
+            Err(ExecutionError::RequireAccount(address)) => {
+                let account = block.request_account(address);
+                machine.commit(account);
+            },
+            Err(ExecutionError::RequireAccountCode(address)) => {
+                let account = block.request_account_code(address);
+                machine.commit(account);
+            },
+            out => { return out; },
+        }
+    }
 }
 
-pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSONVectorBlock>>, debug: bool) -> bool {
+pub fn apply_to_block(machine: &SeqMachine, block: &mut JSONBlock) {
+    for account in machine.accounts() {
+        let account: Account<HashMapStorage> = (*account).clone();
+        block.apply_account(account);
+    }
+}
+
+pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqMachine {
+    let transaction = create_transaction(v);
+
+    SeqMachine::new(transaction, block.block_header())
+}
+
+pub fn test_machine(v: &Value, machine: &SeqMachine, block: &JSONBlock, debug: bool) -> bool {
     let out = v["out"].as_str();
     let gas = v["gas"].as_str();
 
@@ -39,7 +55,7 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
 
     if gas.is_some() {
         let gas = Gas::from_str(gas.unwrap()).unwrap();
-        if machine.remaining_gas() != gas {
+        if machine.available_gas() != gas {
             if debug {
                 print!("\n");
                 println!("Gas check failed, VM returned: 0x{:x}, expected: 0x{:x}",
@@ -58,7 +74,7 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
         let code = read_hex(data["code"].as_str().unwrap()).unwrap();
         let code_ref: &[u8] = code.as_ref();
 
-        if code_ref != machine.block().account_code(address) {
+        if code_ref != block.account_code(address) {
             if debug {
                 print!("\n");
                 println!("Account code check failed for address 0x{:x}.", address);
@@ -66,7 +82,7 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
 
             return false;
         }
-        if balance != machine.block().balance(address) {
+        if balance != block.balance(address) {
             if debug {
                 print!("\n");
                 println!("Balance check failed for address 0x{:x}.", address);
@@ -79,13 +95,13 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
         for (index, value) in storage {
             let index = M256::from_str(index.as_str()).unwrap();
             let value = M256::from_str(value.as_str().unwrap()).unwrap();
-            if value != machine.block().account_storage(address, index) {
+            if value != block.account_storage(address, index) {
                 if debug {
                     print!("\n");
                     println!("Storage check failed for address 0x{:x} in storage index 0x{:x}",
                              address, index);
                     println!("Expected: 0x{:x}", value);
-                    println!("Actual:   0x{:x}", machine.block().account_storage(address, index));
+                    println!("Actual:   0x{:x}", block.account_storage(address, index));
                 }
                 return false;
             }
@@ -102,13 +118,13 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
             for (index, value) in storage {
                 let index = M256::from_str(index.as_str()).unwrap();
                 let value = M256::from_str(value.as_str().unwrap()).unwrap();
-                if value != machine.block().account_storage(address, index) {
+                if value != block.account_storage(address, index) {
                     if debug {
                         print!("\n");
                         println!("Storage check (expect) failed for address 0x{:x} in storage index 0x{:x}",
                                  address, index);
                         println!("Expected: 0x{:x}", value);
-                        println!("Actual:   0x{:x}", machine.block().account_storage(address, index));
+                        println!("Actual:   0x{:x}", block.account_storage(address, index));
                     }
                     return false;
                 }
@@ -133,9 +149,7 @@ pub fn test_machine(v: &Value, machine: &VectorMachine<JSONVectorBlock, Box<JSON
                 topics.push(M256::from_str(topic.as_str().unwrap()).unwrap());
             }
 
-            // TODO: implement bloom check
-
-            if !machine.block().find_log(address, data.as_slice(), topics.as_slice()) {
+            if !block.find_log(address, data.as_slice(), topics.as_slice()) {
                 if debug {
                     print!("\n");
                     println!("Log match failed.");

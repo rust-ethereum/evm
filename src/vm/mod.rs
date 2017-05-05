@@ -111,8 +111,8 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         &self.block
     }
 
-    pub fn accounts(&self) -> hash_map::Iter<Address, Account<S>> {
-        self.accounts.iter()
+    pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
+        self.accounts.values()
     }
 
     pub fn return_values(&self) -> &[u8] {
@@ -227,7 +227,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         }
     }
 
-    fn account_balance(&self, address: Address) -> ExecutionResult<M256> {
+    fn account_balance(&self, address: Address) -> ExecutionResult<U256> {
         match self.accounts.get(&address) {
             Some(&Account::Full {
                 balance: balance,
