@@ -1,7 +1,7 @@
 use utils::bigint::M256;
+use utils::opcode::Opcode;
 use std::cmp::{min};
-use super::{Result, Error};
-use super::opcode::Opcode;
+use super::{ExecutionResult, ExecutionError};
 
 pub struct PC {
     position: usize,
@@ -56,13 +56,13 @@ impl PC {
         self.code.as_ref()
     }
 
-    pub fn jump(&mut self, position: usize) -> Result<()> {
+    pub fn jump(&mut self, position: usize) -> ExecutionResult<()> {
         if position >= self.code.len() {
-            return Err(Error::PCOverflow);
+            return Err(ExecutionError::PCOverflow);
         }
 
         if !self.valids[position] {
-            return Err(Error::PCBadJumpDest);
+            return Err(ExecutionError::PCBadJumpDest);
         }
 
         self.position = position;
@@ -77,22 +77,22 @@ impl PC {
         self.position
     }
 
-    pub fn peek_opcode(&self) -> Result<Opcode> {
+    pub fn peek_opcode(&self) -> ExecutionResult<Opcode> {
         let position = self.position;
         if position >= self.code.len() {
-            return Err(Error::PCOverflow);
+            return Err(ExecutionError::PCOverflow);
         }
         let opcode: Opcode = self.code[position].into();
         Ok(opcode)
     }
 
-    pub fn read_opcode(&mut self) -> Result<Opcode> {
+    pub fn read_opcode(&mut self) -> ExecutionResult<Opcode> {
         let position = self.position;
         if position.checked_add(1).is_none() {
-            return Err(Error::PCTooLarge);
+            return Err(ExecutionError::PCTooLarge);
         }
         if position >= self.code.len() {
-            return Err(Error::PCOverflow);
+            return Err(ExecutionError::PCOverflow);
         }
         let opcode: Opcode = self.code[position].into();
         self.position += 1;
@@ -107,10 +107,10 @@ impl PC {
         self.stopped || self.position >= self.code.len()
     }
 
-    pub fn read(&mut self, byte_count: usize) -> Result<M256> {
+    pub fn read(&mut self, byte_count: usize) -> ExecutionResult<M256> {
         let position = self.position;
         if position.checked_add(byte_count).is_none() {
-            return Err(Error::PCTooLarge);
+            return Err(ExecutionError::PCTooLarge);
         }
         self.position += byte_count;
         let max = min(position + byte_count, self.code.len());

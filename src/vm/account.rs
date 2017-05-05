@@ -3,6 +3,8 @@ use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{M256, U256};
 
+use super::{ExecutionResult, ExecutionError};
+
 pub enum Account<S> {
     Full {
         address: Address,
@@ -43,19 +45,23 @@ impl<S: Storage> From<Commitment<S>> for Account<S> {
     fn from(val: Commitment<S>) -> Account<S> {
         match val {
             Commitment::Full {
+                address: address,
                 balance: balance,
                 storage: storage,
                 code: code,
             } => Account::Full {
+                address: address,
                 balance: balance,
                 storage: storage,
                 code: code,
                 appending_logs: Vec::new(),
             },
             Commitment::Code {
+                address: address,
                 code: code,
             } => Account::Code {
-                code: code
+                address: address,
+                code: code,
             },
         }
     }
@@ -66,11 +72,11 @@ pub enum Commitment<S> {
         address: Address,
         balance: M256,
         storage: S,
-        code: Option<Vec<u8>>,
+        code: Vec<u8>,
     },
     Code {
         address: Address,
-        code: Option<Vec<u8>>,
+        code: Vec<u8>,
     },
 }
 
@@ -82,7 +88,6 @@ impl<S: Storage> Commitment<S> {
                 balance: _,
                 storage: _,
                 code: _,
-                appending_logs: _,
             } => address,
             &Commitment::Code {
                 address: address,

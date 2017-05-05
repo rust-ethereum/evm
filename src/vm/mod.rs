@@ -10,9 +10,10 @@ pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::PC;
 pub use self::params::{Block, Transaction};
-pub use self::account::{Commitment, Account, Storage, MapStorage, Log};
+pub use self::account::{Commitment, Account, Storage, HashMapStorage, Log};
 
 use self::cost::{gas_cost, gas_refund, CostAggregrator};
+use self::run::run_opcode;
 use std::collections::hash_map;
 use utils::gas::Gas;
 use utils::address::Address;
@@ -53,6 +54,8 @@ pub struct Machine<M, S> {
     return_values: Vec<u8>,
     accounts: hash_map::HashMap<Address, Account<S>>,
     valid_pc: bool,
+    used_gas: Gas,
+    refunded_gas: Gas,
 
     homestead: bool,
     eip150: bool,
@@ -71,6 +74,8 @@ impl<M: Memory + Default, S: Storage> Machine<M, S> {
             return_values: Vec::new(),
             accounts: hash_map::HashMap::new(),
             valid_pc: false,
+            used_gas: Gas::zero(),
+            refunded_gas: Gas::zero(),
 
             homestead: false,
             eip150: false,
@@ -80,8 +85,12 @@ impl<M: Memory + Default, S: Storage> Machine<M, S> {
 }
 
 impl<M: Memory, S: Storage> Machine<M, S> {
-    pub fn pc(&self) -> ExecutionResult<&PC> {
-        &self.pc
+    pub fn pc(&self) -> Option<&PC> {
+        if self.valid_pc {
+            Some(&self.pc)
+        } else {
+            None
+        }
     }
 
     pub fn memory(&self) -> &M {
@@ -101,19 +110,31 @@ impl<M: Memory, S: Storage> Machine<M, S> {
     }
 
     pub fn accounts(&self) -> hash_map::Iter<Address, Account<S>> {
-
+        self.accounts.iter()
     }
 
     pub fn return_values(&self) -> &[u8] {
-
+        self.return_values.as_slice()
     }
 
     pub fn active_memory_len(&self) -> M256 {
-        self.cost_aggregrator.active_memoty_len()
+        self.cost_aggregrator.active_memory_len()
     }
 
     pub fn owner(&self) -> Address {
+        match self.transaction {
+            Transaction::MessageCall {
+                to: to,
+                ..
+            } => to,
+            Transaction::ContractCreation {
+                ..
+            } => unimplemented!(),
+        }
+    }
 
+    pub fn available_gas(&self) -> Gas {
+        self.transaction.gas_limit() - self.used_gas
     }
 
 
@@ -152,15 +173,13 @@ impl<M: Memory, S: Storage> Machine<M, S> {
         if address == self.owner() {
             match account {
                 Account::Full {
-                    address: _,
                     code: ref code,
-                    balance: _,
-                    storage: _,
-                    appending_logs: _,
+                    ..
                 } => {
                     self.pc = PC::new(code.as_slice());
                     self.valid_pc = true;
-                }
+                },
+                _ => (),
             }
         }
 
@@ -171,11 +190,8 @@ impl<M: Memory, S: Storage> Machine<M, S> {
     fn account_log(&mut self, address: Address, data: &[u8], topics: &[M256]) -> ExecutionResult<()> {
         match self.accounts.get(&address) {
             Some(&Account::Full {
-                address: _,
-                balance: _,
-                storage: _,
-                code: _,
                 appending_logs: ref appending_logs,
+                ..
             }) => {
                 appending_logs.push(Log {
                     data: data.into(),
@@ -184,46 +200,69 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 Ok(())
             },
             _ => {
-                Err(ExecutionResult::RequireAccount(address))
+                Err(ExecutionError::RequireAccount(address))
             }
         }
     }
 
     fn account_code(&self, address: Address) -> ExecutionResult<&[u8]> {
-        match self.accounts_get(&address) {
+        match self.accounts.get(&address) {
             Some(&Account::Full {
-                address: _,
-                balance: _,
-                storage: _,
                 code: ref code,
-                appending_logs: _,
+                ..
             }) => {
-                Ok(code.as_ref().unwrap().as_slice())
+                Ok(code.as_slice())
             },
             Some(&Account::Code {
                 code: ref code,
+                ..
             }) => {
-                Ok(code.as_ref().unwrap().as_slice())
+                Ok(code.as_slice())
             },
             _ => {
-                Err(ExecutionResult::RequireAccountCode(address))
+                Err(ExecutionError::RequireAccountCode(address))
             }
         }
     }
 
     fn account_balance(&self, address: Address) -> ExecutionResult<M256> {
-        match self.accounts_get(&address) {
+        match self.accounts.get(&address) {
             Some(&Account::Full {
-                address: _,
                 balance: balance,
-                storage: _,
-                code: _,
-                appending_logs: _,
+                ..
             }) => {
                 Ok(balance)
             },
             _ => {
-                Err(ExecutionResult::RequireAccount(address))
+                Err(ExecutionError::RequireAccount(address))
+            }
+        }
+    }
+
+    fn account_storage(&self, address: Address) -> ExecutionResult<&S> {
+        match self.accounts.get(&address) {
+            Some(&Account::Full {
+                storage: ref storage,
+                ..
+            }) => {
+                Ok(storage)
+            },
+            _ => {
+                Err(ExecutionError::RequireAccount(address))
+            }
+        }
+    }
+
+    fn account_storage_mut(&mut self, address: Address) -> ExecutionResult<&mut S> {
+        match self.accounts.get_mut(&address) {
+            Some(&mut Account::Full {
+                storage: ref mut storage,
+                ..
+            }) => {
+                Ok(storage)
+            },
+            _ => {
+                Err(ExecutionError::RequireAccount(address))
             }
         }
     }
@@ -236,7 +275,7 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;
-        let (gas, agg) = gas_cost(opcode, &self, aggregrator);
+        let (gas, agg) = gas_cost(opcode, &self, aggregrator)?;
         Ok(gas)
     }
 
@@ -257,16 +296,15 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
         let opcode = trr!(self.pc.read_opcode(), __);
         let available_gas = self.available_gas();
-        let cost_aggregrator = self.state.cost_aggregrator();
-        let (gas, agg) = trr!(gas_cost(opcode, &mut self.state,
-                                       available_gas, cost_aggregrator), __);
-        let refunded = trr!(gas_refund(opcode, &mut self.state), __);
+        let cost_aggregrator = self.cost_aggregrator;
+        let (gas, agg) = trr!(gas_cost(opcode, &mut self, cost_aggregrator), __);
+        let refunded = trr!(gas_refund(opcode, &mut self), __);
 
         if gas > self.available_gas() {
             trr!(Err(ExecutionError::EmptyGas), __);
         }
 
-        trr!(opcode.run(&mut self.state, available_gas - gas), __);
+        trr!(run_opcode(opcode, &mut self, available_gas - gas), __);
 
         self.cost_aggregrator = agg;
         self.used_gas = self.used_gas + gas;

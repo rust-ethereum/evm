@@ -54,9 +54,9 @@ fn memory_cost(a: Gas) -> Gas {
 fn sstore_cost<M: Memory, S: Storage>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let index = machine.stack().peek(0)?;
     let value = machine.stack().peek(1)?;
-    let address = machine.transaction().callee();
+    let address = machine.owner();
 
-    if value != M256::zero() && machine.block().account_storage(address, index) == M256::zero() {
+    if value != M256::zero() && machine.account_storage(address)?.read(index)? == M256::zero() {
         Ok(G_SSET.into())
     } else {
         Ok(G_SRESET.into())
@@ -193,46 +193,43 @@ fn memory_gas_cost<M: Memory, S: Storage>(opcode: Opcode, machine: &Machine<M, S
 pub fn gas_cost<M: Memory, S: Storage>(opcode: Opcode, machine: &Machine<M, S>,
                                        aggregrator: CostAggregrator)
                             -> ExecutionResult<(Gas, CostAggregrator)> {
-    let ref stack = machine.stack();
-    let ref memory = machine.memory();
-
     let self_cost: Gas = match opcode {
         Opcode::CALL | Opcode::CALLCODE |
-        Opcode::DELEGATECALL => call_cost(machine, available_gas)?,
+        Opcode::DELEGATECALL => call_cost(machine, machine.available_gas())?,
         Opcode::SUICIDE => suicide_cost(machine)?,
         Opcode::SSTORE => sstore_cost(machine)?,
 
         Opcode::SHA3 => {
-            let len = stack.peek(1)?;
+            let len = machine.stack.peek(1)?;
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
             (Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::LOG(v) => {
-            let len = stack.peek(1)?;
+            let len = machine.stack.peek(1)?;
             (Gas::from(G_LOG) + Gas::from(G_LOGDATA) * Gas::from(len) + Gas::from(G_LOGTOPIC) * Gas::from(v)).into()
         },
 
         Opcode::EXTCODECOPY => {
-            let len = stack.peek(2)?;
+            let len = machine.stack.peek(2)?;
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
             (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::CALLDATACOPY | Opcode::CODECOPY => {
-            let len = stack.peek(2)?;
+            let len = machine.stack.peek(2)?;
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
             (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::EXP => {
-            if stack.peek(1)? == M256::zero() {
+            if machine.stack.peek(1)? == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(if machine.eip160() { G_EXPBYTE_EIP160 } else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(stack.peek(1)?.log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + Gas::from(if machine.eip160() { G_EXPBYTE_EIP160 } else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(machine.stack.peek(1)?.log2floor()) / Gas::from(8u64))
             }
         }
 
@@ -290,9 +287,9 @@ pub fn gas_refund<M: Memory, S: Storage>(opcode: Opcode, machine: &Machine<M, S>
         Opcode::SSTORE => {
             let index = machine.stack().peek(0)?;
             let value = machine.stack().peek(1)?;
-            let address = machine.transaction().callee();
+            let address = machine.owner();
 
-            if value == M256::zero() && machine.block().account_storage(address, index) != M256::zero() {
+            if value == M256::zero() && machine.account_storage(address)?.read(index)? != M256::zero() {
                 Ok(Gas::from(R_SCLEAR))
             } else {
                 Ok(Gas::zero())

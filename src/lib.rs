@@ -20,16 +20,16 @@ pub use utils::address::Address;
 pub use utils::opcode::Opcode;
 pub use utils::read_hex;
 
-use std::io::BufReader;
-use log::LogLevel;
-use vm::{Machine};
-use ffi::{JSONVectorBlock, create_block, create_transaction};
-use serde_json::{Value, Error};
-use libc::{size_t, uint8_t};
+// use std::io::BufReader;
+// use log::LogLevel;
+// use vm::{Machine};
+// use ffi::{JSONVectorBlock, create_block, create_transaction};
+// use serde_json::{Value, Error};
+// use libc::{size_t, uint8_t};
 
-use std::os::raw::c_char;
-use std::str::FromStr;
-use std::ffi::CStr;
+// use std::os::raw::c_char;
+// use std::str::FromStr;
+// use std::ffi::CStr;
 
 // #[repr(C)]
 // pub struct SputnikVM {
