@@ -535,8 +535,20 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::BLOCKHASH => {
             will_pop_push!(machine, 1, 1);
 
-            // TODO: use ExecutionError::RequireBlockhash
-            unimplemented!()
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let number = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(number).unwrap();
+            }, __);
+
+            let current_number = machine.block.number;
+            if number >= current_number || current_number - number > M256::from(256u64) {
+                machine.stack.push(M256::zero()).unwrap();
+            } else {
+                let blockhash = trr!(machine.blockhash(number), __);
+                machine.stack.push(blockhash).unwrap();
+            }
+            end_rescuable!(__);
         },
 
         Opcode::COINBASE => {

@@ -33,6 +33,7 @@ pub enum ExecutionError {
     CodeTooLarge,
     RequireAccount(Address),
     RequireAccountCode(Address),
+    RequireBlockhash(M256),
     Stopped
 }
 
@@ -47,6 +48,10 @@ pub enum Commitment<S> {
     Code {
         address: Address,
         code: Vec<u8>,
+    },
+    Blockhash {
+        number: M256,
+        hash: M256,
     },
 }
 
@@ -69,6 +74,7 @@ pub struct Machine<M, S> {
     cost_aggregrator: CostAggregrator,
     return_values: Vec<u8>,
     accounts: hash_map::HashMap<Address, Account<S>>,
+    blockhashes: hash_map::HashMap<M256, M256>,
     valid_pc: bool,
     used_gas: Gas,
     refunded_gas: Gas,
@@ -89,6 +95,7 @@ impl<M: Memory + Default, S: Storage> Machine<M, S> {
             cost_aggregrator: CostAggregrator::default(),
             return_values: Vec::new(),
             accounts: hash_map::HashMap::new(),
+            blockhashes: hash_map::HashMap::new(),
             valid_pc: false,
             used_gas: Gas::zero(),
             refunded_gas: Gas::zero(),
@@ -216,7 +223,17 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
                     address: address,
                     code: code
                 });
-            }
+            },
+            Commitment::Blockhash {
+                number: number,
+                hash: hash,
+            } => {
+                if self.blockhashes.contains_key(&number) {
+                    return Err(CommitError::AlreadyCommitted);
+                }
+
+                self.blockhashes.insert(number, hash);
+            },
         }
         Ok(())
     }
@@ -344,6 +361,13 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
             _ => {
                 Err(ExecutionError::RequireAccount(address))
             }
+        }
+    }
+
+    fn blockhash(&mut self, number: M256) -> ExecutionResult<M256> {
+        match self.blockhashes.get(&number) {
+            Some(val) => Ok(*val),
+            None => Err(ExecutionError::RequireBlockhash(number)),
         }
     }
 

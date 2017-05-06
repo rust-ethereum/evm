@@ -12,7 +12,6 @@ mod utils;
 
 pub use utils::bigint::{U256, M256, MI256};
 pub use utils::gas::Gas;
-pub use utils::hash::H256;
 pub use utils::address::Address;
 pub use utils::opcode::Opcode;
 pub use utils::read_hex;

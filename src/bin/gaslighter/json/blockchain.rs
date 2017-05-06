@@ -1,4 +1,4 @@
-use sputnikvm::{Gas, H256, M256, U256, Address, read_hex};
+use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::{Machine, Log, Transaction,
                     Account, HashMapStorage, Commitment,
                     BlockHeader};
