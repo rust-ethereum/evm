@@ -5,7 +5,20 @@ use utils::bigint::{M256, U256};
 
 use super::{ExecutionResult, ExecutionError};
 
-#[derive(Debug, Clone)]
+pub enum AccountCommitment<S> {
+    Full {
+        nonce: M256,
+        address: Address,
+        balance: U256,
+        storage: S,
+        code: Vec<u8>,
+    },
+    Code {
+        address: Address,
+        code: Vec<u8>,
+    },
+}
+
 pub enum Account<S> {
     Full {
         nonce: M256,
@@ -13,14 +26,26 @@ pub enum Account<S> {
         balance: U256,
         storage: S,
         code: Vec<u8>,
-        appending_logs: Vec<Log>,
+        appending_logs: Vec<u8>,
     },
-    Code {
-        address: Address,
-        code: Vec<u8>,
-    },
-    Remove(Address),
-    Topup(Address, U256),
+    IncreaseBalance(Address, U256),
+    DecreaseBalance(Address, U256),
+}
+
+pub struct AccountState<S> {
+    accounts: hash_map::HashMap<Address, Account<S>>,
+    codes: hash_map::HashMap<Address, Vec<u8>>,
+}
+
+impl<S: Storage> AccountState<S> {
+    pub fn commit(commitment: AccountCommitment<S>) -> CommitError<()> {
+
+    }
+
+    // Getter: code, nonce, balance, storage, storage_mut
+    // Modifier: increase_balance, decrease_balance
+    // Modifier: set_nonce
+    // Modifier: append_log
 }
 
 impl<S: Storage> Account<S> {

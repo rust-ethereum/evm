@@ -10,6 +10,18 @@ pub struct BlockHeader {
     pub gas_limit: Gas
 }
 
+pub struct ExecutionContext {
+    address,
+    caller,
+    code,
+    data,
+    gas,
+    gas_price,
+    origin,
+    value,
+    depth,
+} // Transaction => ExecutionContext
+
 pub enum Transaction {
     MessageCall {
         gas_price: Gas,

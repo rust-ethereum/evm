@@ -37,25 +37,6 @@ pub enum ExecutionError {
     Stopped
 }
 
-#[derive(Clone)]
-pub enum Commitment<S> {
-    Full {
-        address: Address,
-        balance: U256,
-        storage: S,
-        code: Vec<u8>,
-        nonce: M256,
-    },
-    Code {
-        address: Address,
-        code: Vec<u8>,
-    },
-    Blockhash {
-        number: M256,
-        hash: M256,
-    },
-}
-
 #[derive(Debug)]
 pub enum CommitError {
     AlreadyCommitted,
@@ -66,27 +47,39 @@ pub type ExecutionResult<T> = ::std::result::Result<T, ExecutionError>;
 
 pub type SeqMachine = Machine<SeqMemory, HashMapStorage>;
 
-pub struct Machine<M, S> {
+pub trait Machine {
+    step,
+    peek_cost,
+    fire
+}
+
+pub struct TransactionMachine<M, S> {
+    transaction: Transaction,
+    machine: Option<ContextMachine<M, S>>
+}
+
+pub struct ContextMachine<M, S> {
     pc: PC,
     memory: M,
     stack: Stack,
-    transaction: Transaction,
-    block: BlockHeader,
     cost_aggregrator: CostAggregrator,
     return_values: Vec<u8>,
-    accounts: hash_map::HashMap<Address, Account<S>>,
+
+    context: ExecutionContext,
+    block: BlockHeader,
+
+    account_state: AccountState,
     blockhashes: hash_map::HashMap<M256, M256>,
-    valid_pc: bool,
+
     used_gas: Gas,
     refunded_gas: Gas,
-    depth: usize,
 
     homestead: bool,
     eip150: bool,
     eip160: bool,
 }
 
-impl<M: Memory + Default, S: Storage> Machine<M, S> {
+impl<M: Memory + Default, S: Storage> ContextMachine<M, S> {
     pub fn new(transaction: Transaction, block: BlockHeader) -> Self {
         Machine::with_depth(transaction, block, 1)
     }
@@ -193,7 +186,11 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 
 
-    pub fn commit(&mut self, commitment: Commitment<S>) -> Result<(), CommitError> {
+    pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
+
+    }
+
+    pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
         match commitment {
             Commitment::Full {
                 address: address,
