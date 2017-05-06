@@ -57,7 +57,7 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
 pub fn debug_transaction(v: &Value) {
     let mut block = create_block(v);
     let mut machine = create_machine(v, &block);
-    let owner = machine.owner();
+    let owner = machine.owner().unwrap();
     machine.commit(block.request_account(owner));
     let mut rl = Editor::<()>::new();
 

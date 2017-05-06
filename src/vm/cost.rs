@@ -55,7 +55,7 @@ fn sstore_cost<M: Memory + Default,
                S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let index = machine.stack().peek(0)?;
     let value = machine.stack().peek(1)?;
-    let address = machine.owner();
+    let address = machine.owner()?;
 
     if value != M256::zero() && machine.account_storage(address)?.read(index)? == M256::zero() {
         Ok(G_SSET.into())
@@ -298,7 +298,7 @@ pub fn gas_refund<M: Memory + Default,
         Opcode::SSTORE => {
             let index = machine.stack().peek(0)?;
             let value = machine.stack().peek(1)?;
-            let address = machine.owner();
+            let address = machine.owner()?;
 
             if value == M256::zero() && machine.account_storage(address)?.read(index)? != M256::zero() {
                 Ok(Gas::from(R_SCLEAR))

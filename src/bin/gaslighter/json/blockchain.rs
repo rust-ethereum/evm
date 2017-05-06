@@ -11,6 +11,7 @@ pub struct JSONBlock {
     codes: HashMap<Address, Vec<u8>>,
     balances: HashMap<Address, U256>,
     storages: HashMap<Address, HashMap<M256, M256>>,
+    nonces: HashMap<Address, M256>,
 
     coinbase: Address,
     timestamp: M256,
@@ -35,9 +36,9 @@ impl JSONBlock {
     }
 
     pub fn request_account(&self, address: Address) -> Commitment<HashMapStorage> {
-        let balance = self.balances.get(&address).and_then(|i| Some(i.clone())).unwrap_or(U256::zero());
-        let vec_default = Vec::new();
-        let code = self.codes.get(&address).unwrap_or(&vec_default);
+        let balance = self.balance(address);
+        let code = self.account_code(address);
+        let nonce = self.account_nonce(address);
         let hashmap_default = HashMap::new();
         let storage = self.storages.get(&address).unwrap_or(&hashmap_default);
 
@@ -45,7 +46,8 @@ impl JSONBlock {
             address: address,
             balance: balance,
             storage: storage.clone().into(),
-            code: code.clone(),
+            code: code.into(),
+            nonce: nonce
         }
     }
 
@@ -67,6 +69,7 @@ impl JSONBlock {
                 storage: storage,
                 code: code,
                 appending_logs: logs,
+                nonce: nonce,
             } => {
                 self.set_balance(address, balance);
                 self.set_account_code(address, code.as_slice());
@@ -74,6 +77,7 @@ impl JSONBlock {
                 for log in logs {
                     self.logs.push((address, log));
                 }
+                self.set_account_nonce(address, nonce);
             },
             Account::Code {
                 ..
@@ -108,6 +112,14 @@ impl JSONBlock {
 
     pub fn gas_limit(&self) -> Gas {
         self.gas_limit
+    }
+
+    pub fn account_nonce(&self, address: Address) -> M256 {
+        self.nonces.get(&address).map_or(M256::zero(), |s| (*s).into())
+    }
+
+    pub fn set_account_nonce(&mut self, address: Address, nonce: M256) {
+        self.nonces.insert(address, nonce);
     }
 
     pub fn account_code(&self, address: Address) -> &[u8] {
@@ -172,6 +184,7 @@ pub fn create_block(v: &Value) -> JSONBlock {
             balances: HashMap::new(),
             storages: HashMap::new(),
             codes: HashMap::new(),
+            nonces: HashMap::new(),
 
             coinbase: Address::from_str(current_coinbase).unwrap(),
             difficulty: M256::from_str(current_difficulty).unwrap(),

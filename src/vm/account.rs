@@ -8,6 +8,7 @@ use super::{ExecutionResult, ExecutionError};
 #[derive(Debug, Clone)]
 pub enum Account<S> {
     Full {
+        nonce: M256,
         address: Address,
         balance: U256,
         storage: S,
@@ -27,14 +28,11 @@ impl<S: Storage> Account<S> {
         match self {
             &Account::Full {
                 address: address,
-                balance: _,
-                storage: _,
-                code: _,
-                appending_logs: _,
+                ..
             } => address,
             &Account::Code {
                 address: address,
-                code: _,
+                ..
             } => address,
             &Account::Remove(address) => address,
             &Account::Topup(address, _) => address,

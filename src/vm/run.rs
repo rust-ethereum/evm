@@ -283,8 +283,10 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::ADDRESS => {
             will_pop_push!(machine, 0, 1);
 
-            let address = machine.owner();
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let address = trr!(machine.owner(), __);
             machine.stack.push(address.into()).unwrap();
+            end_rescuable!(__);
         },
 
         Opcode::BALANCE => {
@@ -647,7 +649,7 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(op1).unwrap();
             }, __);
 
-            let from = machine.owner();
+            let from = trr!(machine.owner(), __);
             let val = trr!(machine.account_storage(from).and_then(|storage| storage.read(op1)), __);
             machine.stack.push(val).unwrap();
         },
@@ -663,7 +665,7 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(op1).unwrap();
             }, __);
 
-            let from = machine.owner();
+            let from = trr!(machine.owner(), __);
             trr!(machine.account_storage_mut(from).and_then(|storage| storage.write(op1, op2)), __);
             end_rescuable!(__);
         }
@@ -761,7 +763,7 @@ pub fn run_opcode<M: Memory + Default,
             will_pop_push!(machine, v+2, 0);
 
             begin_rescuable!(machine, &mut Machine<M, S>, __);
-            let address = machine.owner();
+            let address = trr!(machine.owner(), __);
             let mut data: Vec<u8> = Vec::new();
             let mut start = machine.stack.pop().unwrap();
             let start0 = start;
@@ -793,46 +795,56 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::CREATE => {
             will_pop_push!(machine, 3, 1);
 
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let value = machine.stack.pop().unwrap();
+            let init_start = machine.stack.pop().unwrap();
+            let init_len = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(init_len);
+                machine.stack.push(init_start);
+                machine.stack.push(value);
+            }, __);
+            let init_end = init_start + init_len;
+            if init_end < init_start {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
+
+            let mut init: Vec<u8> = Vec::new();
+            let mut i = init_start;
+            while i < init_end {
+                init.push(trr!(machine.memory.read_raw(i), __));
+                i = i + M256::from(1u64);
+            }
+
+            let owner = trr!(machine.owner(), __);
+            let gas_limit = machine.available_gas() -
+                machine.available_gas() / Gas::from(64u64);
+            machine.account_nonce_inc(owner);
+            on_rescue!(|machine| {
+                machine.account_nonce_dec(owner);
+            }, __);
+            let transaction = Transaction::ContractCreation {
+                gas_price: machine.transaction().gas_price(),
+                gas_limit: gas_limit,
+                originator: machine.transaction().originator(),
+                caller: owner,
+                value: value,
+                init: init,
+            };
+
             unimplemented!()
         },
 
         Opcode::CALL => {
             will_pop_push!(machine, 7, 1);
 
-            let gas: Gas = machine.stack.pop().unwrap().into();
-            let from = machine.owner();
-            let to: Address = machine.stack.pop().unwrap().into();
-            let value = machine.stack.pop().unwrap().into();
-            let memory_in_start = machine.stack.pop().unwrap();
-            let memory_in_len = machine.stack.pop().unwrap();
-            let memory_out_start = machine.stack.pop().unwrap();
-            let memory_out_len = machine.stack.pop().unwrap();
-
-            let ret = call_code(machine, gas, from, to, value,
-                                memory_in_start, memory_in_len,
-                                memory_out_start, memory_out_len);
-
-            machine.stack.push(ret).unwrap();
+            unimplemented!()
         },
 
         Opcode::CALLCODE => {
             will_pop_push!(machine, 7, 1);
 
-            let gas: Gas = machine.stack.pop().unwrap().into();
-            machine.stack.pop().unwrap();
-            let from = machine.owner();
-            let to = machine.owner();
-            let value = machine.stack.pop().unwrap().into();
-            let memory_in_start = machine.stack.pop().unwrap();
-            let memory_in_len = machine.stack.pop().unwrap();
-            let memory_out_start = machine.stack.pop().unwrap();
-            let memory_out_len = machine.stack.pop().unwrap();
-
-            let ret = call_code(machine, gas, from, to, value,
-                                memory_in_start, memory_in_len,
-                                memory_out_start, memory_out_len);
-
-            machine.stack.push(ret).unwrap();
+            unimplemented!()
         },
 
         Opcode::RETURN => {
@@ -890,7 +902,7 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(address).unwrap();
             }, __);
             let address: Address = address.into();
-            let owner = machine.owner();
+            let owner = trr!(machine.owner(), __);
 
             let balance = trr!(machine.account_balance(owner), __);
             trr!(machine.account_balance_topup(address, balance), __);

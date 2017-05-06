@@ -44,6 +44,7 @@ pub enum Commitment<S> {
         balance: U256,
         storage: S,
         code: Vec<u8>,
+        nonce: M256,
     },
     Code {
         address: Address,
@@ -150,8 +151,8 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         self.cost_aggregrator.active_memory_len()
     }
 
-    pub fn owner(&self) -> Address {
-        match self.transaction {
+    pub fn owner(&self) -> ExecutionResult<Address> {
+        Ok(match self.transaction {
             Transaction::MessageCall {
                 to: to,
                 ..
@@ -159,7 +160,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
             Transaction::ContractCreation {
                 ..
             } => unimplemented!(),
-        }
+        })
     }
 
     pub fn available_gas(&self) -> Gas {
@@ -199,17 +200,14 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
                 balance: balance,
                 storage: storage,
                 code: code,
+                nonce: nonce,
             } => {
                 if self.accounts.contains_key(&address) {
                     return Err(CommitError::AlreadyCommitted);
                 }
 
-                if address == self.owner() {
-                    self.pc = PC::new(code.as_slice());
-                    self.valid_pc = true;
-                }
-
                 self.accounts.insert(address, Account::Full {
+                    nonce: nonce,
                     address: address,
                     balance: balance,
                     storage: storage,
@@ -240,6 +238,28 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
                 self.blockhashes.insert(number, hash);
             },
+        }
+
+        let owner = self.owner();
+        if !self.valid_pc && owner.is_ok() {
+            let owner = owner.ok().unwrap();
+            match self.accounts.get(&owner) {
+                Some(&Account::Full {
+                    code: ref code,
+                    ..
+                }) => {
+                    self.pc = PC::new(code.as_slice());
+                    self.valid_pc = true;
+                },
+                Some(&Account::Code {
+                    code: ref code,
+                    ..
+                }) => {
+                    self.pc = PC::new(code.as_slice());
+                    self.valid_pc = true;
+                },
+                _ => (),
+            }
         }
         Ok(())
     }
@@ -282,6 +302,76 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         }
     }
 
+    fn account_nonce(&self, address: Address) -> ExecutionResult<M256> {
+        match self.accounts.get(&address) {
+            Some(&Account::Full {
+                nonce: nonce,
+                ..
+            }) => {
+                Ok(nonce)
+            },
+            _ => {
+                Err(ExecutionError::RequireAccount(address))
+            }
+        }
+    }
+
+    fn account_nonce_inc(&mut self, address: Address) -> ExecutionResult<()> {
+        let account = match self.accounts.remove(&address) {
+            Some(Account::Full {
+                address: address,
+                balance: balance,
+                storage: storage,
+                code: code,
+                appending_logs: appending_logs,
+                nonce: nonce,
+            }) => {
+                Account::Full {
+                    address: address,
+                    balance: balance,
+                    storage: storage,
+                    code: code,
+                    appending_logs: appending_logs,
+                    nonce: nonce + M256::from(1u64),
+                }
+            },
+            Some(Account::Remove(address)) => panic!(),
+            _ => {
+                return Err(ExecutionError::RequireAccount(address));
+            }
+        };
+        self.accounts.insert(address, account);
+        Ok(())
+    }
+
+    fn account_nonce_dec(&mut self, address: Address) -> ExecutionResult<()> {
+        let account = match self.accounts.remove(&address) {
+            Some(Account::Full {
+                address: address,
+                balance: balance,
+                storage: storage,
+                code: code,
+                appending_logs: appending_logs,
+                nonce: nonce,
+            }) => {
+                Account::Full {
+                    address: address,
+                    balance: balance,
+                    storage: storage,
+                    code: code,
+                    appending_logs: appending_logs,
+                    nonce: nonce - M256::from(1u64),
+                }
+            },
+            Some(Account::Remove(address)) => panic!(),
+            _ => {
+                return Err(ExecutionError::RequireAccount(address));
+            }
+        };
+        self.accounts.insert(address, account);
+        Ok(())
+    }
+
     fn account_balance(&self, address: Address) -> ExecutionResult<U256> {
         match self.accounts.get(&address) {
             Some(&Account::Full {
@@ -304,6 +394,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
                 storage: storage,
                 code: code,
                 appending_logs: appending_logs,
+                nonce: nonce,
             }) => {
                 Account::Full {
                     address: address,
@@ -311,6 +402,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
                     storage: storage,
                     code: code,
                     appending_logs: appending_logs,
+                    nonce: nonce,
                 }
             },
             Some(Account::Code {
@@ -320,6 +412,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
             }
             Some(Account::Remove(address)) => {
                 Account::Full {
+                    nonce: M256::zero(),
                     address: address,
                     balance: topup,
                     storage: S::default(),
@@ -380,7 +473,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
     pub fn peek_cost(&self) -> ExecutionResult<Gas> {
         if !self.valid_pc {
-            return Err(ExecutionError::RequireAccount(self.owner()));
+            return Err(ExecutionError::RequireAccount(self.owner()?));
         }
 
         let opcode = self.pc.peek_opcode()?;
@@ -391,7 +484,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
     pub fn step(&mut self) -> ExecutionResult<()> {
         if !self.valid_pc {
-            return Err(ExecutionError::RequireAccount(self.owner()));
+            return Err(ExecutionError::RequireAccount(self.owner()?));
         }
 
         begin_rescuable!(self, &mut Self, __);
