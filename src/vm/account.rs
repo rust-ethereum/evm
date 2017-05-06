@@ -42,63 +42,6 @@ impl<S: Storage> Account<S> {
     }
 }
 
-impl<S: Storage> From<Commitment<S>> for Account<S> {
-    fn from(val: Commitment<S>) -> Account<S> {
-        match val {
-            Commitment::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-            } => Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                appending_logs: Vec::new(),
-            },
-            Commitment::Code {
-                address: address,
-                code: code,
-            } => Account::Code {
-                address: address,
-                code: code,
-            },
-        }
-    }
-}
-
-#[derive(Clone)]
-pub enum Commitment<S> {
-    Full {
-        address: Address,
-        balance: U256,
-        storage: S,
-        code: Vec<u8>,
-    },
-    Code {
-        address: Address,
-        code: Vec<u8>,
-    },
-}
-
-impl<S: Storage> Commitment<S> {
-    pub fn address(&self) -> Address {
-        match self {
-            &Commitment::Full {
-                address: address,
-                balance: _,
-                storage: _,
-                code: _,
-            } => address,
-            &Commitment::Code {
-                address: address,
-                code: _,
-            } => address,
-        }
-    }
-}
-
 pub trait Storage {
     fn read(&self, index: M256) -> ExecutionResult<M256>;
     fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()>;

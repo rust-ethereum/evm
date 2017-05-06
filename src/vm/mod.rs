@@ -10,7 +10,7 @@ pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::PC;
 pub use self::params::{BlockHeader, Transaction};
-pub use self::account::{Commitment, Account, Storage, HashMapStorage, Log};
+pub use self::account::{Account, Storage, HashMapStorage, Log};
 
 use self::cost::{gas_cost, gas_refund, CostAggregrator};
 use self::run::run_opcode;
@@ -34,6 +34,20 @@ pub enum ExecutionError {
     RequireAccount(Address),
     RequireAccountCode(Address),
     Stopped
+}
+
+#[derive(Clone)]
+pub enum Commitment<S> {
+    Full {
+        address: Address,
+        balance: U256,
+        storage: S,
+        code: Vec<u8>,
+    },
+    Code {
+        address: Address,
+        code: Vec<u8>,
+    },
 }
 
 #[derive(Debug)]
@@ -166,26 +180,44 @@ impl<M: Memory, S: Storage> Machine<M, S> {
 
 
     pub fn commit(&mut self, commitment: Commitment<S>) -> Result<(), CommitError> {
-        let account: Account<S> = commitment.into();
-        let address = account.address();
-        if self.accounts.contains_key(&address) {
-            return Err(CommitError::AlreadyCommitted);
-        }
+        match commitment {
+            Commitment::Full {
+                address: address,
+                balance: balance,
+                storage: storage,
+                code: code,
+            } => {
+                if self.accounts.contains_key(&address) {
+                    return Err(CommitError::AlreadyCommitted);
+                }
 
-        if address == self.owner() {
-            match account {
-                Account::Full {
-                    code: ref code,
-                    ..
-                } => {
+                if address == self.owner() {
                     self.pc = PC::new(code.as_slice());
                     self.valid_pc = true;
-                },
-                _ => (),
+                }
+
+                self.accounts.insert(address, Account::Full {
+                    address: address,
+                    balance: balance,
+                    storage: storage,
+                    code: code,
+                    appending_logs: Vec::new(),
+                });
+            },
+            Commitment::Code {
+                address: address,
+                code: code,
+            } => {
+                if self.accounts.contains_key(&address) {
+                    return Err(CommitError::AlreadyCommitted);
+                }
+
+                self.accounts.insert(address, Account::Code {
+                    address: address,
+                    code: code
+                });
             }
         }
-
-        self.accounts.insert(address, account);
         Ok(())
     }
 
