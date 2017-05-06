@@ -75,7 +75,18 @@ impl JSONBlock {
                     self.logs.push((address, log));
                 }
             },
-            _ => unimplemented!(),
+            Account::Code {
+                ..
+            } => (),
+            Account::Topup(address, topup) => {
+                let balance = self.balance(address);
+                self.set_balance(address, balance + topup);
+            },
+            Account::Remove(address) => {
+                self.codes.remove(&address);
+                self.storages.remove(&address);
+                self.balances.remove(&address);
+            },
         }
     }
 

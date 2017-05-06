@@ -9,7 +9,8 @@ use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
-fn call_code<M: Memory, S: Storage>(
+fn call_code<M: Memory + Default,
+             S: Storage + Default>(
     machine: &mut Machine<M, S>, gas: Gas, from: Address, to: Address, value: M256,
     mut memory_in_start: M256, memory_in_len: M256,
     mut memory_out_start: M256, memory_out_len: M256) -> M256 {
@@ -57,7 +58,8 @@ macro_rules! op2_ref {
     })
 }
 
-pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
+pub fn run_opcode<M: Memory + Default,
+                  S: Storage + Default>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
                                          -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
     // running function. Anything that might fail after the stack
@@ -856,8 +858,19 @@ pub fn run_opcode<M: Memory, S: Storage>(opcode: Opcode, machine: &mut Machine<M
         Opcode::SUICIDE => {
             will_pop_push!(machine, 1, 0);
 
-            machine.stack.pop().unwrap();
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let address = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(address).unwrap();
+            }, __);
+            let address: Address = address.into();
+            let owner = machine.owner();
+
+            let balance = trr!(machine.account_balance(owner), __);
+            trr!(machine.account_balance_topup(address, balance), __);
+            machine.account_remove(owner);
             machine.pc.stop();
+            end_rescuable!(__);
         },
 
         Opcode::INVALID => {
