@@ -100,7 +100,7 @@ impl<M: Memory + Default, S: Storage> Machine<M, S> {
     }
 }
 
-impl<M: Memory, S: Storage> Machine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     pub fn pc(&self) -> Option<&PC> {
         if self.valid_pc {
             Some(&self.pc)
@@ -271,6 +271,52 @@ impl<M: Memory, S: Storage> Machine<M, S> {
                 Err(ExecutionError::RequireAccount(address))
             }
         }
+    }
+
+    fn account_balance_topup(&mut self, address: Address, topup: U256) -> ExecutionResult<()> {
+        let account = match self.accounts.remove(&address) {
+            Some(Account::Full {
+                address: address,
+                balance: balance,
+                storage: storage,
+                code: code,
+                appending_logs: appending_logs,
+            }) => {
+                Account::Full {
+                    address: address,
+                    balance: balance + topup,
+                    storage: storage,
+                    code: code,
+                    appending_logs: appending_logs,
+                }
+            },
+            Some(Account::Code {
+                ..
+            }) => {
+                return Err(ExecutionError::RequireAccount(address));
+            }
+            Some(Account::Remove(address)) => {
+                Account::Full {
+                    address: address,
+                    balance: topup,
+                    storage: S::default(),
+                    code: Vec::new(),
+                    appending_logs: Vec::new(),
+                }
+            },
+            Some(Account::Topup(address, old_topup)) => {
+                Account::Topup(address, old_topup + topup)
+            },
+            None => {
+                Account::Topup(address, topup)
+            },
+        };
+        self.accounts.insert(address, account);
+        Ok(())
+    }
+
+    fn account_remove(&mut self, address: Address) {
+        self.accounts.insert(address, Account::Remove(address));
     }
 
     fn account_storage(&self, address: Address) -> ExecutionResult<&S> {
