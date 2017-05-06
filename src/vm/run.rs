@@ -870,6 +870,7 @@ pub fn run_opcode<M: Memory + Default,
             trr!(machine.account_balance_topup(address, balance), __);
             machine.account_remove(owner);
             machine.pc.stop();
+            end_rescuable!(__);
         },
 
         Opcode::INVALID => {

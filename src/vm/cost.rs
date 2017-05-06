@@ -118,7 +118,7 @@ fn new_cost<M: Memory + Default,
 
 fn suicide_cost<M: Memory + Default,
                 S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
-    let address: Address = machine.stack().peek(1)?.into();
+    let address: Address = machine.stack().peek(0)?.into();
     Ok(Gas::from(if machine.eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
     } else {
