@@ -364,6 +364,13 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         }
     }
 
+    fn blockhash(&mut self, number: M256) -> ExecutionResult<M256> {
+        match self.blockhashes.get(&number) {
+            Some(val) => Ok(*val),
+            None => Err(ExecutionError::RequireBlockhash(number)),
+        }
+    }
+
 
     pub fn peek_cost(&self) -> ExecutionResult<Gas> {
         if !self.valid_pc {
