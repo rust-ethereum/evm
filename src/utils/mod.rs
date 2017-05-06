@@ -1,6 +1,5 @@
 pub mod bigint;
 pub mod address;
-pub mod hash;
 pub mod gas;
 pub mod opcode;
 

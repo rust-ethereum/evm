@@ -4,7 +4,7 @@ pub use self::blockchain::{JSONBlock, create_block, create_transaction};
 
 use serde_json::Value;
 use std::str::FromStr;
-use sputnikvm::{Gas, H256, M256, U256, Address, read_hex};
+use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::{SeqMachine, ExecutionError, ExecutionResult, Transaction, Account, HashMapStorage};
 
 pub fn fire_with_block(machine: &mut SeqMachine, block: &JSONBlock) -> ExecutionResult<()> {
