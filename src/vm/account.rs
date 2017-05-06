@@ -5,7 +5,7 @@ use utils::bigint::{M256, U256};
 
 use super::{ExecutionResult, ExecutionError};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Account<S> {
     Full {
         address: Address,
@@ -47,7 +47,7 @@ pub trait Storage {
     fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()>;
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct HashMapStorage(hash_map::HashMap<M256, M256>);
 
 impl From<hash_map::HashMap<M256, M256>> for HashMapStorage {
