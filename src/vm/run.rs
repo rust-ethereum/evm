@@ -330,13 +330,11 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(start_index).unwrap();
             }, __);
 
-            if start_index > usize::max_value().into() {
-                trr!(Err(ExecutionError::DataTooLarge), __);
-            }
-            let start_index: usize = start_index.into();
-            if start_index.checked_add(32).is_none() {
-                trr!(Err(ExecutionError::DataTooLarge), __);
-            }
+            let start_index: Option<usize> = if start_index > usize::max_value().into() {
+                None
+            } else {
+                Some(start_index.into())
+            };
 
             let data: Vec<u8> = match machine.transaction() {
                 &Transaction::MessageCall {
@@ -353,8 +351,8 @@ pub fn run_opcode<M: Memory + Default,
             };
             let mut load: [u8; 32] = [0u8; 32];
             for i in 0..32 {
-                if start_index + i < data.len() {
-                    load[i] = data[start_index + i];
+                if start_index.is_some() && start_index.unwrap() + i < data.len() {
+                    load[i] = data[start_index.unwrap() + i];
                 }
             }
             machine.stack.push(load.into()).unwrap();
@@ -390,19 +388,21 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(memory_index).unwrap();
             }, __);
 
-            if data_index > usize::max_value().into() {
-                trr!(Err(ExecutionError::DataTooLarge), __);
-            }
-            let data_index: usize = data_index.into();
-
             if len > usize::max_value().into() {
                 trr!(Err(ExecutionError::DataTooLarge), __);
             }
             let len: usize = len.into();
 
-            if data_index.checked_add(len).is_none() {
-                trr!(Err(ExecutionError::DataTooLarge), __);
-            }
+            let data_index: Option<usize> = if data_index > usize::max_value().into() {
+                None
+            } else {
+                let data_index: usize = data_index.into();
+                if data_index.checked_add(len).is_none() {
+                    None
+                } else {
+                    Some(data_index.into())
+                }
+            };
 
             let data = match machine.transaction() {
                 &Transaction::MessageCall {
@@ -414,11 +414,11 @@ pub fn run_opcode<M: Memory + Default,
                 } => Vec::new(),
             };
             for i in 0..len {
-                if data_index + i < data.len() {
-                    let val = data[data_index + i];
-                    machine.memory.write_raw(memory_index + i.into(), val);
+                if data_index.is_some() && data_index.unwrap() + i < data.len() {
+                    let val = data[data_index.unwrap() + i];
+                    trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
                 } else {
-                    machine.memory.write_raw(memory_index + i.into(), 0);
+                    trr!(machine.memory.write_raw(memory_index + i.into(), 0), __);
                 }
             }
             end_rescuable!(__);
@@ -434,40 +434,43 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::CODECOPY => {
             will_pop_push!(machine, 1, 1);
 
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
             let memory_index = machine.stack.pop().unwrap();
             let code_index = machine.stack.pop().unwrap();
             let len = machine.stack.pop().unwrap();
-
-            let restore = |machine: &mut Machine<M, S>| {
+            on_rescue!(|machine| {
                 machine.stack.push(len).unwrap();
                 machine.stack.push(code_index).unwrap();
                 machine.stack.push(memory_index).unwrap();
-            };
-
-            if code_index > usize::max_value().into() {
-                restore(machine);
-                return Err(ExecutionError::CodeTooLarge);
-            }
-            let code_index: usize = code_index.into();
+            }, __);
 
             if len > usize::max_value().into() {
-                restore(machine);
-                return Err(ExecutionError::CodeTooLarge);
+                trr!(Err(ExecutionError::CodeTooLarge), __);
             }
             let len: usize = len.into();
 
-            if code_index.checked_add(len).is_none() {
-                restore(machine);
-                return Err(ExecutionError::CodeTooLarge);
-            }
+            let code_index: Option<usize> = if code_index > usize::max_value().into() {
+                None
+            } else {
+                let code_index: usize = code_index.into();
+                if code_index.checked_add(len).is_none() {
+                    None
+                } else {
+                    Some(code_index.into())
+                }
+            };
 
             for i in 0..len {
                 let code: Vec<u8> = machine.pc.code().into();
-                if code_index + i < code.len() {
-                    let val = code[code_index + i];
-                    machine.memory.write_raw(memory_index + i.into(), val);
+                if code_index.is_some() && code_index.unwrap() + i < code.len() {
+                    let val = code[code_index.unwrap() + i];
+                    trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
+                } else {
+                    let val: u8 = Opcode::STOP.into();
+                    trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
                 }
             }
+            end_rescuable!(__);
         },
 
         Opcode::GASPRICE => {
@@ -526,7 +529,7 @@ pub fn run_opcode<M: Memory + Default,
                 let code: Vec<u8> = trr!(machine.account_code(account).and_then(|code| Ok(code.into())), __);
                 if code_index + i < code.len() {
                     let val = code[code_index + i];
-                    machine.memory.write_raw(memory_index + i.into(), val);
+                    trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
                 }
             }
             end_rescuable!(__);
@@ -608,20 +611,31 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::MSTORE => {
             will_pop_push!(machine, 2, 0);
 
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
             let op1 = machine.stack.pop().unwrap(); // Index
             let op2 = machine.stack.pop().unwrap(); // Data
-            // u_i update is automatically handled by Memory.
-            machine.memory.write(op1, op2);
+            on_rescue!(|machine| {
+                machine.stack.push(op2).unwrap();
+                machine.stack.push(op1).unwrap();
+            }, __);
+            trr!(machine.memory.write(op1, op2), __);
+            end_rescuable!(__);
         },
 
         Opcode::MSTORE8 => {
             will_pop_push!(machine, 2, 0);
 
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
             let op1 = machine.stack.pop().unwrap(); // Index
             let op2 = machine.stack.pop().unwrap(); // Data
+            on_rescue!(|machine| {
+                machine.stack.push(op2).unwrap();
+                machine.stack.push(op1).unwrap();
+            }, __);
             let a: [u8; 32] = op2.into();
             let val = a[31];
-            machine.memory.write_raw(op1, val);
+            trr!(machine.memory.write_raw(op1, val), __);
+            end_rescuable!(__);
         },
 
         Opcode::SLOAD => {
