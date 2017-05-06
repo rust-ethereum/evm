@@ -78,6 +78,7 @@ pub struct Machine<M, S> {
     valid_pc: bool,
     used_gas: Gas,
     refunded_gas: Gas,
+    depth: usize,
 
     homestead: bool,
     eip150: bool,
@@ -86,6 +87,10 @@ pub struct Machine<M, S> {
 
 impl<M: Memory + Default, S: Storage> Machine<M, S> {
     pub fn new(transaction: Transaction, block: BlockHeader) -> Self {
+        Machine::with_depth(transaction, block, 1)
+    }
+
+    pub fn with_depth(transaction: Transaction, block: BlockHeader, depth: usize) -> Self {
         Self {
             pc: PC::default(),
             memory: M::default(),
@@ -99,6 +104,7 @@ impl<M: Memory + Default, S: Storage> Machine<M, S> {
             valid_pc: false,
             used_gas: Gas::zero(),
             refunded_gas: Gas::zero(),
+            depth: depth,
 
             homestead: false,
             eip150: false,
