@@ -17,7 +17,7 @@ pub struct Context {
     pub caller: Address,
     pub code: Vec<u8>,
     pub data: Vec<u8>,
-    pub gas: Gas,
+    pub gas_limit: Gas,
     pub gas_price: Gas,
     pub origin: Address,
     pub value: M256,

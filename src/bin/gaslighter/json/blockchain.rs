@@ -227,7 +227,7 @@ pub fn create_context(v: &Value) -> Context {
         caller: caller,
         code: code,
         data: data,
-        gas: gas,
+        gas_limit: gas,
         gas_price: gas_price,
         origin: origin,
         value: value,

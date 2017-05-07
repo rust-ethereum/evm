@@ -219,7 +219,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 
     pub fn available_gas(&self) -> Gas {
-        self.context.gas - self.used_gas
+        self.context.gas_limit - self.used_gas
     }
 
 
