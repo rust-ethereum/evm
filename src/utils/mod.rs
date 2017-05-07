@@ -2,6 +2,7 @@ pub mod bigint;
 pub mod address;
 pub mod gas;
 pub mod opcode;
+// pub mod rlp;
 
 #[derive(Debug)]
 pub enum ParseHexError {

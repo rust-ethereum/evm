@@ -1,22 +1,22 @@
 mod blockchain;
 
-pub use self::blockchain::{JSONBlock, create_block, create_transaction};
+pub use self::blockchain::{JSONBlock, create_block, create_context};
 
 use serde_json::Value;
 use std::str::FromStr;
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
-use sputnikvm::vm::{SeqMachine, Commitment, ExecutionError, ExecutionResult, Transaction, Account, HashMapStorage};
+use sputnikvm::vm::{VM, SeqMachine, AccountCommitment, Context, ExecutionError, ExecutionResult, Account, HashMapStorage};
 
 pub fn fire_with_block(machine: &mut SeqMachine, block: &JSONBlock) -> ExecutionResult<()> {
     loop {
         match machine.fire() {
             Err(ExecutionError::RequireAccount(address)) => {
                 let account = block.request_account(address);
-                machine.commit(account);
+                machine.commit_account(account);
             },
             Err(ExecutionError::RequireAccountCode(address)) => {
                 let account = block.request_account_code(address);
-                machine.commit(account);
+                machine.commit_account(account);
             },
             Err(ExecutionError::RequireBlockhash(number)) => {
                 // The test JSON file doesn't expose any block
@@ -35,10 +35,7 @@ pub fn fire_with_block(machine: &mut SeqMachine, block: &JSONBlock) -> Execution
                     return Err(ExecutionError::RequireBlockhash(number));
                 };
 
-                machine.commit(Commitment::Blockhash {
-                    number: number,
-                    hash: hash,
-                });
+                machine.commit_blockhash(number, hash);
             },
             out => { return out; },
         }
@@ -47,13 +44,17 @@ pub fn fire_with_block(machine: &mut SeqMachine, block: &JSONBlock) -> Execution
 
 pub fn apply_to_block(machine: &SeqMachine, block: &mut JSONBlock) {
     for account in machine.accounts() {
-        let account: Account<HashMapStorage> = (*account).clone();
+        let account = (*account).clone();
         block.apply_account(account);
+    }
+    for log in machine.appending_logs() {
+        let log = (*log).clone();
+        block.apply_log(log);
     }
 }
 
 pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqMachine {
-    let transaction = create_transaction(v);
+    let transaction = create_context(v);
 
     SeqMachine::new(transaction, block.block_header())
 }
