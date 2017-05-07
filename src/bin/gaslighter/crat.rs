@@ -2,7 +2,7 @@ use serde_json;
 use sputnikvm;
 
 use sputnikvm::{read_hex, Gas, M256, Address};
-use sputnikvm::vm::{Machine, Stack, PC};
+use sputnikvm::vm::{VM, Machine, Stack, PC};
 
 use super::json::{create_machine, create_block, test_machine, apply_to_block, fire_with_block};
 
@@ -57,8 +57,8 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
 pub fn debug_transaction(v: &Value) {
     let mut block = create_block(v);
     let mut machine = create_machine(v, &block);
-    let owner = machine.owner().unwrap();
-    machine.commit(block.request_account(owner));
+    let owner = machine.context().address;
+    machine.commit_account(block.request_account(owner));
     let mut rl = Editor::<()>::new();
 
     loop {
@@ -68,10 +68,10 @@ pub fn debug_transaction(v: &Value) {
                 rl.add_history_entry(&line);
                 match line.as_ref() {
                     "step" => {
-                        if machine.pc().unwrap().stopped() {
+                        if machine.pc().stopped() {
                             println!("Stopped");
                         } else {
-                            println!("Running {:?} ... {:?}.", machine.pc().unwrap().peek_opcode(),
+                            println!("Running {:?} ... {:?}.", machine.pc().peek_opcode(),
                                      machine.step());
                         }
                     },
@@ -80,8 +80,8 @@ pub fn debug_transaction(v: &Value) {
                         println!("{:?}", result);
                     },
                     "fire debug" => {
-                        while !machine.pc().unwrap().stopped() {
-                            println!("Running {:?} ...", machine.pc().unwrap().peek_opcode());
+                        while !machine.pc().stopped() {
+                            println!("Running {:?} ...", machine.pc().peek_opcode());
                             let gas = machine.peek_cost().unwrap();
                             if gas < Gas::from(u64::max_value()) {
                                 let gas: u64 = gas.into();

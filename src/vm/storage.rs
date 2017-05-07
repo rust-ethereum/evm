@@ -1,3 +1,8 @@
+use utils::bigint::M256;
+
+use super::{ExecutionResult, ExecutionError};
+use std::collections::hash_map;
+
 pub trait Storage {
     fn read(&self, index: M256) -> ExecutionResult<M256>;
     fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()>;

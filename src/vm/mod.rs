@@ -3,15 +3,18 @@ mod pc;
 mod memory;
 mod params;
 mod account;
+mod storage;
 mod cost;
 mod run;
 
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::PC;
-pub use self::params::{BlockHeader, Transaction};
-pub use self::account::{Account, Storage, HashMapStorage, Log};
+pub use self::params::{BlockHeader, Context, Patch, Log};
+pub use self::account::{Account, AccountCommitment};
+pub use self::storage::{Storage, HashMapStorage};
 
+use self::account::AccountState;
 use self::cost::{gas_cost, gas_refund, CostAggregrator};
 use self::run::run_opcode;
 use std::collections::hash_map;
@@ -49,13 +52,28 @@ pub type CommitResult<T> = ::std::result::Result<T, CommitError>;
 
 pub type SeqMachine = Machine<SeqMemory, HashMapStorage>;
 
-pub trait VM<S> {
-    fn step(&mut self) -> ExecutionResult<()>,
-    fn peek_cost(&self) -> ExecutionResult<Gas>,
-    fn fire(&mut self) -> ExecutionResult<()>,
+pub trait VM<S: Storage> {
+    fn step(&mut self) -> ExecutionResult<()>;
+    fn peek_cost(&self) -> ExecutionResult<Gas>;
+    fn fire(&mut self) -> ExecutionResult<()> {
+        loop {
+            let result = self.step();
 
-    fn commit_account(commitment: AccountCommitment<S>) -> CommitResult<()>;
-    fn commit_blockhash(number: M256, hash: M256) -> CommitResult<()>;
+            if result.is_err() {
+                match result.err().unwrap() {
+                    ExecutionError::Stopped => return Ok(()),
+                    err => return Err(err),
+                }
+            }
+        }
+    }
+
+    fn commit_account(&mut self, commitment: AccountCommitment<S>) -> CommitResult<()>;
+    fn commit_blockhash(&mut self, number: M256, hash: M256) -> CommitResult<()>;
+    fn accounts(&self) -> hash_map::Values<Address, Account<S>>;
+    fn appending_logs(&self) -> &[Log];
+
+    fn patch(&self) -> Patch;
 }
 
 pub struct Machine<M, S> {
@@ -65,156 +83,52 @@ pub struct Machine<M, S> {
     cost_aggregrator: CostAggregrator,
     return_values: Vec<u8>,
 
-    context: ExecutionContext,
+    context: Context,
     block: BlockHeader,
 
-    account_state: AccountState,
+    account_state: AccountState<S>,
     blockhashes: hash_map::HashMap<M256, M256>,
+    appending_logs: Vec<Log>,
 
     used_gas: Gas,
     refunded_gas: Gas,
 
-    homestead: bool,
-    eip150: bool,
-    eip160: bool,
-}
-
-impl<M: Memory + Default, S: Storage> ContextMachine<M, S> {
-    pub fn new(context: Context, block: BlockHeader) -> Self {
-        Self {
-            pc: PC::default(),
-            memory: M::default(),
-            stack: Stack::default(),
-            transaction: transaction,
-            block: block,
-            cost_aggregrator: CostAggregrator::default(),
-            return_values: Vec::new(),
-            accounts: hash_map::HashMap::new(),
-            blockhashes: hash_map::HashMap::new(),
-            valid_pc: false,
-            used_gas: Gas::zero(),
-            refunded_gas: Gas::zero(),
-            depth: depth,
-
-            homestead: false,
-            eip150: false,
-            eip160: false,
-        }
-    }
+    patch: Patch,
 }
 
 impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
-    pub fn pc(&self) -> Option<&PC> {
-        if self.valid_pc {
-            Some(&self.pc)
-        } else {
-            None
+    pub fn new(context: Context, block: BlockHeader) -> Self {
+        Self {
+            pc: PC::new(context.code.as_slice()),
+            memory: M::default(),
+            stack: Stack::default(),
+            cost_aggregrator: CostAggregrator::default(),
+            return_values: Vec::new(),
+
+            context: context,
+            block: block,
+
+            account_state: AccountState::default(),
+            blockhashes: hash_map::HashMap::new(),
+            appending_logs: Vec::new(),
+
+            used_gas: Gas::zero(),
+            refunded_gas: Gas::zero(),
+
+            patch: Patch::None,
         }
     }
+}
 
-    pub fn memory(&self) -> &M {
-        &self.memory
-    }
-
-    pub fn stack(&self) -> &Stack {
-        &self.stack
-    }
-
-    pub fn transaction(&self) -> &Transaction {
-        &self.transaction
-    }
-
-    pub fn block(&self) -> &BlockHeader {
-        &self.block
-    }
-
-    pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
-        self.accounts.values()
-    }
-
-    pub fn return_values(&self) -> &[u8] {
-        self.return_values.as_slice()
-    }
-
-    pub fn active_memory_len(&self) -> M256 {
-        self.cost_aggregrator.active_memory_len()
-    }
-
-    pub fn owner(&self) -> ExecutionResult<Address> {
-        Ok(match self.transaction {
-            Transaction::MessageCall {
-                to: to,
-                ..
-            } => to,
-            Transaction::ContractCreation {
-                ..
-            } => unimplemented!(),
-        })
-    }
-
-    pub fn available_gas(&self) -> Gas {
-        self.transaction.gas_limit() - self.used_gas
-    }
-
-
-    pub fn homestead(&self) -> bool {
-        self.homestead
-    }
-
-    pub fn set_homestead(&mut self, val: bool) {
-        self.homestead = val;
-    }
-
-    pub fn eip150(&self) -> bool {
-        self.eip150
-    }
-
-    pub fn set_eip150(&mut self, val: bool) {
-        self.eip150 = val;
-    }
-
-    pub fn eip160(&self) -> bool {
-        self.eip160
-    }
-
-    pub fn set_eip160(&mut self, val: bool) {
-        self.eip160 = val;
-    }
-
-
-    pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
-        if self.blockhashes.contains_key(&number) {
-            return Err(CommitError::AlreadyCommitted);
-        }
-
-        self.blockhashes.insert(number, hash);
-        Ok(())
-    }
-
-    fn blockhash(&mut self, number: M256) -> ExecutionResult<M256> {
-        match self.blockhashes.get(&number) {
-            Some(val) => Ok(*val),
-            None => Err(ExecutionError::RequireBlockhash(number)),
-        }
-    }
-
-
-    pub fn peek_cost(&self) -> ExecutionResult<Gas> {
-        if !self.valid_pc {
-            return Err(ExecutionError::RequireAccount(self.owner()?));
-        }
-
+impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
+    fn peek_cost(&self) -> ExecutionResult<Gas> {
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;
         let (gas, agg) = gas_cost(opcode, &self, aggregrator)?;
         Ok(gas)
     }
 
-    pub fn step(&mut self) -> ExecutionResult<()> {
-        if !self.valid_pc {
-            return Err(ExecutionError::RequireAccount(self.owner()?));
-        }
-
+    fn step(&mut self) -> ExecutionResult<()> {
         begin_rescuable!(self, &mut Self, __);
         if self.pc.stopped() {
             trr!(Err(ExecutionError::Stopped), __);
@@ -245,16 +159,78 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         Ok(())
     }
 
-    pub fn fire(&mut self) -> ExecutionResult<()> {
-        loop {
-            let result = self.step();
+    fn commit_account(&mut self, commitment: AccountCommitment<S>) -> CommitResult<()> {
+        self.account_state.commit(commitment)
+    }
 
-            if result.is_err() {
-                match result.err().unwrap() {
-                    ExecutionError::Stopped => return Ok(()),
-                    err => return Err(err),
-                }
-            }
+    fn commit_blockhash(&mut self, number: M256, hash: M256) -> CommitResult<()> {
+        if self.blockhashes.contains_key(&number) {
+            return Err(CommitError::AlreadyCommitted);
         }
+
+        self.blockhashes.insert(number, hash);
+        Ok(())
+    }
+
+    fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
+        self.account_state.accounts()
+    }
+
+    fn appending_logs(&self) -> &[Log] {
+        self.appending_logs.as_slice()
+    }
+
+    fn patch(&self) -> Patch {
+        self.patch
+    }
+}
+
+impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
+    pub fn pc(&self) -> &PC {
+        &self.pc
+    }
+
+    pub fn memory(&self) -> &M {
+        &self.memory
+    }
+
+    pub fn stack(&self) -> &Stack {
+        &self.stack
+    }
+
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
+
+    pub fn block(&self) -> &BlockHeader {
+        &self.block
+    }
+
+    pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
+        self.account_state.accounts()
+    }
+
+    pub fn return_values(&self) -> &[u8] {
+        self.return_values.as_slice()
+    }
+
+    pub fn active_memory_len(&self) -> M256 {
+        self.cost_aggregrator.active_memory_len()
+    }
+
+    pub fn available_gas(&self) -> Gas {
+        self.context.gas - self.used_gas
+    }
+
+
+    fn blockhash(&mut self, number: M256) -> ExecutionResult<M256> {
+        match self.blockhashes.get(&number) {
+            Some(val) => Ok(*val),
+            None => Err(ExecutionError::RequireBlockhash(number)),
+        }
+    }
+
+    fn append_log(&mut self, log: Log) {
+        self.appending_logs.push(log);
     }
 }

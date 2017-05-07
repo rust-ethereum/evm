@@ -26,6 +26,38 @@ pub struct Context {
 
 #[derive(Debug, Clone)]
 pub struct Log {
+    pub address: Address,
     pub data: Vec<u8>,
     pub topics: Vec<M256>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Patch {
+    None,
+    Homestead,
+    EIP150,
+    EIP160
+}
+
+impl Patch {
+    pub fn homestead(&self) -> bool {
+        match self {
+            &Patch::None => false,
+            _ => true,
+        }
+    }
+
+    pub fn eip150(&self) -> bool {
+        match self {
+            &Patch::None | &Patch::Homestead => false,
+            _ => true,
+        }
+    }
+
+    pub fn eip160(&self) -> bool {
+        match self {
+            &Patch::None | &Patch::Homestead | &Patch::EIP150 => false,
+            _ => true,
+        }
+    }
 }

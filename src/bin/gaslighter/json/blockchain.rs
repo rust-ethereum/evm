@@ -1,6 +1,6 @@
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
-use sputnikvm::vm::{Machine, Log, Transaction,
-                    Account, HashMapStorage, Commitment,
+use sputnikvm::vm::{Machine, Log, Context,
+                    Account, HashMapStorage, AccountCommitment,
                     BlockHeader};
 
 use serde_json::Value;
@@ -19,7 +19,7 @@ pub struct JSONBlock {
     difficulty: M256,
     gas_limit: Gas,
 
-    logs: Vec<(Address, Log)>,
+    logs: Vec<Log>,
 }
 
 static EMPTY: [u8; 0] = [];
@@ -35,14 +35,14 @@ impl JSONBlock {
         }
     }
 
-    pub fn request_account(&self, address: Address) -> Commitment<HashMapStorage> {
+    pub fn request_account(&self, address: Address) -> AccountCommitment<HashMapStorage> {
         let balance = self.balance(address);
         let code = self.account_code(address);
         let nonce = self.account_nonce(address);
         let hashmap_default = HashMap::new();
         let storage = self.storages.get(&address).unwrap_or(&hashmap_default);
 
-        Commitment::Full {
+        AccountCommitment::Full {
             address: address,
             balance: balance,
             storage: storage.clone().into(),
@@ -51,11 +51,11 @@ impl JSONBlock {
         }
     }
 
-    pub fn request_account_code(&self, address: Address) -> Commitment<HashMapStorage> {
+    pub fn request_account_code(&self, address: Address) -> AccountCommitment<HashMapStorage> {
         let default = Vec::new();
         let code = self.codes.get(&address).unwrap_or(&default);
 
-        Commitment::Code {
+        AccountCommitment::Code {
             address: address,
             code: code.clone(),
         }
@@ -68,30 +68,26 @@ impl JSONBlock {
                 balance: balance,
                 storage: storage,
                 code: code,
-                appending_logs: logs,
                 nonce: nonce,
             } => {
                 self.set_balance(address, balance);
                 self.set_account_code(address, code.as_slice());
                 self.storages.insert(address, storage.into());
-                for log in logs {
-                    self.logs.push((address, log));
-                }
                 self.set_account_nonce(address, nonce);
             },
-            Account::Code {
-                ..
-            } => (),
-            Account::Topup(address, topup) => {
+            Account::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);
                 self.set_balance(address, balance + topup);
             },
-            Account::Remove(address) => {
-                self.codes.remove(&address);
-                self.storages.remove(&address);
-                self.balances.remove(&address);
+            Account::DecreaseBalance(address, withdraw) => {
+                let balance = self.balance(address);
+                self.set_balance(address, balance - withdraw);
             },
         }
+    }
+
+    pub fn apply_log(&mut self, log: Log) {
+        self.logs.push(log);
     }
 
     pub fn coinbase(&self) -> Address {
@@ -160,9 +156,8 @@ impl JSONBlock {
     }
 
     pub fn find_log(&self, address: Address, data: &[u8], topics: &[M256]) -> bool {
-        for &(ref addr, ref log) in &self.logs {
-            let addr = *addr;
-            if addr == address && log.data.as_slice() == data && log.topics.as_slice() == topics {
+        for log in &self.logs {
+            if log.address == address && log.data.as_slice() == data && log.topics.as_slice() == topics {
                 return true;
             }
         }
@@ -217,7 +212,7 @@ pub fn create_block(v: &Value) -> JSONBlock {
     block
 }
 
-pub fn create_transaction(v: &Value) -> Transaction {
+pub fn create_context(v: &Value) -> Context {
     let address = Address::from_str(v["exec"]["address"].as_str().unwrap()).unwrap();
     let caller = Address::from_str(v["exec"]["caller"].as_str().unwrap()).unwrap();
     let code = read_hex(v["exec"]["code"].as_str().unwrap()).unwrap();
@@ -227,13 +222,15 @@ pub fn create_transaction(v: &Value) -> Transaction {
     let origin = Address::from_str(v["exec"]["origin"].as_str().unwrap()).unwrap();
     let value = M256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
 
-    Transaction::MessageCall {
-        gas_price: gas_price,
-        gas_limit: gas,
-        to: address,
-        originator: origin,
+    Context {
+        address: address,
         caller: caller,
-        data: data.into(),
+        code: code,
+        data: data,
+        gas: gas,
+        gas_price: gas_price,
+        origin: origin,
         value: value,
+        depth: 0,
     }
 }

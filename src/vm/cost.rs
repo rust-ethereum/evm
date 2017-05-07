@@ -2,7 +2,7 @@ use utils::bigint::{M256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::opcode::Opcode;
-use vm::{Machine, Memory, Stack, PC, ExecutionError, ExecutionResult, Storage};
+use vm::{VM, Machine, Memory, Stack, PC, ExecutionError, ExecutionResult, Storage};
 use std::cmp::{min, max};
 
 const G_ZERO: usize = 0;
@@ -55,9 +55,9 @@ fn sstore_cost<M: Memory + Default,
                S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let index = machine.stack().peek(0)?;
     let value = machine.stack().peek(1)?;
-    let address = machine.owner()?;
+    let address = machine.context.address;
 
-    if value != M256::zero() && machine.account_storage(address)?.read(index)? == M256::zero() {
+    if value != M256::zero() && machine.account_state.storage(address)?.read(index)? == M256::zero() {
         Ok(G_SSET.into())
     } else {
         Ok(G_SRESET.into())
@@ -93,7 +93,7 @@ fn gascap_cost<M: Memory + Default,
 
 fn extra_cost<M: Memory + Default,
               S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
-    Ok(Gas::from(if machine.eip150() { G_CALL_EIP150 } else { G_CALL_DEFAULT }) + xfer_cost(machine)? + new_cost(machine)?)
+    Ok(Gas::from(if machine.patch().eip150() { G_CALL_EIP150 } else { G_CALL_DEFAULT }) + xfer_cost(machine)? + new_cost(machine)?)
 }
 
 fn xfer_cost<M: Memory + Default,
@@ -119,7 +119,7 @@ fn new_cost<M: Memory + Default,
 fn suicide_cost<M: Memory + Default,
                 S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let address: Address = machine.stack().peek(0)?.into();
-    Ok(Gas::from(if machine.eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
+    Ok(Gas::from(if machine.patch().eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -225,7 +225,7 @@ pub fn gas_cost<M: Memory + Default,
             let len = machine.stack.peek(2)?;
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            (Gas::from(if machine.patch().eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Opcode::CALLDATACOPY | Opcode::CODECOPY => {
@@ -239,13 +239,13 @@ pub fn gas_cost<M: Memory + Default,
             if machine.stack.peek(1)? == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(if machine.eip160() { G_EXPBYTE_EIP160 } else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(machine.stack.peek(1)?.log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + Gas::from(if machine.patch().eip160() { G_EXPBYTE_EIP160 } else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(machine.stack.peek(1)?.log2floor()) / Gas::from(8u64))
             }
         }
 
         Opcode::CREATE => G_CREATE.into(),
         Opcode::JUMPDEST => G_JUMPDEST.into(),
-        Opcode::SLOAD => (if machine.eip150() { G_SLOAD_EIP150 } else { G_SLOAD_DEFAULT }).into(),
+        Opcode::SLOAD => (if machine.patch().eip150() { G_SLOAD_EIP150 } else { G_SLOAD_DEFAULT }).into(),
 
         // W_zero
         Opcode::STOP | Opcode::RETURN
@@ -282,9 +282,9 @@ pub fn gas_cost<M: Memory + Default,
         Opcode::JUMPI => G_HIGH.into(),
 
         // W_extcode
-        Opcode::EXTCODESIZE => (if machine.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }).into(),
+        Opcode::EXTCODESIZE => (if machine.patch().eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }).into(),
 
-        Opcode::BALANCE => (if machine.eip150() { G_BALANCE_EIP150 } else { G_BALANCE_DEFAULT }).into(),
+        Opcode::BALANCE => (if machine.patch().eip150() { G_BALANCE_EIP150 } else { G_BALANCE_DEFAULT }).into(),
         Opcode::BLOCKHASH => G_BLOCKHASH.into(),
         Opcode::INVALID => Gas::zero(),
     };
@@ -298,9 +298,9 @@ pub fn gas_refund<M: Memory + Default,
         Opcode::SSTORE => {
             let index = machine.stack().peek(0)?;
             let value = machine.stack().peek(1)?;
-            let address = machine.owner()?;
+            let address = machine.context.address;
 
-            if value == M256::zero() && machine.account_storage(address)?.read(index)? != M256::zero() {
+            if value == M256::zero() && machine.account_state.storage(address)?.read(index)? != M256::zero() {
                 Ok(Gas::from(R_SCLEAR))
             } else {
                 Ok(Gas::zero())
