@@ -22,6 +22,7 @@ use utils::bigint::{M256, U256};
 #[derive(Debug)]
 pub enum ExecutionError {
     EmptyGas,
+    EmptyBalance,
     StackUnderflow,
     StackOverflow,
     InvalidOpcode,
@@ -44,21 +45,20 @@ pub enum CommitError {
 }
 
 pub type ExecutionResult<T> = ::std::result::Result<T, ExecutionError>;
+pub type CommitResult<T> = ::std::result::Result<T, CommitError>;
 
 pub type SeqMachine = Machine<SeqMemory, HashMapStorage>;
 
-pub trait Machine {
-    step,
-    peek_cost,
-    fire
+pub trait VM<S> {
+    fn step(&mut self) -> ExecutionResult<()>,
+    fn peek_cost(&self) -> ExecutionResult<Gas>,
+    fn fire(&mut self) -> ExecutionResult<()>,
+
+    fn commit_account(commitment: AccountCommitment<S>) -> CommitResult<()>;
+    fn commit_blockhash(number: M256, hash: M256) -> CommitResult<()>;
 }
 
-pub struct TransactionMachine<M, S> {
-    transaction: Transaction,
-    machine: Option<ContextMachine<M, S>>
-}
-
-pub struct ContextMachine<M, S> {
+pub struct Machine<M, S> {
     pc: PC,
     memory: M,
     stack: Stack,
@@ -80,11 +80,7 @@ pub struct ContextMachine<M, S> {
 }
 
 impl<M: Memory + Default, S: Storage> ContextMachine<M, S> {
-    pub fn new(transaction: Transaction, block: BlockHeader) -> Self {
-        Machine::with_depth(transaction, block, 1)
-    }
-
-    pub fn with_depth(transaction: Transaction, block: BlockHeader, depth: usize) -> Self {
+    pub fn new(context: Context, block: BlockHeader) -> Self {
         Self {
             pc: PC::default(),
             memory: M::default(),
@@ -187,277 +183,12 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
 
     pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
-
-    }
-
-    pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
-        match commitment {
-            Commitment::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                nonce: nonce,
-            } => {
-                if self.accounts.contains_key(&address) {
-                    return Err(CommitError::AlreadyCommitted);
-                }
-
-                self.accounts.insert(address, Account::Full {
-                    nonce: nonce,
-                    address: address,
-                    balance: balance,
-                    storage: storage,
-                    code: code,
-                    appending_logs: Vec::new(),
-                });
-            },
-            Commitment::Code {
-                address: address,
-                code: code,
-            } => {
-                if self.accounts.contains_key(&address) {
-                    return Err(CommitError::AlreadyCommitted);
-                }
-
-                self.accounts.insert(address, Account::Code {
-                    address: address,
-                    code: code
-                });
-            },
-            Commitment::Blockhash {
-                number: number,
-                hash: hash,
-            } => {
-                if self.blockhashes.contains_key(&number) {
-                    return Err(CommitError::AlreadyCommitted);
-                }
-
-                self.blockhashes.insert(number, hash);
-            },
+        if self.blockhashes.contains_key(&number) {
+            return Err(CommitError::AlreadyCommitted);
         }
 
-        let owner = self.owner();
-        if !self.valid_pc && owner.is_ok() {
-            let owner = owner.ok().unwrap();
-            match self.accounts.get(&owner) {
-                Some(&Account::Full {
-                    code: ref code,
-                    ..
-                }) => {
-                    self.pc = PC::new(code.as_slice());
-                    self.valid_pc = true;
-                },
-                Some(&Account::Code {
-                    code: ref code,
-                    ..
-                }) => {
-                    self.pc = PC::new(code.as_slice());
-                    self.valid_pc = true;
-                },
-                _ => (),
-            }
-        }
+        self.blockhashes.insert(number, hash);
         Ok(())
-    }
-
-    fn account_log(&mut self, address: Address, data: &[u8], topics: &[M256]) -> ExecutionResult<()> {
-        match self.accounts.get_mut(&address) {
-            Some(&mut Account::Full {
-                appending_logs: ref mut appending_logs,
-                ..
-            }) => {
-                appending_logs.push(Log {
-                    data: data.into(),
-                    topics: topics.into(),
-                });
-                Ok(())
-            },
-            _ => {
-                Err(ExecutionError::RequireAccount(address))
-            }
-        }
-    }
-
-    fn account_code(&self, address: Address) -> ExecutionResult<&[u8]> {
-        match self.accounts.get(&address) {
-            Some(&Account::Full {
-                code: ref code,
-                ..
-            }) => {
-                Ok(code.as_slice())
-            },
-            Some(&Account::Code {
-                code: ref code,
-                ..
-            }) => {
-                Ok(code.as_slice())
-            },
-            _ => {
-                Err(ExecutionError::RequireAccountCode(address))
-            }
-        }
-    }
-
-    fn account_nonce(&self, address: Address) -> ExecutionResult<M256> {
-        match self.accounts.get(&address) {
-            Some(&Account::Full {
-                nonce: nonce,
-                ..
-            }) => {
-                Ok(nonce)
-            },
-            _ => {
-                Err(ExecutionError::RequireAccount(address))
-            }
-        }
-    }
-
-    fn account_nonce_inc(&mut self, address: Address) -> ExecutionResult<()> {
-        let account = match self.accounts.remove(&address) {
-            Some(Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                appending_logs: appending_logs,
-                nonce: nonce,
-            }) => {
-                Account::Full {
-                    address: address,
-                    balance: balance,
-                    storage: storage,
-                    code: code,
-                    appending_logs: appending_logs,
-                    nonce: nonce + M256::from(1u64),
-                }
-            },
-            Some(Account::Remove(address)) => panic!(),
-            _ => {
-                return Err(ExecutionError::RequireAccount(address));
-            }
-        };
-        self.accounts.insert(address, account);
-        Ok(())
-    }
-
-    fn account_nonce_dec(&mut self, address: Address) -> ExecutionResult<()> {
-        let account = match self.accounts.remove(&address) {
-            Some(Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                appending_logs: appending_logs,
-                nonce: nonce,
-            }) => {
-                Account::Full {
-                    address: address,
-                    balance: balance,
-                    storage: storage,
-                    code: code,
-                    appending_logs: appending_logs,
-                    nonce: nonce - M256::from(1u64),
-                }
-            },
-            Some(Account::Remove(address)) => panic!(),
-            _ => {
-                return Err(ExecutionError::RequireAccount(address));
-            }
-        };
-        self.accounts.insert(address, account);
-        Ok(())
-    }
-
-    fn account_balance(&self, address: Address) -> ExecutionResult<U256> {
-        match self.accounts.get(&address) {
-            Some(&Account::Full {
-                balance: balance,
-                ..
-            }) => {
-                Ok(balance)
-            },
-            _ => {
-                Err(ExecutionError::RequireAccount(address))
-            }
-        }
-    }
-
-    fn account_balance_topup(&mut self, address: Address, topup: U256) -> ExecutionResult<()> {
-        let account = match self.accounts.remove(&address) {
-            Some(Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                appending_logs: appending_logs,
-                nonce: nonce,
-            }) => {
-                Account::Full {
-                    address: address,
-                    balance: balance + topup,
-                    storage: storage,
-                    code: code,
-                    appending_logs: appending_logs,
-                    nonce: nonce,
-                }
-            },
-            Some(Account::Code {
-                ..
-            }) => {
-                return Err(ExecutionError::RequireAccount(address));
-            }
-            Some(Account::Remove(address)) => {
-                Account::Full {
-                    nonce: M256::zero(),
-                    address: address,
-                    balance: topup,
-                    storage: S::default(),
-                    code: Vec::new(),
-                    appending_logs: Vec::new(),
-                }
-            },
-            Some(Account::Topup(address, old_topup)) => {
-                Account::Topup(address, old_topup + topup)
-            },
-            None => {
-                Account::Topup(address, topup)
-            },
-        };
-        self.accounts.insert(address, account);
-        Ok(())
-    }
-
-    fn account_remove(&mut self, address: Address) {
-        self.accounts.insert(address, Account::Remove(address));
-    }
-
-    fn account_storage(&self, address: Address) -> ExecutionResult<&S> {
-        match self.accounts.get(&address) {
-            Some(&Account::Full {
-                storage: ref storage,
-                ..
-            }) => {
-                Ok(storage)
-            },
-            _ => {
-                Err(ExecutionError::RequireAccount(address))
-            }
-        }
-    }
-
-    fn account_storage_mut(&mut self, address: Address) -> ExecutionResult<&mut S> {
-        match self.accounts.get_mut(&address) {
-            Some(&mut Account::Full {
-                storage: ref mut storage,
-                ..
-            }) => {
-                Ok(storage)
-            },
-            _ => {
-                Err(ExecutionError::RequireAccount(address))
-            }
-        }
     }
 
     fn blockhash(&mut self, number: M256) -> ExecutionResult<M256> {
