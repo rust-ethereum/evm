@@ -4,7 +4,8 @@ use utils::address::Address;
 use utils::opcode::Opcode;
 use vm::{VM, Machine, Memory, Stack, PC, ExecutionResult, ExecutionError,
          Storage, BlockHeader, Context, Log, ContractCreation,
-         ContractCreationMachine, AccountCommitment};
+         ContractCreationMachine, AccountCommitment,
+         MessageCall, MessageCallMachine};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::min;
@@ -811,52 +812,85 @@ pub fn run_opcode<M: Memory + Default,
                 init: init,
             };
             let mut submachine: ContractCreationMachine<M, S> = ContractCreationMachine::new(transaction, machine.block.clone(), machine.context.depth + 1);
+            let result = machine.fire_sub(&mut submachine);
 
-            let mut ok = false;
-            loop {
-                let result = submachine.fire();
-                match result {
-                    Err(ExecutionError::RequireAccount(address)) => {
-                        submachine.commit_account(AccountCommitment::Full {
-                            nonce: trr!(machine.account_state.nonce(address), __),
-                            balance: trr!(machine.account_state.balance(address), __),
-                            storage: trr!(machine.account_state.storage(address).and_then(|s| Ok(s.clone())), __),
-                            code: trr!(machine.account_state.code(address).and_then(|s| Ok(s.into())), __),
-                            address: address,
-                        });
-                    },
-                    Err(ExecutionError::RequireAccountCode(address)) => {
-                        submachine.commit_account(AccountCommitment::Code {
-                            code: trr!(machine.account_state.code(address).and_then(|s| Ok(s.into())), __),
-                            address: address,
-                        });
-                    },
-                    Err(ExecutionError::RequireBlockhash(number)) => {
-                        submachine.commit_blockhash(number, trr!(machine.blockhash(number), __));
-                    },
-                    Ok(_) => {
-                        ok = true;
-                        break;
-                    },
-                    _ => {
-                        ok = false;
-                        break;
-                    },
-                }
+            if result.is_err() && result.clone().err().unwrap().is_require() {
+                trr!(result, __);
             }
 
             let submachine: Machine<M, S> = submachine.into();
-            if ok {
+            if result.is_ok() {
                 machine.stack.push(submachine.context.address.into()).unwrap();
             } else {
-                machine.stack.push(M256::zero());
+                machine.stack.push(M256::zero()).unwrap();
             }
+            end_rescuable!(__);
         },
 
         Opcode::CALL => {
             will_pop_push!(machine, 7, 1);
 
-            unimplemented!()
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let gas = machine.stack.pop().unwrap();
+            let to = machine.stack.pop().unwrap();
+            let value = machine.stack.pop().unwrap();
+            let in_offset = machine.stack.pop().unwrap();
+            let in_len = machine.stack.pop().unwrap();
+            let out_offset = machine.stack.pop().unwrap();
+            let out_len = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(out_len).unwrap();
+                machine.stack.push(out_offset).unwrap();
+                machine.stack.push(in_len).unwrap();
+                machine.stack.push(in_offset).unwrap();
+                machine.stack.push(value).unwrap();
+                machine.stack.push(to).unwrap();
+                machine.stack.push(gas).unwrap();
+            }, __);
+
+            let gas: Gas = gas.into();
+            let to: Address = to.into();
+            let value: U256 = value.into();
+
+            let in_end = in_offset + in_len;
+            if in_end < in_offset {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
+            let out_end = out_offset + out_len;
+            if out_end < out_offset {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
+
+            let mut data: Vec<u8> = Vec::new();
+            let mut i = in_offset;
+            while i < in_end {
+                data.push(trr!(machine.memory.read_raw(i), __));
+                i = i + M256::from(1u64);
+            }
+
+            let transaction = MessageCall {
+                gas_price: machine.context.gas_price,
+                gas_limit: gas,
+                to: to,
+                origin: machine.context.origin,
+                caller: machine.context.address,
+                value: value,
+                data: data,
+            };
+            let mut submachine: MessageCallMachine<M, S> = MessageCallMachine::new(transaction, machine.block.clone(), machine.context.depth + 1);
+            let result = machine.fire_sub(&mut submachine);
+
+            if result.is_err() && result.clone().err().unwrap().is_require() {
+                trr!(result, __);
+            }
+
+            let submachine: Machine<M, S> = submachine.into();
+            if result.is_ok() {
+                machine.stack.push(M256::from(1u64)).unwrap();
+            } else {
+                machine.stack.push(M256::zero()).unwrap();
+            }
+            end_rescuable!(__);
         },
 
         Opcode::CALLCODE => {
