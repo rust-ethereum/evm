@@ -36,6 +36,12 @@ impl From<M256> for Address {
     }
 }
 
+impl Into<[u8; 20]> for Address {
+    fn into(self) -> [u8; 20] {
+        self.0
+    }
+}
+
 impl FromStr for Address {
     type Err = ParseHexError;
 

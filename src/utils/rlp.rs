@@ -3,12 +3,32 @@
 //!
 //! See [RLP spec](https://github.com/ethereumproject/wiki/wiki/RLP)
 
+use utils::address::Address;
+use utils::bigint::{U256, M256};
+
 // Copied from https://github.com/ethereumproject/emerald-rs/blob/master/src/util/rlp.rs
 
 /// The `WriteRLP` trait is used to specify functionality of serializing data to RLP bytes
 pub trait WriteRLP {
     /// Writes itself as RLP bytes into specified buffer
     fn write_rlp(&self, buf: &mut Vec<u8>);
+}
+
+fn bytes_count(x: usize) -> u8 {
+    match x {
+        _ if x > 0xff => 1 + bytes_count(x >> 8),
+        _ if x > 0 => 1,
+        _ => 0,
+    }
+}
+
+fn to_bytes(x: u64, len: u8) -> Vec<u8> {
+    let mut buf: Vec<u8> = Vec::with_capacity(len as usize);
+    for i in 0..len {
+        let u = (x >> ((len - i - 1) << 3)) & 0xff;
+        buf.push(u as u8);
+    }
+    buf
 }
 
 /// A list serializable to RLP
@@ -58,5 +78,26 @@ impl WriteRLP for [u8] {
             buf.extend_from_slice(&to_bytes(len as u64, len_bytes));
             buf.extend_from_slice(self);
         }
+    }
+}
+
+impl WriteRLP for U256 {
+    fn write_rlp(&self, buf: &mut Vec<u8>) {
+        let val: [u8; 32] = self.clone().into();
+        val.write_rlp(buf);
+    }
+}
+
+impl WriteRLP for M256 {
+    fn write_rlp(&self, buf: &mut Vec<u8>) {
+        let val: [u8; 32] = self.clone().into();
+        val.write_rlp(buf);
+    }
+}
+
+impl WriteRLP for Address {
+    fn write_rlp(&self, buf: &mut Vec<u8>) {
+        let val: [u8; 20] = self.clone().into();
+        val.write_rlp(buf);
     }
 }
