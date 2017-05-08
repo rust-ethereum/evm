@@ -222,7 +222,7 @@ pub fn gas_cost<M: Memory + Default,
         },
 
         Opcode::EXTCODECOPY => {
-            let len = machine.stack.peek(2)?;
+            let len = machine.stack.peek(3)?;
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
             (Gas::from(if machine.patch.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
