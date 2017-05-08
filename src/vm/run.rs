@@ -820,16 +820,15 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
             if result.is_err() && result.clone().err().unwrap().is_require() {
                 trr!(result, __);
             }
+            end_rescuable!(__);
 
             let submachine: Machine<M, S> = submachine.into();
             if result.is_ok() {
                 machine.stack.push(submachine.context.address.into()).unwrap();
+                machine.merge_sub(&submachine);
             } else {
                 machine.stack.push(M256::zero()).unwrap();
             }
-            end_rescuable!(__);
-
-            machine.merge_sub(&submachine);
         },
 
         Opcode::CALL => {
@@ -888,16 +887,15 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
             if result.is_err() && result.clone().err().unwrap().is_require() {
                 trr!(result, __);
             }
+            end_rescuable!(__);
 
             let submachine: Machine<M, S> = submachine.into();
             if result.is_ok() {
                 machine.stack.push(M256::from(1u64)).unwrap();
+                machine.merge_sub(&submachine);
             } else {
                 machine.stack.push(M256::zero()).unwrap();
             }
-            end_rescuable!(__);
-
-            machine.merge_sub(&submachine);
         },
 
         Opcode::CALLCODE => {
