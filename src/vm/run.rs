@@ -436,8 +436,8 @@ pub fn run_opcode<M: Memory + Default,
                 }
             };
 
+            let code: Vec<u8> = machine.pc.code().into();
             for i in 0..len {
-                let code: Vec<u8> = machine.pc.code().into();
                 if code_index.is_some() && code_index.unwrap() + i < code.len() {
                     let val = code[code_index.unwrap() + i];
                     trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
