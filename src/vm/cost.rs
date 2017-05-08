@@ -110,7 +110,7 @@ fn xfer_cost<M: Memory + Default,
 fn new_cost<M: Memory + Default,
             S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let address: Address = machine.stack().peek(1)?.into();
-    if address == Address::default() {
+    if machine.account_state.balance(address)? == U256::zero() && machine.account_state.nonce(address)? == M256::zero() && machine.account_state.code(address)?.len() == 0 {
         Ok(G_NEWACCOUNT.into())
     } else {
         Ok(Gas::zero())
