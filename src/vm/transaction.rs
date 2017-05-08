@@ -94,7 +94,7 @@ impl<M, S> Into<Machine<M, S>> for ContractCreationMachine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> ContractCreationMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> ContractCreationMachine<M, S> {
     pub fn new(transaction: ContractCreation, block: BlockHeader, depth: usize) -> Self {
         Self {
             machine: None,
@@ -108,7 +108,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> ContractCreationMachine<
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for ContractCreationMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<S> for ContractCreationMachine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.machine.is_none() {
             return Err(ExecutionError::RequireAccount(self.transaction.caller));
@@ -197,7 +197,7 @@ impl<M, S> Into<Machine<M, S>> for MessageCallMachine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> MessageCallMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> MessageCallMachine<M, S> {
     pub fn new(transaction: MessageCall, block: BlockHeader, depth: usize) -> Self {
         Self {
             machine: None,
@@ -211,7 +211,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> MessageCallMachine<M, S>
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for MessageCallMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<S> for MessageCallMachine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.machine.is_none() {
             return Err(ExecutionError::RequireAccount(self.transaction.caller));

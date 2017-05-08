@@ -6,6 +6,8 @@ use std::collections::hash_map;
 pub trait Storage {
     fn read(&self, index: M256) -> ExecutionResult<M256>;
     fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()>;
+    fn derive(&self) -> Self;
+    fn merge(&mut self, sub: Self);
 }
 
 #[derive(Debug, Clone)]
@@ -40,5 +42,15 @@ impl Storage for HashMapStorage {
     fn write(&mut self, index: M256, val: M256) -> ExecutionResult<()> {
         self.0.insert(index, val);
         Ok(())
+    }
+
+    fn derive(&self) -> Self {
+        self.clone()
+    }
+
+    fn merge(&mut self, sub: Self) {
+        for (key, val) in sub.0 {
+            self.0.insert(key, val);
+        }
     }
 }

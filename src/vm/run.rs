@@ -61,9 +61,8 @@ macro_rules! op2_ref {
     })
 }
 
-pub fn run_opcode<M: Memory + Default,
-                  S: Storage + Default + Clone>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
-                                                -> ExecutionResult<()> {
+pub fn run_opcode<M: Memory + Default, S: Storage + Default>
+    (opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas) -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
     // running function. Anything that might fail after the stack
     // has poped may result the VM in invalid state. Instead, if
