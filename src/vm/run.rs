@@ -486,26 +486,30 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(account).unwrap();
             }, __);
 
-            let account: Address = account.into();
-
-            if code_index > usize::max_value().into() {
-                trr!(Err(ExecutionError::CodeTooLarge), __);
-            }
-            let code_index: usize = code_index.into();
-
             if len > usize::max_value().into() {
                 trr!(Err(ExecutionError::CodeTooLarge), __);
             }
             let len: usize = len.into();
 
-            if code_index.checked_add(len).is_none() {
-                trr!(Err(ExecutionError::CodeTooLarge), __);
-            }
+            let code_index: Option<usize> = if code_index > usize::max_value().into() {
+                None
+            } else {
+                let code_index: usize = code_index.into();
+                if code_index.checked_add(len).is_none() {
+                    None
+                } else {
+                    Some(code_index.into())
+                }
+            };
 
+            let account: Address = account.into();
+            let code: Vec<u8> = trr!(machine.account_state.code(account).and_then(|code| Ok(code.into())), __);
             for i in 0..len {
-                let code: Vec<u8> = trr!(machine.account_state.code(account).and_then(|code| Ok(code.into())), __);
-                if code_index + i < code.len() {
-                    let val = code[code_index + i];
+                if code_index.is_some() && code_index.unwrap() + i < code.len() {
+                    let val = code[code_index.unwrap() + i];
+                    trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
+                } else {
+                    let val: u8 = Opcode::STOP.into();
                     trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
                 }
             }
