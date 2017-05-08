@@ -2,8 +2,6 @@
 extern crate log;
 extern crate crypto;
 extern crate merkle;
-extern crate libc;
-extern crate serde_json;
 
 #[macro_use]
 mod rescue;
