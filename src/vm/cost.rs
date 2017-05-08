@@ -193,6 +193,14 @@ fn memory_gas_cost<M: Memory + Default,
             let len: U256 = stack.peek(2)?.into();
             memory_expand(current, Gas::from(from), Gas::from(len))
         },
+        Opcode::CALL => {
+            let in_from: U256 = stack.peek(3)?.into();
+            let in_len: U256 = stack.peek(4)?.into();
+            let out_from: U256 = stack.peek(5)?.into();
+            let out_len: U256 = stack.peek(6)?.into();
+            memory_expand(memory_expand(current, Gas::from(in_from), Gas::from(in_len)),
+                          Gas::from(out_from), Gas::from(out_len))
+        },
         _ => {
             current
         }
