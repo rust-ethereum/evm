@@ -86,6 +86,7 @@ pub trait VM<S: Storage> {
     fn commit_account(&mut self, commitment: AccountCommitment<S>) -> CommitResult<()>;
     fn commit_blockhash(&mut self, number: M256, hash: M256) -> CommitResult<()>;
     fn accounts(&self) -> hash_map::Values<Address, Account<S>>;
+    fn transactions(&self) -> &[Transaction];
     fn appending_logs(&self) -> &[Log];
 
     fn patch(&self) -> Patch;
@@ -104,6 +105,7 @@ pub struct Machine<M, S> {
     account_state: AccountState<S>,
     blockhashes: hash_map::HashMap<M256, M256>,
     appending_logs: Vec<Log>,
+    transactions: Vec<Transaction>,
 
     used_gas: Gas,
     refunded_gas: Gas,
@@ -126,6 +128,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
             account_state: AccountState::default(),
             blockhashes: hash_map::HashMap::new(),
             appending_logs: Vec::new(),
+            transactions: Vec::new(),
 
             used_gas: Gas::zero(),
             refunded_gas: Gas::zero(),
