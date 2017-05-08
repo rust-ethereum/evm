@@ -26,7 +26,7 @@ const G_SUICIDE_DEFAULT: usize = 0;
 const G_SUICIDE_EIP150: usize = 5000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSITE: usize = 200;
-const G_CALL_DEFAULT: usize = 20;
+const G_CALL_DEFAULT: usize = 40;
 const G_CALL_EIP150: usize = 700;
 const G_CALLVALUE: usize = 9000;
 const G_CALLSTIPEND: usize = 2300;
@@ -81,14 +81,15 @@ fn callgas_cost<M: Memory + Default,
 
 fn gascap_cost<M: Memory + Default,
                S: Storage + Default>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
-    let base2 = machine.stack().peek(0)?.into();
+    // let base2 = machine.stack().peek(0)?.into();
 
-    if available_gas >= extra_cost(machine)? {
-        let base1 = available_gas - extra_cost(machine)?;
-        Ok(min(base1 - base1 / Gas::from(64u64), base2))
-    } else {
-        Ok(base2)
-    }
+    // if available_gas >= extra_cost(machine)? {
+    //     let base1 = available_gas - extra_cost(machine)?;
+    //     Ok(min(base1 - base1 / Gas::from(64u64), base2))
+    // } else {
+    //     Ok(base2)
+    // }
+    Ok(Gas::zero())
 }
 
 fn extra_cost<M: Memory + Default,
@@ -109,7 +110,7 @@ fn xfer_cost<M: Memory + Default,
 fn new_cost<M: Memory + Default,
             S: Storage + Default>(machine: &Machine<M, S>) -> ExecutionResult<Gas> {
     let address: Address = machine.stack().peek(1)?.into();
-    if address == Address::default() {
+    if machine.account_state.balance(address)? == U256::zero() && machine.account_state.nonce(address)? == M256::zero() && machine.account_state.code(address)?.len() == 0 {
         Ok(G_NEWACCOUNT.into())
     } else {
         Ok(Gas::zero())
@@ -191,6 +192,14 @@ fn memory_gas_cost<M: Memory + Default,
             let from: U256 = stack.peek(1)?.into();
             let len: U256 = stack.peek(2)?.into();
             memory_expand(current, Gas::from(from), Gas::from(len))
+        },
+        Opcode::CALL => {
+            let in_from: U256 = stack.peek(3)?.into();
+            let in_len: U256 = stack.peek(4)?.into();
+            let out_from: U256 = stack.peek(5)?.into();
+            let out_len: U256 = stack.peek(6)?.into();
+            memory_expand(memory_expand(current, Gas::from(in_from), Gas::from(in_len)),
+                          Gas::from(out_from), Gas::from(out_len))
         },
         _ => {
             current
