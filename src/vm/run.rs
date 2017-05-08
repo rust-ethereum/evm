@@ -799,8 +799,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
             }
 
             let owner = machine.context.address;
-            let gas_limit = machine.available_gas() -
-                machine.available_gas() / Gas::from(64u64);
+            let gas_limit = after_gas;
             let nonce = trr!(machine.account_state.nonce(owner), __);
             trr!(machine.account_state.set_nonce(owner, nonce + M256::from(1u64)), __);
             on_rescue!(|machine| {
