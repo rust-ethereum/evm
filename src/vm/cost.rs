@@ -26,7 +26,7 @@ const G_SUICIDE_DEFAULT: usize = 0;
 const G_SUICIDE_EIP150: usize = 5000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSITE: usize = 200;
-const G_CALL_DEFAULT: usize = 20;
+const G_CALL_DEFAULT: usize = 40;
 const G_CALL_EIP150: usize = 700;
 const G_CALLVALUE: usize = 9000;
 const G_CALLSTIPEND: usize = 2300;
@@ -81,14 +81,15 @@ fn callgas_cost<M: Memory + Default,
 
 fn gascap_cost<M: Memory + Default,
                S: Storage + Default>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
-    let base2 = machine.stack().peek(0)?.into();
+    // let base2 = machine.stack().peek(0)?.into();
 
-    if available_gas >= extra_cost(machine)? {
-        let base1 = available_gas - extra_cost(machine)?;
-        Ok(min(base1 - base1 / Gas::from(64u64), base2))
-    } else {
-        Ok(base2)
-    }
+    // if available_gas >= extra_cost(machine)? {
+    //     let base1 = available_gas - extra_cost(machine)?;
+    //     Ok(min(base1 - base1 / Gas::from(64u64), base2))
+    // } else {
+    //     Ok(base2)
+    // }
+    Ok(Gas::zero())
 }
 
 fn extra_cost<M: Memory + Default,
