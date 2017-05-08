@@ -220,7 +220,7 @@ pub fn create_context(v: &Value) -> Context {
     let gas = Gas::from_str(v["exec"]["gas"].as_str().unwrap()).unwrap();
     let gas_price = Gas::from_str(v["exec"]["gasPrice"].as_str().unwrap()).unwrap();
     let origin = Address::from_str(v["exec"]["origin"].as_str().unwrap()).unwrap();
-    let value = M256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
+    let value = U256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
 
     Context {
         address: address,

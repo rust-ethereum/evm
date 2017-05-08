@@ -2,7 +2,10 @@ use utils::bigint::{M256, MI256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::opcode::Opcode;
-use vm::{Machine, Memory, Stack, PC, ExecutionResult, ExecutionError, Storage, BlockHeader, Context, Log};
+use vm::{VM, Machine, Memory, Stack, PC, ExecutionResult, ExecutionError,
+         Storage, BlockHeader, Context, Log, ContractCreation,
+         ContractCreationMachine, AccountCommitment,
+         MessageCall, MessageCallMachine};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::min;
@@ -59,8 +62,8 @@ macro_rules! op2_ref {
 }
 
 pub fn run_opcode<M: Memory + Default,
-                  S: Storage + Default>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
-                                         -> ExecutionResult<()> {
+                  S: Storage + Default + Clone>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
+                                                -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
     // running function. Anything that might fail after the stack
     // has poped may result the VM in invalid state. Instead, if
@@ -320,7 +323,7 @@ pub fn run_opcode<M: Memory + Default,
             will_pop_push!(machine, 0, 1);
 
             let value = machine.context.value;
-            machine.stack.push(value).unwrap();
+            machine.stack.push(value.into()).unwrap();
         },
 
         Opcode::CALLDATALOAD => {
@@ -434,8 +437,8 @@ pub fn run_opcode<M: Memory + Default,
                 }
             };
 
+            let code: Vec<u8> = machine.pc.code().into();
             for i in 0..len {
-                let code: Vec<u8> = machine.pc.code().into();
                 if code_index.is_some() && code_index.unwrap() + i < code.len() {
                     let val = code[code_index.unwrap() + i];
                     trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
@@ -483,26 +486,30 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(account).unwrap();
             }, __);
 
-            let account: Address = account.into();
-
-            if code_index > usize::max_value().into() {
-                trr!(Err(ExecutionError::CodeTooLarge), __);
-            }
-            let code_index: usize = code_index.into();
-
             if len > usize::max_value().into() {
                 trr!(Err(ExecutionError::CodeTooLarge), __);
             }
             let len: usize = len.into();
 
-            if code_index.checked_add(len).is_none() {
-                trr!(Err(ExecutionError::CodeTooLarge), __);
-            }
+            let code_index: Option<usize> = if code_index > usize::max_value().into() {
+                None
+            } else {
+                let code_index: usize = code_index.into();
+                if code_index.checked_add(len).is_none() {
+                    None
+                } else {
+                    Some(code_index.into())
+                }
+            };
 
+            let account: Address = account.into();
+            let code: Vec<u8> = trr!(machine.account_state.code(account).and_then(|code| Ok(code.into())), __);
             for i in 0..len {
-                let code: Vec<u8> = trr!(machine.account_state.code(account).and_then(|code| Ok(code.into())), __);
-                if code_index + i < code.len() {
-                    let val = code[code_index + i];
+                if code_index.is_some() && code_index.unwrap() + i < code.len() {
+                    let val = code[code_index.unwrap() + i];
+                    trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
+                } else {
+                    let val: u8 = Opcode::STOP.into();
                     trr!(machine.memory.write_raw(memory_index + i.into(), val), __);
                 }
             }
@@ -771,50 +778,123 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::CREATE => {
             will_pop_push!(machine, 3, 1);
 
-            // begin_rescuable!(machine, &mut Machine<M, S>, __);
-            // let value = machine.stack.pop().unwrap();
-            // let init_start = machine.stack.pop().unwrap();
-            // let init_len = machine.stack.pop().unwrap();
-            // on_rescue!(|machine| {
-            //     machine.stack.push(init_len);
-            //     machine.stack.push(init_start);
-            //     machine.stack.push(value);
-            // }, __);
-            // let init_end = init_start + init_len;
-            // if init_end < init_start {
-            //     trr!(Err(ExecutionError::DataTooLarge), __);
-            // }
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let value = machine.stack.pop().unwrap();
+            let init_start = machine.stack.pop().unwrap();
+            let init_len = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(init_len);
+                machine.stack.push(init_start);
+                machine.stack.push(value);
+            }, __);
+            let init_end = init_start + init_len;
+            if init_end < init_start {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
 
-            // let mut init: Vec<u8> = Vec::new();
-            // let mut i = init_start;
-            // while i < init_end {
-            //     init.push(trr!(machine.memory.read_raw(i), __));
-            //     i = i + M256::from(1u64);
-            // }
+            let mut init: Vec<u8> = Vec::new();
+            let mut i = init_start;
+            while i < init_end {
+                init.push(trr!(machine.memory.read_raw(i), __));
+                i = i + M256::from(1u64);
+            }
 
-            // let owner = machine.context.address;
-            // let gas_limit = machine.available_gas() -
-            //     machine.available_gas() / Gas::from(64u64);
-            // machine.account_nonce_inc(owner);
-            // on_rescue!(|machine| {
-            //     machine.account_nonce_dec(owner);
-            // }, __);
-            // let transaction = Transaction::ContractCreation {
-            //     gas_price: machine.transaction().gas_price(),
-            //     gas_limit: gas_limit,
-            //     originator: machine.transaction().originator(),
-            //     caller: owner,
-            //     value: value,
-            //     init: init,
-            // };
+            let owner = machine.context.address;
+            let gas_limit = machine.available_gas() -
+                machine.available_gas() / Gas::from(64u64);
+            let nonce = trr!(machine.account_state.nonce(owner), __);
+            trr!(machine.account_state.set_nonce(owner, nonce + M256::from(1u64)), __);
+            on_rescue!(|machine| {
+                machine.account_state.set_nonce(owner, nonce).unwrap();
+            }, __);
+            let transaction = ContractCreation {
+                gas_price: machine.context.gas_price,
+                gas_limit: gas_limit,
+                origin: machine.context.origin,
+                caller: owner,
+                value: value.into(),
+                init: init,
+            };
+            let mut submachine: ContractCreationMachine<M, S> = ContractCreationMachine::new(transaction, machine.block.clone(), machine.context.depth + 1);
+            let result = machine.fire_sub(&mut submachine);
 
-            unimplemented!()
+            if result.is_err() && result.clone().err().unwrap().is_require() {
+                trr!(result, __);
+            }
+
+            let submachine: Machine<M, S> = submachine.into();
+            if result.is_ok() {
+                machine.stack.push(submachine.context.address.into()).unwrap();
+            } else {
+                machine.stack.push(M256::zero()).unwrap();
+            }
+            end_rescuable!(__);
         },
 
         Opcode::CALL => {
             will_pop_push!(machine, 7, 1);
 
-            unimplemented!()
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let gas = machine.stack.pop().unwrap();
+            let to = machine.stack.pop().unwrap();
+            let value = machine.stack.pop().unwrap();
+            let in_offset = machine.stack.pop().unwrap();
+            let in_len = machine.stack.pop().unwrap();
+            let out_offset = machine.stack.pop().unwrap();
+            let out_len = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(out_len).unwrap();
+                machine.stack.push(out_offset).unwrap();
+                machine.stack.push(in_len).unwrap();
+                machine.stack.push(in_offset).unwrap();
+                machine.stack.push(value).unwrap();
+                machine.stack.push(to).unwrap();
+                machine.stack.push(gas).unwrap();
+            }, __);
+
+            let gas: Gas = gas.into();
+            let to: Address = to.into();
+            let value: U256 = value.into();
+
+            let in_end = in_offset + in_len;
+            if in_end < in_offset {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
+            let out_end = out_offset + out_len;
+            if out_end < out_offset {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
+
+            let mut data: Vec<u8> = Vec::new();
+            let mut i = in_offset;
+            while i < in_end {
+                data.push(trr!(machine.memory.read_raw(i), __));
+                i = i + M256::from(1u64);
+            }
+
+            let transaction = MessageCall {
+                gas_price: machine.context.gas_price,
+                gas_limit: gas,
+                to: to,
+                origin: machine.context.origin,
+                caller: machine.context.address,
+                value: value,
+                data: data,
+            };
+            let mut submachine: MessageCallMachine<M, S> = MessageCallMachine::new(transaction, machine.block.clone(), machine.context.depth + 1);
+            let result = machine.fire_sub(&mut submachine);
+
+            if result.is_err() && result.clone().err().unwrap().is_require() {
+                trr!(result, __);
+            }
+
+            let submachine: Machine<M, S> = submachine.into();
+            if result.is_ok() {
+                machine.stack.push(M256::from(1u64)).unwrap();
+            } else {
+                machine.stack.push(M256::zero()).unwrap();
+            }
+            end_rescuable!(__);
         },
 
         Opcode::CALLCODE => {

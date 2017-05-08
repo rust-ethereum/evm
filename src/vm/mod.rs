@@ -6,6 +6,7 @@ mod account;
 mod storage;
 mod cost;
 mod run;
+mod transaction;
 
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
@@ -13,6 +14,8 @@ pub use self::pc::PC;
 pub use self::params::{BlockHeader, Context, Patch, Log};
 pub use self::account::{Account, AccountCommitment};
 pub use self::storage::{Storage, HashMapStorage};
+pub use self::transaction::{Transaction, MessageCall, ContractCreation,
+                            MessageCallMachine, ContractCreationMachine};
 
 use self::account::AccountState;
 use self::cost::{gas_cost, gas_refund, CostAggregrator};
@@ -22,7 +25,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{M256, U256};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExecutionError {
     EmptyGas,
     EmptyBalance,
@@ -41,10 +44,22 @@ pub enum ExecutionError {
     Stopped
 }
 
+impl ExecutionError {
+    pub fn is_require(&self) -> bool {
+        match self {
+            &ExecutionError::RequireAccount(_) |
+            &ExecutionError::RequireAccountCode(_) |
+            &ExecutionError::RequireBlockhash(_) => true,
+            _ => false,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum CommitError {
     AlreadyCommitted,
-    StateChanged
+    StateChanged,
+    Invalid,
 }
 
 pub type ExecutionResult<T> = ::std::result::Result<T, ExecutionError>;
@@ -120,7 +135,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
+impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for Machine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;
@@ -182,6 +197,35 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
 
     fn patch(&self) -> Patch {
         self.patch
+    }
+}
+
+impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
+    fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
+        loop {
+            match submachine.fire() {
+                Err(ExecutionError::RequireAccount(address)) => {
+                    submachine.commit_account(AccountCommitment::Full {
+                        nonce: self.account_state.nonce(address)?,
+                        balance: self.account_state.balance(address)?,
+                        storage: self.account_state.storage(address)?.clone(),
+                        code: self.account_state.code(address)?.into(),
+                        address: address,
+                    });
+                },
+                Err(ExecutionError::RequireAccountCode(address)) => {
+                    submachine.commit_account(AccountCommitment::Code {
+                        code: self.account_state.code(address)?.into(),
+                        address: address,
+                    });
+                },
+                val => return val,
+            }
+        }
+    }
+
+    fn merge_sub<V: VM<S>>(&self, submachine: &V) {
+        // TODO: add the merge sub logic
     }
 }
 
