@@ -148,6 +148,7 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for ContractCreationMachin
                         storage: storage,
                         code: code
                     });
+                    machine.transactions.push(Transaction::ContractCreation(self.transaction.clone()));
                     self.machine = Some(machine);
                 },
                 _ => return Err(CommitError::Invalid),
@@ -260,6 +261,7 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for MessageCallMachine<M, 
                         storage: storage,
                         code: code
                     });
+                    machine.transactions.push(Transaction::MessageCall(self.transaction.clone()));
                     self.machine = Some(machine);
                 },
                 _ => return Err(CommitError::Invalid),
