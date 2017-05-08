@@ -1,1 +1,0 @@
-../../schema/test_capnp.rs
