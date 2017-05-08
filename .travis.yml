@@ -1,5 +1,21 @@
-language: nix
-script: nix-build -A sputnikvm -I nixpkgs=https://github.com/sjmackenzie/nixpkgs/archive/c4d6ba5c44e1360e842d80768cf8af11d2c1dbf4.tar.gz
+language: rust
+cache: cargo
+rust:
+  - stable
+  - beta
+  - nightly
+os:
+  - linux
+script:
+  - |
+    export PATH="$PATH":~/.cargo/bin &&
+    export RUST_BACKTRACE=1 &&
+    (test "$TRAVIS_RUST_VERSION" == nightly || cargo build --verbose --release) &&
+    cargo test --verbose &&
+    cargo doc --no-deps
+matrix:
+  allow_failures:
+    - rust: nightly
 notifications:
   email:
     on_success: never

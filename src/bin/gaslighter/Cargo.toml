@@ -1,16 +1,18 @@
 [package]
-name = "sputnikvm"
+name = "gaslighter"
 version = "0.1.0"
 license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
 description = "SputnikVM - the Ethereum Classic Virtual Machine"
 
-[lib]
-name = "sputnikvm"
-path = "./src/lib.rs"
-crate-type = ["rlib", "cdylib"]
+[[bin]]
+name = "gaslighter"
+path = "./mod.rs"
 
 [dependencies]
-log = "0.3"
-rust-crypto = "^0.2"
-merkle-sha3 = "0.1"
+sputnikvm = { path = '../../../' }
+clap = "2.22"
+libc = "0.2"
+libloading = "0.3"
+serde_json = "0.9"
+rustyline = "1.0.0"
