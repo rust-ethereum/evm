@@ -10,9 +10,11 @@ script:
   - |
     export PATH="$PATH":~/.cargo/bin &&
     export RUST_BACKTRACE=1 &&
-    (test "$TRAVIS_RUST_VERSION" == nightly || cargo build --verbose --release) &&
+    cargo build &&
     cargo test --verbose &&
-    cargo doc --no-deps
+    cargo doc --no-deps &&
+    cd src/bin/gaslighter &&
+    cargo build
 matrix:
   allow_failures:
     - rust: nightly
