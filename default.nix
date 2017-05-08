@@ -52,13 +52,19 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
   name = "sputnikvm-${version}";
   version = "0.1.0";
   src = ./.;
-  depsSha256 = "1m4ljdc5lgly983qjd2csh9lcg90r96wk8v9gb0jh1j0j2smwsr0";
+  depsSha256 = "0qpan9jv68f9jhd0b02j6p185fal65xqck3rkmqbvr12rr9ys7pa";
   buildInputs = [ perl ];
   doCheck = true;
   checkPhase = ''
     cargo test
     ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmArithmeticTest.json
     ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmBitwiseLogicOperationTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmBlockInfoTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmIOandFlowOperationsTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmLogTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmPerformanceTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmPushDupSwapTest.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmSha3Test.json
   '';
   });
 in {
