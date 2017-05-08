@@ -189,7 +189,8 @@ impl<S: Storage + Default> AccountState<S> {
         return Err(ExecutionError::RequireAccount(address));
     }
 
-    pub fn increase_balance(&mut self, address: Address, topup: U256) -> ExecutionResult<()> {
+    pub fn increase_balance(&mut self, address: Address, topup: U256) {
+        assert!(topup != U256::zero());
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
                 address: address,
@@ -219,16 +220,16 @@ impl<S: Storage + Default> AccountState<S> {
                 }
             },
             None => {
-                return Err(ExecutionError::RequireAccount(address));
+                Some(Account::IncreaseBalance(address, topup))
             },
         };
         if account.is_some() {
             self.accounts.insert(address, account.unwrap());
         }
-        Ok(())
     }
 
-    pub fn decrease_balance(&mut self, address: Address, withdraw: U256) -> ExecutionResult<()> {
+    pub fn decrease_balance(&mut self, address: Address, withdraw: U256) {
+        assert!(withdraw != U256::zero());
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
                 address: address,
@@ -237,9 +238,6 @@ impl<S: Storage + Default> AccountState<S> {
                 code: code,
                 nonce: nonce,
             }) => {
-                if balance < withdraw {
-                    return Err(ExecutionError::EmptyBalance);
-                }
                 Some(Account::Full {
                     address: address,
                     balance: balance - withdraw,
@@ -261,13 +259,12 @@ impl<S: Storage + Default> AccountState<S> {
                 }
             },
             None => {
-                return Err(ExecutionError::RequireAccount(address));
+                Some(Account::DecreaseBalance(address, withdraw))
             },
         };
         if account.is_some() {
             self.accounts.insert(address, account.unwrap());
         }
-        Ok(())
     }
 
     pub fn set_nonce(&mut self, address: Address, new_nonce: M256) -> ExecutionResult<()> {
@@ -314,5 +311,31 @@ impl<S: Storage + Default> AccountState<S> {
         };
         self.accounts.insert(address, account);
         Ok(())
+    }
+
+    pub fn merge(&mut self, other: &Account<S>) {
+        match other {
+            &Account::Full {
+                nonce: nonce,
+                address: address,
+                balance: balance,
+                storage: ref storage,
+                code: ref code
+            } => {
+                self.accounts.insert(address, Account::Full {
+                    nonce: nonce,
+                    address: address,
+                    balance: balance,
+                    storage: storage.derive(),
+                    code: code.clone(),
+                });
+            },
+            &Account::IncreaseBalance(address, inc) => {
+                self.increase_balance(address, inc);
+            },
+            &Account::DecreaseBalance(address, dec) => {
+                self.decrease_balance(address, dec);
+            },
+        }
     }
 }
