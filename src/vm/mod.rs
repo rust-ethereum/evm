@@ -194,6 +194,10 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
         self.account_state.accounts()
     }
 
+    fn transactions(&self) -> &[Transaction] {
+        self.transactions.as_slice()
+    }
+
     fn appending_logs(&self) -> &[Log] {
         self.appending_logs.as_slice()
     }
@@ -275,7 +279,12 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         }
     }
 
-    fn merge_sub<V: VM<S>>(&self, submachine: &V) {
-        // TODO: add the merge sub logic
+    fn merge_sub<V: VM<S>>(&mut self, submachine: &V) {
+        for account in submachine.accounts() {
+            self.account_state.merge(account);
+        }
+        for transaction in submachine.transactions() {
+            self.transactions.push(transaction.clone());
+        }
     }
 }

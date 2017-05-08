@@ -828,6 +828,8 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
                 machine.stack.push(M256::zero()).unwrap();
             }
             end_rescuable!(__);
+
+            machine.merge_sub(&submachine);
         },
 
         Opcode::CALL => {
@@ -894,6 +896,8 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
                 machine.stack.push(M256::zero()).unwrap();
             }
             end_rescuable!(__);
+
+            machine.merge_sub(&submachine);
         },
 
         Opcode::CALLCODE => {
@@ -947,9 +951,9 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
             let owner = machine.context.address;
 
             let balance = trr!(machine.account_state.balance(owner), __);
-            trr!(machine.account_state.increase_balance(address, balance), __);
+            machine.account_state.increase_balance(address, balance);
             on_rescue!(|machine| {
-                machine.account_state.decrease_balance(address, balance).unwrap();
+                machine.account_state.decrease_balance(address, balance);
             }, __);
             trr!(machine.account_state.remove(owner), __);
             machine.pc.stop();
