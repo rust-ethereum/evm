@@ -24,7 +24,8 @@ script:
     ./target/release/gaslighter crat -f tests/VMTests/vmPerformanceTest.json &&
     ./target/release/gaslighter crat -f tests/VMTests/vmPushDupSwapTest.json &&
     ./target/release/gaslighter crat -f tests/VMTests/vmSha3Test.json &&
-    ./target/release/gaslighter crat -f tests/VMTests/vmEnvironmentalInfoTest.json &&
+    ./target/release/gaslighter crat -f tests/VMTests/vmEnvironmentalInfoTest.json
+
 matrix:
   allow_failures:
     - rust: nightly
