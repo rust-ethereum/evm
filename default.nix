@@ -65,6 +65,7 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
     ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmPerformanceTest.json
     ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmPushDupSwapTest.json
     ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmSha3Test.json
+    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmEnvironmentalInfoTest.json
   '';
   });
 in {
