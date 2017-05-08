@@ -61,9 +61,8 @@ macro_rules! op2_ref {
     })
 }
 
-pub fn run_opcode<M: Memory + Default,
-                  S: Storage + Default + Clone>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
-                                                -> ExecutionResult<()> {
+pub fn run_opcode<M: Memory + Default, S: Storage + Default>
+    (opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas) -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
     // running function. Anything that might fail after the stack
     // has poped may result the VM in invalid state. Instead, if
@@ -800,8 +799,7 @@ pub fn run_opcode<M: Memory + Default,
             }
 
             let owner = machine.context.address;
-            let gas_limit = machine.available_gas() -
-                machine.available_gas() / Gas::from(64u64);
+            let gas_limit = after_gas;
             let nonce = trr!(machine.account_state.nonce(owner), __);
             trr!(machine.account_state.set_nonce(owner, nonce + M256::from(1u64)), __);
             on_rescue!(|machine| {
@@ -829,6 +827,8 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(M256::zero()).unwrap();
             }
             end_rescuable!(__);
+
+            machine.merge_sub(&submachine);
         },
 
         Opcode::CALL => {
@@ -895,6 +895,8 @@ pub fn run_opcode<M: Memory + Default,
                 machine.stack.push(M256::zero()).unwrap();
             }
             end_rescuable!(__);
+
+            machine.merge_sub(&submachine);
         },
 
         Opcode::CALLCODE => {
@@ -948,9 +950,9 @@ pub fn run_opcode<M: Memory + Default,
             let owner = machine.context.address;
 
             let balance = trr!(machine.account_state.balance(owner), __);
-            trr!(machine.account_state.increase_balance(address, balance), __);
+            machine.account_state.increase_balance(address, balance);
             on_rescue!(|machine| {
-                machine.account_state.decrease_balance(address, balance).unwrap();
+                machine.account_state.decrease_balance(address, balance);
             }, __);
             trr!(machine.account_state.remove(owner), __);
             machine.pc.stop();

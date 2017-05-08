@@ -86,6 +86,7 @@ pub trait VM<S: Storage> {
     fn commit_account(&mut self, commitment: AccountCommitment<S>) -> CommitResult<()>;
     fn commit_blockhash(&mut self, number: M256, hash: M256) -> CommitResult<()>;
     fn accounts(&self) -> hash_map::Values<Address, Account<S>>;
+    fn transactions(&self) -> &[Transaction];
     fn appending_logs(&self) -> &[Log];
 
     fn patch(&self) -> Patch;
@@ -104,6 +105,7 @@ pub struct Machine<M, S> {
     account_state: AccountState<S>,
     blockhashes: hash_map::HashMap<M256, M256>,
     appending_logs: Vec<Log>,
+    transactions: Vec<Transaction>,
 
     used_gas: Gas,
     refunded_gas: Gas,
@@ -126,6 +128,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
             account_state: AccountState::default(),
             blockhashes: hash_map::HashMap::new(),
             appending_logs: Vec::new(),
+            transactions: Vec::new(),
 
             used_gas: Gas::zero(),
             refunded_gas: Gas::zero(),
@@ -135,7 +138,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for Machine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;
@@ -191,41 +194,16 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for Machine<M, S> 
         self.account_state.accounts()
     }
 
+    fn transactions(&self) -> &[Transaction] {
+        self.transactions.as_slice()
+    }
+
     fn appending_logs(&self) -> &[Log] {
         self.appending_logs.as_slice()
     }
 
     fn patch(&self) -> Patch {
         self.patch
-    }
-}
-
-impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
-    fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
-        loop {
-            match submachine.fire() {
-                Err(ExecutionError::RequireAccount(address)) => {
-                    submachine.commit_account(AccountCommitment::Full {
-                        nonce: self.account_state.nonce(address)?,
-                        balance: self.account_state.balance(address)?,
-                        storage: self.account_state.storage(address)?.clone(),
-                        code: self.account_state.code(address)?.into(),
-                        address: address,
-                    });
-                },
-                Err(ExecutionError::RequireAccountCode(address)) => {
-                    submachine.commit_account(AccountCommitment::Code {
-                        code: self.account_state.code(address)?.into(),
-                        address: address,
-                    });
-                },
-                val => return val,
-            }
-        }
-    }
-
-    fn merge_sub<V: VM<S>>(&self, submachine: &V) {
-        // TODO: add the merge sub logic
     }
 }
 
@@ -276,5 +254,37 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
     fn append_log(&mut self, log: Log) {
         self.appending_logs.push(log);
+    }
+
+    fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
+        loop {
+            match submachine.fire() {
+                Err(ExecutionError::RequireAccount(address)) => {
+                    submachine.commit_account(AccountCommitment::Full {
+                        nonce: self.account_state.nonce(address)?,
+                        balance: self.account_state.balance(address)?,
+                        storage: self.account_state.storage(address)?.derive(),
+                        code: self.account_state.code(address)?.into(),
+                        address: address,
+                    });
+                },
+                Err(ExecutionError::RequireAccountCode(address)) => {
+                    submachine.commit_account(AccountCommitment::Code {
+                        code: self.account_state.code(address)?.into(),
+                        address: address,
+                    });
+                },
+                val => return val,
+            }
+        }
+    }
+
+    fn merge_sub<V: VM<S>>(&mut self, submachine: &V) {
+        for account in submachine.accounts() {
+            self.account_state.merge(account);
+        }
+        for transaction in submachine.transactions() {
+            self.transactions.push(transaction.clone());
+        }
     }
 }

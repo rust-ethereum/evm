@@ -86,6 +86,7 @@ pub struct ContractCreationMachine<M, S> {
 
     _empty_logs: Vec<Log>,
     _empty_accounts: hash_map::HashMap<Address, Account<S>>,
+    _initial_transactions: [Transaction; 1],
 }
 
 impl<M, S> Into<Machine<M, S>> for ContractCreationMachine<M, S> {
@@ -94,21 +95,22 @@ impl<M, S> Into<Machine<M, S>> for ContractCreationMachine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> ContractCreationMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> ContractCreationMachine<M, S> {
     pub fn new(transaction: ContractCreation, block: BlockHeader, depth: usize) -> Self {
         Self {
             machine: None,
-            transaction: transaction,
+            transaction: transaction.clone(),
             block: block,
             depth: depth,
 
             _empty_logs: Vec::new(),
             _empty_accounts: hash_map::HashMap::new(),
+            _initial_transactions: [Transaction::ContractCreation(transaction)],
         }
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for ContractCreationMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<S> for ContractCreationMachine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.machine.is_none() {
             return Err(ExecutionError::RequireAccount(self.transaction.caller));
@@ -146,6 +148,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for ContractCreati
                         storage: storage,
                         code: code
                     });
+                    machine.transactions.push(Transaction::ContractCreation(self.transaction.clone()));
                     self.machine = Some(machine);
                 },
                 _ => return Err(CommitError::Invalid),
@@ -169,6 +172,13 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for ContractCreati
         self.machine.as_ref().unwrap().accounts()
     }
 
+    fn transactions(&self) -> &[Transaction] {
+        if self.machine.is_none() {
+            return &self._initial_transactions;
+        }
+        self.machine.as_ref().unwrap().transactions()
+    }
+
     fn appending_logs(&self) -> &[Log] {
         if self.machine.is_none() {
             return self._empty_logs.as_slice();
@@ -189,6 +199,7 @@ pub struct MessageCallMachine<M, S> {
 
     _empty_logs: Vec<Log>,
     _empty_accounts: hash_map::HashMap<Address, Account<S>>,
+    _initial_transactions: [Transaction; 1],
 }
 
 impl<M, S> Into<Machine<M, S>> for MessageCallMachine<M, S> {
@@ -197,21 +208,22 @@ impl<M, S> Into<Machine<M, S>> for MessageCallMachine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> MessageCallMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> MessageCallMachine<M, S> {
     pub fn new(transaction: MessageCall, block: BlockHeader, depth: usize) -> Self {
         Self {
             machine: None,
-            transaction: transaction,
+            transaction: transaction.clone(),
             block: block,
             depth: depth,
 
             _empty_logs: Vec::new(),
             _empty_accounts: hash_map::HashMap::new(),
+            _initial_transactions: [Transaction::MessageCall(transaction)],
         }
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for MessageCallMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<S> for MessageCallMachine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.machine.is_none() {
             return Err(ExecutionError::RequireAccount(self.transaction.caller));
@@ -249,6 +261,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for MessageCallMac
                         storage: storage,
                         code: code
                     });
+                    machine.transactions.push(Transaction::MessageCall(self.transaction.clone()));
                     self.machine = Some(machine);
                 },
                 _ => return Err(CommitError::Invalid),
@@ -263,6 +276,13 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for MessageCallMac
             return Err(CommitError::Invalid);
         }
         self.machine.as_mut().unwrap().commit_blockhash(number, hash)
+    }
+
+    fn transactions(&self) -> &[Transaction] {
+        if self.machine.is_none() {
+            return &self._initial_transactions;
+        }
+        self.machine.as_ref().unwrap().transactions()
     }
 
     fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
