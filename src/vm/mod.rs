@@ -6,6 +6,7 @@ mod account;
 mod storage;
 mod cost;
 mod run;
+mod transaction;
 
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
@@ -13,6 +14,8 @@ pub use self::pc::PC;
 pub use self::params::{BlockHeader, Context, Patch, Log};
 pub use self::account::{Account, AccountCommitment};
 pub use self::storage::{Storage, HashMapStorage};
+pub use self::transaction::{Transaction, MessageCall, ContractCreation,
+                            MessageCallMachine, ContractCreationMachine};
 
 use self::account::AccountState;
 use self::cost::{gas_cost, gas_refund, CostAggregrator};
@@ -44,7 +47,8 @@ pub enum ExecutionError {
 #[derive(Debug)]
 pub enum CommitError {
     AlreadyCommitted,
-    StateChanged
+    StateChanged,
+    Invalid,
 }
 
 pub type ExecutionResult<T> = ::std::result::Result<T, ExecutionError>;
