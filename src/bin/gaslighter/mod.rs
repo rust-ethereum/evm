@@ -10,14 +10,12 @@ mod reg;
 mod crat;
 mod json;
 
-use serde_json::{Value, Error};
+use serde_json::{Value};
 use std::process;
 use std::fs::File;
 use std::path::Path;
-use std::io::{BufReader, Write, stdout};
+use std::io::{BufReader};
 
-use sputnikvm::{read_hex, Gas};
-use sputnikvm::vm::{Machine, SeqMachine};
 use crat::{test_transaction, debug_transaction};
 use reg::{perform_regression};
 
@@ -45,7 +43,6 @@ fn main() {
             (about: "Allows SputnikVM to be run as a service.")
         )
     ).get_matches();
-    let mut has_all_ffi_tests_passed = true;
     let mut has_all_crat_tests_passed = true;
     let mut has_regression_test_passed = true;
     let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
@@ -54,7 +51,6 @@ fn main() {
         let file = File::open(&path).unwrap();
         let reader = BufReader::new(file);
         let json: Value = serde_json::from_reader(reader).unwrap();
-
         match matches.value_of("TEST") {
             Some(test) => {
                 test_transaction(test, &json[test], true);
@@ -64,6 +60,12 @@ fn main() {
                 for (test, data) in json.as_object().unwrap() {
                     if !test_transaction(test, &data, false) {
                         failed = failed + 1;
+                        if failed > 0 {
+                            has_all_crat_tests_passed = false;
+                        }
+                        if !keep_going {
+                            break;
+                        }
                     }
                 }
                 println!("\n{} failed.", failed);
@@ -72,7 +74,7 @@ fn main() {
     }
     if let Some(ref matches) = matches.subcommand_matches("reg") {
         let path = matches.value_of("CHAINDATA").unwrap();
-        has_regression_test_passed = reg::perform_regression(path);
+        has_regression_test_passed = perform_regression(path);
     }
     if let Some(ref matches) = matches.subcommand_matches("cratedb") {
         let path = Path::new(matches.value_of("FILE").unwrap());
@@ -89,7 +91,7 @@ fn main() {
             },
         }
     }
-    if has_all_ffi_tests_passed || has_regression_test_passed {
+    if has_all_crat_tests_passed && has_regression_test_passed {
         process::exit(0);
     } else {
         process::exit(1);

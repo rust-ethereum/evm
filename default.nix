@@ -57,14 +57,14 @@ sputnikvm = rustPlatform.buildRustPackage (rec {
   doCheck = true;
   checkPhase = ''
     cargo test
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmArithmeticTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmBitwiseLogicOperationTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmBlockInfoTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmIOandFlowOperationsTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmLogTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmPerformanceTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmPushDupSwapTest.json
-    ./target/release/gaslighter -k crat -f ${tests}/VMTests/vmSha3Test.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmArithmeticTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmBitwiseLogicOperationTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmBlockInfoTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmIOandFlowOperationsTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmLogTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmPerformanceTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmPushDupSwapTest.json
+    ./target/release/gaslighter crat -f ${tests}/VMTests/vmSha3Test.json
   '';
   });
 in {
