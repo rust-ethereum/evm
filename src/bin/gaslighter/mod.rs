@@ -5,7 +5,6 @@ extern crate libloading;
 extern crate libc;
 extern crate serde_json;
 extern crate rustyline;
-extern crate rocksdb;
 
 mod reg;
 mod crat;
