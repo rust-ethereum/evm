@@ -20,7 +20,7 @@ pub struct Context {
     pub gas_limit: Gas,
     pub gas_price: Gas,
     pub origin: Address,
-    pub value: M256,
+    pub value: U256,
     pub depth: usize,
 }
 

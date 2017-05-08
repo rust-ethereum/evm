@@ -320,7 +320,7 @@ pub fn run_opcode<M: Memory + Default,
             will_pop_push!(machine, 0, 1);
 
             let value = machine.context.value;
-            machine.stack.push(value).unwrap();
+            machine.stack.push(value.into()).unwrap();
         },
 
         Opcode::CALLDATALOAD => {
