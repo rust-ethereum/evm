@@ -231,7 +231,6 @@ pub fn test_machine(v: &Value, machine: &SeqMachine, block: &JSONBlock, debug: b
             let log = log.as_object().unwrap();
 
             let address = Address::from_str(log["address"].as_str().unwrap()).unwrap();
-            let bloom = log["bloom"].as_str().unwrap();
             let data = read_hex(log["data"].as_str().unwrap()).unwrap();
             let mut topics: Vec<M256> = Vec::new();
 
