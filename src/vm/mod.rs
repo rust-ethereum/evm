@@ -25,7 +25,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{M256, U256};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ExecutionError {
     EmptyGas,
     EmptyBalance,
@@ -42,6 +42,17 @@ pub enum ExecutionError {
     RequireAccountCode(Address),
     RequireBlockhash(M256),
     Stopped
+}
+
+impl ExecutionError {
+    pub fn is_require(&self) -> bool {
+        match self {
+            &ExecutionError::RequireAccount(_) |
+            &ExecutionError::RequireAccountCode(_) |
+            &ExecutionError::RequireBlockhash(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -186,6 +197,35 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for Machine<M, S> 
 
     fn patch(&self) -> Patch {
         self.patch
+    }
+}
+
+impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
+    fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
+        loop {
+            match submachine.fire() {
+                Err(ExecutionError::RequireAccount(address)) => {
+                    submachine.commit_account(AccountCommitment::Full {
+                        nonce: self.account_state.nonce(address)?,
+                        balance: self.account_state.balance(address)?,
+                        storage: self.account_state.storage(address)?.clone(),
+                        code: self.account_state.code(address)?.into(),
+                        address: address,
+                    });
+                },
+                Err(ExecutionError::RequireAccountCode(address)) => {
+                    submachine.commit_account(AccountCommitment::Code {
+                        code: self.account_state.code(address)?.into(),
+                        address: address,
+                    });
+                },
+                val => return val,
+            }
+        }
+    }
+
+    fn merge_sub<V: VM<S>>(&self, submachine: &V) {
+        // TODO: add the merge sub logic
     }
 }
 
