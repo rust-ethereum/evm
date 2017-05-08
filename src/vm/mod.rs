@@ -124,7 +124,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
+impl<M: Memory + Default, S: Storage + Default + Clone> VM<S> for Machine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;

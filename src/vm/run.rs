@@ -2,7 +2,9 @@ use utils::bigint::{M256, MI256, U256, U512};
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::opcode::Opcode;
-use vm::{Machine, Memory, Stack, PC, ExecutionResult, ExecutionError, Storage, BlockHeader, Context, Log};
+use vm::{VM, Machine, Memory, Stack, PC, ExecutionResult, ExecutionError,
+         Storage, BlockHeader, Context, Log, ContractCreation,
+         ContractCreationMachine, AccountCommitment};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::min;
@@ -59,8 +61,8 @@ macro_rules! op2_ref {
 }
 
 pub fn run_opcode<M: Memory + Default,
-                  S: Storage + Default>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
-                                         -> ExecutionResult<()> {
+                  S: Storage + Default + Clone>(opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas)
+                                                -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
     // running function. Anything that might fail after the stack
     // has poped may result the VM in invalid state. Instead, if
@@ -771,44 +773,84 @@ pub fn run_opcode<M: Memory + Default,
         Opcode::CREATE => {
             will_pop_push!(machine, 3, 1);
 
-            // begin_rescuable!(machine, &mut Machine<M, S>, __);
-            // let value = machine.stack.pop().unwrap();
-            // let init_start = machine.stack.pop().unwrap();
-            // let init_len = machine.stack.pop().unwrap();
-            // on_rescue!(|machine| {
-            //     machine.stack.push(init_len);
-            //     machine.stack.push(init_start);
-            //     machine.stack.push(value);
-            // }, __);
-            // let init_end = init_start + init_len;
-            // if init_end < init_start {
-            //     trr!(Err(ExecutionError::DataTooLarge), __);
-            // }
+            begin_rescuable!(machine, &mut Machine<M, S>, __);
+            let value = machine.stack.pop().unwrap();
+            let init_start = machine.stack.pop().unwrap();
+            let init_len = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(init_len);
+                machine.stack.push(init_start);
+                machine.stack.push(value);
+            }, __);
+            let init_end = init_start + init_len;
+            if init_end < init_start {
+                trr!(Err(ExecutionError::DataTooLarge), __);
+            }
 
-            // let mut init: Vec<u8> = Vec::new();
-            // let mut i = init_start;
-            // while i < init_end {
-            //     init.push(trr!(machine.memory.read_raw(i), __));
-            //     i = i + M256::from(1u64);
-            // }
+            let mut init: Vec<u8> = Vec::new();
+            let mut i = init_start;
+            while i < init_end {
+                init.push(trr!(machine.memory.read_raw(i), __));
+                i = i + M256::from(1u64);
+            }
 
-            // let owner = machine.context.address;
-            // let gas_limit = machine.available_gas() -
-            //     machine.available_gas() / Gas::from(64u64);
-            // machine.account_nonce_inc(owner);
-            // on_rescue!(|machine| {
-            //     machine.account_nonce_dec(owner);
-            // }, __);
-            // let transaction = Transaction::ContractCreation {
-            //     gas_price: machine.transaction().gas_price(),
-            //     gas_limit: gas_limit,
-            //     originator: machine.transaction().originator(),
-            //     caller: owner,
-            //     value: value,
-            //     init: init,
-            // };
+            let owner = machine.context.address;
+            let gas_limit = machine.available_gas() -
+                machine.available_gas() / Gas::from(64u64);
+            let nonce = trr!(machine.account_state.nonce(owner), __);
+            trr!(machine.account_state.set_nonce(owner, nonce + M256::from(1u64)), __);
+            on_rescue!(|machine| {
+                machine.account_state.set_nonce(owner, nonce).unwrap();
+            }, __);
+            let transaction = ContractCreation {
+                gas_price: machine.context.gas_price,
+                gas_limit: gas_limit,
+                origin: machine.context.origin,
+                caller: owner,
+                value: value.into(),
+                init: init,
+            };
+            let mut submachine: ContractCreationMachine<M, S> = ContractCreationMachine::new(transaction, machine.block.clone(), machine.context.depth + 1);
 
-            unimplemented!()
+            let mut ok = false;
+            loop {
+                let result = submachine.fire();
+                match result {
+                    Err(ExecutionError::RequireAccount(address)) => {
+                        submachine.commit_account(AccountCommitment::Full {
+                            nonce: trr!(machine.account_state.nonce(address), __),
+                            balance: trr!(machine.account_state.balance(address), __),
+                            storage: trr!(machine.account_state.storage(address).and_then(|s| Ok(s.clone())), __),
+                            code: trr!(machine.account_state.code(address).and_then(|s| Ok(s.into())), __),
+                            address: address,
+                        });
+                    },
+                    Err(ExecutionError::RequireAccountCode(address)) => {
+                        submachine.commit_account(AccountCommitment::Code {
+                            code: trr!(machine.account_state.code(address).and_then(|s| Ok(s.into())), __),
+                            address: address,
+                        });
+                    },
+                    Err(ExecutionError::RequireBlockhash(number)) => {
+                        submachine.commit_blockhash(number, trr!(machine.blockhash(number), __));
+                    },
+                    Ok(_) => {
+                        ok = true;
+                        break;
+                    },
+                    _ => {
+                        ok = false;
+                        break;
+                    },
+                }
+            }
+
+            let submachine: Machine<M, S> = submachine.into();
+            if ok {
+                machine.stack.push(submachine.context.address.into()).unwrap();
+            } else {
+                machine.stack.push(M256::zero());
+            }
         },
 
         Opcode::CALL => {
