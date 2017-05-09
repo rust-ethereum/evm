@@ -10,6 +10,7 @@ script:
   - |
     export PATH="$PATH":~/.cargo/bin &&
     export RUST_BACKTRACE=1 &&
+    ls -la &&
     cd gaslighter &&
     cargo build &&
     cargo test --verbose &&
