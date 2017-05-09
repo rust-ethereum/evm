@@ -12,6 +12,8 @@ use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 
+const G_CALLSTIPEND: usize = 2300;
+
 fn call_code<M: Memory + Default,
              S: Storage + Default>(
     machine: &mut Machine<M, S>, gas: Gas, from: Address, to: Address, value: M256,
@@ -874,7 +876,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
 
             let transaction = MessageCall {
                 gas_price: machine.context.gas_price,
-                gas_limit: gas,
+                gas_limit: if value == U256::zero() { gas } else { gas + G_CALLSTIPEND.into() },
                 to: to,
                 origin: machine.context.origin,
                 caller: machine.context.address,

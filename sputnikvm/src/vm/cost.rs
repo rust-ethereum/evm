@@ -29,7 +29,6 @@ const G_CODEDEPOSITE: usize = 200;
 const G_CALL_DEFAULT: usize = 40;
 const G_CALL_EIP150: usize = 700;
 const G_CALLVALUE: usize = 9000;
-const G_CALLSTIPEND: usize = 2300;
 const G_NEWACCOUNT: usize = 25000;
 const G_EXP: usize = 10;
 const G_EXPBYTE_DEFAULT: usize = 10;
@@ -67,16 +66,6 @@ fn sstore_cost<M: Memory + Default,
 fn call_cost<M: Memory + Default,
              S: Storage + Default>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
     Ok(gascap_cost(machine, available_gas)? + extra_cost(machine)?)
-}
-
-fn callgas_cost<M: Memory + Default,
-                S: Storage + Default>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
-    let val = machine.stack().peek(2)?;
-    if val != M256::zero() {
-        Ok(gascap_cost(machine, available_gas)? + G_CALLSTIPEND.into())
-    } else {
-        Ok(gascap_cost(machine, available_gas)?)
-    }
 }
 
 fn gascap_cost<M: Memory + Default,
