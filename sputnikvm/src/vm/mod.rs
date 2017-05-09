@@ -18,7 +18,7 @@ pub use self::transaction::{Transaction, MessageCall, ContractCreation,
                             MessageCallMachine, ContractCreationMachine};
 
 use self::account::AccountState;
-use self::cost::{gas_cost, gas_refund, CostAggregrator};
+use self::cost::{gas_cost, gas_refund, gas_stipend, CostAggregrator};
 use self::run::run_opcode;
 use std::collections::hash_map;
 use utils::gas::Gas;
@@ -31,6 +31,7 @@ pub enum ExecutionError {
     EmptyBalance,
     StackUnderflow,
     StackOverflow,
+    CallOverflow,
     InvalidOpcode,
     PCOverflow,
     PCBadJumpDest,
@@ -67,7 +68,7 @@ pub type CommitResult<T> = ::std::result::Result<T, CommitError>;
 
 pub type SeqMachine = Machine<SeqMemory, HashMapStorage>;
 
-pub trait VM<S: Storage> {
+pub trait VM<M: Memory, S: Storage> {
     fn step(&mut self) -> ExecutionResult<()>;
     fn peek_cost(&self) -> ExecutionResult<Gas>;
     fn fire(&mut self) -> ExecutionResult<()> {
@@ -88,8 +89,10 @@ pub trait VM<S: Storage> {
     fn accounts(&self) -> hash_map::Values<Address, Account<S>>;
     fn transactions(&self) -> &[Transaction];
     fn appending_logs(&self) -> &[Log];
+    fn available_gas(&self) -> Gas;
 
     fn patch(&self) -> Patch;
+    fn raw(&self) -> &Machine<M, S>;
 }
 
 pub struct Machine<M, S> {
@@ -138,8 +141,12 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<M, S> for Machine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
+        if self.context.depth >= 1024 {
+            return Err(ExecutionError::CallOverflow);
+        }
+
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;
         let (gas, agg) = gas_cost(opcode, &self, aggregrator)?;
@@ -147,6 +154,10 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
     }
 
     fn step(&mut self) -> ExecutionResult<()> {
+        if self.context.depth >= 1024 {
+            return Err(ExecutionError::CallOverflow);
+        }
+
         begin_rescuable!(self, &mut Self, __);
         if self.pc.stopped() {
             trr!(Err(ExecutionError::Stopped), __);
@@ -162,15 +173,16 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
         let cost_aggregrator = self.cost_aggregrator;
         let (gas, agg) = trr!(gas_cost(opcode, self, cost_aggregrator), __);
         let refunded = trr!(gas_refund(opcode, self), __);
+        let stipend = trr!(gas_stipend(opcode, self), __);
 
         if gas > self.available_gas() {
             trr!(Err(ExecutionError::EmptyGas), __);
         }
 
-        trr!(run_opcode(opcode, self, available_gas - gas), __);
+        trr!(run_opcode(opcode, self, stipend, available_gas - gas + stipend), __);
 
         self.cost_aggregrator = agg;
-        self.used_gas = self.used_gas + gas;
+        self.used_gas = self.used_gas + gas - stipend;
         self.refunded_gas = self.refunded_gas + refunded;
 
         end_rescuable!(__);
@@ -202,8 +214,16 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
         self.appending_logs.as_slice()
     }
 
+    fn available_gas(&self) -> Gas {
+        self.context.gas_limit - self.used_gas
+    }
+
     fn patch(&self) -> Patch {
         self.patch
+    }
+
+    fn raw(&self) -> &Machine<M, S> {
+        self
     }
 }
 
@@ -240,10 +260,6 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         self.cost_aggregrator.active_memory_len()
     }
 
-    pub fn available_gas(&self) -> Gas {
-        self.context.gas_limit - self.used_gas
-    }
-
 
     fn blockhash(&mut self, number: M256) -> ExecutionResult<M256> {
         match self.blockhashes.get(&number) {
@@ -256,9 +272,10 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         self.appending_logs.push(log);
     }
 
-    fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
+    fn fire_sub<V: VM<M, S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
         loop {
-            match submachine.fire() {
+            let result = submachine.fire();
+            match result {
                 Err(ExecutionError::RequireAccount(address)) => {
                     submachine.commit_account(AccountCommitment::Full {
                         nonce: self.account_state.nonce(address)?,
@@ -279,7 +296,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         }
     }
 
-    fn merge_sub<V: VM<S>>(&mut self, submachine: &V) {
+    fn merge_sub(&mut self, submachine: &Machine<M, S>) {
         for account in submachine.accounts() {
             self.account_state.merge(account);
         }

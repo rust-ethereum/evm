@@ -5,7 +5,7 @@ use utils::opcode::Opcode;
 use vm::{VM, Machine, Memory, Stack, PC, ExecutionResult, ExecutionError,
          Storage, BlockHeader, Context, Log, ContractCreation,
          ContractCreationMachine, AccountCommitment,
-         MessageCall, MessageCallMachine};
+         MessageCall, MessageCallMachine, Transaction};
 
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::min;
@@ -62,7 +62,7 @@ macro_rules! op2_ref {
 }
 
 pub fn run_opcode<M: Memory + Default, S: Storage + Default>
-    (opcode: Opcode, machine: &mut Machine<M, S>, after_gas: Gas) -> ExecutionResult<()> {
+    (opcode: Opcode, machine: &mut Machine<M, S>, stipend: Gas, after_gas: Gas) -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
     // running function. Anything that might fail after the stack
     // has poped may result the VM in invalid state. Instead, if
@@ -871,17 +871,18 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
                 data.push(trr!(machine.memory.read_raw(i), __));
                 i = i + M256::from(1u64);
             }
+            let gas_limit: Gas = min(machine.available_gas(), gas + stipend);
 
             let transaction = MessageCall {
                 gas_price: machine.context.gas_price,
-                gas_limit: gas,
+                gas_limit: gas_limit,
                 to: to,
                 origin: machine.context.origin,
                 caller: machine.context.address,
                 value: value,
                 data: data,
             };
-            let mut submachine: MessageCallMachine<M, S> = MessageCallMachine::new(transaction, machine.block.clone(), machine.context.depth + 1);
+            let mut submachine: MessageCallMachine<M, S> = MessageCallMachine::new(transaction.clone(), machine.block.clone(), machine.context.depth + 1);
             let result = machine.fire_sub(&mut submachine);
 
             if result.is_err() && result.clone().err().unwrap().is_require() {
@@ -890,13 +891,13 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>
 
             let submachine: Machine<M, S> = submachine.into();
             if result.is_ok() {
-                machine.stack.push(M256::from(1u64)).unwrap();
+                machine.stack.push(M256::from(0u64)).unwrap();
+                machine.merge_sub(&submachine);
             } else {
-                machine.stack.push(M256::zero()).unwrap();
+                machine.stack.push(M256::from(1u64)).unwrap();
+                machine.transactions.push(Transaction::MessageCall(transaction));
             }
             end_rescuable!(__);
-
-            machine.merge_sub(&submachine);
         },
 
         Opcode::CALLCODE => {
