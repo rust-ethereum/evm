@@ -10,8 +10,11 @@ script:
   - |
     export PATH="$PATH":~/.cargo/bin &&
     export RUST_BACKTRACE=1 &&
+    echo SCRIPT
+    pwd &&
     cd gaslighter &&
     cargo build &&
+    pwd &&
     ls -la &&
     cargo test --verbose &&
     cargo doc --no-deps &&
@@ -40,9 +43,6 @@ addons:
       - binutils-dev
 
 after_success: |
-  ls -la &&
-  ls -la target &&
-  ls -la target/debug/ &&
   wget https://github.com/SimonKagstrom/kcov/archive/v33.tar.gz &&
   tar xzf v33.tar.gz &&
   cd kcov-33 &&
