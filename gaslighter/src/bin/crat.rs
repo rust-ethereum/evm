@@ -98,7 +98,14 @@ pub fn debug_transaction(v: &Value) {
                             for i in 0..machine.stack().len() {
                                 println!("{}: {:x}", i, machine.stack().peek(i).unwrap());
                             }
-                            println!("Result: {:?}", machine.step());
+                            println!("Result: {:?}", match machine.step() {
+                                Ok(()) => (),
+                                Err(ExecutionError::RequireAccount(address)) => {
+                                    machine.commit_account(block.request_account(address)).unwrap();
+                                    machine.step().unwrap()
+                                },
+                                _ => unimplemented!(),
+                            });
                             print!("\n");
                         }
                     },
