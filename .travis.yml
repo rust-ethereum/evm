@@ -41,6 +41,8 @@ addons:
 
 after_success: |
   ls -la &&
+  ls -la target &&
+  ls -la target/debug/ &&
   wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
   tar xzf master.tar.gz &&
   cd kcov-master &&
@@ -51,7 +53,7 @@ after_success: |
   sudo make install &&
   cd ../.. &&
   rm -rf kcov-master &&
-  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/gaslighter-* &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/gaslighter &&
   bash <(curl -s https://codecov.io/bash) &&
   echo "Uploaded code coverage"
 matrix:
