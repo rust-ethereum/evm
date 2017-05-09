@@ -31,6 +31,7 @@ pub enum ExecutionError {
     EmptyBalance,
     StackUnderflow,
     StackOverflow,
+    CallOverflow,
     InvalidOpcode,
     PCOverflow,
     PCBadJumpDest,
@@ -141,6 +142,10 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
 impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
+        if self.context.depth >= 1024 {
+            return Err(ExecutionError::CallOverflow);
+        }
+
         let opcode = self.pc.peek_opcode()?;
         let aggregrator = self.cost_aggregrator;
         let (gas, agg) = gas_cost(opcode, &self, aggregrator)?;
@@ -148,6 +153,10 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
     }
 
     fn step(&mut self) -> ExecutionResult<()> {
+        if self.context.depth >= 1024 {
+            return Err(ExecutionError::CallOverflow);
+        }
+
         begin_rescuable!(self, &mut Self, __);
         if self.pc.stopped() {
             trr!(Err(ExecutionError::Stopped), __);
