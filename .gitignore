@@ -6,11 +6,6 @@
 *.exe
 *.iml
 .idea
-target/
-sputnikvm/target/
-gaslighter/target/
-test/target/
-benchmark/target/
+target
 **/result
-core
 tests.bin
