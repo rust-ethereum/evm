@@ -6,6 +6,7 @@
 *.exe
 *.iml
 .idea
+Cargo.lock
 /target/
 src/bin/gaslighter/target/
 test/target/
