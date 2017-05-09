@@ -57,7 +57,7 @@ pub fn debug_transaction(v: &Value) {
     let mut block = create_block(v);
     let mut machine = create_machine(v, &block);
     let owner = machine.context().address;
-    machine.commit_account(block.request_account(owner));
+    machine.commit_account(block.request_account(owner)).unwrap();
     let mut rl = Editor::<()>::new();
 
     loop {
@@ -84,7 +84,7 @@ pub fn debug_transaction(v: &Value) {
                             let gas = match machine.peek_cost() {
                                 Ok(gas) => gas,
                                 Err(ExecutionError::RequireAccount(address)) => {
-                                    machine.commit_account(block.request_account(owner));
+                                    machine.commit_account(block.request_account(address)).unwrap();
                                     machine.peek_cost().unwrap()
                                 },
                                 _ => unimplemented!(),
