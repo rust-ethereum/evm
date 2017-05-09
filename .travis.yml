@@ -43,7 +43,7 @@ after_success: |
   ls -la &&
   ls -la target &&
   ls -la target/debug/ &&
-  wget https://github.com/SimonKagstrom/kcov/archive/master.tar.gz &&
+  wget https://github.com/SimonKagstrom/kcov/archive/v33.tar.gz &&
   tar xzf master.tar.gz &&
   cd kcov-master &&
   mkdir build &&
