@@ -68,7 +68,7 @@ pub type CommitResult<T> = ::std::result::Result<T, CommitError>;
 
 pub type SeqMachine = Machine<SeqMemory, HashMapStorage>;
 
-pub trait VM<S: Storage> {
+pub trait VM<M: Memory, S: Storage> {
     fn step(&mut self) -> ExecutionResult<()>;
     fn peek_cost(&self) -> ExecutionResult<Gas>;
     fn fire(&mut self) -> ExecutionResult<()> {
@@ -92,6 +92,7 @@ pub trait VM<S: Storage> {
     fn available_gas(&self) -> Gas;
 
     fn patch(&self) -> Patch;
+    fn raw(&self) -> &Machine<M, S>;
 }
 
 pub struct Machine<M, S> {
@@ -140,7 +141,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<M, S> for Machine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.context.depth >= 1024 {
             return Err(ExecutionError::CallOverflow);
@@ -220,6 +221,10 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
     fn patch(&self) -> Patch {
         self.patch
     }
+
+    fn raw(&self) -> &Machine<M, S> {
+        self
+    }
 }
 
 impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
@@ -267,7 +272,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         self.appending_logs.push(log);
     }
 
-    fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
+    fn fire_sub<V: VM<M, S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
         loop {
             let result = submachine.fire();
             match result {
