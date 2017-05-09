@@ -7,7 +7,6 @@ description = "SputnikVM - a Virtual Machine tester"
 
 [[bin]]
 name = "gaslighter"
-path = "./mod.rs"
 
 [dependencies]
 sputnikvm = { path = '../sputnikvm' }
