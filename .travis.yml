@@ -42,7 +42,7 @@ script:
     cargo run -- crat -f tests/VMTests/vmEnvironmentalInfoTest.json &&
     cd .. &&
     cargo install cargo-kcov &&
-    cargo-kcov kcov --all  -- --verbose --no-clean-rebuild --lib
+    cargo-kcov kcov --all  -- --no-clean-rebuild --lib --coveralls
 
 install:
   - rustc -vV
