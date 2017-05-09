@@ -6,9 +6,9 @@
 *.exe
 *.iml
 .idea
-Cargo.lock
-/target/
-src/bin/gaslighter/target/
+target/
+sputnikvm/target/
+gaslighter/target/
 test/target/
 benchmark/target/
 **/result
