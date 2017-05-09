@@ -110,7 +110,7 @@ impl<M: Memory + Default, S: Storage + Default> ContractCreationMachine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default> VM<S> for ContractCreationMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<M, S> for ContractCreationMachine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.machine.is_none() {
             return Err(ExecutionError::RequireAccount(self.transaction.caller));
@@ -189,6 +189,17 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for ContractCreationMachin
     fn patch(&self) -> Patch {
         self.machine.as_ref().unwrap().patch()
     }
+
+    fn available_gas(&self) -> Gas {
+        if self.machine.is_none() {
+            return self.transaction.gas_limit;
+        }
+        self.machine.as_ref().unwrap().available_gas()
+    }
+
+    fn raw(&self) -> &Machine<M, S> {
+        self.machine.as_ref().unwrap()
+    }
 }
 
 pub struct MessageCallMachine<M, S> {
@@ -223,7 +234,7 @@ impl<M: Memory + Default, S: Storage + Default> MessageCallMachine<M, S> {
     }
 }
 
-impl<M: Memory + Default, S: Storage + Default> VM<S> for MessageCallMachine<M, S> {
+impl<M: Memory + Default, S: Storage + Default> VM<M, S> for MessageCallMachine<M, S> {
     fn peek_cost(&self) -> ExecutionResult<Gas> {
         if self.machine.is_none() {
             return Err(ExecutionError::RequireAccount(self.transaction.caller));
@@ -301,5 +312,16 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for MessageCallMachine<M, 
 
     fn patch(&self) -> Patch {
         self.machine.as_ref().unwrap().patch()
+    }
+
+    fn available_gas(&self) -> Gas {
+        if self.machine.is_none() {
+            return self.transaction.gas_limit;
+        }
+        self.machine.as_ref().unwrap().available_gas()
+    }
+
+    fn raw(&self) -> &Machine<M, S> {
+        self.machine.as_ref().unwrap()
     }
 }

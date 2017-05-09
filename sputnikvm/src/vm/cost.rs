@@ -69,16 +69,6 @@ fn call_cost<M: Memory + Default,
     Ok(gascap_cost(machine, available_gas)? + extra_cost(machine)?)
 }
 
-fn callgas_cost<M: Memory + Default,
-                S: Storage + Default>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
-    let val = machine.stack().peek(2)?;
-    if val != M256::zero() {
-        Ok(gascap_cost(machine, available_gas)? + G_CALLSTIPEND.into())
-    } else {
-        Ok(gascap_cost(machine, available_gas)?)
-    }
-}
-
 fn gascap_cost<M: Memory + Default,
                S: Storage + Default>(machine: &Machine<M, S>, available_gas: Gas) -> ExecutionResult<Gas> {
     // let base2 = machine.stack().peek(0)?.into();
@@ -300,6 +290,24 @@ pub fn gas_cost<M: Memory + Default,
     let (memory_gas, agg) = memory_gas_cost(opcode, machine, aggregrator)?;
     Ok((self_cost + memory_gas, agg))
 }
+
+
+pub fn gas_stipend<M: Memory + Default, S: Storage + Default>(opcode: Opcode, machine: &Machine<M, S>)
+                                                              -> ExecutionResult<Gas> {
+    match opcode {
+        Opcode::CALL => {
+            let value = machine.stack().peek(2)?;
+
+            if value != M256::zero() {
+                Ok(G_CALLSTIPEND.into())
+            } else {
+                Ok(Gas::zero())
+            }
+        },
+        _ => Ok(Gas::zero()),
+    }
+}
+
 
 pub fn gas_refund<M: Memory + Default,
                   S: Storage + Default>(opcode: Opcode, machine: &Machine<M, S>) -> ExecutionResult<Gas> {
