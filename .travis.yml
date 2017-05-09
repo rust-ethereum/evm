@@ -1,5 +1,37 @@
-language: nix
-script: nix-build -A sputnikvm -I nixpkgs=https://github.com/sjmackenzie/nixpkgs/archive/c4d6ba5c44e1360e842d80768cf8af11d2c1dbf4.tar.gz
+language: rust
+cache: cargo
+rust:
+  - stable
+  - beta
+  - nightly
+os:
+  - linux
+script:
+  - |
+    export PATH="$PATH":~/.cargo/bin &&
+    export RUST_BACKTRACE=1 &&
+    cargo build &&
+    cargo test --verbose &&
+    cargo doc --no-deps &&
+    cd src/bin/gaslighter &&
+    git clone https://github.com/ethereumproject/tests.git &&
+    cd tests &&
+    git checkout develop &&
+    cd .. &&
+    cargo build &&
+    cargo run -- crat -f tests/VMTests/vmArithmeticTest.json &&
+    cargo run -- crat -f tests/VMTests/vmBitwiseLogicOperationTest.json &&
+    cargo run -- crat -f tests/VMTests/vmBlockInfoTest.json &&
+    cargo run -- crat -f tests/VMTests/vmIOandFlowOperationsTest.json &&
+    cargo run -- crat -f tests/VMTests/vmLogTest.json &&
+    cargo run -- crat -f tests/VMTests/vmPerformanceTest.json &&
+    cargo run -- crat -f tests/VMTests/vmPushDupSwapTest.json &&
+    cargo run -- crat -f tests/VMTests/vmSha3Test.json &&
+    cargo run -- crat -f tests/VMTests/vmEnvironmentalInfoTest.json
+
+matrix:
+  allow_failures:
+    - rust: nightly
 notifications:
   email:
     on_success: never
