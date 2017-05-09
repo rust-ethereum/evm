@@ -44,15 +44,15 @@ after_success: |
   ls -la target &&
   ls -la target/debug/ &&
   wget https://github.com/SimonKagstrom/kcov/archive/v33.tar.gz &&
-  tar xzf master.tar.gz &&
-  cd kcov-master &&
+  tar xzf v33.tar.gz &&
+  cd kcov-33 &&
   mkdir build &&
   cd build &&
   cmake .. &&
   make &&
   sudo make install &&
   cd ../.. &&
-  rm -rf kcov-master &&
+  rm -rf kcov-33 &&
   kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/gaslighter &&
   bash <(curl -s https://codecov.io/bash) &&
   echo "Uploaded code coverage"
