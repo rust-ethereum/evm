@@ -29,12 +29,30 @@ script:
     cargo run -- crat -f tests/VMTests/vmEnvironmentalInfoTest.json &&
     cd ..
 
+before_install:
+  - sudo apt-get update
+
 addons:
   apt:
     packages:
-      - kcov
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
 
 after_success: |
+  wget https://github.com/SimonKagstrom/kcov/archive/v32.tar.gz &&
+  tar xzf v32.tar.gz &&
+  cd kcov-32 &&
+  mkdir build &&
+  cd build &&
+  cmake .. &&
+  make &&
+  sudo make install &&
+  cd ../.. &&
+  rm -rf kcov-32 &&
   kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/gaslighter &&
   bash <(curl -s https://codecov.io/bash) &&
   echo "Uploaded code coverage"
