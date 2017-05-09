@@ -13,7 +13,7 @@ script:
     cargo build &&
     cargo test --verbose &&
     cargo doc --no-deps &&
-    cd src/bin/gaslighter &&
+    cd gaslighter &&
     git clone https://github.com/ethereumproject/tests.git &&
     cd tests &&
     git checkout develop &&
