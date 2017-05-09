@@ -29,6 +29,34 @@ script:
     cargo run -- crat -f tests/VMTests/vmSha3Test.json &&
     cargo run -- crat -f tests/VMTests/vmEnvironmentalInfoTest.json
 
+addons:
+  apt:
+    packages:
+      - libcurl4-openssl-dev
+      - libelf-dev
+      - libdw-dev
+      - cmake
+      - gcc
+      - binutils-dev
+
+after_success: |
+  ls -la &&
+  ls -la target &&
+  ls -la target/debug/ &&
+  wget https://github.com/SimonKagstrom/kcov/archive/v33.tar.gz &&
+  tar xzf v33.tar.gz &&
+  cd kcov-33 &&
+  mkdir build &&
+  cd build &&
+  cmake .. &&
+  make &&
+  sudo make install &&
+  cd ../.. &&
+  rm -rf kcov-33 &&
+  cat /home/travis/.travis/job_stages &&
+  kcov --exclude-pattern=/.cargo,/usr/lib --verify target/cov target/debug/gaslighter &&
+  bash <(curl -s https://codecov.io/bash) &&
+  echo "Uploaded code coverage"
 matrix:
   allow_failures:
     - rust: nightly
