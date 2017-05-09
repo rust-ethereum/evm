@@ -29,6 +29,7 @@ const G_CODEDEPOSITE: usize = 200;
 const G_CALL_DEFAULT: usize = 40;
 const G_CALL_EIP150: usize = 700;
 const G_CALLVALUE: usize = 9000;
+const G_CALLSTIPEND: usize = 2300;
 const G_NEWACCOUNT: usize = 25000;
 const G_EXP: usize = 10;
 const G_EXPBYTE_DEFAULT: usize = 10;
@@ -289,6 +290,24 @@ pub fn gas_cost<M: Memory + Default,
     let (memory_gas, agg) = memory_gas_cost(opcode, machine, aggregrator)?;
     Ok((self_cost + memory_gas, agg))
 }
+
+
+pub fn gas_stipend<M: Memory + Default, S: Storage + Default>(opcode: Opcode, machine: &Machine<M, S>)
+                                                              -> ExecutionResult<Gas> {
+    match opcode {
+        Opcode::CALL => {
+            let value = machine.stack().peek(2)?;
+
+            if value != M256::zero() {
+                Ok(G_CALLSTIPEND.into())
+            } else {
+                Ok(Gas::zero())
+            }
+        },
+        _ => Ok(Gas::zero()),
+    }
+}
+
 
 pub fn gas_refund<M: Memory + Default,
                   S: Storage + Default>(opcode: Opcode, machine: &Machine<M, S>) -> ExecutionResult<Gas> {

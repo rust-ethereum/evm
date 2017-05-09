@@ -18,7 +18,7 @@ pub use self::transaction::{Transaction, MessageCall, ContractCreation,
                             MessageCallMachine, ContractCreationMachine};
 
 use self::account::AccountState;
-use self::cost::{gas_cost, gas_refund, CostAggregrator};
+use self::cost::{gas_cost, gas_refund, gas_stipend, CostAggregrator};
 use self::run::run_opcode;
 use std::collections::hash_map;
 use utils::gas::Gas;
@@ -163,15 +163,16 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
         let cost_aggregrator = self.cost_aggregrator;
         let (gas, agg) = trr!(gas_cost(opcode, self, cost_aggregrator), __);
         let refunded = trr!(gas_refund(opcode, self), __);
+        let stipend = trr!(gas_stipend(opcode, self), __);
 
         if gas > self.available_gas() {
             trr!(Err(ExecutionError::EmptyGas), __);
         }
 
-        trr!(run_opcode(opcode, self, available_gas - gas), __);
+        trr!(run_opcode(opcode, self, stipend, available_gas - gas + stipend), __);
 
         self.cost_aggregrator = agg;
-        self.used_gas = self.used_gas + gas;
+        self.used_gas = self.used_gas + gas - stipend;
         self.refunded_gas = self.refunded_gas + refunded;
 
         end_rescuable!(__);
@@ -259,7 +260,8 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
     fn fire_sub<V: VM<S>>(&self, submachine: &mut V) -> ExecutionResult<()> {
         loop {
-            match submachine.fire() {
+            let result = submachine.fire();
+            match result {
                 Err(ExecutionError::RequireAccount(address)) => {
                     submachine.commit_account(AccountCommitment::Full {
                         nonce: self.account_state.nonce(address)?,
@@ -280,7 +282,7 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
         }
     }
 
-    fn merge_sub<V: VM<S>>(&mut self, submachine: &V) {
+    fn merge_sub(&mut self, submachine: &Machine<M, S>) {
         for account in submachine.accounts() {
             self.account_state.merge(account);
         }
