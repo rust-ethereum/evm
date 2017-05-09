@@ -189,6 +189,13 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for ContractCreationMachin
     fn patch(&self) -> Patch {
         self.machine.as_ref().unwrap().patch()
     }
+
+    fn available_gas(&self) -> Gas {
+        if self.machine.is_none() {
+            return self.transaction.gas_limit;
+        }
+        self.machine.as_ref().unwrap().available_gas()
+    }
 }
 
 pub struct MessageCallMachine<M, S> {
@@ -301,5 +308,12 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for MessageCallMachine<M, 
 
     fn patch(&self) -> Patch {
         self.machine.as_ref().unwrap().patch()
+    }
+
+    fn available_gas(&self) -> Gas {
+        if self.machine.is_none() {
+            return self.transaction.gas_limit;
+        }
+        self.machine.as_ref().unwrap().available_gas()
     }
 }

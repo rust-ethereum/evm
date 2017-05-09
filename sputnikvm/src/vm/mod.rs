@@ -88,6 +88,7 @@ pub trait VM<S: Storage> {
     fn accounts(&self) -> hash_map::Values<Address, Account<S>>;
     fn transactions(&self) -> &[Transaction];
     fn appending_logs(&self) -> &[Log];
+    fn available_gas(&self) -> Gas;
 
     fn patch(&self) -> Patch;
 }
@@ -202,6 +203,10 @@ impl<M: Memory + Default, S: Storage + Default> VM<S> for Machine<M, S> {
         self.appending_logs.as_slice()
     }
 
+    fn available_gas(&self) -> Gas {
+        self.context.gas_limit - self.used_gas
+    }
+
     fn patch(&self) -> Patch {
         self.patch
     }
@@ -238,10 +243,6 @@ impl<M: Memory + Default, S: Storage + Default> Machine<M, S> {
 
     pub fn active_memory_len(&self) -> M256 {
         self.cost_aggregrator.active_memory_len()
-    }
-
-    pub fn available_gas(&self) -> Gas {
-        self.context.gas_limit - self.used_gas
     }
 
 
