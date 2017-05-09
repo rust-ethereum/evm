@@ -44,6 +44,7 @@ script:
     cargo install cargo-kcov &&
     cargo-kcov kcov --all  -- --no-clean-rebuild --lib --coveralls
 
+
 install:
   - rustc -vV
   - cargo -vV
