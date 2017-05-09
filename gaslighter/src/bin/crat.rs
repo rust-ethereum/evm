@@ -2,7 +2,7 @@ use serde_json;
 use sputnikvm;
 
 use sputnikvm::{read_hex, Gas, M256, Address};
-use sputnikvm::vm::{VM, Machine, Stack, PC};
+use sputnikvm::vm::{VM, Machine, Stack, PC, ExecutionError};
 
 use super::json::{create_machine, create_block, test_machine, apply_to_block, fire_with_block};
 
@@ -81,7 +81,14 @@ pub fn debug_transaction(v: &Value) {
                     "fire debug" => {
                         while !machine.pc().stopped() {
                             println!("Running {:?} ...", machine.pc().peek_opcode());
-                            let gas = machine.peek_cost().unwrap();
+                            let gas = match machine.peek_cost() {
+                                Ok(gas) => gas,
+                                Err(ExecutionError::RequireAccount(address)) => {
+                                    machine.commit_account(block.request_account(owner));
+                                    machine.peek_cost().unwrap()
+                                },
+                                _ => unimplemented!(),
+                            };
                             if gas < Gas::from(u64::max_value()) {
                                 let gas: u64 = gas.into();
                                 println!("Cost: {}", gas);
