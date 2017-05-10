@@ -15,7 +15,9 @@ pub use self::params::{Context, BlockHeader, Log, Patch};
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account};
 
+use std::collections::hash_map;
 use utils::bigint::M256;
+use utils::address::Address;
 use self::errors::{RequireError, CommitError, MachineError};
 
 pub struct VM<M, S>(Vec<Machine<M, S>>);
@@ -79,5 +81,9 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
                 VMStatus::ExitedOk | VMStatus::ExitedErr(_) => return Ok(()),
             }
         }
+    }
+
+    pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
+        self.0[0].state().account_state.accounts()
     }
 }

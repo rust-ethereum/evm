@@ -179,6 +179,10 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
+    pub fn state(&self) -> &State<M, S> {
+        &self.state
+    }
+
     pub fn status(&self) -> MachineStatus {
         self.status.clone()
     }
