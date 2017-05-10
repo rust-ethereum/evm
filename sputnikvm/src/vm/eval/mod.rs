@@ -26,28 +26,6 @@ pub struct State<M, S> {
     pub blockhash_state: BlockhashState,
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> State<M, S> {
-    pub fn derive(&self, context: Context) -> Self {
-        State {
-            memory: M::default(),
-            stack: Stack::default(),
-
-            context: context,
-            block: self.block.clone(),
-            patch: self.patch.clone(),
-
-            out: Vec::new(),
-
-            memory_gas: Gas::zero(),
-            used_gas: Gas::zero(),
-            refunded_gas: Gas::zero(),
-
-            account_state: self.account_state.clone(),
-            blockhash_state: self.blockhash_state.clone()
-        }
-    }
-}
-
 /// A VM state with PC.
 pub struct Machine<M, S> {
     state: State<M, S>,
@@ -73,7 +51,23 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: Status::Running,
-            state: self.state.derive(context),
+            state: State {
+                memory: M::default(),
+                stack: Stack::default(),
+
+                context: context,
+                block: self.state.block.clone(),
+                patch: self.state.patch.clone(),
+
+                out: Vec::new(),
+
+                memory_gas: Gas::zero(),
+                used_gas: Gas::zero(),
+                refunded_gas: Gas::zero(),
+
+                account_state: self.state.account_state.clone(),
+                blockhash_state: self.state.blockhash_state.clone()
+            },
         }
     }
 
