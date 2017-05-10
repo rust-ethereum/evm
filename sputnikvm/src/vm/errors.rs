@@ -20,6 +20,7 @@ pub enum StackError {
 
 #[derive(Debug, Clone)]
 pub enum PCError {
+    InvalidOpcode,
     IndexNotSupported,
     BadJumpDest,
     Overflow,

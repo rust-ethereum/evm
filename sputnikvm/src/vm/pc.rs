@@ -3,10 +3,21 @@ use utils::opcode::Opcode;
 use std::cmp::min;
 use super::errors::PCError;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum Instruction {
-    Push(Opcode, M256),
-    NotPush(Opcode),
+    STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP,
+    SIGNEXTEND, LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE,
+    SHA3, ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD,
+    CALLDATASIZE, CALLDATACOPY, CODESIZE, CODECOPY, GASPRICE,
+    EXTCODESIZE, EXTCODECOPY, BLOCKHASH, COINBASE, TIMESTAMP, NUMBER,
+    DIFFICULTY, GASLIMIT, POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE,
+    JUMP, JUMPI, PC, MSIZE, GAS, JUMPDEST, CREATE, CALL, CALLCODE,
+    RETURN, DELEGATECALL, SUICIDE,
+
+    PUSH(M256),
+    DUP(usize),
+    SWAP(usize),
+    LOG(usize),
 }
 
 pub struct PC {
@@ -90,27 +101,100 @@ impl PC {
             return Err(PCError::Overflow);
         }
         let opcode: Opcode = self.code[position].into();
-        match opcode {
+        Ok(match opcode {
+            Opcode::STOP => Instruction::STOP,
+            Opcode::ADD => Instruction::ADD,
+            Opcode::MUL => Instruction::MUL,
+            Opcode::SUB => Instruction::SUB,
+            Opcode::DIV => Instruction::DIV,
+            Opcode::SDIV => Instruction::SDIV,
+            Opcode::MOD => Instruction::MOD,
+            Opcode::SMOD => Instruction::SMOD,
+            Opcode::ADDMOD => Instruction::ADDMOD,
+            Opcode::MULMOD => Instruction::MULMOD,
+            Opcode::EXP => Instruction::EXP,
+            Opcode::SIGNEXTEND => Instruction::SIGNEXTEND,
+
+            Opcode::LT => Instruction::LT,
+            Opcode::GT => Instruction::GT,
+            Opcode::SLT => Instruction::SLT,
+            Opcode::SGT => Instruction::SGT,
+            Opcode::EQ => Instruction::EQ,
+            Opcode::ISZERO => Instruction::ISZERO,
+            Opcode::AND => Instruction::AND,
+            Opcode::OR => Instruction::OR,
+            Opcode::XOR => Instruction::XOR,
+            Opcode::NOT => Instruction::NOT,
+            Opcode::BYTE => Instruction::BYTE,
+
+            Opcode::SHA3 => Instruction::SHA3,
+
+            Opcode::ADDRESS => Instruction::ADDRESS,
+            Opcode::BALANCE => Instruction::BALANCE,
+            Opcode::ORIGIN => Instruction::ORIGIN,
+            Opcode::CALLER => Instruction::CALLER,
+            Opcode::CALLVALUE => Instruction::CALLVALUE,
+            Opcode::CALLDATALOAD => Instruction::CALLDATALOAD,
+            Opcode::CALLDATASIZE => Instruction::CALLDATASIZE,
+            Opcode::CALLDATACOPY => Instruction::CALLDATACOPY,
+            Opcode::CODESIZE => Instruction::CODESIZE,
+            Opcode::CODECOPY => Instruction::CODECOPY,
+            Opcode::GASPRICE => Instruction::GASPRICE,
+            Opcode::EXTCODESIZE => Instruction::EXTCODESIZE,
+            Opcode::EXTCODECOPY => Instruction::EXTCODECOPY,
+
+            Opcode::BLOCKHASH => Instruction::BLOCKHASH,
+            Opcode::COINBASE => Instruction::COINBASE,
+            Opcode::TIMESTAMP => Instruction::TIMESTAMP,
+            Opcode::NUMBER => Instruction::NUMBER,
+            Opcode::DIFFICULTY => Instruction::DIFFICULTY,
+            Opcode::GASLIMIT => Instruction::GASLIMIT,
+
+            Opcode::POP => Instruction::POP,
+            Opcode::MLOAD => Instruction::MLOAD,
+            Opcode::MSTORE => Instruction::MSTORE,
+            Opcode::MSTORE8 => Instruction::MSTORE8,
+            Opcode::SLOAD => Instruction::SLOAD,
+            Opcode::SSTORE => Instruction::SSTORE,
+            Opcode::JUMP => Instruction::JUMP,
+            Opcode::JUMPI => Instruction::JUMPI,
+            Opcode::PC => Instruction::PC,
+            Opcode::MSIZE => Instruction::MSIZE,
+            Opcode::GAS => Instruction::GAS,
+            Opcode::JUMPDEST => Instruction::JUMPDEST,
+
             Opcode::PUSH(v) => {
                 let param = self.read_bytes(position + 1, v)?;
-                Ok(Instruction::Push(opcode, param))
+                Instruction::PUSH(param)
             },
-            _ => {
-                Ok(Instruction::NotPush(opcode))
-            }
-        }
+
+            Opcode::DUP(v) => Instruction::DUP(v),
+            Opcode::SWAP(v) => Instruction::SWAP(v),
+            Opcode::LOG(v) => Instruction::LOG(v),
+
+            Opcode::CREATE => Instruction::CREATE,
+            Opcode::CALL => Instruction::CALL,
+            Opcode::CALLCODE => Instruction::CALLCODE,
+            Opcode::RETURN => Instruction::RETURN,
+            Opcode::DELEGATECALL => Instruction::DELEGATECALL,
+
+            Opcode::INVALID => {
+                return Err(PCError::InvalidOpcode);
+            },
+            Opcode::SUICIDE => Instruction::SUICIDE,
+        })
     }
 
     pub fn read(&mut self) -> Result<Instruction, PCError> {
         let result = self.peek()?;
-        match result {
-            Instruction::NotPush(_) => {
-                self.position = self.position + 1;
-            },
-            Instruction::Push(Opcode::PUSH(v), _) => {
+        let opcode: Opcode = self.code[self.position].into();
+        match opcode {
+            Opcode::PUSH(v) => {
                 self.position = self.position + v + 1;
             },
-            _ => panic!(),
+            _ => {
+                self.position = self.position + 1;
+            },
         }
         Ok(result)
     }
