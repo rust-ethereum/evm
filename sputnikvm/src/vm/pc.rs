@@ -67,7 +67,7 @@ impl PC {
     }
 
     fn read_bytes(&self, from_position: usize, byte_count: usize) -> Result<M256, PCError> {
-        if from_position > self.position {
+        if from_position > self.code.len() {
             return Err(PCError::Overflow);
         }
         let position = from_position;
