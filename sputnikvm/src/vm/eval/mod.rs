@@ -41,6 +41,17 @@ pub enum Status {
     InvokeCall(Context, (M256, M256)),
 }
 
+#[derive(Debug, Clone)]
+pub enum ControlCheck {
+    Jump(usize),
+}
+
+#[derive(Debug, Clone)]
+pub enum Control {
+    Jump(usize),
+    InvokeCall(Context, (M256, M256)),
+}
+
 impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     pub fn new(context: Context, block: BlockHeader, patch: Patch) -> Self {
         Machine {
