@@ -154,11 +154,13 @@ impl<M: Memory + Default, S: Storage + Default> VM<M, S> for Machine<M, S> {
     }
 
     fn step(&mut self) -> ExecutionResult<()> {
+        config_rescuable!(self, &mut Self);
+
         if self.context.depth >= 1024 {
             return Err(ExecutionError::CallOverflow);
         }
 
-        begin_rescuable!(self, &mut Self, __);
+        begin_rescuable!(__);
         if self.pc.stopped() {
             trr!(Err(ExecutionError::Stopped), __);
         }

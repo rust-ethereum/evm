@@ -1,6 +1,10 @@
-macro_rules! begin_rescuable {
-    ($param:expr, $t:ty, $i:ident) => (
-        let mut $i = |v: $t| {};
+macro_rules! config_rescuable {
+    ($param:expr, $t:ty) => (
+        macro_rules! begin_rescuable {
+            ($i:ident) => {
+                let mut $i = |v: $t| {};
+            }
+        }
 
         macro_rules! on_rescue {
             (|$v:ident| $e:expr, $j:ident) => (
