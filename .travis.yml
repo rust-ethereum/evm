@@ -26,7 +26,7 @@ script:
     cd gaslighter &&
     cargo build &&
     cargo test --verbose &&
-    cargo doc --no-deps &&
+    cargo doc --all &&
     git clone https://github.com/ethereumproject/tests.git &&
     cd tests &&
     git checkout develop &&
@@ -42,7 +42,7 @@ script:
     cargo run -- crat -f tests/VMTests/vmEnvironmentalInfoTest.json &&
     cd .. &&
     cargo install cargo-kcov --force &&
-    cargo kcov --all
+    cargo kcov --all -- --verify --exclude-pattern=~/.cargo --coveralls-id=$TRAVIS_JOB_ID
 
 install:
   - rustc -vV
