@@ -20,46 +20,9 @@ fn call_code<M: Memory + Default,
     unimplemented!()
 }
 
-macro_rules! will_pop_push {
-    ( $machine:expr, $pop_size:expr, $push_size:expr ) => ({
-        if $machine.stack.len() < $pop_size { return Err(ExecutionError::StackUnderflow); }
-        if $machine.stack.len() - $pop_size + $push_size > 1024 { return Err(ExecutionError::StackOverflow); }
-    })
-}
 
-macro_rules! op2 {
-    ( $machine:expr, $op:ident ) => ({
-        will_pop_push!($machine, 2, 1);
 
-        begin_rescuable!(__);
-        let op1 = $machine.stack.pop().unwrap();
-        let op2 = $machine.stack.pop().unwrap();
-        on_rescue!(|machine| {
-            machine.stack.push(op2).unwrap();
-            machine.stack.push(op1).unwrap();
-        }, __);
 
-        $machine.stack.push(op1.$op(op2)).unwrap();
-        end_rescuable!(__);
-    })
-}
-
-macro_rules! op2_ref {
-    ( $machine:expr, $op:ident ) => ({
-        will_pop_push!($machine, 2, 1);
-
-        begin_rescuable!(__);
-        let op1 = $machine.stack.pop().unwrap();
-        let op2 = $machine.stack.pop().unwrap();
-        on_rescue!(|machine| {
-            machine.stack.push(op2).unwrap();
-            machine.stack.push(op1).unwrap();
-        }, __);
-
-        $machine.stack.push(op1.$op(&op2).into()).unwrap();
-        end_rescuable!(__);
-    })
-}
 
 pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, machine: &mut Machine<M, S>, stipend: Gas, after_gas: Gas) -> ExecutionResult<()> {
     // Note: Please do not use try! or ? syntax in this opcode
@@ -69,18 +32,59 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
     // as other VM structs before returning the error.
     config_rescuable!(machine, &mut Machine<M, S>);
 
+    macro_rules! will_pop_push {
+        ( $pop_size:expr, $push_size:expr ) => ({
+            if machine.stack.len() < $pop_size { return Err(ExecutionError::StackUnderflow); }
+            if machine.stack.len() - $pop_size + $push_size > 1024 { return Err(ExecutionError::StackOverflow); }
+        })
+    }
+
+    macro_rules! op2 {
+        ( $op:ident ) => ({
+            will_pop_push!(2, 1);
+
+            begin_rescuable!(__);
+            let op1 = machine.stack.pop().unwrap();
+            let op2 = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(op2).unwrap();
+                machine.stack.push(op1).unwrap();
+            }, __);
+
+            machine.stack.push(op1.$op(op2)).unwrap();
+            end_rescuable!(__);
+        })
+    }
+
+    macro_rules! op2_ref {
+        ( $op:ident ) => ({
+            will_pop_push!(2, 1);
+
+            begin_rescuable!(__);
+            let op1 = machine.stack.pop().unwrap();
+            let op2 = machine.stack.pop().unwrap();
+            on_rescue!(|machine| {
+                machine.stack.push(op2).unwrap();
+                machine.stack.push(op1).unwrap();
+            }, __);
+
+            machine.stack.push(op1.$op(&op2).into()).unwrap();
+            end_rescuable!(__);
+        })
+    }
+
     match opcode {
         Opcode::STOP => {
             machine.pc.stop();
         },
 
-        Opcode::ADD => op2!(machine, add),
-        Opcode::MUL => op2!(machine, mul),
-        Opcode::SUB => op2!(machine, sub),
-        Opcode::DIV => op2!(machine, div),
+        Opcode::ADD => op2!(add),
+        Opcode::MUL => op2!(mul),
+        Opcode::SUB => op2!(sub),
+        Opcode::DIV => op2!(div),
 
         Opcode::SDIV => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1: MI256 = machine.stack.pop().unwrap().into();
             let op2: MI256 = machine.stack.pop().unwrap().into();
@@ -88,10 +92,10 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
             machine.stack.push(r.into()).unwrap();
         },
 
-        Opcode::MOD => op2!(machine, rem),
+        Opcode::MOD => op2!(rem),
 
         Opcode::SMOD => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1: MI256 = machine.stack.pop().unwrap().into();
             let op2: MI256 = machine.stack.pop().unwrap().into();
@@ -100,7 +104,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::ADDMOD => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1: U256 = machine.stack.pop().unwrap().into();
             let op2: U256 = machine.stack.pop().unwrap().into();
@@ -120,7 +124,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::MULMOD => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1: U256 = machine.stack.pop().unwrap().into();
             let op2: U256 = machine.stack.pop().unwrap().into();
@@ -140,7 +144,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::EXP => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let mut op1 = machine.stack.pop().unwrap();
             let mut op2 = machine.stack.pop().unwrap();
@@ -158,7 +162,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::SIGNEXTEND => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let mut op1 = machine.stack.pop().unwrap();
             let mut op2 = machine.stack.pop().unwrap();
@@ -185,11 +189,11 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
             }
         },
 
-        Opcode::LT => op2_ref!(machine, lt),
-        Opcode::GT => op2_ref!(machine, gt),
+        Opcode::LT => op2_ref!(lt),
+        Opcode::GT => op2_ref!(gt),
 
         Opcode::SLT => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1: MI256 = machine.stack.pop().unwrap().into();
             let op2: MI256 = machine.stack.pop().unwrap().into();
@@ -198,7 +202,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::SGT => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1: MI256 = machine.stack.pop().unwrap().into();
             let op2: MI256 = machine.stack.pop().unwrap().into();
@@ -206,10 +210,10 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
             machine.stack.push(op1.gt(&op2).into()).unwrap();
         },
 
-        Opcode::EQ => op2_ref!(machine, eq),
+        Opcode::EQ => op2_ref!(eq),
 
         Opcode::ISZERO => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             let op1 = machine.stack.pop().unwrap();
 
@@ -220,12 +224,12 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
             }
         },
 
-        Opcode::AND => op2!(machine, bitand),
-        Opcode::OR => op2!(machine, bitor),
-        Opcode::XOR => op2!(machine, bitxor),
+        Opcode::AND => op2!(bitand),
+        Opcode::OR => op2!(bitor),
+        Opcode::XOR => op2!(bitxor),
 
         Opcode::NOT => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             let op1 = machine.stack.pop().unwrap();
 
@@ -233,7 +237,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::BYTE => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             let op1 = machine.stack.pop().unwrap();
             let op2 = machine.stack.pop().unwrap();
@@ -254,7 +258,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::SHA3 => {
-            will_pop_push!(machine, 2, 1);
+            will_pop_push!(2, 1);
 
             begin_rescuable!(__);
             let mut from = machine.stack.pop().unwrap();
@@ -284,7 +288,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::ADDRESS => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             begin_rescuable!(__);
             let address = machine.context.address;
@@ -293,7 +297,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::BALANCE => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let address = machine.stack.pop().unwrap();
@@ -306,28 +310,28 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::ORIGIN => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let address = machine.context.origin;
             machine.stack.push(address.into()).unwrap();
         },
 
         Opcode::CALLER => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let address = machine.context.caller;
             machine.stack.push(address.into()).unwrap();
         },
 
         Opcode::CALLVALUE => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let value = machine.context.value;
             machine.stack.push(value.into()).unwrap();
         },
 
         Opcode::CALLDATALOAD => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let start_index = machine.stack.pop().unwrap();
@@ -353,14 +357,14 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::CALLDATASIZE => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let len = machine.context.data.len();
             machine.stack.push(len.into()).unwrap();
         },
 
         Opcode::CALLDATACOPY => {
-            will_pop_push!(machine, 3, 0);
+            will_pop_push!(3, 0);
 
             begin_rescuable!(__);
             let memory_index = machine.stack.pop().unwrap();
@@ -402,14 +406,14 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::CODESIZE => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let len = machine.pc.code().len();
             machine.stack.push(len.into()).unwrap();
         },
 
         Opcode::CODECOPY => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let memory_index = machine.stack.pop().unwrap();
@@ -451,14 +455,14 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::GASPRICE => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let price: M256 = machine.context.gas_price.into();
             machine.stack.push(price).unwrap();
         },
 
         Opcode::EXTCODESIZE => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let account = machine.stack.pop().unwrap();
@@ -472,7 +476,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::EXTCODECOPY => {
-            will_pop_push!(machine, 4, 0);
+            will_pop_push!(4, 0);
 
             begin_rescuable!(__);
             let account = machine.stack.pop().unwrap();
@@ -517,7 +521,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::BLOCKHASH => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let number = machine.stack.pop().unwrap();
@@ -536,48 +540,48 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::COINBASE => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let val = machine.block().coinbase;
             machine.stack.push(val.into()).unwrap();
         },
 
         Opcode::TIMESTAMP => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let val = machine.block().timestamp;
             machine.stack.push(val.into()).unwrap();
         },
 
         Opcode::NUMBER => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let val = machine.block().number;
             machine.stack.push(val.into()).unwrap();
         },
 
         Opcode::DIFFICULTY => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let val = machine.block().difficulty;
             machine.stack.push(val.into()).unwrap();
         },
 
         Opcode::GASLIMIT => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let val = machine.block().gas_limit;
             machine.stack.push(val.into()).unwrap();
         },
 
         Opcode::POP => {
-            will_pop_push!(machine, 1, 0);
+            will_pop_push!(1, 0);
 
             machine.stack.pop().unwrap();
         },
 
         Opcode::MLOAD => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap();
@@ -590,7 +594,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::MSTORE => {
-            will_pop_push!(machine, 2, 0);
+            will_pop_push!(2, 0);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap(); // Index
@@ -604,7 +608,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::MSTORE8 => {
-            will_pop_push!(machine, 2, 0);
+            will_pop_push!(2, 0);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap(); // Index
@@ -620,7 +624,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::SLOAD => {
-            will_pop_push!(machine, 1, 1);
+            will_pop_push!(1, 1);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap();
@@ -634,7 +638,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::SSTORE => {
-            will_pop_push!(machine, 2, 0);
+            will_pop_push!(2, 0);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap(); // Index
@@ -650,7 +654,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         }
 
         Opcode::JUMP => {
-            will_pop_push!(machine, 1, 0);
+            will_pop_push!(1, 0);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap();
@@ -667,7 +671,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::JUMPI => {
-            will_pop_push!(machine, 2, 0);
+            will_pop_push!(2, 0);
 
             begin_rescuable!(__);
             let op1 = machine.stack.pop().unwrap();
@@ -691,46 +695,46 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::PC => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let position = machine.pc.position();
             machine.stack.push((position - 1).into()).unwrap(); // PC increment for opcode is always an u8.
         },
 
         Opcode::MSIZE => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let active_memory_len = machine.active_memory_len();
             machine.stack.push(M256::from(32u64) * active_memory_len).unwrap();
         },
 
         Opcode::GAS => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             machine.stack.push(after_gas.into()).unwrap();
         },
 
         Opcode::JUMPDEST => {
-            will_pop_push!(machine, 0, 0);
+            will_pop_push!(0, 0);
             ()
         }, // This operation has no effect on machine state during execution.
 
         Opcode::PUSH(v) => {
-            will_pop_push!(machine, 0, 1);
+            will_pop_push!(0, 1);
 
             let val = machine.pc.read(v)?; // We don't have any stack to restore, so this ? is okay.
             machine.stack.push(val).unwrap();
         },
 
         Opcode::DUP(v) => {
-            will_pop_push!(machine, v, v+1);
+            will_pop_push!(v, v+1);
 
             let val = machine.stack().peek(v - 1).unwrap();
             machine.stack.push(val).unwrap();
         },
 
         Opcode::SWAP(v) => {
-            will_pop_push!(machine, v+1, v+1);
+            will_pop_push!(v+1, v+1);
 
             let val1 = machine.stack().peek(0).unwrap();
             let val2 = machine.stack().peek(v).unwrap();
@@ -739,7 +743,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::LOG(v) => {
-            will_pop_push!(machine, v+2, 0);
+            will_pop_push!(v+2, 0);
 
             begin_rescuable!(__);
             let address = machine.context.address;
@@ -776,7 +780,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::CREATE => {
-            will_pop_push!(machine, 3, 1);
+            will_pop_push!(3, 1);
 
             begin_rescuable!(__);
             let value = machine.stack.pop().unwrap();
@@ -833,7 +837,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::CALL => {
-            will_pop_push!(machine, 7, 1);
+            will_pop_push!(7, 1);
 
             begin_rescuable!(__);
             let gas = machine.stack.pop().unwrap();
@@ -902,13 +906,13 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::CALLCODE => {
-            will_pop_push!(machine, 7, 1);
+            will_pop_push!(7, 1);
 
             unimplemented!()
         },
 
         Opcode::RETURN => {
-            will_pop_push!(machine, 2, 0);
+            will_pop_push!(2, 0);
 
             begin_rescuable!(__);
             let mut start = machine.stack.pop().unwrap();
@@ -935,13 +939,13 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         },
 
         Opcode::DELEGATECALL => {
-            will_pop_push!(machine, 6, 1);
+            will_pop_push!(6, 1);
 
             unimplemented!()
         },
 
         Opcode::SUICIDE => {
-            will_pop_push!(machine, 1, 0);
+            will_pop_push!(1, 0);
 
             begin_rescuable!(__);
             let address = machine.stack.pop().unwrap();
