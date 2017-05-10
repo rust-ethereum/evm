@@ -39,19 +39,32 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         })
     }
 
+    macro_rules! pop {
+        ( ($( $x:ident ),*), $j:ident ) => (
+            $(
+                let $x = machine.stack.pop().unwrap();
+                on_rescue!(|machine| {
+                    machine.stack.push($x).unwrap();
+                }, $j);
+            )*
+        )
+    }
+
+    macro_rules! push {
+        ( ($( $x:expr ),*), $j:ident ) => (
+            $(
+                machine.stack.push($x).unwrap();
+            )*
+        )
+    }
+
     macro_rules! op2 {
         ( $op:ident ) => ({
             will_pop_push!(2, 1);
 
             begin_rescuable!(__);
-            let op1 = machine.stack.pop().unwrap();
-            let op2 = machine.stack.pop().unwrap();
-            on_rescue!(|machine| {
-                machine.stack.push(op2).unwrap();
-                machine.stack.push(op1).unwrap();
-            }, __);
-
-            machine.stack.push(op1.$op(op2)).unwrap();
+            pop!((op1, op2), __);
+            push!((op1.$op(op2)), __);
             end_rescuable!(__);
         })
     }
@@ -61,14 +74,8 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
             will_pop_push!(2, 1);
 
             begin_rescuable!(__);
-            let op1 = machine.stack.pop().unwrap();
-            let op2 = machine.stack.pop().unwrap();
-            on_rescue!(|machine| {
-                machine.stack.push(op2).unwrap();
-                machine.stack.push(op1).unwrap();
-            }, __);
-
-            machine.stack.push(op1.$op(&op2).into()).unwrap();
+            pop!((op1, op2), __);
+            push!((op1.$op(&op2).into()), __);
             end_rescuable!(__);
         })
     }
