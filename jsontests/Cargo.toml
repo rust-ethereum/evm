@@ -1,0 +1,10 @@
+[package]
+name = "jsontests"
+version = "0.1.0"
+license = "Apache-2.0"
+authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
+
+[dependencies]
+sputnikvm = { path = '../sputnikvm' }
+serde_json = "0.9"
+lazy_static = "0.2"

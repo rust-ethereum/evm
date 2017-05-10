@@ -17,8 +17,11 @@ pub use self::commit::{AccountCommitment, Account};
 
 use std::collections::hash_map;
 use utils::bigint::M256;
+use utils::gas::Gas;
 use utils::address::Address;
 use self::errors::{RequireError, CommitError, MachineError};
+
+pub type SeqVM = VM<SeqMemory, HashMapStorage>;
 
 pub struct VM<M, S>(Vec<Machine<M, S>>);
 
@@ -30,6 +33,12 @@ pub enum VMStatus {
 }
 
 impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
+    pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M, S> {
+        let mut machines = Vec::new();
+        machines.push(Machine::new(context, block, patch));
+        VM(machines)
+    }
+
     pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
         for machine in &mut self.0 {
             machine.commit_account(commitment.clone())?;
@@ -85,5 +94,13 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
 
     pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
         self.0[0].state().account_state.accounts()
+    }
+
+    pub fn out(&self) -> &[u8] {
+        self.0[0].state().out.as_slice()
+    }
+
+    pub fn available_gas(&self) -> Gas {
+        self.0[0].state().context.gas_limit - self.0[0].state().used_gas - self.0[0].state().memory_gas
     }
 }

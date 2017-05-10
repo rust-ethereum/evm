@@ -1,4 +1,5 @@
 [workspace]
 members = [
-  "./sputnikvm"
+  "./sputnikvm",
+  "./jsontests"
 ]
