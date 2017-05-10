@@ -18,10 +18,10 @@ impl Stack {
     /// `set`, `peek` within the limit should not fail.
     pub fn check_pop_push(&self, pop: usize, push: usize) -> Result<(), StackError> {
         if self.len() < pop {
-            return Err(StackError::StackUnderflow);
+            return Err(StackError::Underflow);
         }
         if self.len() - pop + push > 1024 {
-            return Err(StackError::StackOverflow);
+            return Err(StackError::Overflow);
         }
         Ok(())
     }
@@ -30,7 +30,7 @@ impl Stack {
         self.stack.push(elem);
         if self.len() > 1024 {
             self.stack.pop();
-            Err(StackError::StackOverflow)
+            Err(StackError::Overflow)
         } else {
             Ok(())
         }
@@ -39,7 +39,7 @@ impl Stack {
     pub fn pop(&mut self) -> Result<M256, StackError> {
         match self.stack.pop() {
             Some(x) => Ok(x),
-            None => Err(StackError::StackUnderflow),
+            None => Err(StackError::Underflow),
         }
     }
 
@@ -49,7 +49,7 @@ impl Stack {
             self.stack[len - no_from_top - 1] = val;
             Ok(())
         } else {
-            Err(StackError::StackUnderflow)
+            Err(StackError::Underflow)
         }
     }
 
@@ -57,7 +57,7 @@ impl Stack {
         if self.stack.len() > no_from_top {
             Ok(self.stack[self.stack.len() - no_from_top - 1])
         } else {
-            Err(StackError::StackUnderflow)
+            Err(StackError::Underflow)
         }
     }
 
