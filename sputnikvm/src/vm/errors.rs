@@ -51,6 +51,7 @@ pub enum MachineError {
     Storage(StorageError),
 
     InvalidRange,
+    EmptyGas,
 }
 
 #[derive(Debug, Clone)]

@@ -4,10 +4,13 @@ use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment};
 
-use self::run::check_opcode;
+use self::check::check_opcode;
+use self::run::run_opcode;
+use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost};
 
-pub mod cost;
-pub mod run;
+mod cost;
+mod run;
+mod check;
 
 /// A VM state without PC.
 pub struct State<M, S> {
@@ -133,7 +136,47 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {
-        unimplemented!()
+        match self.check() {
+            Ok(()) => (),
+            Err(EvalError::Machine(error)) => {
+                self.status = MachineStatus::ExitedErr(error);
+                return Ok(());
+            },
+            Err(EvalError::Require(error)) => {
+                return Err(error);
+            },
+        };
+
+        let instruction = self.pc.peek().unwrap();
+        let memory_cost = memory_cost(instruction, &self.state);
+        let gas_cost = gas_cost(instruction, &self.state);
+        let gas_stipend = gas_stipend(instruction, &self.state);
+        let gas_refund = gas_refund(instruction, &self.state);
+
+        if self.state.context.gas_limit < memory_cost + gas_cost {
+            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            return Ok(());
+        }
+
+        let instruction = self.pc.read().unwrap();
+        let available_gas = self.state.context.gas_limit - memory_cost - gas_cost;
+        let result = run_opcode(instruction, &mut self.state, gas_stipend, available_gas);
+
+        self.state.used_gas = self.state.used_gas + gas_cost;
+        self.state.memory_gas = memory_cost;
+        self.state.refunded_gas = self.state.refunded_gas + gas_refund;
+
+        match result {
+            None => Ok(()),
+            Some(Control::Jump(dest)) => {
+                self.pc.jump(dest).unwrap();
+                Ok(())
+            },
+            Some(Control::InvokeCall(context, (from, len))) => {
+                self.status = MachineStatus::InvokeCall(context, (from, len));
+                Ok(())
+            },
+        }
     }
 
     pub fn status(&self) -> MachineStatus {
