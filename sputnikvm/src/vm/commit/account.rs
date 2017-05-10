@@ -61,6 +61,7 @@ impl<S: Storage> Account<S> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AccountState<S> {
     accounts: HashMap<Address, Account<S>>,
     codes: HashMap<Address, Vec<u8>>,

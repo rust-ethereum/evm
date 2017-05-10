@@ -3,6 +3,7 @@ use utils::bigint::M256;
 
 use vm::errors::CommitError;
 
+#[derive(Debug, Clone)]
 pub struct BlockhashState(HashMap<M256, M256>);
 
 impl Default for BlockhashState {

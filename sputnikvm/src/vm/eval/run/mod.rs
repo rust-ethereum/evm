@@ -1,4 +1,5 @@
 mod check;
+pub mod utils;
 
 pub use self::check::check_opcode;
 

@@ -6,6 +6,12 @@ pub enum MemoryError {
     IndexNotSupported,
 }
 
+impl From<MemoryError> for MachineError {
+    fn from(val: MemoryError) -> MachineError {
+        MachineError::Memory(val)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum StackError {
     Overflow,
@@ -36,6 +42,8 @@ pub enum MachineError {
     Stack(StackError),
     PC(PCError),
     Storage(StorageError),
+
+    InvalidRange,
 }
 
 #[derive(Debug, Clone)]
