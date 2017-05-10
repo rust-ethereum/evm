@@ -6,6 +6,7 @@ extern crate log;
 extern crate crypto;
 
 mod utils;
+pub mod vm;
 
 pub use utils::bigint::{U256, M256, MI256};
 pub use utils::gas::Gas;
