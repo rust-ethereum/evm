@@ -30,14 +30,14 @@ pub struct State<M, S> {
 pub struct Machine<M, S> {
     state: State<M, S>,
     pc: PC,
-    status: Status,
+    status: MachineStatus,
 }
 
 #[derive(Debug, Clone)]
-pub enum Status {
+pub enum MachineStatus {
     Running,
     ExitedOk,
-    ExitedError(MachineError),
+    ExitedErr(MachineError),
     InvokeCall(Context, (M256, M256)),
 }
 
@@ -56,7 +56,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     pub fn new(context: Context, block: BlockHeader, patch: Patch) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
-            status: Status::Running,
+            status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
                 stack: Stack::default(),
@@ -80,7 +80,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     pub fn derive(&self, context: Context) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
-            status: Status::Running,
+            status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
                 stack: Stack::default(),
@@ -114,16 +114,11 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         unimplemented!()
     }
 
-    #[allow(unused_variables)]
-    fn invoke_sub(&mut self, context: Context, from: M256, len: M256) {
-        unimplemented!()
-    }
-
     pub fn step(&mut self) -> Result<(), RequireError> {
         unimplemented!()
     }
 
-    pub fn status(&self) -> &Status {
-        &self.status
+    pub fn status(&self) -> MachineStatus {
+        self.status.clone()
     }
 }
