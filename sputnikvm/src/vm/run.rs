@@ -80,6 +80,18 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         })
     }
 
+    macro_rules! op2_into {
+        ( $op:ident, $t: ty ) => ({
+            will_pop_push!(2, 1);
+
+            begin_rescuable!(__);
+            pop!((op1, op2), __);
+            let (op1, op2): ($t, $t) = (op1.into(), op2.into());
+            push!((op1.$op(op2).into()), __);
+            end_rescuable!(__);
+        })
+    }
+
     match opcode {
         Opcode::STOP => {
             machine.pc.stop();
@@ -89,26 +101,9 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default>(opcode: Opcode, mac
         Opcode::MUL => op2!(mul),
         Opcode::SUB => op2!(sub),
         Opcode::DIV => op2!(div),
-
-        Opcode::SDIV => {
-            will_pop_push!(2, 1);
-
-            let op1: MI256 = machine.stack.pop().unwrap().into();
-            let op2: MI256 = machine.stack.pop().unwrap().into();
-            let r = op1 / op2;
-            machine.stack.push(r.into()).unwrap();
-        },
-
+        Opcode::SDIV => op2_into!(div, MI256),
         Opcode::MOD => op2!(rem),
-
-        Opcode::SMOD => {
-            will_pop_push!(2, 1);
-
-            let op1: MI256 = machine.stack.pop().unwrap().into();
-            let op2: MI256 = machine.stack.pop().unwrap().into();
-            let r = op1 % op2;
-            machine.stack.push(r.into()).unwrap();
-        },
+        Opcode::SMOD => op2_into!(rem, MI256),
 
         Opcode::ADDMOD => {
             will_pop_push!(2, 1);
