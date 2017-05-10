@@ -6,7 +6,6 @@ rust:
 script:
   - cargo build --all --verbose
   - cargo test --all --verbose
-  - cargo install cargo-kcov --force && cargo kcov --all
 matrix:
   allow_failures:
     - rust: nightly
