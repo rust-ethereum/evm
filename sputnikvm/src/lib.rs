@@ -1,3 +1,5 @@
+#![deny(unused_import_braces)]
+
 #[macro_use]
 extern crate log;
 extern crate crypto;
