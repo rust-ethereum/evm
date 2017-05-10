@@ -5,6 +5,13 @@ pub enum MemoryError {
 
 #[derive(Debug, Clone)]
 pub enum StackError {
-    StackOverflow,
-    StackUnderflow,
+    Overflow,
+    Underflow,
+}
+
+#[derive(Debug, Clone)]
+pub enum PCError {
+    IndexNotSupported,
+    BadJumpDest,
+    Overflow,
 }
