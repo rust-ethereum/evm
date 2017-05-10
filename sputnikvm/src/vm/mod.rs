@@ -2,6 +2,7 @@ mod memory;
 mod stack;
 mod pc;
 mod storage;
+mod params;
 pub mod errors;
 
 pub use self::memory::{Memory, SeqMemory};
