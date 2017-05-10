@@ -1,8 +1,8 @@
 use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
-use super::errors::MachineError;
-use super::{Stack, Context, BlockHeader, Patch, PC};
+use super::errors::{RequireError, MachineError};
+use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory};
 
 pub mod cost;
 pub mod run;
@@ -36,4 +36,10 @@ pub enum Status {
     ExitedOk(Vec<u8>),
     ExitedError(MachineError),
     InvokeCall(Context, (M256, M256)),
+}
+
+impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
+    pub fn step(&mut self) -> Result<(), RequireError> {
+        unimplemented!()
+    }
 }
