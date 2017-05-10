@@ -15,3 +15,8 @@ pub enum PCError {
     BadJumpDest,
     Overflow,
 }
+
+#[derive(Debug, Clone)]
+pub enum StorageError {
+    IndexNotSupported,
+}
