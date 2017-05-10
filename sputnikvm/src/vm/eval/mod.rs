@@ -42,9 +42,28 @@ pub enum Status {
 }
 
 impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
-    #[allow(unused_variables)]
     pub fn new(context: Context, block: BlockHeader, patch: Patch) -> Self {
-        unimplemented!()
+        Machine {
+            pc: PC::new(context.code.as_slice()),
+            status: Status::Running,
+            state: State {
+                memory: M::default(),
+                stack: Stack::default(),
+
+                context: context,
+                block: block,
+                patch: patch,
+
+                out: Vec::new(),
+
+                memory_gas: Gas::zero(),
+                used_gas: Gas::zero(),
+                refunded_gas: Gas::zero(),
+
+                account_state: AccountState::default(),
+                blockhash_state: BlockhashState::default(),
+            },
+        }
     }
 
     pub fn derive(&self, context: Context) -> Self {
