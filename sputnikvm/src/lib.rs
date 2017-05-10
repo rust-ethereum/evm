@@ -1,4 +1,6 @@
-#![deny(unused_import_braces)]
+#![deny(unused_import_braces, unused_imports,
+        unused_comparisons, unused_must_use,
+        unused_variables)]
 
 #[macro_use]
 extern crate log;
