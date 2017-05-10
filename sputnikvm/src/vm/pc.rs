@@ -95,6 +95,18 @@ impl PC {
         self.position
     }
 
+    pub fn is_valid(&self, position: usize) -> bool {
+        if position >= self.code.len() {
+            return false;
+        }
+
+        if !self.valids[position] {
+            return false;
+        }
+
+        return true;
+    }
+
     pub fn peek(&self) -> Result<Instruction, PCError> {
         let position = self.position;
         if position >= self.code.len() {

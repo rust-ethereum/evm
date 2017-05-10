@@ -1,8 +1,10 @@
 use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
-use super::errors::{RequireError, MachineError, CommitError};
+use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment};
+
+use self::run::check_opcode;
 
 pub mod cost;
 pub mod run;
@@ -112,6 +114,22 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     #[allow(unused_variables)]
     pub fn apply_sub(&mut self, sub: Machine<M, S>) {
         unimplemented!()
+    }
+
+    pub fn check(&self) -> Result<(), EvalError> {
+        let instruction = self.pc.peek()?;
+        check_opcode(instruction, &self.state).and_then(|v| {
+            match v {
+                None => Ok(()),
+                Some(ControlCheck::Jump(dest)) => {
+                    if self.pc.is_valid(dest) {
+                        Ok(())
+                    } else {
+                        Err(EvalError::Machine(MachineError::PC(PCError::BadJumpDest)))
+                    }
+                }
+            }
+        })
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {

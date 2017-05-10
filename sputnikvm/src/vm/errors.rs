@@ -26,6 +26,12 @@ pub enum PCError {
     Overflow,
 }
 
+impl From<PCError> for EvalError {
+    fn from(val: PCError) -> EvalError {
+        EvalError::Machine(MachineError::PC(val))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum StorageError {
     IndexNotSupported,
