@@ -1,10 +1,10 @@
-use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
+use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::fmt;
 use std::str::FromStr;
 use std::cmp::Ordering;
 
 use utils::bigint::{M256, U512, U256};
-use utils::{read_hex, ParseHexError};
+use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct Gas(U512);

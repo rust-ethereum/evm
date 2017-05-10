@@ -1,11 +1,10 @@
-use std::convert::{From, Into, AsRef};
-use std::str::FromStr;
-use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
+use std::convert::{From, Into};
+use std::ops::{Add, Sub, Mul, Div, Shr, Shl, BitAnd, Rem};
 use std::cmp::Ordering;
 use std::fmt;
 
 use super::U256;
-use super::algorithms::{add2, mac3, from_signed, sub2_sign, big_digit};
+use super::algorithms::{add2, mac3, from_signed, sub2_sign};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
@@ -221,7 +220,7 @@ impl Rem for U512 {
 impl fmt::LowerHex for U512 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..16 {
-            write!(f, "{:08x}", self.0[i]);
+            write!(f, "{:08x}", self.0[i])?;
         }
         Ok(())
     }
@@ -230,7 +229,7 @@ impl fmt::LowerHex for U512 {
 impl fmt::UpperHex for U512 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..16 {
-            write!(f, "{:08X}", self.0[i]);
+            write!(f, "{:08X}", self.0[i])?;
         }
         Ok(())
     }

@@ -2,7 +2,6 @@
         unused_comparisons, unused_must_use,
         unused_variables)]
 
-#[macro_use]
 extern crate log;
 extern crate crypto;
 
