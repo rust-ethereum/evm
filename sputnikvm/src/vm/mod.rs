@@ -71,4 +71,13 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
             },
         }
     }
+
+    pub fn fire(&mut self) -> Result<(), RequireError> {
+        loop {
+            match self.status() {
+                VMStatus::Running => self.step()?,
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) => return Ok(()),
+            }
+        }
+    }
 }
