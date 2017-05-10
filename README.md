@@ -1,6 +1,6 @@
 # SputnikVM: Ethereum Classic Virtual Machine
 
-[![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
+[![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=enhance/run-refactor)](https://travis-ci.org/ethereumproject/sputnikvm)
 
 ## Project Description
 
