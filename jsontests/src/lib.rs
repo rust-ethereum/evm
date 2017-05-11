@@ -257,7 +257,7 @@ pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) 
 
 fn is_ok(status: VMStatus) -> bool {
     match status {
-        ExitedOk => true,
+        VMStatus::ExitedOk => true,
         _ => false,
     }
 }

@@ -115,6 +115,10 @@ impl PC {
         return true;
     }
 
+    pub fn is_end(&self) -> bool {
+        self.position == self.code.len()
+    }
+
     pub fn peek(&self) -> Result<Instruction, PCError> {
         let position = self.position;
         if position >= self.code.len() {

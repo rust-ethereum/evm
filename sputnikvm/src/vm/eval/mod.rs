@@ -148,6 +148,11 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {
+        if self.pc.is_end() {
+            self.status = MachineStatus::ExitedOk;
+            return Ok(());
+        }
+
         match self.check() {
             Ok(()) => (),
             Err(EvalError::Machine(error)) => {
