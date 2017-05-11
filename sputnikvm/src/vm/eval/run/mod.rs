@@ -136,8 +136,13 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
         Instruction::MSTORE8 => { flow::mstore8(state); None },
         Instruction::SLOAD => { flow::sload(state); None },
         Instruction::SSTORE => { flow::sstore(state); None },
-        // Instruction::JUMP => Instruction::JUMP,
-        // Instruction::JUMPI => Instruction::JUMPI,
+        Instruction::JUMP => { pop!(state, dest); Some(Control::Jump(dest)) }
+        Instruction::JUMPI => { pop!(state, dest, value);
+                                if value != M256::zero() {
+                                    Some(Control::Jump(dest))
+                                } else {
+                                    None
+                                } },
         // Instruction::PC => Instruction::PC,
         // Instruction::MSIZE => Instruction::MSIZE,
         // Instruction::GAS => Instruction::GAS,

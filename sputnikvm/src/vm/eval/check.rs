@@ -112,8 +112,18 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
                 check_write(state.stack.peek(0).unwrap())?;
             Ok(None)
         },
-        Instruction::JUMP => unimplemented!(),
-        Instruction::JUMPI => unimplemented!(),
+        Instruction::JUMP => {
+            state.stack.check_pop_push(1, 0)?;
+            Ok(Some(ControlCheck::Jump(state.stack.peek(0).unwrap())))
+        },
+        Instruction::JUMPI => {
+            state.stack.check_pop_push(2, 0)?;
+            if state.stack.peek(1).unwrap() != M256::zero() {
+                Ok(Some(ControlCheck::Jump(state.stack.peek(0).unwrap())))
+            } else {
+                Ok(None)
+            }
+        },
         Instruction::PC => unimplemented!(),
         Instruction::MSIZE => unimplemented!(),
         Instruction::GAS => unimplemented!(),

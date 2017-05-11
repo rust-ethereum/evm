@@ -95,6 +95,14 @@ impl PC {
         self.position
     }
 
+    pub fn check_valid(&self, position: usize) -> Result<(), PCError> {
+        if self.is_valid(position) {
+            Ok(())
+        } else {
+            Err(PCError::BadJumpDest)
+        }
+    }
+
     pub fn is_valid(&self, position: usize) -> bool {
         if position >= self.code.len() {
             return false;

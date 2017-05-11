@@ -59,13 +59,13 @@ pub enum MachineStatus {
 
 #[derive(Debug, Clone)]
 pub enum ControlCheck {
-    Jump(usize),
+    Jump(M256),
 }
 
 #[derive(Debug, Clone)]
 pub enum Control {
     Stop,
-    Jump(usize),
+    Jump(M256),
     InvokeCall(Context, (M256, M256)),
 }
 
@@ -137,7 +137,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             match v {
                 None => Ok(()),
                 Some(ControlCheck::Jump(dest)) => {
-                    if self.pc.is_valid(dest) {
+                    if dest <= M256::from(usize::max_value()) && self.pc.is_valid(dest.into()) {
                         Ok(())
                     } else {
                         Err(EvalError::Machine(MachineError::PC(PCError::BadJumpDest)))
@@ -182,7 +182,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         match result {
             None => Ok(()),
             Some(Control::Jump(dest)) => {
-                self.pc.jump(dest).unwrap();
+                self.pc.jump(dest.into()).unwrap();
                 Ok(())
             },
             Some(Control::InvokeCall(context, (from, len))) => {
