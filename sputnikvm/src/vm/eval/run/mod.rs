@@ -143,10 +143,10 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                 } else {
                                     None
                                 } },
-        // Instruction::PC => Instruction::PC,
-        // Instruction::MSIZE => Instruction::MSIZE,
-        // Instruction::GAS => Instruction::GAS,
-        // Instruction::JUMPDEST => Instruction::JUMPDEST,
+        Instruction::PC => { push!(state, pc.1.into()); None },
+        Instruction::MSIZE => { push!(state, state.memory_cost.into()); None },
+        Instruction::GAS => { push!(state, after_gas.into()); None },
+        Instruction::JUMPDEST => None,
 
         Instruction::PUSH(v) => { push!(state, v); None }
 
