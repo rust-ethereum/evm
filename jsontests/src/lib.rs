@@ -51,10 +51,10 @@ pub fn apply_to_block(machine: &SeqVM, block: &mut JSONBlock) {
         let account = (*account).clone();
         block.apply_account(account);
     }
-    // for log in machine.appending_logs() {
-    //     let log = (*log).clone();
-    //     block.apply_log(log);
-    // }
+    for log in machine.logs() {
+        let log = (*log).clone();
+        block.apply_log(log);
+    }
 }
 
 pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqVM {
