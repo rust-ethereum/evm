@@ -145,7 +145,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                     None
                                 } },
         Instruction::PC => { push!(state, pc.1.into()); None },
-        Instruction::MSIZE => { push!(state, state.memory_cost.into()); None },
+        Instruction::MSIZE => { push!(state, (state.memory_cost * Gas::from(32u64)).into()); None },
         Instruction::GAS => { push!(state, after_gas.into()); None },
         Instruction::JUMPDEST => None,
 
