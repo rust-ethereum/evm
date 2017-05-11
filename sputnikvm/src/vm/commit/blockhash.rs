@@ -28,4 +28,11 @@ impl BlockhashState {
         self.0.insert(number, hash);
         Ok(())
     }
+
+    pub fn get(&self, number: M256) -> Result<M256, RequireError> {
+        match self.0.get(&number) {
+            Some(value) => Ok(*value),
+            None => Err(RequireError::Blockhash(number)),
+        }
+    }
 }

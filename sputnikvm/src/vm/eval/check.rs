@@ -1,3 +1,5 @@
+use utils::bigint::M256;
+
 use vm::{Memory, Storage, Instruction};
 use vm::errors::EvalError;
 
@@ -34,28 +36,60 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
 
         Instruction::SHA3 => unimplemented!(),
 
-        Instruction::ADDRESS => unimplemented!(),
-        Instruction::BALANCE => unimplemented!(),
-        Instruction::ORIGIN => unimplemented!(),
-        Instruction::CALLER => unimplemented!(),
-        Instruction::CALLVALUE => unimplemented!(),
-        Instruction::CALLDATALOAD => unimplemented!(),
-        Instruction::CALLDATASIZE => unimplemented!(),
-        Instruction::CALLDATACOPY => unimplemented!(),
-        Instruction::CODESIZE => unimplemented!(),
-        Instruction::CODECOPY => unimplemented!(),
-        Instruction::GASPRICE => unimplemented!(),
-        Instruction::EXTCODESIZE => unimplemented!(),
-        Instruction::EXTCODECOPY => unimplemented!(),
+        Instruction::ADDRESS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::BALANCE => {
+            state.stack.check_pop_push(1, 1)?;
+            state.account_state.balance(state.stack.peek(0).unwrap().into())?;
+            Ok(None)
+        },
+        Instruction::ORIGIN => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::CALLER => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::CALLVALUE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::CALLDATALOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
+        Instruction::CALLDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::CALLDATACOPY => {
+            state.stack.check_pop_push(3, 0)?;
+            check_memory_range(&state.memory,
+                               state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+            Ok(None)
+        },
+        Instruction::CODESIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::CODECOPY => {
+            state.stack.check_pop_push(3, 0)?;
+            check_memory_range(&state.memory,
+                               state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+            Ok(None)
+        },
+        Instruction::GASPRICE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::EXTCODESIZE => {
+            state.stack.check_pop_push(1, 1)?;
+            state.account_state.code(state.stack.peek(0).unwrap().into())?;
+            Ok(None)
+        },
+        Instruction::EXTCODECOPY => {
+            state.stack.check_pop_push(4, 0)?;
+            state.account_state.code(state.stack.peek(0).unwrap().into())?;
+            check_memory_range(&state.memory,
+                               state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
+            Ok(None)
+        },
 
-        Instruction::BLOCKHASH => unimplemented!(),
-        Instruction::COINBASE => unimplemented!(),
-        Instruction::TIMESTAMP => unimplemented!(),
-        Instruction::NUMBER => unimplemented!(),
-        Instruction::DIFFICULTY => unimplemented!(),
-        Instruction::GASLIMIT => unimplemented!(),
+        Instruction::BLOCKHASH => {
+            state.stack.check_pop_push(1, 1)?;
+            let current_number = state.block.number;
+            let number = state.stack.peek(0).unwrap();
+            if number >= current_number || current_number - number > M256::from(256u64) {
+                state.blockhash_state.get(number)?;
+            }
+            Ok(None)
+        },
+        Instruction::COINBASE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::TIMESTAMP => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::NUMBER => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::DIFFICULTY => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::GASLIMIT => { state.stack.check_pop_push(0, 1)?; Ok(None) },
 
-        Instruction::POP => unimplemented!(),
+        Instruction::POP => { state.stack.check_pop_push(1, 0)?; Ok(None) },
         Instruction::MLOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
         Instruction::MSTORE => {
             state.stack.check_pop_push(2, 0)?;
