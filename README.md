@@ -1,6 +1,7 @@
 # SputnikVM: A Blockchain Virtual Machine
 
-[![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=enhance/run-refactor)](https://travis-ci.org/ethereumproject/sputnikvm)
+[![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
+[![Coverage Status](https://coveralls.io/repos/github/ethereumproject/sputnikvm/badge.svg?branch=master)](https://coveralls.io/github/ethereumproject/sputnikvm?branch=master)
 
 ## Project Description
 
