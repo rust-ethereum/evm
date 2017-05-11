@@ -4,7 +4,7 @@ use vm::{Memory, Storage, Instruction};
 use vm::errors::EvalError;
 
 use vm::eval::{State, ControlCheck};
-use super::utils::check_memory_range;
+use super::utils::{check_range, check_memory_write_range};
 
 #[allow(unused_variables)]
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
@@ -34,7 +34,11 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::NOT => { state.stack.check_pop_push(1, 1)?; Ok(None) },
         Instruction::BYTE => { state.stack.check_pop_push(2, 1)?; Ok(None) },
 
-        Instruction::SHA3 => unimplemented!(),
+        Instruction::SHA3 => {
+            state.stack.check_pop_push(2, 1)?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            Ok(None)
+        },
 
         Instruction::ADDRESS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::BALANCE => {
@@ -49,14 +53,14 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::CALLDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CALLDATACOPY => {
             state.stack.check_pop_push(3, 0)?;
-            check_memory_range(&state.memory,
-                               state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+            check_memory_write_range(&state.memory,
+                                     state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
             Ok(None)
         },
         Instruction::CODESIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CODECOPY => {
             state.stack.check_pop_push(3, 0)?;
-            check_memory_range(&state.memory,
+            check_memory_write_range(&state.memory,
                                state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
             Ok(None)
         },
@@ -69,8 +73,8 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::EXTCODECOPY => {
             state.stack.check_pop_push(4, 0)?;
             state.account_state.code(state.stack.peek(0).unwrap().into())?;
-            check_memory_range(&state.memory,
-                               state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
+            check_memory_write_range(&state.memory,
+                                     state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
             Ok(None)
         },
 
@@ -133,15 +137,18 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
 
         Instruction::DUP(v) => { state.stack.check_pop_push(v, v+1)?; Ok(None) },
         Instruction::SWAP(v) => { state.stack.check_pop_push(v+1, v+1)?; Ok(None) },
-        Instruction::LOG(v) => unimplemented!(),
 
+        Instruction::LOG(v) => {
+            state.stack.check_pop_push(v+2, 0)?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            Ok(None)
+        },
         Instruction::CREATE => unimplemented!(),
         Instruction::CALL => unimplemented!(),
         Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => {
             state.stack.check_pop_push(2, 0)?;
-            check_memory_range(&state.memory,
-                               state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         },
         Instruction::DELEGATECALL => unimplemented!(),

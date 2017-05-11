@@ -10,7 +10,7 @@ pub fn check_range(start: M256, len: M256) -> Result<(), MachineError> {
     }
 }
 
-pub fn check_memory_range<M: Memory>(memory: &M, start: M256, len: M256) -> Result<(), MachineError> {
+pub fn check_memory_write_range<M: Memory>(memory: &M, start: M256, len: M256) -> Result<(), MachineError> {
     check_range(start, len)?;
     let mut i = start;
     while i < start + len {

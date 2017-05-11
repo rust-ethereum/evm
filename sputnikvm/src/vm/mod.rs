@@ -107,4 +107,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     pub fn refunded_gas(&self) -> Gas {
         self.0[0].state().refunded_gas
     }
+
+    pub fn logs(&self) -> &[Log] {
+        self.0[0].state().logs.as_slice()
+    }
 }

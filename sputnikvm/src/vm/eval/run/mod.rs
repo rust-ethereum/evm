@@ -83,7 +83,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
         Instruction::NOT => { bitwise::not(state); None },
         Instruction::BYTE => { bitwise::byte(state); None },
 
-        Instruction::SHA3 => unimplemented!(),
+        Instruction::SHA3 => { system::sha3(state); None },
 
         Instruction::ADDRESS => { push!(state, state.context.address.into()); None },
         Instruction::BALANCE => { pop!(state, address: Address);
@@ -145,7 +145,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                     None
                                 } },
         Instruction::PC => { push!(state, pc.1.into()); None },
-        Instruction::MSIZE => { push!(state, state.memory_cost.into()); None },
+        Instruction::MSIZE => { push!(state, (state.memory_cost * Gas::from(32u64)).into()); None },
         Instruction::GAS => { push!(state, after_gas.into()); None },
         Instruction::JUMPDEST => None,
 
@@ -159,7 +159,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                   state.stack.set(0, val2).unwrap();
                                   state.stack.set(v, val1).unwrap();
                                   None },
-        Instruction::LOG(v) => unimplemented!(),
+        Instruction::LOG(v) => { system::log(state, v); None },
 
         Instruction::CREATE => unimplemented!(),
         Instruction::CALL => unimplemented!(),

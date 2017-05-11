@@ -51,10 +51,10 @@ pub fn apply_to_block(machine: &SeqVM, block: &mut JSONBlock) {
         let account = (*account).clone();
         block.apply_account(account);
     }
-    // for log in machine.appending_logs() {
-    //     let log = (*log).clone();
-    //     block.apply_log(log);
-    // }
+    for log in machine.logs() {
+        let log = (*log).clone();
+        block.apply_log(log);
+    }
 }
 
 pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqVM {
@@ -226,31 +226,31 @@ pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) 
         }
     }
 
-    // let ref logs = v["logs"].as_array();
+    let ref logs = v["logs"].as_array();
 
-    // if logs.is_some() {
-    //     let logs = logs.unwrap();
+    if logs.is_some() {
+        let logs = logs.unwrap();
 
-    //     for log in logs {
-    //         let log = log.as_object().unwrap();
+        for log in logs {
+            let log = log.as_object().unwrap();
 
-    //         let address = Address::from_str(log["address"].as_str().unwrap()).unwrap();
-    //         let data = read_hex(log["data"].as_str().unwrap()).unwrap();
-    //         let mut topics: Vec<M256> = Vec::new();
+            let address = Address::from_str(log["address"].as_str().unwrap()).unwrap();
+            let data = read_hex(log["data"].as_str().unwrap()).unwrap();
+            let mut topics: Vec<M256> = Vec::new();
 
-    //         for topic in log["topics"].as_array().unwrap() {
-    //             topics.push(M256::from_str(topic.as_str().unwrap()).unwrap());
-    //         }
+            for topic in log["topics"].as_array().unwrap() {
+                topics.push(M256::from_str(topic.as_str().unwrap()).unwrap());
+            }
 
-    //         if !block.find_log(address, data.as_slice(), topics.as_slice()) {
-    //             if debug {
-    //                 print!("\n");
-    //                 println!("Log match failed.");
-    //             }
-    //             return false;
-    //         }
-    //     }
-    // }
+            if !block.find_log(address, data.as_slice(), topics.as_slice()) {
+                if debug {
+                    print!("\n");
+                    println!("Log match failed.");
+                }
+                return false;
+            }
+        }
+    }
 
     return true;
 }
