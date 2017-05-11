@@ -34,7 +34,11 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::NOT => { state.stack.check_pop_push(1, 1)?; Ok(None) },
         Instruction::BYTE => { state.stack.check_pop_push(2, 1)?; Ok(None) },
 
-        Instruction::SHA3 => unimplemented!(),
+        Instruction::SHA3 => {
+            state.stack.check_pop_push(2, 1)?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            Ok(None)
+        },
 
         Instruction::ADDRESS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::BALANCE => {
@@ -134,11 +138,19 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::DUP(v) => { state.stack.check_pop_push(v, v+1)?; Ok(None) },
         Instruction::SWAP(v) => { state.stack.check_pop_push(v+1, v+1)?; Ok(None) },
 
-        Instruction::LOG(v) => { state.stack.check_pop_push(v+2, 0)?; Ok(None) },
+        Instruction::LOG(v) => {
+            state.stack.check_pop_push(v+2, 0)?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap());
+            Ok(None)
+        },
         Instruction::CREATE => unimplemented!(),
         Instruction::CALL => unimplemented!(),
         Instruction::CALLCODE => unimplemented!(),
-        Instruction::RETURN => { state.stack.check_pop_push(2, 0)?; Ok(None) },
+        Instruction::RETURN => {
+            state.stack.check_pop_push(2, 0)?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap());
+            Ok(None)
+        },
         Instruction::DELEGATECALL => unimplemented!(),
         Instruction::SUICIDE => {
             state.stack.check_pop_push(1, 0)?;
