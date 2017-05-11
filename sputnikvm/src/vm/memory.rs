@@ -1,29 +1,19 @@
 use utils::bigint::M256;
-use super::{ExecutionResult, ExecutionError};
 
+use super::errors::MemoryError;
+
+/// Represent a memory in EVM. Read should always succeed. Write can
+/// fall.
 pub trait Memory {
-    fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()> {
-        // Vector only deals with usize, so the maximum size is
-        // actually smaller than 2^256
-        let end = index + 32.into();
+    /// Check whether write on this index would result in an error. If
+    /// this function returns None, then both `write` and `write_raw`
+    /// on this index should succeed.
+    fn check_write(&self, index: M256) -> Result<(), MemoryError>;
 
-        let a: [u8; 32] = value.into();
-        for i in 0..32 {
-            self.write_raw(index + i.into(), a[i]).unwrap();
-        }
-        Ok(())
-    }
-    fn read(&self, index: M256) -> ExecutionResult<M256> {
-        let end = index + 32.into();
-        let mut a: [u8; 32] = [0u8; 32];
-
-        for i in 0..32 {
-            a[i] = self.read_raw(index + i.into()).unwrap();
-        }
-        Ok(a.into())
-    }
-    fn write_raw(&mut self, index: M256, value: u8) -> ExecutionResult<()>;
-    fn read_raw(&self, index: M256) -> ExecutionResult<u8>;
+    fn write(&mut self, index: M256, value: M256) -> Result<(), MemoryError>;
+    fn write_raw(&mut self, index: M256, value: u8) -> Result<(), MemoryError>;
+    fn read(&self, index: M256) -> M256;
+    fn read_raw(&self, index: M256) -> u8;
 }
 
 pub struct SeqMemory {
@@ -39,22 +29,31 @@ impl Default for SeqMemory {
 }
 
 impl Memory for SeqMemory {
-    fn write(&mut self, index: M256, value: M256) -> ExecutionResult<()> {
+    fn check_write(&self, index: M256) -> Result<(), MemoryError> {
         let end = index + 32.into();
         if end > M256::from(usize::max_value()) {
-            return Err(ExecutionError::MemoryTooLarge);
+            Err(MemoryError::IndexNotSupported)
+        } else {
+            Ok(())
+        }
+    }
+
+    fn write(&mut self, index: M256, value: M256) -> Result<(), MemoryError> {
+        let end = index + 32.into();
+        if end > M256::from(usize::max_value()) {
+            return Err(MemoryError::IndexNotSupported);
         }
 
         let a: [u8; 32] = value.into();
         for i in 0..32 {
-            self.write_raw(index + i.into(), a[i]);
+            self.write_raw(index + i.into(), a[i]).unwrap();
         }
         Ok(())
     }
 
-    fn write_raw(&mut self, index: M256, value: u8) -> ExecutionResult<()> {
+    fn write_raw(&mut self, index: M256, value: u8) -> Result<(), MemoryError> {
         if index > M256::from(usize::max_value()) {
-            return Err(ExecutionError::MemoryTooLarge);
+            return Err(MemoryError::IndexNotSupported);
         }
 
         let index: usize = index.into();
@@ -67,17 +66,26 @@ impl Memory for SeqMemory {
         Ok(())
     }
 
-    fn read_raw(&self, index: M256) -> ExecutionResult<u8> {
+    fn read(&self, index: M256) -> M256 {
+        let mut a: [u8; 32] = [0u8; 32];
+
+        for i in 0..32 {
+            a[i] = self.read_raw(index + i.into());
+        }
+        a.into()
+    }
+
+    fn read_raw(&self, index: M256) -> u8 {
         if index > M256::from(usize::max_value()) {
-            return Ok(0u8);
+            return 0u8;
         }
 
         let index: usize = index.into();
 
         if self.memory.len() <= index {
-            return Ok(0u8);
+            return 0u8;
         }
 
-        Ok(self.memory[index])
+        self.memory[index]
     }
 }

@@ -65,7 +65,7 @@ impl FromStr for Address {
 impl fmt::LowerHex for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..20 {
-            write!(f, "{:02x}", self.0[i]);
+            write!(f, "{:02x}", self.0[i])?;
         }
         Ok(())
     }
@@ -74,7 +74,7 @@ impl fmt::LowerHex for Address {
 impl fmt::UpperHex for Address {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..20 {
-            write!(f, "{:02X}", self.0[i]);
+            write!(f, "{:02X}", self.0[i])?;
         }
         Ok(())
     }
