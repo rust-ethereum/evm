@@ -175,13 +175,13 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
 
-        if self.state.available_gas() < memory_gas + gas_cost {
+        if self.state.context.gas_limit < memory_gas + self.state.used_gas + gas_cost {
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
             return Ok(());
         }
 
         let instruction = self.pc.read().unwrap();
-        let after_gas = self.state.available_gas() - memory_gas - gas_cost;
+        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost;
         let result = run_opcode((instruction, position),
                                 &mut self.state, gas_stipend, after_gas);
 
