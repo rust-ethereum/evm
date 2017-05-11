@@ -1,9 +1,9 @@
-use std::collections::hash_map;
-use utils::gas::Gas;
+use std::collections::hash_map::{self, HashMap};
 use utils::address::Address;
 use utils::bigint::{M256, U256};
 
-use super::{ExecutionResult, ExecutionError, CommitResult, CommitError, Storage};
+use vm::Storage;
+use vm::errors::{RequireError, CommitError};
 
 #[derive(Debug, Clone)]
 pub enum AccountCommitment<S> {
@@ -24,11 +24,11 @@ impl<S: Storage> AccountCommitment<S> {
     pub fn address(&self) -> Address {
         match self {
             &AccountCommitment::Full {
-                address: address,
+                address,
                 ..
             } => address,
             &AccountCommitment::Code {
-                address: address,
+                address,
                 ..
             } => address,
         }
@@ -52,7 +52,7 @@ impl<S: Storage> Account<S> {
     pub fn address(&self) -> Address {
         match self {
             &Account::Full {
-                address: address,
+                address,
                 ..
             } => address,
             &Account::IncreaseBalance(address, _) => address,
@@ -61,49 +61,67 @@ impl<S: Storage> Account<S> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AccountState<S> {
-    accounts: hash_map::HashMap<Address, Account<S>>,
-    codes: hash_map::HashMap<Address, Vec<u8>>,
+    accounts: HashMap<Address, Account<S>>,
+    codes: HashMap<Address, Vec<u8>>,
 }
 
 impl<S: Storage> Default for AccountState<S> {
     fn default() -> Self {
         Self {
-            accounts: hash_map::HashMap::new(),
-            codes: hash_map::HashMap::new(),
+            accounts: HashMap::new(),
+            codes: HashMap::new(),
         }
     }
 }
 
-impl<S: Storage + Default> AccountState<S> {
+impl<S: Storage + Default + Clone> AccountState<S> {
     pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
         self.accounts.values()
     }
 
-    pub fn commit(&mut self, commitment: AccountCommitment<S>) -> CommitResult<()> {
+    pub fn require(&self, address: Address) -> Result<(), RequireError> {
+        match self.accounts.get(&address) {
+            Some(&Account::Full { .. }) => return Ok(()),
+            _ => return Err(RequireError::Account(address)),
+        }
+    }
+
+    pub fn require_code(&self, address: Address) -> Result<(), RequireError> {
+        if self.codes.contains_key(&address) {
+            return Ok(());
+        }
+        match self.accounts.get(&address) {
+            Some(&Account::Full { .. }) => return Ok(()),
+            _ => return Err(RequireError::AccountCode(address)),
+        }
+    }
+
+    pub fn commit(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
         match commitment {
             AccountCommitment::Full {
-                nonce: nonce,
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code
+                nonce,
+                address,
+                balance,
+                storage,
+                code
             } => {
                 if self.accounts.contains_key(&address) {
                     return Err(CommitError::AlreadyCommitted);
                 }
 
                 self.accounts.insert(address, Account::Full {
-                    nonce: nonce,
-                    address: address,
-                    balance: balance,
-                    storage: storage,
-                    code: code,
+                    nonce,
+                    address,
+                    balance,
+                    storage,
+                    code,
                 });
             },
             AccountCommitment::Code {
-                address: address,
-                code: code,
+                address,
+                code,
             } => {
                 if self.accounts.contains_key(&address) || self.codes.contains_key(&address) {
                     return Err(CommitError::AlreadyCommitted);
@@ -115,7 +133,7 @@ impl<S: Storage + Default> AccountState<S> {
         Ok(())
     }
 
-    pub fn code(&self, address: Address) -> ExecutionResult<&[u8]> {
+    pub fn code(&self, address: Address) -> Result<&[u8], RequireError> {
         if self.codes.contains_key(&address) {
             return Ok(self.codes.get(&address).unwrap().as_slice());
         }
@@ -123,88 +141,88 @@ impl<S: Storage + Default> AccountState<S> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &Account::Full {
-                    code: ref code,
+                    ref code,
                     ..
                 } => return Ok(code.as_slice()),
                 _ => (),
             }
         }
 
-        return Err(ExecutionError::RequireAccountCode(address));
+        return Err(RequireError::AccountCode(address));
     }
 
-    pub fn nonce(&self, address: Address) -> ExecutionResult<M256> {
+    pub fn nonce(&self, address: Address) -> Result<M256, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &Account::Full {
-                    nonce: nonce,
+                    nonce,
                     ..
                 } => return Ok(nonce),
                 _ => (),
             }
         }
 
-        return Err(ExecutionError::RequireAccount(address));
+        return Err(RequireError::Account(address));
     }
 
-    pub fn balance(&self, address: Address) -> ExecutionResult<U256> {
+    pub fn balance(&self, address: Address) -> Result<U256, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &Account::Full {
-                    balance: balance,
+                    balance,
                     ..
                 } => return Ok(balance),
                 _ => (),
             }
         }
 
-        return Err(ExecutionError::RequireAccount(address));
+        return Err(RequireError::Account(address));
     }
 
-    pub fn storage(&self, address: Address) -> ExecutionResult<&S> {
+    pub fn storage(&self, address: Address) -> Result<&S, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &Account::Full {
-                    storage: ref storage,
+                    ref storage,
                     ..
                 } => return Ok(storage),
                 _ => (),
             }
         }
 
-        return Err(ExecutionError::RequireAccount(address));
+        return Err(RequireError::Account(address));
     }
 
-    pub fn storage_mut(&mut self, address: Address) -> ExecutionResult<&mut S> {
+    pub fn storage_mut(&mut self, address: Address) -> Result<&mut S, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get_mut(&address).unwrap() {
                 &mut Account::Full {
-                    storage: ref mut storage,
+                    ref mut storage,
                     ..
                 } => return Ok(storage),
                 _ => (),
             }
         }
 
-        return Err(ExecutionError::RequireAccount(address));
+        return Err(RequireError::Account(address));
     }
 
     pub fn increase_balance(&mut self, address: Address, topup: U256) {
         assert!(topup != U256::zero());
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                nonce: nonce,
+                address,
+                balance,
+                storage,
+                code,
+                nonce,
             }) => {
                 Some(Account::Full {
-                    address: address,
+                    address,
                     balance: balance + topup,
-                    storage: storage,
-                    code: code,
-                    nonce: nonce,
+                    storage,
+                    code,
+                    nonce,
                 })
             },
             Some(Account::IncreaseBalance(address, balance)) => {
@@ -232,18 +250,18 @@ impl<S: Storage + Default> AccountState<S> {
         assert!(withdraw != U256::zero());
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                nonce: nonce,
+                address,
+                balance,
+                storage,
+                code,
+                nonce,
             }) => {
                 Some(Account::Full {
-                    address: address,
+                    address,
                     balance: balance - withdraw,
-                    storage: storage,
-                    code: code,
-                    nonce: nonce,
+                    storage,
+                    code,
+                    nonce,
                 })
             },
             Some(Account::DecreaseBalance(address, balance)) => {
@@ -267,75 +285,46 @@ impl<S: Storage + Default> AccountState<S> {
         }
     }
 
-    pub fn set_nonce(&mut self, address: Address, new_nonce: M256) -> ExecutionResult<()> {
+    pub fn set_nonce(&mut self, address: Address, new_nonce: M256) -> Result<(), RequireError> {
         match self.accounts.get_mut(&address) {
             Some(&mut Account::Full {
-                nonce: ref mut nonce,
+                ref mut nonce,
                 ..
             }) => {
                 *nonce = new_nonce;
                 Ok(())
             },
             _ => {
-                Err(ExecutionError::RequireAccount(address))
+                Err(RequireError::Account(address))
             },
         }
     }
 
-    pub fn remove(&mut self, address: Address) -> ExecutionResult<()> {
+    pub fn remove(&mut self, address: Address) -> Result<(), RequireError> {
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                nonce: nonce,
+                address,
+                ..
             }) => {
                 Account::Full {
-                    address: address,
+                    address,
                     balance: U256::zero(),
                     storage: S::default(),
                     code: Vec::new(),
                     nonce: M256::zero(),
                 }
             },
-            Some(Account::DecreaseBalance(address, balance)) => {
-                return Err(ExecutionError::RequireAccount(address));
+            Some(Account::DecreaseBalance(address, _)) => {
+                return Err(RequireError::Account(address));
             },
-            Some(Account::IncreaseBalance(address, balance)) => {
-                return Err(ExecutionError::RequireAccount(address));
+            Some(Account::IncreaseBalance(address, _)) => {
+                return Err(RequireError::Account(address));
             },
             None => {
-                return Err(ExecutionError::RequireAccount(address));
+                return Err(RequireError::Account(address));
             },
         };
         self.accounts.insert(address, account);
         Ok(())
-    }
-
-    pub fn merge(&mut self, other: &Account<S>) {
-        match other {
-            &Account::Full {
-                nonce: nonce,
-                address: address,
-                balance: balance,
-                storage: ref storage,
-                code: ref code
-            } => {
-                self.accounts.insert(address, Account::Full {
-                    nonce: nonce,
-                    address: address,
-                    balance: balance,
-                    storage: storage.derive(),
-                    code: code.clone(),
-                });
-            },
-            &Account::IncreaseBalance(address, inc) => {
-                self.increase_balance(address, inc);
-            },
-            &Account::DecreaseBalance(address, dec) => {
-                self.decrease_balance(address, dec);
-            },
-        }
     }
 }

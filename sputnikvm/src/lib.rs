@@ -1,12 +1,13 @@
-#[macro_use]
+#![deny(unused_import_braces, unused_imports,
+        unused_comparisons, unused_must_use,
+        unused_variables, non_shorthand_field_patterns,
+        unreachable_code)]
+
 extern crate log;
 extern crate crypto;
-extern crate merkle;
 
-#[macro_use]
-mod rescue;
-pub mod vm;
 mod utils;
+pub mod vm;
 
 pub use utils::bigint::{U256, M256, MI256};
 pub use utils::gas::Gas;

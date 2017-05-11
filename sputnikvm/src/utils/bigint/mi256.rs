@@ -1,11 +1,10 @@
-use std::convert::{From, Into, AsRef};
-use std::str::FromStr;
-use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
+use std::convert::{From, Into};
+use std::ops::{Div, Rem};
 use std::cmp::Ordering;
 
 use super::{Sign, M256};
 use super::u256::SIGN_BIT_MASK;
-use super::algorithms::{add2, mac3, from_signed, sub2_sign};
+use super::algorithms::from_signed;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct MI256(Sign, M256);

@@ -1,11 +1,6 @@
 // From rustnum
 
-use std::borrow::Cow;
-use std::cmp;
 use std::cmp::Ordering::{self, Less, Greater, Equal};
-use std::iter::repeat;
-use std::mem;
-
 use super::Sign;
 
 #[inline]
@@ -19,7 +14,7 @@ pub fn from_signed(sign: Sign, digits: &mut [BigDigit]) {
             for digit in digits.as_mut() {
                 *digit = !*digit;
             }
-            let carry = inc(digits);
+            inc(digits);
         },
     }
 }

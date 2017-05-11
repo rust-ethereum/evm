@@ -8,7 +8,6 @@ rust:
   - nightly
 os:
   - linux
-
 addons:
   apt:
     packages:
@@ -18,32 +17,6 @@ addons:
       - binutils-dev
       - libiberty-dev
       - g++
-
-script:
-  - |
-    export PATH="$PATH":~/.cargo/bin &&
-    export RUST_BACKTRACE=1 &&
-    cd gaslighter &&
-    cargo build &&
-    cargo test --verbose &&
-    cargo doc --all &&
-    git clone https://github.com/ethereumproject/tests.git &&
-    cd tests &&
-    git checkout develop &&
-    cd .. &&
-    cargo run -- crat -f tests/VMTests/vmArithmeticTest.json &&
-    cargo run -- crat -f tests/VMTests/vmBitwiseLogicOperationTest.json &&
-    cargo run -- crat -f tests/VMTests/vmBlockInfoTest.json &&
-    cargo run -- crat -f tests/VMTests/vmIOandFlowOperationsTest.json &&
-    cargo run -- crat -f tests/VMTests/vmLogTest.json &&
-    cargo run -- crat -f tests/VMTests/vmPerformanceTest.json &&
-    cargo run -- crat -f tests/VMTests/vmPushDupSwapTest.json &&
-    cargo run -- crat -f tests/VMTests/vmSha3Test.json &&
-    cargo run -- crat -f tests/VMTests/vmEnvironmentalInfoTest.json &&
-    cd .. &&
-    cargo install cargo-kcov --force &&
-    cargo kcov --all -- --verify --exclude-pattern=~/.cargo --coveralls-id=$TRAVIS_JOB_ID
-
 install:
   - rustc -vV
   - cargo -vV
@@ -61,10 +34,14 @@ install:
   - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$HOME/Library/Python/2.7/bin:$PATH
   - export RUSTFLAGS="-C link-dead-code"
   - kcov --version
-
+script:
+  - |
+    export PATH="$PATH":~/.cargo/bin &&
+    export RUST_BACKTRACE=1 &&
+    cargo build --all --verbose &&
+    cargo test --all --verbose &&
+    cargo install cargo-kcov --force &&
+    cargo kcov --all -- --verify --exclude-pattern=~/.cargo --coveralls-id=$TRAVIS_JOB_ID
 matrix:
   allow_failures:
     - rust: nightly
-notifications:
-  email:
-    on_success: never

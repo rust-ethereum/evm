@@ -12,4 +12,3 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 log = "0.3"
 rust-crypto = "^0.2"
-merkle-sha3 = "0.1"

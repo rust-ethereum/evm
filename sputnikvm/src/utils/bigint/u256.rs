@@ -426,7 +426,7 @@ impl Not for U256 {
 impl fmt::LowerHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..8 {
-            write!(f, "{:08x}", self.0[i]);
+            write!(f, "{:08x}", self.0[i])?;
         }
         Ok(())
     }
@@ -435,7 +435,7 @@ impl fmt::LowerHex for U256 {
 impl fmt::UpperHex for U256 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for i in 0..8 {
-            write!(f, "{:08X}", self.0[i]);
+            write!(f, "{:08X}", self.0[i])?;
         }
         Ok(())
     }

@@ -255,7 +255,7 @@ impl Into<u8> for Opcode {
             },
 
             Opcode::LOG(v) => {
-                assert!(v >= 0 && v <= 4);
+                assert!(v <= 4);
                 0xa0 + (v as u8)
             },
 
