@@ -101,6 +101,6 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     }
 
     pub fn available_gas(&self) -> Gas {
-        self.0[0].state().context.gas_limit - self.0[0].state().used_gas - self.0[0].state().memory_gas
+        self.0[0].state().available_gas()
     }
 }
