@@ -78,7 +78,7 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             state.stack.check_pop_push(1, 1)?;
             let current_number = state.block.number;
             let number = state.stack.peek(0).unwrap();
-            if number >= current_number || current_number - number > M256::from(256u64) {
+            if !(number >= current_number || current_number - number > M256::from(256u64)) {
                 state.blockhash_state.get(number)?;
             }
             Ok(None)

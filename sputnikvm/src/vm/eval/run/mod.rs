@@ -118,7 +118,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
 
         Instruction::BLOCKHASH => { pop!(state, number);
                                     let current_number = state.block.number;
-                                    if number >= current_number || current_number - number > M256::from(256u64) {
+                                    if !(number >= current_number || current_number - number > M256::from(256u64)) {
                                         push!(state, state.blockhash_state.get(number).unwrap());
                                     } else {
                                         push!(state, M256::zero());
