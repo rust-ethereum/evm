@@ -29,12 +29,19 @@ fn main() {
         (@subcommand srv =>
             (about: "Allows SputnikVM to be run as a service.")
         )
+        (@subcommand cli =>
+            (about: "Command Line Interface for SputnikVM.")
+            (@arg CODE: -c --code +takes_value +required "Path to the compiled output of `solc`")
+        )
     ).get_matches();
     let mut has_regression_test_passed = true;
     let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
     if let Some(ref matches) = matches.subcommand_matches("reg") {
         let path = matches.value_of("CHAINDATA").unwrap();
         has_regression_test_passed = perform_regression(path);
+    }
+    if let Some(ref matches) = matches.subcommand_matches("cli") {
+        let path = matches.value_of("CODE").unwrap();
     }
     if has_regression_test_passed {
         process::exit(0);
