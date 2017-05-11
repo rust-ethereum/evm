@@ -20,45 +20,45 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::EXP => { state.stack.check_pop_push(2, 1)?; Ok(None) },
         Instruction::SIGNEXTEND => { state.stack.check_pop_push(2, 1)?; Ok(None) },
 
-        // Instruction::LT => Instruction::LT,
-        // Instruction::GT => Instruction::GT,
-        // Instruction::SLT => Instruction::SLT,
-        // Instruction::SGT => Instruction::SGT,
-        // Instruction::EQ => Instruction::EQ,
-        // Instruction::ISZERO => Instruction::ISZERO,
-        // Instruction::AND => Instruction::AND,
-        // Instruction::OR => Instruction::OR,
-        // Instruction::XOR => Instruction::XOR,
-        // Instruction::NOT => Instruction::NOT,
-        // Instruction::BYTE => Instruction::BYTE,
+        Instruction::LT => unimplemented!(),
+        Instruction::GT => unimplemented!(),
+        Instruction::SLT => unimplemented!(),
+        Instruction::SGT => unimplemented!(),
+        Instruction::EQ => unimplemented!(),
+        Instruction::ISZERO => unimplemented!(),
+        Instruction::AND => unimplemented!(),
+        Instruction::OR => unimplemented!(),
+        Instruction::XOR => unimplemented!(),
+        Instruction::NOT => unimplemented!(),
+        Instruction::BYTE => unimplemented!(),
 
-        // Instruction::SHA3 => Instruction::SHA3,
+        Instruction::SHA3 => unimplemented!(),
 
-        // Instruction::ADDRESS => Instruction::ADDRESS,
-        // Instruction::BALANCE => Instruction::BALANCE,
-        // Instruction::ORIGIN => Instruction::ORIGIN,
-        // Instruction::CALLER => Instruction::CALLER,
-        // Instruction::CALLVALUE => Instruction::CALLVALUE,
-        // Instruction::CALLDATALOAD => Instruction::CALLDATALOAD,
-        // Instruction::CALLDATASIZE => Instruction::CALLDATASIZE,
-        // Instruction::CALLDATACOPY => Instruction::CALLDATACOPY,
-        // Instruction::CODESIZE => Instruction::CODESIZE,
-        // Instruction::CODECOPY => Instruction::CODECOPY,
-        // Instruction::GASPRICE => Instruction::GASPRICE,
-        // Instruction::EXTCODESIZE => Instruction::EXTCODESIZE,
-        // Instruction::EXTCODECOPY => Instruction::EXTCODECOPY,
+        Instruction::ADDRESS => unimplemented!(),
+        Instruction::BALANCE => unimplemented!(),
+        Instruction::ORIGIN => unimplemented!(),
+        Instruction::CALLER => unimplemented!(),
+        Instruction::CALLVALUE => unimplemented!(),
+        Instruction::CALLDATALOAD => unimplemented!(),
+        Instruction::CALLDATASIZE => unimplemented!(),
+        Instruction::CALLDATACOPY => unimplemented!(),
+        Instruction::CODESIZE => unimplemented!(),
+        Instruction::CODECOPY => unimplemented!(),
+        Instruction::GASPRICE => unimplemented!(),
+        Instruction::EXTCODESIZE => unimplemented!(),
+        Instruction::EXTCODECOPY => unimplemented!(),
 
-        // Instruction::BLOCKHASH => Instruction::BLOCKHASH,
-        // Instruction::COINBASE => Instruction::COINBASE,
-        // Instruction::TIMESTAMP => Instruction::TIMESTAMP,
-        // Instruction::NUMBER => Instruction::NUMBER,
-        // Instruction::DIFFICULTY => Instruction::DIFFICULTY,
-        // Instruction::GASLIMIT => Instruction::GASLIMIT,
+        Instruction::BLOCKHASH => unimplemented!(),
+        Instruction::COINBASE => unimplemented!(),
+        Instruction::TIMESTAMP => unimplemented!(),
+        Instruction::NUMBER => unimplemented!(),
+        Instruction::DIFFICULTY => unimplemented!(),
+        Instruction::GASLIMIT => unimplemented!(),
 
-        // Instruction::POP => Instruction::POP,
-        // Instruction::MLOAD => Instruction::MLOAD,
-        // Instruction::MSTORE => Instruction::MSTORE,
-        // Instruction::MSTORE8 => Instruction::MSTORE8,
+        Instruction::POP => unimplemented!(),
+        Instruction::MLOAD => unimplemented!(),
+        Instruction::MSTORE => unimplemented!(),
+        Instruction::MSTORE8 => unimplemented!(),
         Instruction::SLOAD => {
             state.stack.check_pop_push(1, 1)?;
             state.account_state.require(state.context.address)?;
@@ -70,34 +70,28 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
                 check_write(state.stack.peek(0).unwrap())?;
             Ok(None)
         },
-        // Instruction::JUMP => Instruction::JUMP,
-        // Instruction::JUMPI => Instruction::JUMPI,
-        // Instruction::PC => Instruction::PC,
-        // Instruction::MSIZE => Instruction::MSIZE,
-        // Instruction::GAS => Instruction::GAS,
-        // Instruction::JUMPDEST => Instruction::JUMPDEST,
+        Instruction::JUMP => unimplemented!(),
+        Instruction::JUMPI => unimplemented!(),
+        Instruction::PC => unimplemented!(),
+        Instruction::MSIZE => unimplemented!(),
+        Instruction::GAS => unimplemented!(),
+        Instruction::JUMPDEST => unimplemented!(),
 
         Instruction::PUSH(v) => { state.stack.check_pop_push(0, 1)?; Ok(None) }
 
-        // Instruction::DUP(v) => Instruction::DUP(v),
-        // Instruction::SWAP(v) => Instruction::SWAP(v),
-        // Instruction::LOG(v) => Instruction::LOG(v),
+        Instruction::DUP(v) => unimplemented!(),
+        Instruction::SWAP(v) => unimplemented!(),
+        Instruction::LOG(v) => unimplemented!(),
 
-        // Instruction::CREATE => Instruction::CREATE,
-        // Instruction::CALL => Instruction::CALL,
-        // Instruction::CALLCODE => Instruction::CALLCODE,
+        Instruction::CREATE => unimplemented!(),
+        Instruction::CALL => unimplemented!(),
+        Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => {
             state.stack.check_pop_push(2, 0)?;
             check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         }
-        // Instruction::DELEGATECALL => Instruction::DELEGATECALL,
-
-        // Instruction::INVALID => {
-        //     return Err(PCError::InvalidInstruction);
-        // },
-        // Instruction::SUICIDE => Instruction::SUICIDE,
-
-        _ => unimplemented!(),
+        Instruction::DELEGATECALL => unimplemented!(),
+        Instruction::SUICIDE => unimplemented!(),
     }
 }
