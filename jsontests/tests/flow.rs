@@ -8,7 +8,7 @@ use jsontests::test_transaction;
 
 lazy_static! {
     static ref TESTS: Value =
-        serde_json::from_str(include_str!("files/vmIOandFlowOperationTest.json")).unwrap();
+        serde_json::from_str(include_str!("files/vmIOandFlowOperationsTest.json")).unwrap();
 }
 
 #[test] fn BlockNumberDynamicJump0_AfterJumpdest() { assert_eq!(test_transaction("BlockNumberDynamicJump0_AfterJumpdest", &TESTS["BlockNumberDynamicJump0_AfterJumpdest"], true), true); }
