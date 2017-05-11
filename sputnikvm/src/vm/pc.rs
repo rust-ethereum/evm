@@ -214,7 +214,7 @@ impl PC {
         let opcode: Opcode = self.code[self.position].into();
         match opcode {
             Opcode::PUSH(v) => {
-                self.position = self.position + v + 1;
+                self.position = min(self.position + v + 1, self.code.len());
             },
             _ => {
                 self.position = self.position + 1;
