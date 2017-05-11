@@ -2,7 +2,7 @@ use vm::{Memory, Storage, Instruction};
 use vm::errors::EvalError;
 
 use vm::eval::{State, ControlCheck};
-use super::utils::check_range;
+use super::utils::check_memory_range;
 
 #[allow(unused_variables)]
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
@@ -56,9 +56,17 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::GASLIMIT => unimplemented!(),
 
         Instruction::POP => unimplemented!(),
-        Instruction::MLOAD => unimplemented!(),
-        Instruction::MSTORE => unimplemented!(),
-        Instruction::MSTORE8 => unimplemented!(),
+        Instruction::MLOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
+        Instruction::MSTORE => {
+            state.stack.check_pop_push(2, 0)?;
+            state.memory.check_write(state.stack.peek(0).unwrap())?;
+            Ok(None)
+        },
+        Instruction::MSTORE8 => {
+            state.stack.check_pop_push(2, 0)?;
+            state.memory.check_write(state.stack.peek(0).unwrap())?;
+            Ok(None)
+        },
         Instruction::SLOAD => {
             state.stack.check_pop_push(1, 1)?;
             state.account_state.require(state.context.address)?;
@@ -88,7 +96,8 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => {
             state.stack.check_pop_push(2, 0)?;
-            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            check_memory_range(&state.memory,
+                               state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         }
         Instruction::DELEGATECALL => unimplemented!(),

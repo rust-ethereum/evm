@@ -50,10 +50,11 @@ use utils::bigint::MI256;
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use vm::{Memory, Storage, Instruction};
 use super::{State, Control};
+use super::utils::copy_from_memory;
 
 #[allow(unused_variables)]
-pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
-    match instruction {
+pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instruction, usize), state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+    match pc.0 {
         Instruction::STOP => { Some(Control::Stop) },
         Instruction::ADD => { op2!(state, add); None },
         Instruction::MUL => { op2!(state, mul); None },
@@ -103,9 +104,9 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction
         // Instruction::GASLIMIT => Instruction::GASLIMIT,
 
         // Instruction::POP => Instruction::POP,
-        // Instruction::MLOAD => Instruction::MLOAD,
-        // Instruction::MSTORE => Instruction::MSTORE,
-        // Instruction::MSTORE8 => Instruction::MSTORE8,
+        Instruction::MLOAD => { flow::mload(state); None },
+        Instruction::MSTORE => { flow::mstore(state); None },
+        Instruction::MSTORE8 => { flow::mstore8(state); None },
         Instruction::SLOAD => { flow::sload(state); None },
         Instruction::SSTORE => { flow::sstore(state); None },
         // Instruction::JUMP => Instruction::JUMP,
@@ -124,7 +125,9 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction
         // Instruction::CREATE => Instruction::CREATE,
         // Instruction::CALL => Instruction::CALL,
         // Instruction::CALLCODE => Instruction::CALLCODE,
-        // Instruction::RETURN => Instruction::RETURN,
+        Instruction::RETURN => { pop!(state, start, len);
+                                 state.out = copy_from_memory(&mut state.memory, start, len);
+                                 Some(Control::Stop) },
         // Instruction::DELEGATECALL => Instruction::DELEGATECALL,
 
         // Instruction::INVALID => {

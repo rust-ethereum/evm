@@ -12,6 +12,12 @@ impl From<MemoryError> for MachineError {
     }
 }
 
+impl From<MemoryError> for EvalError {
+    fn from(val: MemoryError) -> EvalError {
+        EvalError::Machine(MachineError::Memory(val))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum StackError {
     Overflow,
