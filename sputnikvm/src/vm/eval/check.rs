@@ -2,6 +2,7 @@ use vm::{Memory, Storage, Instruction};
 use vm::errors::EvalError;
 
 use vm::eval::{State, ControlCheck};
+use super::utils::check_range;
 
 #[allow(unused_variables)]
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
@@ -85,7 +86,11 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         // Instruction::CREATE => Instruction::CREATE,
         // Instruction::CALL => Instruction::CALL,
         // Instruction::CALLCODE => Instruction::CALLCODE,
-        // Instruction::RETURN => Instruction::RETURN,
+        Instruction::RETURN => {
+            state.stack.check_pop_push(2, 0)?;
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            Ok(None)
+        }
         // Instruction::DELEGATECALL => Instruction::DELEGATECALL,
 
         // Instruction::INVALID => {

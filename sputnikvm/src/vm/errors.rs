@@ -66,6 +66,12 @@ pub enum MachineError {
     EmptyGas,
 }
 
+impl From<MachineError> for EvalError {
+    fn from(val: MachineError) -> EvalError {
+        EvalError::Machine(val)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum RequireError {
     Account(Address),
