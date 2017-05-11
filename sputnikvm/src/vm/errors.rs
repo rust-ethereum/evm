@@ -18,6 +18,12 @@ pub enum StackError {
     Underflow,
 }
 
+impl From<StackError> for EvalError {
+    fn from(val: StackError) -> EvalError {
+        EvalError::Machine(MachineError::Stack(val))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum PCError {
     InvalidOpcode,
@@ -35,6 +41,12 @@ impl From<PCError> for EvalError {
 #[derive(Debug, Clone)]
 pub enum StorageError {
     IndexNotSupported,
+}
+
+impl From<StorageError> for EvalError {
+    fn from(val: StorageError) -> EvalError {
+        EvalError::Machine(MachineError::Storage(val))
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +71,12 @@ pub enum RequireError {
     Account(Address),
     AccountCode(Address),
     Blockhash(M256),
+}
+
+impl From<RequireError> for EvalError {
+    fn from(val: RequireError) -> EvalError {
+        EvalError::Require(val)
+    }
 }
 
 #[derive(Debug, Clone)]
