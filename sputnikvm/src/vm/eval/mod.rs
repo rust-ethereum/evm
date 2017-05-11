@@ -166,11 +166,12 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
 
         let instruction = self.pc.peek().unwrap();
         let memory_cost = memory_cost(instruction, &self.state);
+        let memory_gas = memory_gas(memory_cost);
         let gas_cost = gas_cost(instruction, &self.state);
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
 
-        if self.state.context.gas_limit < memory_cost + gas_cost {
+        if self.state.context.gas_limit < self.state.used_gas + self.state.memory_gas() + memory_gas + gas_cost {
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
             return Ok(());
         }
