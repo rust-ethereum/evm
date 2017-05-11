@@ -2,7 +2,7 @@ use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
-use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment};
+use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment, Log};
 
 use self::check::check_opcode;
 use self::run::run_opcode;
@@ -30,6 +30,7 @@ pub struct State<M, S> {
 
     pub account_state: AccountState<S>,
     pub blockhash_state: BlockhashState,
+    pub logs: Vec<Log>,
 }
 
 impl<M, S> State<M, S> {
@@ -90,6 +91,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
 
                 account_state: AccountState::default(),
                 blockhash_state: BlockhashState::default(),
+                logs: Vec::new(),
             },
         }
     }
@@ -113,7 +115,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                 refunded_gas: Gas::zero(),
 
                 account_state: self.state.account_state.clone(),
-                blockhash_state: self.state.blockhash_state.clone()
+                blockhash_state: self.state.blockhash_state.clone(),
+                logs: self.state.logs.clone(),
             },
         }
     }
