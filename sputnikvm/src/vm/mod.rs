@@ -103,4 +103,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     pub fn available_gas(&self) -> Gas {
         self.0[0].state().available_gas()
     }
+
+    pub fn refunded_gas(&self) -> Gas {
+        self.0[0].state().refunded_gas
+    }
 }
