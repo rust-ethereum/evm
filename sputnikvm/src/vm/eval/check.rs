@@ -129,10 +129,10 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::GAS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::JUMPDEST => Ok(None),
 
-        Instruction::PUSH(v) => { state.stack.check_pop_push(0, 1)?; Ok(None) }
+        Instruction::PUSH(v) => { state.stack.check_pop_push(0, 1)?; Ok(None) },
 
-        Instruction::DUP(v) => unimplemented!(),
-        Instruction::SWAP(v) => unimplemented!(),
+        Instruction::DUP(v) => { state.stack.check_pop_push(v, v+1)?; Ok(None) },
+        Instruction::SWAP(v) => { state.stack.check_pop_push(v+1, v+1)?; Ok(None) },
         Instruction::LOG(v) => unimplemented!(),
 
         Instruction::CREATE => unimplemented!(),

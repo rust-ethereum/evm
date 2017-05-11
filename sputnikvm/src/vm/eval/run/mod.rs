@@ -82,7 +82,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
         Instruction::NOT => { bitwise::not(state); None },
         Instruction::BYTE => { bitwise::byte(state); None },
 
-        // Instruction::SHA3 => Instruction::SHA3,
+        Instruction::SHA3 => unimplemented!(),
 
         Instruction::ADDRESS => { push!(state, state.context.address.into()); None },
         Instruction::BALANCE => { pop!(state, address: Address);
@@ -150,23 +150,23 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
 
         Instruction::PUSH(v) => { push!(state, v); None }
 
-        // Instruction::DUP(v) => Instruction::DUP(v),
-        // Instruction::SWAP(v) => Instruction::SWAP(v),
-        // Instruction::LOG(v) => Instruction::LOG(v),
+        Instruction::DUP(v) => { let val = state.stack.peek(v-1).unwrap();
+                                 push!(state, val);
+                                 None },
+        Instruction::SWAP(v) => { let val1 = state.stack.peek(0).unwrap();
+                                  let val2 = state.stack.peek(v).unwrap();
+                                  state.stack.set(0, val2).unwrap();
+                                  state.stack.set(v, val1).unwrap();
+                                  None },
+        Instruction::LOG(v) => unimplemented!(),
 
-        // Instruction::CREATE => Instruction::CREATE,
-        // Instruction::CALL => Instruction::CALL,
-        // Instruction::CALLCODE => Instruction::CALLCODE,
+        Instruction::CREATE => unimplemented!(),
+        Instruction::CALL => unimplemented!(),
+        Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => { pop!(state, start, len);
                                  state.out = copy_from_memory(&mut state.memory, start, len);
                                  Some(Control::Stop) },
-        // Instruction::DELEGATECALL => Instruction::DELEGATECALL,
-
-        // Instruction::INVALID => {
-        //     return Err(PCError::InvalidInstruction);
-        // },
-        // Instruction::SUICIDE => Instruction::SUICIDE,
-
-        _ => unimplemented!(),
+        Instruction::DELEGATECALL => unimplemented!(),
+        Instruction::SUICIDE => unimplemented!(),
     }
 }
