@@ -143,8 +143,12 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             check_memory_range(&state.memory,
                                state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
-        }
+        },
         Instruction::DELEGATECALL => unimplemented!(),
-        Instruction::SUICIDE => unimplemented!(),
+        Instruction::SUICIDE => {
+            state.stack.check_pop_push(1, 0)?;
+            state.account_state.require(state.context.address)?;
+            Ok(None)
+        },
     }
 }

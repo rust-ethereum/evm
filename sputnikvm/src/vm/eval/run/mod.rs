@@ -45,6 +45,7 @@ mod arithmetic;
 mod bitwise;
 mod flow;
 mod environment;
+mod system;
 
 use utils::gas::Gas;
 use utils::bigint::{M256, MI256};
@@ -167,6 +168,6 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                  state.out = copy_from_memory(&mut state.memory, start, len);
                                  Some(Control::Stop) },
         Instruction::DELEGATECALL => unimplemented!(),
-        Instruction::SUICIDE => unimplemented!(),
+        Instruction::SUICIDE => { system::suicide(state); Some(Control::Stop) },
     }
 }
