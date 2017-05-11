@@ -4,7 +4,7 @@ use vm::{Memory, Storage, Instruction};
 use vm::errors::EvalError;
 
 use vm::eval::{State, ControlCheck};
-use super::utils::check_memory_write_range;
+use super::utils::{check_range, check_memory_write_range};
 
 #[allow(unused_variables)]
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
@@ -140,7 +140,7 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
 
         Instruction::LOG(v) => {
             state.stack.check_pop_push(v+2, 0)?;
-            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap());
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         },
         Instruction::CREATE => unimplemented!(),
@@ -148,7 +148,7 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => {
             state.stack.check_pop_push(2, 0)?;
-            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap());
+            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         },
         Instruction::DELEGATECALL => unimplemented!(),
