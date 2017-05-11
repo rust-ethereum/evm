@@ -64,6 +64,7 @@ pub enum ControlCheck {
 
 #[derive(Debug, Clone)]
 pub enum Control {
+    Stop,
     Jump(usize),
     InvokeCall(Context, (M256, M256)),
 }
@@ -185,6 +186,10 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             },
             Some(Control::InvokeCall(context, (from, len))) => {
                 self.status = MachineStatus::InvokeCall(context, (from, len));
+                Ok(())
+            },
+            Some(Control::Stop) => {
+                self.status = MachineStatus::ExitedOk;
                 Ok(())
             },
         }

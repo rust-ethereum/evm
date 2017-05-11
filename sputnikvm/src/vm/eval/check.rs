@@ -14,8 +14,8 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::SDIV => { state.stack.check_pop_push(2, 1)?; Ok(None) },
         Instruction::MOD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
         Instruction::SMOD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::ADDMOD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::MULMOD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+        Instruction::ADDMOD => { state.stack.check_pop_push(3, 1)?; Ok(None) },
+        Instruction::MULMOD => { state.stack.check_pop_push(3, 1)?; Ok(None) },
         Instruction::EXP => { state.stack.check_pop_push(2, 1)?; Ok(None) },
         Instruction::SIGNEXTEND => { state.stack.check_pop_push(2, 1)?; Ok(None) },
 

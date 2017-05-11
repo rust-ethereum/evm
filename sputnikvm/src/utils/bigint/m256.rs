@@ -4,7 +4,7 @@ use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::Ordering;
 use std::fmt;
 
-use super::U256;
+use super::{U512, U256};
 use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
@@ -41,6 +41,8 @@ impl Into<[u32; 8]> for M256 { fn into(self) -> [u32; 8] { self.0.into() } }
 impl From<[u32; 8]> for M256 { fn from(val: [u32; 8]) -> M256 { M256(U256::from(val)) } }
 impl From<U256> for M256 { fn from(val: U256) -> M256 { M256(val) } }
 impl Into<U256> for M256 { fn into(self) -> U256 { self.0 } }
+impl From<U512> for M256 { fn from(val: U512) -> M256 { M256(val.into()) } }
+impl Into<U512> for M256 { fn into(self) -> U512 { self.0.into() } }
 impl From<i32> for M256 { fn from(val: i32) -> M256 { (val as u64).into() } }
 
 impl Ord for M256 { fn cmp(&self, other: &M256) -> Ordering { self.0.cmp(&other.0) } }
