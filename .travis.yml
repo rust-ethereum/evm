@@ -48,7 +48,16 @@ install:
   - rustc -vV
   - cargo -vV
   - mkdir -p ~/.cargo/bin
-  - sh .coverage/install_kcov.sh
+  - KCOV_VERSION=33
+  - rm -rf v${KCOV_VERSION}.tar.gz kcov-${KCOV_VERSION}/
+  - wget https://github.com/SimonKagstrom/kcov/archive/v${KCOV_VERSION}.tar.gz
+  - tar xzf v${KCOV_VERSION}.tar.gz
+  - cd kcov-${KCOV_VERSION}
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+  - make
+  - cp src/kcov src/libkcov_sowrapper.so ~/.cargo/bin
   - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$HOME/Library/Python/2.7/bin:$PATH
   - export RUSTFLAGS="-C link-dead-code"
   - kcov --version
