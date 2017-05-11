@@ -35,14 +35,19 @@ macro_rules! op2_ref {
         pop!($machine, op1, op2);
         push!($machine, op1.$op(&op2).into());
     });
+    ( $machine:expr, $op:ident, $t:ty ) => ({
+        pop!($machine, op1:$t, op2:$t);
+        push!($machine, op1.$op(&op2).into());
+    });
 }
 
 mod arithmetic;
+mod bitwise;
 mod flow;
 
 use utils::gas::Gas;
 use utils::bigint::MI256;
-use std::ops::{Add, Sub, Mul, Div, Rem};
+use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use vm::{Memory, Storage, Instruction};
 use super::{State, Control};
 
@@ -62,17 +67,17 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction
         Instruction::EXP => { arithmetic::exp(state); None },
         Instruction::SIGNEXTEND => { arithmetic::signextend(state); None },
 
-        // Instruction::LT => Instruction::LT,
-        // Instruction::GT => Instruction::GT,
-        // Instruction::SLT => Instruction::SLT,
-        // Instruction::SGT => Instruction::SGT,
-        // Instruction::EQ => Instruction::EQ,
-        // Instruction::ISZERO => Instruction::ISZERO,
-        // Instruction::AND => Instruction::AND,
-        // Instruction::OR => Instruction::OR,
-        // Instruction::XOR => Instruction::XOR,
-        // Instruction::NOT => Instruction::NOT,
-        // Instruction::BYTE => Instruction::BYTE,
+        Instruction::LT => { op2_ref!(state, lt); None },
+        Instruction::GT => { op2_ref!(state, gt); None },
+        Instruction::SLT => { op2_ref!(state, lt, MI256); None },
+        Instruction::SGT => { op2_ref!(state, gt, MI256); None },
+        Instruction::EQ => { op2_ref!(state, eq); None },
+        Instruction::ISZERO => { bitwise::iszero(state); None },
+        Instruction::AND => { op2!(state, bitand); None },
+        Instruction::OR => { op2!(state, bitor); None },
+        Instruction::XOR => { op2!(state, bitxor); None },
+        Instruction::NOT => { bitwise::not(state); None },
+        Instruction::BYTE => { bitwise::byte(state); None },
 
         // Instruction::SHA3 => Instruction::SHA3,
 
