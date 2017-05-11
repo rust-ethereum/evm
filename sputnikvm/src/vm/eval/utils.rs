@@ -31,13 +31,15 @@ pub fn copy_from_memory<M: Memory>(memory: &M, start: M256, len: M256) -> Vec<u8
     result
 }
 
-pub fn copy_into_memory<M: Memory>(memory: &mut M, values: &[u8], start: M256, len: M256) {
+pub fn copy_into_memory<M: Memory>(memory: &mut M, values: &[u8], start: M256, value_start: M256, len: M256) {
+    let value_len = M256::from(values.len());
     let mut i = start;
-    let mut j = 0;
+    let mut j = value_start;
     while i < start + len {
-        if j < values.len() {
-            memory.write_raw(i, values[j]).unwrap();
-            j = j + 1;
+        if j < value_len {
+            let ju: usize = j.into();
+            memory.write_raw(i, values[ju]).unwrap();
+            j = j + M256::from(1u64);
         } else {
             memory.write_raw(i, 0u8).unwrap();
         }

@@ -44,13 +44,15 @@ macro_rules! op2_ref {
 mod arithmetic;
 mod bitwise;
 mod flow;
+mod environment;
 
 use utils::gas::Gas;
-use utils::bigint::MI256;
+use utils::bigint::{M256, MI256};
+use utils::address::Address;
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use vm::{Memory, Storage, Instruction};
 use super::{State, Control};
-use super::utils::copy_from_memory;
+use super::utils::{copy_from_memory, copy_into_memory};
 
 #[allow(unused_variables)]
 pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instruction, usize), state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
@@ -82,28 +84,53 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
 
         // Instruction::SHA3 => Instruction::SHA3,
 
-        // Instruction::ADDRESS => Instruction::ADDRESS,
-        // Instruction::BALANCE => Instruction::BALANCE,
-        // Instruction::ORIGIN => Instruction::ORIGIN,
-        // Instruction::CALLER => Instruction::CALLER,
-        // Instruction::CALLVALUE => Instruction::CALLVALUE,
-        // Instruction::CALLDATALOAD => Instruction::CALLDATALOAD,
-        // Instruction::CALLDATASIZE => Instruction::CALLDATASIZE,
-        // Instruction::CALLDATACOPY => Instruction::CALLDATACOPY,
-        // Instruction::CODESIZE => Instruction::CODESIZE,
-        // Instruction::CODECOPY => Instruction::CODECOPY,
-        // Instruction::GASPRICE => Instruction::GASPRICE,
-        // Instruction::EXTCODESIZE => Instruction::EXTCODESIZE,
-        // Instruction::EXTCODECOPY => Instruction::EXTCODECOPY,
+        Instruction::ADDRESS => { push!(state, state.context.address.into()); None },
+        Instruction::BALANCE => { pop!(state, address: Address);
+                                  push!(state, state.account_state.balance(address).unwrap().into());
+                                  None },
+        Instruction::ORIGIN => { push!(state, state.context.origin.into()); None },
+        Instruction::CALLER => { push!(state, state.context.caller.into()); None },
+        Instruction::CALLVALUE => { push!(state, state.context.value.into()); None },
+        Instruction::CALLDATALOAD => { environment::calldataload(state); None },
+        Instruction::CALLDATASIZE => { push!(state, state.context.data.len().into()); None },
+        Instruction::CALLDATACOPY => { pop!(state, memory_index, data_index, len);
+                                       copy_into_memory(&mut state.memory,
+                                                        state.context.data.as_slice(),
+                                                        memory_index, data_index, len);
+                                       None },
+        Instruction::CODESIZE => { push!(state, state.context.code.len().into()); None },
+        Instruction::CODECOPY => { pop!(state, memory_index, code_index, len);
+                                   copy_into_memory(&mut state.memory,
+                                                    state.context.code.as_slice(),
+                                                    memory_index, code_index, len);
+                                   None },
+        Instruction::GASPRICE => { push!(state, state.context.gas_price.into()); None },
+        Instruction::EXTCODESIZE => { pop!(state, address: Address);
+                                      push!(state,
+                                            state.account_state.code(address).unwrap().len().into());
+                                      None },
+        Instruction::EXTCODECOPY => { pop!(state, address: Address);
+                                      pop!(state, memory_index, code_index, len);
+                                      copy_into_memory(&mut state.memory,
+                                                       state.account_state.code(address).unwrap(),
+                                                       memory_index, code_index, len);
+                                      None },
 
-        // Instruction::BLOCKHASH => Instruction::BLOCKHASH,
-        // Instruction::COINBASE => Instruction::COINBASE,
-        // Instruction::TIMESTAMP => Instruction::TIMESTAMP,
-        // Instruction::NUMBER => Instruction::NUMBER,
-        // Instruction::DIFFICULTY => Instruction::DIFFICULTY,
-        // Instruction::GASLIMIT => Instruction::GASLIMIT,
+        Instruction::BLOCKHASH => { pop!(state, number);
+                                    let current_number = state.block.number;
+                                    if number >= current_number || current_number - number > M256::from(256u64) {
+                                        push!(state, state.blockhash_state.get(number).unwrap());
+                                    } else {
+                                        push!(state, M256::zero());
+                                    }
+                                    None },
+        Instruction::COINBASE => { push!(state, state.block.coinbase.into()); None },
+        Instruction::TIMESTAMP => { push!(state, state.block.timestamp); None },
+        Instruction::NUMBER => { push!(state, state.block.number); None },
+        Instruction::DIFFICULTY => { push!(state, state.block.difficulty); None },
+        Instruction::GASLIMIT => { push!(state, state.block.gas_limit.into()); None },
 
-        // Instruction::POP => Instruction::POP,
+        Instruction::POP => { state.stack.pop().unwrap(); None },
         Instruction::MLOAD => { flow::mload(state); None },
         Instruction::MSTORE => { flow::mstore(state); None },
         Instruction::MSTORE8 => { flow::mstore8(state); None },
