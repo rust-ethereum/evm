@@ -41,7 +41,7 @@ script:
     cargo build --all --verbose &&
     cargo test --all --verbose &&
     cargo install cargo-kcov --force &&
-    cargo kcov --all -- --verify --exclude-pattern=~/.cargo --coveralls-id=$TRAVIS_JOB_ID
+    cargo kcov --all -- --verify --exclude-pattern=/.cargo,/usr/lib --coveralls-id=$TRAVIS_JOB_ID
 matrix:
   allow_failures:
     - rust: nightly
