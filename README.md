@@ -1,10 +1,10 @@
-# SputnikVM: Ethereum Classic Virtual Machine
+# SputnikVM: A Blockchain Virtual Machine
 
 [![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=enhance/run-refactor)](https://travis-ci.org/ethereumproject/sputnikvm)
 
 ## Project Description
 
-This is an implementation of Ethereum Virtual Machine that can be integrated into Geth, Parity or other clients or may be be launched as a standalone app for debugging purposes.
+This is an implementation of the Ethereum Virtual Machine, it aims to be an efficient, pluggable virtual machine for different blockchains. Change to each blockchain VM's parameters is governed by the [rfc](github.com/ethereumproject/rfc) project.
 
 ## Problem 1
 
