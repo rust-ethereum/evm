@@ -11,6 +11,7 @@ use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost};
 mod cost;
 mod run;
 mod check;
+mod utils;
 
 /// A VM state without PC.
 pub struct State<M, S> {

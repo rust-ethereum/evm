@@ -11,7 +11,7 @@ pub fn check_range(start: M256, len: M256) -> Result<(), MachineError> {
     }
 }
 
-pub fn copy_from<M: Memory, S: Storage>(state: &State<M, S>, start: M256, len: M256) -> Result<Vec<u8>, MachineError> {
+pub fn copy_from<M: Memory, S: Storage>(state: &State<M, S>, start: M256, len: M256)-> Result<Vec<u8>, MachineError> {
     check_range(start, len)?;
 
     let mut result: Vec<u8> = Vec::new();

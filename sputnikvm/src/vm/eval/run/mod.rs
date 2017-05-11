@@ -1,5 +1,3 @@
-pub mod utils;
-
 use utils::gas::Gas;
 use vm::{Memory, Storage, Instruction};
 use super::{State, Control};
