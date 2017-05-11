@@ -81,6 +81,23 @@ impl<S: Storage + Default + Clone> AccountState<S> {
         self.accounts.values()
     }
 
+    pub fn require(&self, address: Address) -> Result<(), RequireError> {
+        match self.accounts.get(&address) {
+            Some(&Account::Full { .. }) => return Ok(()),
+            _ => return Err(RequireError::Account(address)),
+        }
+    }
+
+    pub fn require_code(&self, address: Address) -> Result<(), RequireError> {
+        if self.codes.contains_key(&address) {
+            return Ok(());
+        }
+        match self.accounts.get(&address) {
+            Some(&Account::Full { .. }) => return Ok(()),
+            _ => return Err(RequireError::AccountCode(address)),
+        }
+    }
+
     pub fn commit(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
         match commitment {
             AccountCommitment::Full {

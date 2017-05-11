@@ -1,6 +1,7 @@
 #![deny(unused_import_braces, unused_imports,
         unused_comparisons, unused_must_use,
-        unused_variables, non_shorthand_field_patterns)]
+        unused_variables, non_shorthand_field_patterns,
+        unreachable_code)]
 
 extern crate log;
 extern crate crypto;
