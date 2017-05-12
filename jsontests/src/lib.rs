@@ -159,6 +159,8 @@ pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) 
             if debug {
                 print!("\n");
                 println!("Balance check failed for address 0x{:x}.", address);
+                println!("Expected: 0x{:x}", balance);
+                println!("Actual:   0x{:x}", block.balance(address));
             }
 
             return false;

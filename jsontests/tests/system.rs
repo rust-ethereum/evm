@@ -17,8 +17,8 @@ lazy_static! {
 #[test] fn aBAcalls1() { assert_eq!(test_transaction("ABAcalls1", &TESTS["ABAcalls1"], true), true); }
 #[test] fn aBAcalls2() { assert_eq!(test_transaction("ABAcalls2", &TESTS["ABAcalls2"], true), true); }
 // #[test] fn aBAcalls3() { assert_eq!(test_transaction("ABAcalls3", &TESTS["ABAcalls3"], true), true); }
-// #[test] fn aBAcallsSuicide0() { assert_eq!(test_transaction("ABAcallsSuicide0", &TESTS["ABAcallsSuicide0"], true), true); }
-// #[test] fn aBAcallsSuicide1() { assert_eq!(test_transaction("ABAcallsSuicide1", &TESTS["ABAcallsSuicide1"], true), true); }
+#[test] fn aBAcallsSuicide0() { assert_eq!(test_transaction("ABAcallsSuicide0", &TESTS["ABAcallsSuicide0"], true), true); }
+#[test] fn aBAcallsSuicide1() { assert_eq!(test_transaction("ABAcallsSuicide1", &TESTS["ABAcallsSuicide1"], true), true); }
 // #[test] fn callRecursiveBomb0() { assert_eq!(test_transaction("CallRecursiveBomb0", &TESTS["CallRecursiveBomb0"], true), true); }
 // #[test] fn callRecursiveBomb1() { assert_eq!(test_transaction("CallRecursiveBomb1", &TESTS["CallRecursiveBomb1"], true), true); }
 // #[test] fn callRecursiveBomb2() { assert_eq!(test_transaction("CallRecursiveBomb2", &TESTS["CallRecursiveBomb2"], true), true); }
@@ -31,9 +31,9 @@ lazy_static! {
 #[test] fn callToNameRegistratorTooMuchMemory1() { assert_eq!(test_transaction("CallToNameRegistratorTooMuchMemory1", &TESTS["CallToNameRegistratorTooMuchMemory1"], true), true); }
 #[test] fn callToNameRegistratorTooMuchMemory2() { assert_eq!(test_transaction("CallToNameRegistratorTooMuchMemory2", &TESTS["CallToNameRegistratorTooMuchMemory2"], true), true); }
 // #[test] fn callToPrecompiledContract() { assert_eq!(test_transaction("CallToPrecompiledContract", &TESTS["CallToPrecompiledContract"], true), true); }
-// #[test] fn callToReturn1() { assert_eq!(test_transaction("CallToReturn1", &TESTS["CallToReturn1"], true), true); }
-// #[test] fn postToNameRegistrator0() { assert_eq!(test_transaction("PostToNameRegistrator0", &TESTS["PostToNameRegistrator0"], true), true); }
-// #[test] fn postToReturn1() { assert_eq!(test_transaction("PostToReturn1", &TESTS["PostToReturn1"], true), true); }
+#[test] fn callToReturn1() { assert_eq!(test_transaction("CallToReturn1", &TESTS["CallToReturn1"], true), true); }
+#[test] fn postToNameRegistrator0() { assert_eq!(test_transaction("PostToNameRegistrator0", &TESTS["PostToNameRegistrator0"], true), true); }
+#[test] fn postToReturn1() { assert_eq!(test_transaction("PostToReturn1", &TESTS["PostToReturn1"], true), true); }
 #[test] fn testNameRegistrator() { assert_eq!(test_transaction("TestNameRegistrator", &TESTS["TestNameRegistrator"], true), true); }
 // #[test] fn callcodeToNameRegistrator0() { assert_eq!(test_transaction("callcodeToNameRegistrator0", &TESTS["callcodeToNameRegistrator0"], true), true); }
 // #[test] fn callcodeToReturn1() { assert_eq!(test_transaction("callcodeToReturn1", &TESTS["callcodeToReturn1"], true), true); }
