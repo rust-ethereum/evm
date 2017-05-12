@@ -23,7 +23,7 @@ use self::errors::{RequireError, CommitError, MachineError};
 
 pub type SeqVM = VM<SeqMemory, HashMapStorage>;
 
-pub struct VM<M, S>(Vec<Machine<M, S>>);
+pub struct VM<M, S>(Vec<Machine<M, S>>, Vec<Context>);
 
 #[derive(Debug, Clone)]
 pub enum VMStatus {
@@ -36,7 +36,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M, S> {
         let mut machines = Vec::new();
         machines.push(Machine::new(context, block, patch));
-        VM(machines)
+        VM(machines, Vec::new())
     }
 
     pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
@@ -76,6 +76,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
                 }
             },
             MachineStatus::InvokeCall(context, _) => {
+                self.1.push(context.clone());
                 let sub = self.0.last().unwrap().derive(context);
                 self.0.push(sub);
                 Ok(())
@@ -110,5 +111,9 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
 
     pub fn logs(&self) -> &[Log] {
         self.0[0].state().logs.as_slice()
+    }
+
+    pub fn history(&self) -> &[Context] {
+        self.1.as_slice()
     }
 }
