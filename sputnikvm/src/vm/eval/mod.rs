@@ -55,6 +55,7 @@ pub enum MachineStatus {
     Running,
     ExitedOk,
     ExitedErr(MachineError),
+    InvokeCreate(Context),
     InvokeCall(Context, (M256, M256)),
 }
 

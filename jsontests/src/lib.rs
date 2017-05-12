@@ -89,19 +89,11 @@ pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) 
                 return false;
             }
             let ref transaction = machine.history()[i];
-            if destination.is_none() {
-                if transaction.out_to.is_none() {
+            if destination.is_some() {
+                if transaction.address != destination.unwrap() {
                     if debug {
                         print!("\n");
-                        println!("Expected ContractCreation, got MessageCall.");
-                    }
-                    return false;
-                }
-            } else {
-                if transaction.out_to.is_some() {
-                    if debug {
-                        print!("\n");
-                        println!("Expected MessageCall, got ContractCreation.");
+                        println!("Transaction address mismatch. 0x{:x} != 0x{:x}.", transaction.address, destination.unwrap());
                     }
                     return false;
                 }
