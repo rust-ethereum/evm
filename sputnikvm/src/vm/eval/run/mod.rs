@@ -161,7 +161,7 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                   None },
         Instruction::LOG(v) => { system::log(state, v); None },
 
-        Instruction::CREATE => unimplemented!(),
+        Instruction::CREATE => { Some(Control::InvokeCreate(system::create(state, after_gas))) },
         Instruction::CALL => unimplemented!(),
         Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => { pop!(state, start, len);

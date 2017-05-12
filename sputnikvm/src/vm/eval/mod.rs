@@ -68,6 +68,7 @@ pub enum ControlCheck {
 pub enum Control {
     Stop,
     Jump(M256),
+    InvokeCreate(Context),
     InvokeCall(Context, (M256, M256)),
 }
 
@@ -152,6 +153,11 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {
+        match &self.status {
+            &MachineStatus::Running => (),
+            _ => panic!(),
+        }
+
         if self.pc.is_end() {
             self.status = MachineStatus::ExitedOk;
             return Ok(());
@@ -198,6 +204,10 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             },
             Some(Control::InvokeCall(context, (from, len))) => {
                 self.status = MachineStatus::InvokeCall(context, (from, len));
+                Ok(())
+            },
+            Some(Control::InvokeCreate(context)) => {
+                self.status = MachineStatus::InvokeCreate(context);
                 Ok(())
             },
             Some(Control::Stop) => {
