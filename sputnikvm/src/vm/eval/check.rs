@@ -43,7 +43,7 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::ADDRESS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::BALANCE => {
             state.stack.check_pop_push(1, 1)?;
-            state.account_state.balance(state.stack.peek(0).unwrap().into())?;
+            state.account_state.require(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::ORIGIN => { state.stack.check_pop_push(0, 1)?; Ok(None) },
@@ -67,12 +67,12 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::GASPRICE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::EXTCODESIZE => {
             state.stack.check_pop_push(1, 1)?;
-            state.account_state.code(state.stack.peek(0).unwrap().into())?;
+            state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::EXTCODECOPY => {
             state.stack.check_pop_push(4, 0)?;
-            state.account_state.code(state.stack.peek(0).unwrap().into())?;
+            state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
             check_memory_write_range(&state.memory,
                                      state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
             Ok(None)
@@ -112,8 +112,9 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         },
         Instruction::SSTORE => {
             state.stack.check_pop_push(2, 0)?;
-            state.account_state.storage(state.context.address)?.
-                check_write(state.stack.peek(0).unwrap())?;
+            state.account_state.require(state.context.address)?;
+            state.account_state.storage(state.context.address)
+                .unwrap().check_write(state.stack.peek(0).unwrap())?;
             Ok(None)
         },
         Instruction::JUMP => {
@@ -143,7 +144,12 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         },
-        Instruction::CREATE => unimplemented!(),
+        Instruction::CREATE => {
+            state.stack.check_pop_push(3, 1)?;
+            check_range(state.stack.peek(1).unwrap(), state.stack.peek(2).unwrap())?;
+            state.account_state.require(state.context.address)?;
+            Ok(None)
+        },
         Instruction::CALL => unimplemented!(),
         Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => {
