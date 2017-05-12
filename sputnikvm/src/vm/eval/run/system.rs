@@ -1,10 +1,11 @@
 use utils::address::Address;
-use utils::bigint::M256;
+use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use vm::{Memory, Storage, Log, Context};
 use super::State;
 use utils::rlp::WriteRLP;
 
+use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 use vm::eval::utils::copy_from_memory;
@@ -42,7 +43,8 @@ pub fn sha3<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
 }
 
 pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, after_gas: Gas) -> Context {
-    pop!(state, value, init_start, init_len);
+    pop!(state, value: U256);
+    pop!(state, init_start, init_len);
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let nonce = state.account_state.nonce(state.context.address).unwrap();
     let mut sha3 = Sha3::keccak256();
@@ -61,8 +63,27 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
         gas_limit: after_gas,
         gas_price: state.context.gas_price,
         origin: state.context.origin,
-        value: value.into(),
+        value: value,
     };
     push!(state, address.into());
     context
+}
+
+pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> (Context, (M256, M256)) {
+    pop!(state, gas: Gas, to: Address, value: U256);
+    pop!(state, in_start, in_len, out_start, out_len);
+    let input = copy_from_memory(&state.memory, in_start, in_len);
+    let gas_limit = min(after_gas, gas + stipend_gas);
+    let context = Context {
+        address: to,
+        caller: state.context.address,
+        code: state.account_state.code(to).unwrap().into(),
+        data: input,
+        gas_limit: gas_limit,
+        gas_price: state.context.gas_price,
+        origin: state.context.origin,
+        value: value,
+    };
+    push!(state, M256::zero());
+    (context, (out_start, out_len))
 }
