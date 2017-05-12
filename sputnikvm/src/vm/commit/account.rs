@@ -214,7 +214,7 @@ impl<S: Storage + Default + Clone> AccountState<S> {
     }
 
     pub fn increase_balance(&mut self, address: Address, topup: U256) {
-        assert!(topup != U256::zero());
+        if topup == U256::zero() { return; }
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
                 address,
@@ -253,7 +253,7 @@ impl<S: Storage + Default + Clone> AccountState<S> {
     }
 
     pub fn decrease_balance(&mut self, address: Address, withdraw: U256) {
-        assert!(withdraw != U256::zero());
+        if withdraw == U256::zero() { return; }
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
                 address,
