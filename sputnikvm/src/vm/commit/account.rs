@@ -207,6 +207,12 @@ impl<S: Storage + Default + Clone> AccountState<S> {
         return Err(RequireError::Account(address));
     }
 
+    pub fn create(&mut self, address: Address, balance: U256, code: &[u8]) {
+        self.accounts.insert(address, Account::Full {
+            address, balance, storage: S::default(), code: code.into(), nonce: M256::zero(),
+        });
+    }
+
     pub fn increase_balance(&mut self, address: Address, topup: U256) {
         assert!(topup != U256::zero());
         let account = match self.accounts.remove(&address) {

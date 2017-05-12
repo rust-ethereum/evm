@@ -42,9 +42,14 @@ pub fn sha3<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     push!(state, M256::from(ret.as_ref()));
 }
 
-pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, after_gas: Gas) -> Context {
+pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, after_gas: Gas) -> Option<Context> {
     pop!(state, value: U256);
     pop!(state, init_start, init_len);
+    if state.account_state.balance(state.context.address).unwrap() < value {
+        push!(state, M256::zero());
+        return None;
+    }
+
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let nonce = state.account_state.nonce(state.context.address).unwrap();
     let mut sha3 = Sha3::keccak256();
@@ -66,12 +71,17 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
         value: value,
     };
     push!(state, address.into());
-    context
+    Some(context)
 }
 
-pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> (Context, (M256, M256)) {
+pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
+    if state.account_state.balance(state.context.address).unwrap() < value {
+        push!(state, M256::zero());
+        return None;
+    }
+
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let gas_limit = min(after_gas, gas + stipend_gas);
     let context = Context {
@@ -84,6 +94,6 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
         origin: state.context.origin,
         value: value,
     };
-    push!(state, M256::zero());
-    (context, (out_start, out_len))
+    push!(state, M256::from(1u64));
+    Some((context, (out_start, out_len)))
 }

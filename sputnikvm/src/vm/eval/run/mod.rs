@@ -161,9 +161,10 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                   None },
         Instruction::LOG(v) => { system::log(state, v); None },
 
-        Instruction::CREATE => { Some(Control::InvokeCreate(system::create(state, after_gas))) },
-        Instruction::CALL => { let ret = system::call(state, stipend_gas, after_gas);
-                               Some(Control::InvokeCall(ret.0, ret.1)) },
+        Instruction::CREATE => { system::create(state, after_gas)
+                                 .and_then(|ret| Some(Control::InvokeCreate(ret))) },
+        Instruction::CALL => { system::call(state, stipend_gas, after_gas)
+                               .and_then(|ret| Some(Control::InvokeCall(ret.0, ret.1))) },
         Instruction::CALLCODE => unimplemented!(),
         Instruction::RETURN => { pop!(state, start, len);
                                  state.out = copy_from_memory(&mut state.memory, start, len);

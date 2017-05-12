@@ -7,6 +7,7 @@ use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountComm
 use self::check::check_opcode;
 use self::run::run_opcode;
 use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
+use self::utils::copy_into_memory;
 
 mod cost;
 mod run;
@@ -133,7 +134,59 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
 
     #[allow(unused_variables)]
     pub fn apply_sub(&mut self, sub: Machine<M, S>) {
-        unimplemented!()
+        use std::mem::swap;
+        let mut status = MachineStatus::Running;
+        swap(&mut status, &mut self.status);
+        match status {
+            MachineStatus::InvokeCreate(_) => {
+                self.apply_create(sub);
+            },
+            MachineStatus::InvokeCall(_, (out_start, out_len)) => {
+                self.apply_call(sub, out_start, out_len);
+            },
+            _ => panic!(),
+        }
+    }
+
+    fn apply_create(&mut self, sub: Machine<M, S>) {
+        match sub.status() {
+            MachineStatus::ExitedOk => {
+                self.state.account_state = sub.state.account_state;
+                self.state.blockhash_state = sub.state.blockhash_state;
+                self.state.logs = sub.state.logs;
+                self.state.account_state.decrease_balance(self.state.context.address,
+                                                          sub.state.context.value);
+                self.state.account_state.create(sub.state.context.address,
+                                                sub.state.context.value,
+                                                sub.state.out.as_slice());
+            },
+            MachineStatus::ExitedErr(_) => {
+                self.state.stack.pop().unwrap();
+                self.state.stack.push(M256::zero()).unwrap();
+            },
+            _ => panic!(),
+        }
+    }
+
+    fn apply_call(&mut self, sub: Machine<M, S>, out_start: M256, out_len: M256) {
+        match sub.status() {
+            MachineStatus::ExitedOk => {
+                self.state.account_state = sub.state.account_state;
+                self.state.blockhash_state = sub.state.blockhash_state;
+                self.state.logs = sub.state.logs;
+                self.state.account_state.decrease_balance(self.state.context.address,
+                                                          sub.state.context.value);
+                self.state.account_state.increase_balance(sub.state.context.address,
+                                                          sub.state.context.value);
+                copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),
+                                 out_start, M256::zero(), out_len);
+            },
+            MachineStatus::ExitedErr(_) => {
+                self.state.stack.pop().unwrap();
+                self.state.stack.push(M256::zero()).unwrap();
+            },
+            _ => panic!(),
+        }
     }
 
     pub fn check(&self) -> Result<(), EvalError> {
