@@ -19,7 +19,7 @@ use std::collections::hash_map;
 use utils::bigint::M256;
 use utils::gas::Gas;
 use utils::address::Address;
-use self::errors::{RequireError, CommitError, MachineError};
+use self::errors::{RequireError, CommitError, VMError};
 
 pub type SeqVM = VM<SeqMemory, HashMapStorage>;
 
@@ -29,7 +29,7 @@ pub struct VM<M, S>(Vec<Machine<M, S>>, Vec<Context>);
 pub enum VMStatus {
     Running,
     ExitedOk,
-    ExitedErr(MachineError),
+    ExitedErr(VMError),
 }
 
 impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
@@ -54,14 +54,20 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     }
 
     pub fn status(&self) -> VMStatus {
+        if self.0.len() > 1024 {
+            return VMStatus::ExitedErr(VMError::CallstackOverflow);
+        }
         match self.0[0].status() {
             MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
-            MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err),
+            MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err.into()),
         }
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {
+        if self.0.len() > 1024 {
+            return Ok(());
+        }
         match self.0.last().unwrap().status().clone() {
             MachineStatus::Running => {
                 self.0.last_mut().unwrap().step()
