@@ -64,72 +64,59 @@ pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqVM {
 }
 
 pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) -> bool {
-    // let ref callcreates = v["callcreates"];
+    let ref callcreates = v["callcreates"];
 
-    // if callcreates.as_array().is_some() {
-    //     let mut i = 0;
-    //     for callcreate in callcreates.as_array().unwrap() {
-    //         let data = read_hex(callcreate["data"].as_str().unwrap()).unwrap();
-    //         let destination = {
-    //             let destination = callcreate["destination"].as_str().unwrap();
-    //             if destination == "" {
-    //                 None
-    //             } else {
-    //                 Some(Address::from_str(destination).unwrap())
-    //             }
-    //         };
-    //         let gas_limit = Gas::from_str(callcreate["gasLimit"].as_str().unwrap()).unwrap();
-    //         let value = U256::from_str(callcreate["value"].as_str().unwrap()).unwrap();
+    if callcreates.as_array().is_some() {
+        let mut i = 0;
+        for callcreate in callcreates.as_array().unwrap() {
+            let data = read_hex(callcreate["data"].as_str().unwrap()).unwrap();
+            let destination = {
+                let destination = callcreate["destination"].as_str().unwrap();
+                if destination == "" {
+                    None
+                } else {
+                    Some(Address::from_str(destination).unwrap())
+                }
+            };
+            let gas_limit = Gas::from_str(callcreate["gasLimit"].as_str().unwrap()).unwrap();
+            let value = U256::from_str(callcreate["value"].as_str().unwrap()).unwrap();
 
-    //         if i >= machine.transactions().len() {
-    //             if debug {
-    //                 print!("\n");
-    //                 println!("Transaction check failed, expected more than {} items.", i);
-    //             }
-    //             return false;
-    //         }
-    //         let ref transaction = machine.transactions()[i];
-    //         if destination.is_none() {
-    //             match transaction {
-    //                 &Transaction::ContractCreation(ref create) => {
-    //                     if create.gas_limit != gas_limit || create.value != value || create.init != data {
-    //                         if debug {
-    //                             print!("\n");
-    //                             println!("Transaction mismatch. Received gas_limit 0x{:x}, value 0x{:x}", create.gas_limit, create.value);
-    //                         }
-    //                         return false;
-    //                     }
-    //                 }
-    //                 &Transaction::MessageCall(ref call) => {
-    //                     if debug {
-    //                         print!("\n");
-    //                         println!("Transaction mismatch. Received: {:?}", call);
-    //                     }
-    //                 }
-    //             }
-    //         } else {
-    //             match transaction {
-    //                 &Transaction::MessageCall(ref call) => {
-    //                     if call.gas_limit != gas_limit || call.value != value || call.data != data || call.to != destination.unwrap() {
-    //                         if debug {
-    //                             print!("\n");
-    //                             println!("Transaction mismatch. Received gas_limit 0x{:x}, value: 0x{:x}", call.gas_limit, call.value);
-    //                         }
-    //                         return false;
-    //                     }
-    //                 }
-    //                 &Transaction::ContractCreation(ref create) => {
-    //                     if debug {
-    //                         print!("\n");
-    //                         println!("Transaction mismatch. Received: {:?}", create);
-    //                     }
-    //                 }
-    //             }
-    //         }
+            if i >= machine.history().len() {
+                if debug {
+                    print!("\n");
+                    println!("Transaction check failed, expected more than {} items.", i);
+                }
+                return false;
+            }
+            let ref transaction = machine.history()[i];
+            if destination.is_none() {
+                if transaction.out_to.is_none() {
+                    if debug {
+                        print!("\n");
+                        println!("Expected ContractCreation, got MessageCall.");
+                    }
+                    return false;
+                }
+            } else {
+                if transaction.out_to.is_some() {
+                    if debug {
+                        print!("\n");
+                        println!("Expected MessageCall, got ContractCreation.");
+                    }
+                    return false;
+                }
+            }
+            if transaction.gas_limit != gas_limit || transaction.value != value || transaction.data != data {
+                if debug {
+                    print!("\n");
+                    println!("Transaction mismatch. gas limit 0x{:x} =?= 0x{:x}, value 0x{:x} =?= 0x{:x}", transaction.gas_limit, gas_limit, transaction.value, value);
+                }
+                return false;
+            }
 
-    //         i = i + 1;
-    //     }
-    // }
+            i = i + 1;
+        }
+    }
 
     let out = v["out"].as_str();
     let gas = v["gas"].as_str();
