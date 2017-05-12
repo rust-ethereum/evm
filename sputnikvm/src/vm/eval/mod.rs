@@ -151,9 +151,16 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     fn apply_create(&mut self, sub: Machine<M, S>) {
         match sub.status() {
             MachineStatus::ExitedOk => {
+                if self.state.available_gas() < sub.state.used_gas {
+                    self.state.stack.pop().unwrap();
+                    self.state.stack.push(M256::zero()).unwrap();
+                }
+
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
+                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 self.state.account_state.decrease_balance(self.state.context.address,
                                                           sub.state.context.value);
                 self.state.account_state.create(sub.state.context.address,
@@ -171,9 +178,16 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     fn apply_call(&mut self, sub: Machine<M, S>, out_start: M256, out_len: M256) {
         match sub.status() {
             MachineStatus::ExitedOk => {
+                if self.state.available_gas() < sub.state.used_gas {
+                    self.state.stack.pop().unwrap();
+                    self.state.stack.push(M256::from(1u64)).unwrap();
+                }
+
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
+                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 self.state.account_state.decrease_balance(self.state.context.address,
                                                           sub.state.context.value);
                 self.state.account_state.increase_balance(sub.state.context.address,
