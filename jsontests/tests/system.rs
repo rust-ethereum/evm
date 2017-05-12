@@ -13,7 +13,7 @@ lazy_static! {
         serde_json::from_str(include_str!("files/vmSystemOperationsTest.json")).unwrap();
 }
 
-// #[test] fn aBAcalls0() { assert_eq!(test_transaction("ABAcalls0", &TESTS["ABAcalls0"], true), true); }
+#[test] fn aBAcalls0() { assert_eq!(test_transaction("ABAcalls0", &TESTS["ABAcalls0"], true), true); }
 #[test] fn aBAcalls1() { assert_eq!(test_transaction("ABAcalls1", &TESTS["ABAcalls1"], true), true); }
 #[test] fn aBAcalls2() { assert_eq!(test_transaction("ABAcalls2", &TESTS["ABAcalls2"], true), true); }
 // #[test] fn aBAcalls3() { assert_eq!(test_transaction("ABAcalls3", &TESTS["ABAcalls3"], true), true); }

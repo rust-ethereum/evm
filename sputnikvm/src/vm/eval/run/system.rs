@@ -78,7 +78,7 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
-        push!(state, M256::zero());
+        push!(state, M256::from(1u64));
         return None;
     }
 
@@ -94,6 +94,6 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
         origin: state.context.origin,
         value: value,
     };
-    push!(state, M256::from(1u64));
+    push!(state, M256::zero());
     Some((context, (out_start, out_len)))
 }
