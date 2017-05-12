@@ -1,3 +1,5 @@
+#![allow(non_snake_case)]
+
 extern crate jsontests;
 extern crate serde_json;
 #[macro_use]
