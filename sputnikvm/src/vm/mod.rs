@@ -55,7 +55,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
 
     pub fn status(&self) -> VMStatus {
         match self.0[0].status() {
-            MachineStatus::Running | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
+            MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
             MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err),
         }
@@ -75,7 +75,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
                     Ok(())
                 }
             },
-            MachineStatus::InvokeCall(context, _) => {
+            MachineStatus::InvokeCall(context, _) | MachineStatus::InvokeCreate(context) => {
                 self.1.push(context.clone());
                 let sub = self.0.last().unwrap().derive(context);
                 self.0.push(sub);
