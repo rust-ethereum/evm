@@ -101,7 +101,7 @@ pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) 
             if transaction.gas_limit != gas_limit || transaction.value != value || transaction.data != data {
                 if debug {
                     print!("\n");
-                    println!("Transaction mismatch. gas limit 0x{:x} =?= 0x{:x}, value 0x{:x} =?= 0x{:x}", transaction.gas_limit, gas_limit, transaction.value, value);
+                    println!("Transaction mismatch. gas limit 0x{:x} =?= 0x{:x}, value 0x{:x} =?= 0x{:x}, data {:?} =?= {:?}", transaction.gas_limit, gas_limit, transaction.value, value, transaction.data, data);
                 }
                 return false;
             }
