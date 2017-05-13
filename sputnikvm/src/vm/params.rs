@@ -16,9 +16,6 @@ pub struct Context {
     pub address: Address,
     pub caller: Address,
     pub code: Vec<u8>,
-    /// When this is Some, when the execution is finished, the out
-    /// values is copied to replace the code of this address.
-    pub out_to: Option<Address>,
     pub data: Vec<u8>,
     pub gas_limit: Gas,
     pub gas_price: Gas,

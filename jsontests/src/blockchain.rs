@@ -231,6 +231,5 @@ pub fn create_context(v: &Value) -> Context {
         gas_price: gas_price,
         origin: origin,
         value: value,
-        out_to: None,
     }
 }
