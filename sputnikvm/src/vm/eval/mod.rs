@@ -173,7 +173,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                                                 sub.state.out.as_slice());
             },
             MachineStatus::ExitedErr(_) => {
-                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.stack.pop().unwrap();
                 self.state.stack.push(M256::zero()).unwrap();
             },
@@ -201,9 +201,9 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                                  out_start, M256::zero(), out_len);
             },
             MachineStatus::ExitedErr(_) => {
-                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.stack.pop().unwrap();
-                self.state.stack.push(M256::zero()).unwrap();
+                self.state.stack.push(M256::from(1u64)).unwrap();
             },
             _ => panic!(),
         }
