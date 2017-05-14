@@ -166,6 +166,9 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         },
         Instruction::CALL => {
             state.stack.check_pop_push(7, 1)?;
+            if state.depth > 1 && state.stack.peek(2).unwrap() == M256::zero() {
+                return Err(EvalError::Machine(MachineError::EmptyGas));
+            }
             check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
             check_memory_write_range(&state.memory,
                                      state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;

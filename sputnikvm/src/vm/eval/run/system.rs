@@ -93,7 +93,7 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     }
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = gas + stipend_gas;
+    let gas_limit = if state.depth == 1 || value != U256::zero() { gas + stipend_gas } else { Gas::zero() };
     let context = Context {
         address: to,
         caller: state.context.address,
@@ -104,6 +104,6 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
         origin: state.context.origin,
         value: value,
     };
-    push!(state, M256::from(1u64));
+    push!(state, M256::zero());
     Some((context, (out_start, out_len)))
 }
