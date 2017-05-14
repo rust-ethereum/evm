@@ -11,7 +11,7 @@ pub fn extra_check_opcode<M: Memory + Default, S: Storage + Default + Clone>(ins
     match instruction {
         Instruction::CALL => {
             if after_gas - stipend_gas < state.stack.peek(0).unwrap().into() {
-                Err(EvalError::Machine(MachineError::EmptyBalance))
+                Err(EvalError::Machine(MachineError::EmptyGas))
             } else {
                 Ok(())
             }

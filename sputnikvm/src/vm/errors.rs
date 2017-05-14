@@ -70,8 +70,6 @@ pub enum MachineError {
 
     InvalidRange,
     EmptyGas,
-    EmptyBalance,
-    CallstackOverflow,
 }
 
 impl From<MachineError> for EvalError {
