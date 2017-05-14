@@ -1,6 +1,11 @@
 use utils::bigint::M256;
+use utils::gas::Gas;
 use vm::Memory;
 use vm::errors::MachineError;
+
+pub fn l64(gas: Gas) -> Gas {
+    gas - gas / Gas::from(64u64)
+}
 
 pub fn check_range(start: M256, len: M256) -> Result<(), MachineError> {
     if start + len < start {
