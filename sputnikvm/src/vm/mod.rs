@@ -35,7 +35,7 @@ pub enum VMStatus {
 impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M, S> {
         let mut machines = Vec::new();
-        machines.push(Machine::new(context, block, patch, 0));
+        machines.push(Machine::new(context, block, patch, 1));
         VM(machines, Vec::new())
     }
 
@@ -62,7 +62,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {
-        if self.0.len() >= 1024 {
+        if self.0.len() > 1024 {
             panic!();
         }
         match self.0.last().unwrap().status().clone() {
