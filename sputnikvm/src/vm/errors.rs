@@ -70,6 +70,7 @@ pub enum MachineError {
 
     InvalidRange,
     EmptyGas,
+    EmptyBalance,
     CallstackOverflow,
 }
 

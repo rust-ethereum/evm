@@ -1,5 +1,6 @@
-use utils::bigint::M256;
+use utils::bigint::{U256, M256};
 use utils::gas::Gas;
+use utils::address::Address;
 
 use vm::{Memory, Storage, Instruction};
 use vm::errors::{MachineError, EvalError};
@@ -10,6 +11,14 @@ use super::utils::{check_range, check_memory_write_range};
 fn check_callstack_overflow<M: Memory, S: Storage>(state: &State<M, S>) -> Result<(), MachineError> {
     if state.depth >= 1024 {
         return Err(MachineError::CallstackOverflow);
+    } else {
+        return Ok(());
+    }
+}
+
+fn check_balance<M: Memory, S: Storage + Default + Clone>(state: &State<M, S>, address: Address, balance: U256) -> Result<(), MachineError> {
+    if state.account_state.balance(address).unwrap() < balance {
+        return Err(MachineError::EmptyBalance);
     } else {
         return Ok(());
     }
@@ -180,6 +189,7 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             check_memory_write_range(&state.memory,
                                      state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
             state.account_state.require(state.context.address)?;
+            check_balance(state, state.context.address, state.stack.peek(2).unwrap().into())?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
