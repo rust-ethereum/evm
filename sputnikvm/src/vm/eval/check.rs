@@ -1,4 +1,5 @@
 use utils::bigint::M256;
+use utils::gas::Gas;
 
 use vm::{Memory, Storage, Instruction};
 use vm::errors::{MachineError, EvalError};
@@ -11,6 +12,19 @@ fn check_callstack_overflow<M: Memory, S: Storage>(state: &State<M, S>) -> Resul
         return Err(MachineError::CallstackOverflow);
     } else {
         return Ok(());
+    }
+}
+
+pub fn extra_check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
+    match instruction {
+        Instruction::CALL => {
+            if after_gas - stipend_gas < state.stack.peek(0).unwrap().into() {
+                Err(EvalError::Machine(MachineError::EmptyGas))
+            } else {
+                Ok(())
+            }
+        },
+        _ => Ok(())
     }
 }
 

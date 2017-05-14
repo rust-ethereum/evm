@@ -4,7 +4,7 @@ use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment, Log};
 
-use self::check::check_opcode;
+use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
 use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
 use self::utils::copy_into_memory;
@@ -254,6 +254,18 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         let gas_cost = gas_cost(instruction, &self.state);
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
+        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost + gas_stipend;
+
+        match extra_check_opcode(instruction, &self.state, gas_stipend, after_gas) {
+            Ok(()) => (),
+            Err(EvalError::Machine(error)) => {
+                self.status = MachineStatus::ExitedErr(error);
+                return Ok(());
+            },
+            Err(EvalError::Require(error)) => {
+                return Err(error);
+            },
+        }
 
         if self.state.context.gas_limit < memory_gas + self.state.used_gas + gas_cost - gas_stipend {
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
@@ -261,7 +273,6 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
 
         let instruction = self.pc.read().unwrap();
-        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost + gas_stipend;
         let result = run_opcode((instruction, position),
                                 &mut self.state, gas_stipend, after_gas);
 
