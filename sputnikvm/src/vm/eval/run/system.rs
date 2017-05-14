@@ -94,6 +94,6 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
         origin: state.context.origin,
         value: value,
     };
-    push!(state, M256::zero());
+    push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }

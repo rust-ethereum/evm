@@ -158,8 +158,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         match sub.status() {
             MachineStatus::ExitedOk => {
                 if self.state.available_gas() < sub.state.used_gas {
-                    self.state.stack.pop().unwrap();
-                    self.state.stack.push(M256::zero()).unwrap();
+                    panic!();
                 }
 
                 self.state.account_state = sub.state.account_state;
@@ -185,8 +184,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         match sub.status() {
             MachineStatus::ExitedOk => {
                 if self.state.available_gas() < sub.state.used_gas {
-                    self.state.stack.pop().unwrap();
-                    self.state.stack.push(M256::from(1u64)).unwrap();
+                    panic!();
                 }
 
                 self.state.account_state = sub.state.account_state;
@@ -203,7 +201,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             },
             MachineStatus::ExitedErr(_) => {
                 self.state.stack.pop().unwrap();
-                self.state.stack.push(M256::from(1u64)).unwrap();
+                self.state.stack.push(M256::zero()).unwrap();
             },
             _ => panic!(),
         }
