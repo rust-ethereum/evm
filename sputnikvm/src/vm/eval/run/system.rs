@@ -49,6 +49,11 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
         return None;
     }
 
+    if state.depth >= 1024 {
+        push!(state, M256::zero());
+        return None;
+    }
+
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let nonce = state.account_state.nonce(state.context.address).unwrap();
     let mut sha3 = Sha3::keccak256();
@@ -78,7 +83,12 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
-        push!(state, M256::from(1u64));
+        push!(state, M256::zero());
+        return None;
+    }
+
+    if state.depth >= 1024 {
+        push!(state, M256::zero());
         return None;
     }
 
