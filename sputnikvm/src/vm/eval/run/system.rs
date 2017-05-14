@@ -5,10 +5,9 @@ use vm::{Memory, Storage, Log, Context};
 use super::State;
 use utils::rlp::WriteRLP;
 
-use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
-use vm::eval::utils::{l64, copy_from_memory};
+use vm::eval::utils::copy_from_memory;
 
 pub fn suicide<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
     pop!(state, address: Address);
@@ -74,6 +73,7 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
     Some(context)
 }
 
+#[allow(unused_variables)]
 pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
@@ -83,7 +83,7 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     }
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = min(l64(after_gas), gas + stipend_gas);
+    let gas_limit = gas + stipend_gas;
     let context = Context {
         address: to,
         caller: state.context.address,
