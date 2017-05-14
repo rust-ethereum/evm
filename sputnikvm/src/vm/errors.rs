@@ -70,6 +70,7 @@ pub enum MachineError {
 
     InvalidRange,
     EmptyGas,
+    CallstackOverflow,
 }
 
 impl From<MachineError> for EvalError {
@@ -81,8 +82,6 @@ impl From<MachineError> for EvalError {
 #[derive(Debug, Clone)]
 pub enum VMError {
     Machine(MachineError),
-
-    CallstackOverflow,
 }
 
 impl From<MachineError> for VMError {

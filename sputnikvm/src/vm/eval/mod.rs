@@ -32,6 +32,8 @@ pub struct State<M, S> {
     pub account_state: AccountState<S>,
     pub blockhash_state: BlockhashState,
     pub logs: Vec<Log>,
+
+    pub depth: usize,
 }
 
 impl<M, S> State<M, S> {
@@ -74,7 +76,7 @@ pub enum Control {
 }
 
 impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
-    pub fn new(context: Context, block: BlockHeader, patch: Patch) -> Self {
+    pub fn new(context: Context, block: BlockHeader, patch: Patch, depth: usize) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -95,6 +97,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                 account_state: AccountState::default(),
                 blockhash_state: BlockhashState::default(),
                 logs: Vec::new(),
+
+                depth: depth,
             },
         }
     }
@@ -120,6 +124,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                 account_state: self.state.account_state.clone(),
                 blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
+
+                depth: self.state.depth + 1,
             },
         }
     }

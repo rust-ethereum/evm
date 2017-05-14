@@ -1,10 +1,18 @@
 use utils::bigint::M256;
 
 use vm::{Memory, Storage, Instruction};
-use vm::errors::EvalError;
+use vm::errors::{MachineError, EvalError};
 
 use vm::eval::{State, ControlCheck};
 use super::utils::{check_range, check_memory_write_range};
+
+fn check_callstack_overflow<M: Memory, S: Storage>(state: &State<M, S>) -> Result<(), MachineError> {
+    if state.depth >= 1024 {
+        return Err(MachineError::CallstackOverflow);
+    } else {
+        return Ok(());
+    }
+}
 
 #[allow(unused_variables)]
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
@@ -145,12 +153,14 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             Ok(None)
         },
         Instruction::CREATE => {
+            check_callstack_overflow(state)?;
             state.stack.check_pop_push(3, 1)?;
             check_range(state.stack.peek(1).unwrap(), state.stack.peek(2).unwrap())?;
             state.account_state.require(state.context.address)?;
             Ok(None)
         },
         Instruction::CALL => {
+            check_callstack_overflow(state)?;
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
             check_memory_write_range(&state.memory,
