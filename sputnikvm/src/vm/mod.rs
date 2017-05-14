@@ -62,8 +62,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     }
 
     pub fn step(&mut self) -> Result<(), RequireError> {
-        if self.0.len() > 1024 {
-            return Ok(());
+        if self.0.len() >= 1024 {
+            panic!();
         }
         match self.0.last().unwrap().status().clone() {
             MachineStatus::Running => {
