@@ -49,11 +49,6 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
         return None;
     }
 
-    if state.depth >= 1024 {
-        push!(state, M256::zero());
-        return None;
-    }
-
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let nonce = state.account_state.nonce(state.context.address).unwrap();
     let mut sha3 = Sha3::keccak256();

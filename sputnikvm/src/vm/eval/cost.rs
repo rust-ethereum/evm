@@ -115,6 +115,10 @@ fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
     max(current, new)
 }
 
+pub fn code_deposit_gas(len: usize) -> Gas {
+    Gas::from(G_CODEDEPOSITE) * Gas::from(len)
+}
+
 pub fn memory_gas(a: Gas) -> Gas {
     (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
 }
