@@ -6,7 +6,7 @@ use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountComm
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
-use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
+use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas, code_deposit_gas};
 use self::utils::copy_into_memory;
 
 mod cost;
@@ -166,11 +166,14 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                 self.state.logs = sub.state.logs;
                 self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                self.state.account_state.decrease_balance(self.state.context.address,
-                                                          sub.state.context.value);
-                self.state.account_state.create(sub.state.context.address,
-                                                sub.state.context.value,
-                                                sub.state.out.as_slice());
+                if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
+                    self.state.account_state.decrease_balance(self.state.context.address,
+                                                              sub.state.context.value);
+                    self.state.account_state.create(sub.state.context.address,
+                                                    sub.state.context.value,
+                                                    sub.state.out.as_slice());
+                }
+
             },
             MachineStatus::ExitedErr(_) => {
                 // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
