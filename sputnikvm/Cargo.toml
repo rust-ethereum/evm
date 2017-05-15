@@ -12,3 +12,4 @@ crate-type = ["rlib", "cdylib"]
 [dependencies]
 log = "0.3"
 rust-crypto = "^0.2"
+rlp = { path = '../rlp' }

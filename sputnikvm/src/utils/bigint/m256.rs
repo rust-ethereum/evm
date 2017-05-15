@@ -5,6 +5,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use super::{U512, U256};
+use rlp::{Encodable, RlpStream};
 use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
@@ -26,6 +27,14 @@ impl FromStr for M256 {
 
     fn from_str(s: &str) -> Result<M256, ParseHexError> {
         U256::from_str(s).map(|s| M256(s))
+    }
+}
+
+impl Encodable for M256 {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        let leading_empty_bytes = 32 - (self.bits() + 7) / 8;
+        let buffer: [u8; 32] = self.clone().into();
+        s.encoder().encode_value(&buffer[leading_empty_bytes..]);
     }
 }
 

@@ -39,7 +39,7 @@ lazy_static! {
 // #[test] fn callcodeToReturn1() { assert_eq!(test_transaction("callcodeToReturn1", &TESTS["callcodeToReturn1"], true), true); }
 #[test] fn callstatelessToNameRegistrator0() { assert_eq!(test_transaction("callstatelessToNameRegistrator0", &TESTS["callstatelessToNameRegistrator0"], true), true); }
 #[test] fn callstatelessToReturn1() { assert_eq!(test_transaction("callstatelessToReturn1", &TESTS["callstatelessToReturn1"], true), true); }
-// #[test] fn createNameRegistrator() { assert_eq!(test_transaction("createNameRegistrator", &TESTS["createNameRegistrator"], true), true); }
+#[test] fn createNameRegistrator() { assert_eq!(test_transaction("createNameRegistrator", &TESTS["createNameRegistrator"], true), true); }
 #[test] fn createNameRegistratorOutOfMemoryBonds0() { assert_eq!(test_transaction("createNameRegistratorOutOfMemoryBonds0", &TESTS["createNameRegistratorOutOfMemoryBonds0"], true), true); }
 #[test] fn createNameRegistratorOutOfMemoryBonds1() { assert_eq!(test_transaction("createNameRegistratorOutOfMemoryBonds1", &TESTS["createNameRegistratorOutOfMemoryBonds1"], true), true); }
 #[test] fn createNameRegistratorValueTooHigh() { assert_eq!(test_transaction("createNameRegistratorValueTooHigh", &TESTS["createNameRegistratorValueTooHigh"], true), true); }

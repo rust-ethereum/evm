@@ -3,7 +3,7 @@ use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use vm::{Memory, Storage, Log, Context};
 use super::State;
-use utils::rlp::WriteRLP;
+use rlp::RlpStream;
 
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
@@ -51,12 +51,13 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
 
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let nonce = state.account_state.nonce(state.context.address).unwrap();
-    let mut sha3 = Sha3::keccak256();
-    let mut rlp: Vec<u8> = Vec::new();
+    let mut rlp = RlpStream::new();
+    rlp.begin_list(2);
+    rlp.append(&state.context.address);
+    rlp.append(&nonce);
     let mut address_array = [0u8; 32];
-    state.context.address.write_rlp(&mut rlp);
-    nonce.write_rlp(&mut rlp);
-    sha3.input(rlp.as_slice());
+    let mut sha3 = Sha3::keccak256();
+    sha3.input(rlp.out().as_slice());
     sha3.result(&mut address_array);
     let address = Address::from(M256::from(address_array));
     let context = Context {

@@ -5,6 +5,7 @@
 
 extern crate log;
 extern crate crypto;
+extern crate rlp;
 
 mod utils;
 pub mod vm;
