@@ -177,8 +177,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             },
             MachineStatus::ExitedErr(_) => {
                 // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
-                self.state.stack.pop().unwrap();
-                self.state.stack.push(M256::zero()).unwrap();
+                // self.state.stack.pop().unwrap();
+                // self.state.stack.push(M256::zero()).unwrap();
             },
             _ => panic!(),
         }
