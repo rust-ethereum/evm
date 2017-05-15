@@ -3,7 +3,7 @@
 ## Step to get a basic solidity contract executed using SputnikVM
 
 * ensure you have `solc` installed.
-On `nixos` you type `nix-env -i solc` to install it.
+On `nixos` you type `nix-env -i solc` to install the solidity compiler.
 * write a simple contract or use the accompanying `SimpleStorage.sol` contract.
 ```
 pragma solidity ^0.4.0;
