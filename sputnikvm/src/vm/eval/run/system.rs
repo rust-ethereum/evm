@@ -8,7 +8,7 @@ use utils::rlp::WriteRLP;
 use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
-use vm::eval::utils::copy_from_memory;
+use vm::eval::utils::{l64, copy_from_memory};
 
 pub fn suicide<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
     pop!(state, address: Address);
@@ -83,7 +83,7 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     }
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = min(after_gas, gas + stipend_gas);
+    let gas_limit = min(l64(after_gas), gas + stipend_gas);
     let context = Context {
         address: to,
         caller: state.context.address,

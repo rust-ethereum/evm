@@ -63,21 +63,7 @@ fn sstore_cost<M: Memory + Default,
 
 fn call_cost<M: Memory + Default,
              S: Storage + Default + Clone>(machine: &State<M, S>) -> Gas {
-    gascap_cost(machine) + extra_cost(machine)
-}
-
-#[allow(unused_variables)]
-fn gascap_cost<M: Memory + Default,
-               S: Storage + Default>(machine: &State<M, S>) -> Gas {
-    // let base2 = machine.stack().peek(0).unwrap().into();
-
-    // if available_gas >= extra_cost(machine).unwrap() {
-    //     let base1 = available_gas - extra_cost(machine).unwrap();
-    //     Ok(min(base1 - base1 / Gas::from(64u64), base2))
-    // } else {
-    //     Ok(base2)
-    // }
-    Gas::zero()
+    extra_cost(machine)
 }
 
 fn extra_cost<M: Memory + Default,
