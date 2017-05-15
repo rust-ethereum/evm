@@ -260,7 +260,7 @@ pub fn gas_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: 
 
 pub fn gas_stipend<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
     match instruction {
-        Instruction::CALL => {
+        Instruction::CALL | Instruction::CALLCODE => {
             let value = state.stack.peek(2).unwrap();
 
             if value != M256::zero() {

@@ -165,7 +165,8 @@ pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instru
                                  .and_then(|ret| Some(Control::InvokeCreate(ret))) },
         Instruction::CALL => { system::call(state, stipend_gas, after_gas)
                                .and_then(|ret| Some(Control::InvokeCall(ret.0, ret.1))) },
-        Instruction::CALLCODE => unimplemented!(),
+        Instruction::CALLCODE => { system::callcode(state, stipend_gas, after_gas)
+                                   .and_then(|ret| Some(Control::InvokeCall(ret.0, ret.1))) },
         Instruction::RETURN => { pop!(state, start, len);
                                  state.out = copy_from_memory(&mut state.memory, start, len);
                                  Some(Control::Stop) },

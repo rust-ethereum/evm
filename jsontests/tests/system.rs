@@ -35,8 +35,8 @@ lazy_static! {
 #[test] fn postToNameRegistrator0() { assert_eq!(test_transaction("PostToNameRegistrator0", &TESTS["PostToNameRegistrator0"], true), true); }
 #[test] fn postToReturn1() { assert_eq!(test_transaction("PostToReturn1", &TESTS["PostToReturn1"], true), true); }
 #[test] fn testNameRegistrator() { assert_eq!(test_transaction("TestNameRegistrator", &TESTS["TestNameRegistrator"], true), true); }
-// #[test] fn callcodeToNameRegistrator0() { assert_eq!(test_transaction("callcodeToNameRegistrator0", &TESTS["callcodeToNameRegistrator0"], true), true); }
-// #[test] fn callcodeToReturn1() { assert_eq!(test_transaction("callcodeToReturn1", &TESTS["callcodeToReturn1"], true), true); }
+#[test] fn callcodeToNameRegistrator0() { assert_eq!(test_transaction("callcodeToNameRegistrator0", &TESTS["callcodeToNameRegistrator0"], true), true); }
+#[test] fn callcodeToReturn1() { assert_eq!(test_transaction("callcodeToReturn1", &TESTS["callcodeToReturn1"], true), true); }
 #[test] fn callstatelessToNameRegistrator0() { assert_eq!(test_transaction("callstatelessToNameRegistrator0", &TESTS["callstatelessToNameRegistrator0"], true), true); }
 #[test] fn callstatelessToReturn1() { assert_eq!(test_transaction("callstatelessToReturn1", &TESTS["callstatelessToReturn1"], true), true); }
 #[test] fn createNameRegistrator() { assert_eq!(test_transaction("createNameRegistrator", &TESTS["createNameRegistrator"], true), true); }

@@ -98,3 +98,28 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     push!(state, M256::zero());
     Some((context, (out_start, out_len)))
 }
+
+#[allow(unused_variables)]
+pub fn callcode<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+    pop!(state, gas: Gas, to: Address, value: U256);
+    pop!(state, in_start, in_len, out_start, out_len);
+    if state.account_state.balance(state.context.address).unwrap() < value {
+        push!(state, M256::zero());
+        return None;
+    }
+
+    let input = copy_from_memory(&state.memory, in_start, in_len);
+    let gas_limit = gas + stipend_gas;
+    let context = Context {
+        address: state.context.address,
+        caller: state.context.address,
+        code: state.account_state.code(to).unwrap().into(),
+        data: input,
+        gas_limit: gas_limit,
+        gas_price: state.context.gas_price,
+        origin: state.context.origin,
+        value: value,
+    };
+    push!(state, M256::zero());
+    Some((context, (out_start, out_len)))
+}
