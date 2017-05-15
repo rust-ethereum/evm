@@ -3,13 +3,29 @@ use std::fmt;
 
 use utils::bigint::M256;
 use utils::{read_hex, ParseHexError};
+use rlp::{Encodable, RlpStream};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 pub struct Address([u8; 20]);
 
+impl Address {
+    pub fn bits(&self) -> usize {
+        let u: M256 = self.clone().into();
+        u.bits()
+    }
+}
+
 impl Default for Address {
     fn default() -> Address {
         Address([0u8; 20])
+    }
+}
+
+impl Encodable for Address {
+    fn rlp_append(&self, s: &mut RlpStream) {
+        let leading_empty_bytes = 20 - (self.bits() + 7) / 8;
+        let buffer: [u8; 20] = self.clone().into();
+        s.encoder().encode_value(&buffer[leading_empty_bytes..]);
     }
 }
 

@@ -3,12 +3,11 @@ use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use vm::{Memory, Storage, Log, Context};
 use super::State;
-use utils::rlp::WriteRLP;
+use rlp::RlpStream;
 
-use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
-use vm::eval::utils::{l64, copy_from_memory};
+use vm::eval::utils::copy_from_memory;
 
 pub fn suicide<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
     pop!(state, address: Address);
@@ -52,12 +51,13 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
 
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let nonce = state.account_state.nonce(state.context.address).unwrap();
-    let mut sha3 = Sha3::keccak256();
-    let mut rlp: Vec<u8> = Vec::new();
+    let mut rlp = RlpStream::new();
+    rlp.begin_list(2);
+    rlp.append(&state.context.address);
+    rlp.append(&nonce);
     let mut address_array = [0u8; 32];
-    state.context.address.write_rlp(&mut rlp);
-    nonce.write_rlp(&mut rlp);
-    sha3.input(rlp.as_slice());
+    let mut sha3 = Sha3::keccak256();
+    sha3.input(rlp.out().as_slice());
     sha3.result(&mut address_array);
     let address = Address::from(M256::from(address_array));
     let context = Context {
@@ -74,18 +74,44 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
     Some(context)
 }
 
+#[allow(unused_variables)]
 pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
-        push!(state, M256::from(1u64));
+        push!(state, M256::zero());
         return None;
     }
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = min(l64(after_gas), gas + stipend_gas);
+    let gas_limit = gas + stipend_gas;
     let context = Context {
         address: to,
+        caller: state.context.address,
+        code: state.account_state.code(to).unwrap().into(),
+        data: input,
+        gas_limit: gas_limit,
+        gas_price: state.context.gas_price,
+        origin: state.context.origin,
+        value: value,
+    };
+    push!(state, M256::zero());
+    Some((context, (out_start, out_len)))
+}
+
+#[allow(unused_variables)]
+pub fn callcode<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+    pop!(state, gas: Gas, to: Address, value: U256);
+    pop!(state, in_start, in_len, out_start, out_len);
+    if state.account_state.balance(state.context.address).unwrap() < value {
+        push!(state, M256::zero());
+        return None;
+    }
+
+    let input = copy_from_memory(&state.memory, in_start, in_len);
+    let gas_limit = gas + stipend_gas;
+    let context = Context {
+        address: state.context.address,
         caller: state.context.address,
         code: state.account_state.code(to).unwrap().into(),
         data: input,

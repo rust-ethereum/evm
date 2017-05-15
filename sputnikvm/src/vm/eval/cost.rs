@@ -115,6 +115,10 @@ fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
     max(current, new)
 }
 
+pub fn code_deposit_gas(len: usize) -> Gas {
+    Gas::from(G_CODEDEPOSITE) * Gas::from(len)
+}
+
 pub fn memory_gas(a: Gas) -> Gas {
     (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
 }
@@ -256,7 +260,7 @@ pub fn gas_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: 
 
 pub fn gas_stipend<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
     match instruction {
-        Instruction::CALL => {
+        Instruction::CALL | Instruction::CALLCODE => {
             let value = state.stack.peek(2).unwrap();
 
             if value != M256::zero() {

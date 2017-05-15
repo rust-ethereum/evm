@@ -4,9 +4,9 @@ use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment, Log};
 
-use self::check::check_opcode;
+use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
-use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
+use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas, code_deposit_gas};
 use self::utils::copy_into_memory;
 
 mod cost;
@@ -32,6 +32,8 @@ pub struct State<M, S> {
     pub account_state: AccountState<S>,
     pub blockhash_state: BlockhashState,
     pub logs: Vec<Log>,
+
+    pub depth: usize,
 }
 
 impl<M, S> State<M, S> {
@@ -74,7 +76,7 @@ pub enum Control {
 }
 
 impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
-    pub fn new(context: Context, block: BlockHeader, patch: Patch) -> Self {
+    pub fn new(context: Context, block: BlockHeader, patch: Patch, depth: usize) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -95,6 +97,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                 account_state: AccountState::default(),
                 blockhash_state: BlockhashState::default(),
                 logs: Vec::new(),
+
+                depth: depth,
             },
         }
     }
@@ -120,6 +124,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                 account_state: self.state.account_state.clone(),
                 blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
+
+                depth: self.state.depth + 1,
             },
         }
     }
@@ -149,40 +155,42 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     }
 
     fn apply_create(&mut self, sub: Machine<M, S>) {
+        if self.state.available_gas() < sub.state.used_gas {
+            panic!();
+        }
+
         match sub.status() {
             MachineStatus::ExitedOk => {
-                if self.state.available_gas() < sub.state.used_gas {
-                    self.state.stack.pop().unwrap();
-                    self.state.stack.push(M256::zero()).unwrap();
-                }
-
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
                 self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                self.state.account_state.decrease_balance(self.state.context.address,
-                                                          sub.state.context.value);
-                self.state.account_state.create(sub.state.context.address,
-                                                sub.state.context.value,
-                                                sub.state.out.as_slice());
+                if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
+                    self.state.account_state.decrease_balance(self.state.context.address,
+                                                              sub.state.context.value);
+                    self.state.account_state.create(sub.state.context.address,
+                                                    sub.state.context.value,
+                                                    sub.state.out.as_slice());
+                }
+
             },
             MachineStatus::ExitedErr(_) => {
-                self.state.stack.pop().unwrap();
-                self.state.stack.push(M256::zero()).unwrap();
+                // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                // self.state.stack.pop().unwrap();
+                // self.state.stack.push(M256::zero()).unwrap();
             },
             _ => panic!(),
         }
     }
 
     fn apply_call(&mut self, sub: Machine<M, S>, out_start: M256, out_len: M256) {
+        if self.state.available_gas() < sub.state.used_gas {
+            panic!();
+        }
+
         match sub.status() {
             MachineStatus::ExitedOk => {
-                if self.state.available_gas() < sub.state.used_gas {
-                    self.state.stack.pop().unwrap();
-                    self.state.stack.push(M256::from(1u64)).unwrap();
-                }
-
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
@@ -196,6 +204,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
                                  out_start, M256::zero(), out_len);
             },
             MachineStatus::ExitedErr(_) => {
+                // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.stack.pop().unwrap();
                 self.state.stack.push(M256::from(1u64)).unwrap();
             },
@@ -225,6 +234,11 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             _ => panic!(),
         }
 
+        if self.state.depth >= 2 {
+            self.status = MachineStatus::ExitedErr(MachineError::CallstackOverflow);
+            return Ok(());
+        }
+
         if self.pc.is_end() {
             self.status = MachineStatus::ExitedOk;
             return Ok(());
@@ -248,6 +262,18 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         let gas_cost = gas_cost(instruction, &self.state);
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
+        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost + gas_stipend;
+
+        match extra_check_opcode(instruction, &self.state, gas_stipend, after_gas) {
+            Ok(()) => (),
+            Err(EvalError::Machine(error)) => {
+                self.status = MachineStatus::ExitedErr(error);
+                return Ok(());
+            },
+            Err(EvalError::Require(error)) => {
+                return Err(error);
+            },
+        }
 
         if self.state.context.gas_limit < memory_gas + self.state.used_gas + gas_cost - gas_stipend {
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
@@ -255,7 +281,6 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
 
         let instruction = self.pc.read().unwrap();
-        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost + gas_stipend;
         let result = run_opcode((instruction, position),
                                 &mut self.state, gas_stipend, after_gas);
 

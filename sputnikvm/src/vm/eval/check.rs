@@ -1,10 +1,32 @@
 use utils::bigint::M256;
+use utils::gas::Gas;
 
 use vm::{Memory, Storage, Instruction};
-use vm::errors::EvalError;
+use vm::errors::{MachineError, EvalError};
 
 use vm::eval::{State, ControlCheck};
 use super::utils::{check_range, check_memory_write_range};
+
+fn check_callstack_overflow<M: Memory, S: Storage>(state: &State<M, S>) -> Result<(), MachineError> {
+    if state.depth >= 2 {
+        return Err(MachineError::CallstackOverflow);
+    } else {
+        return Ok(());
+    }
+}
+
+pub fn extra_check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
+    match instruction {
+        Instruction::CALL => {
+            if after_gas - stipend_gas < state.stack.peek(0).unwrap().into() {
+                Err(EvalError::Machine(MachineError::EmptyGas))
+            } else {
+                Ok(())
+            }
+        },
+        _ => Ok(())
+    }
+}
 
 #[allow(unused_variables)]
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
@@ -159,7 +181,15 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
-        Instruction::CALLCODE => unimplemented!(),
+        Instruction::CALLCODE => {
+            state.stack.check_pop_push(7, 1)?;
+            check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
+            check_memory_write_range(&state.memory,
+                                     state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
+            state.account_state.require(state.context.address)?;
+            state.account_state.require(state.stack.peek(1).unwrap().into())?;
+            Ok(None)
+        },
         Instruction::RETURN => {
             state.stack.check_pop_push(2, 0)?;
             check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;

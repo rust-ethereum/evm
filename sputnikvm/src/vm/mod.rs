@@ -35,7 +35,7 @@ pub enum VMStatus {
 impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M, S> {
         let mut machines = Vec::new();
-        machines.push(Machine::new(context, block, patch));
+        machines.push(Machine::new(context, block, patch, 1));
         VM(machines, Vec::new())
     }
 
@@ -54,9 +54,6 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
     }
 
     pub fn status(&self) -> VMStatus {
-        if self.0.len() > 1024 {
-            return VMStatus::ExitedErr(VMError::CallstackOverflow);
-        }
         match self.0[0].status() {
             MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
@@ -66,7 +63,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
 
     pub fn step(&mut self) -> Result<(), RequireError> {
         if self.0.len() > 1024 {
-            return Ok(());
+            panic!();
         }
         match self.0.last().unwrap().status().clone() {
             MachineStatus::Running => {
