@@ -234,6 +234,11 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
             _ => panic!(),
         }
 
+        if self.state.depth >= 2 {
+            self.status = MachineStatus::ExitedErr(MachineError::CallstackOverflow);
+            return Ok(());
+        }
+
         if self.pc.is_end() {
             self.status = MachineStatus::ExitedOk;
             return Ok(());

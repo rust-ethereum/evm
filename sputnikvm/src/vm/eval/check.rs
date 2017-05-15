@@ -167,14 +167,12 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
             Ok(None)
         },
         Instruction::CREATE => {
-            check_callstack_overflow(state)?;
             state.stack.check_pop_push(3, 1)?;
             check_range(state.stack.peek(1).unwrap(), state.stack.peek(2).unwrap())?;
             state.account_state.require(state.context.address)?;
             Ok(None)
         },
         Instruction::CALL => {
-            check_callstack_overflow(state)?;
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
             check_memory_write_range(&state.memory,
