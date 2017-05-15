@@ -87,13 +87,8 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
         return None;
     }
 
-    if state.depth >= 1024 {
-        push!(state, M256::zero());
-        return None;
-    }
-
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = if state.depth == 1 || value != U256::zero() { gas + stipend_gas } else { Gas::zero() };
+    let gas_limit = gas + stipend_gas;
     let context = Context {
         address: to,
         caller: state.context.address,

@@ -68,6 +68,7 @@ pub enum MachineError {
     PC(PCError),
     Storage(StorageError),
 
+    CallstackOverflow,
     InvalidRange,
     EmptyGas,
 }
