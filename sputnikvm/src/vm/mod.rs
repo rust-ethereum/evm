@@ -1,3 +1,16 @@
+//! VM implementation, traits and structs
+//!
+//! ### Lifecycle
+//!
+//! A VM can be started given a `Context` and a `BlockHeader`. The
+//! user can then `fire` or `step` to run it. Those functions would
+//! only fail if it needs some information (accounts in the current
+//! block, or block hashes of previous blocks). If this happens, one
+//! can use the function `commit_account` and `commit_blockhash` to
+//! commit those information to the VM, and `fire` or `step` again
+//! until it succeeds. The current VM status can always be obtained
+//! using the `status` function.
+
 mod memory;
 mod stack;
 mod pc;
@@ -14,19 +27,6 @@ pub use self::storage::{Storage, HashMapStorage};
 pub use self::params::{Context, BlockHeader, Log, Patch};
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account};
-
-//! VM implementation, traits and structs
-//!
-//! ### Lifecycle
-//!
-//! A VM can be started given a `Context` and a `BlockHeader`. The
-//! user can then `fire` or `step` to run it. Those functions would
-//! only fail if it needs some information (accounts in the current
-//! block, or block hashes of previous blocks). If this happens, one
-//! can use the function `commit_account` and `commit_blockhash` to
-//! commit those information to the VM, and `fire` or `step` again
-//! until it succeeds. The current VM status can always be obtained
-//! using the `status` function.
 
 use std::collections::hash_map;
 use utils::bigint::M256;
