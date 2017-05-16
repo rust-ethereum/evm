@@ -6,6 +6,7 @@ use utils::{read_hex, ParseHexError};
 use rlp::{Encodable, RlpStream};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Represents an Ethereum address. This address is 20 bytes long.
 pub struct Address([u8; 20]);
 
 impl Address {

@@ -4,6 +4,7 @@ pub mod gas;
 pub mod opcode;
 
 #[derive(Debug)]
+/// Errors exhibited from `read_hex`.
 pub enum ParseHexError {
     InvalidCharacter,
     TooLong,
@@ -11,6 +12,9 @@ pub enum ParseHexError {
     Other
 }
 
+/// Parses a given hex string and return a list of bytes if
+/// succeeded. The string can optionally start by `0x`, which
+/// indicates that it is a hex representation.
 pub fn read_hex(s: &str) -> Result<Vec<u8>, ParseHexError> {
     if s.starts_with("0x") {
         return read_hex(&s[2..s.len()]);

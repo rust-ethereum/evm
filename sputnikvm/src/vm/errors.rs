@@ -1,3 +1,5 @@
+//! VM errors
+
 use utils::address::Address;
 use utils::bigint::M256;
 
