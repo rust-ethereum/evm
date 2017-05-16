@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
 [![Coverage Status](https://coveralls.io/repos/github/ethereumproject/sputnikvm/badge.svg?branch=master)](https://coveralls.io/github/ethereumproject/sputnikvm?branch=master)
 
+* [Documentation](https://that.world/~docs/sputnikvm/sputnikvm)
+
 ## Project Description
 
 SputnikVM is an implementation of an Ethereum Virtual Machine, it aims to be an efficient, pluggable virtual machine for different blockchains. We encourage all Ethereum'esque blockchains to adopt SputnikVM as their VM and use SputnikVM's rfc governance [project](https://etcrfc.that.world/) which governs the parameters of each blockchain's VM. This way we can draw from the experience of the community and learn from other proposed RFCs.
