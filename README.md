@@ -3,6 +3,8 @@
 [![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
 [![Coverage Status](https://coveralls.io/repos/github/ethereumproject/sputnikvm/badge.svg?branch=master)](https://coveralls.io/github/ethereumproject/sputnikvm?branch=master)
 
+* [Documentation](https://that.world/~docs/sputnikvm/sputnikvm)
+
 ## Project Description
 
 This is an implementation of the Ethereum Virtual Machine, it aims to be an efficient, pluggable virtual machine for different blockchains. Change to each blockchain VM's parameters is governed by the [rfc](github.com/ethereumproject/rfc) project.
