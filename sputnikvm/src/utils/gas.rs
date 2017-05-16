@@ -7,6 +7,7 @@ use utils::bigint::{M256, U512, U256};
 use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Represent an Ethereum gas.
 pub struct Gas(U512);
 
 impl Gas {

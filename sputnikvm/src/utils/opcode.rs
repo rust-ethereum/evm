@@ -1,4 +1,5 @@
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
+/// Opcode enum. One-to-one corresponding to an `u8` value.
 pub enum Opcode {
     STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP,
     SIGNEXTEND,
