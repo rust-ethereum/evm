@@ -1,3 +1,5 @@
+//! Commitment management
+
 mod account;
 mod blockhash;
 
