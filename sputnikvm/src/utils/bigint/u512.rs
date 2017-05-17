@@ -1,3 +1,5 @@
+//! Unsigned 512-bit integer
+
 use std::convert::{From, Into};
 use std::ops::{Add, Sub, Mul, Div, Shr, Shl, BitAnd, Rem};
 use std::cmp::Ordering;
@@ -8,9 +10,11 @@ use super::algorithms::{add2, mac3, from_signed, sub2_sign};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Represents an unsigned 512-bit integer.
 pub struct U512([u32; 16]);
 
 impl U512 {
+    /// Bits needed to represent this value.
     pub fn bits(&self) -> usize {
         let &U512(ref arr) = self;
         let mut current_bits = 0;
@@ -24,6 +28,7 @@ impl U512 {
         current_bits
     }
 
+    /// Zero value of U512.
     pub fn zero() -> U512 {
         U512([0u32; 16])
     }

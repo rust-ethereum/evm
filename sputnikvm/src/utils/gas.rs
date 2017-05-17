@@ -1,3 +1,4 @@
+//! Ethereum gas
 use std::ops::{Add, Sub, Mul, Div, Rem};
 use std::fmt;
 use std::str::FromStr;
@@ -11,7 +12,9 @@ use utils::ParseHexError;
 pub struct Gas(U512);
 
 impl Gas {
+    /// Zero gas.
     pub fn zero() -> Gas { Gas(U512::zero()) }
+    /// Bits needed to represent this value.
     pub fn bits(self) -> usize { self.0.bits() }
 }
 
