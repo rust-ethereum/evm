@@ -1,3 +1,5 @@
+//! Cost calculation logic
+
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{M256, U256};

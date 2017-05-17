@@ -1,3 +1,5 @@
+//! System operations instructions
+
 use utils::address::Address;
 use utils::bigint::{U256, M256};
 use utils::gas::Gas;

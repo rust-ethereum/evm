@@ -1,3 +1,5 @@
+//! Bitwise instructions
+
 use utils::bigint::M256;
 
 use vm::{Memory, Storage};
