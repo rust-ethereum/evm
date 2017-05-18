@@ -1,18 +1,25 @@
+//! EVM account storage
+
 use utils::bigint::M256;
 use std::collections::hash_map::HashMap;
 use super::errors::StorageError;
 
+/// Represents an account storage. All values in the storage are
+/// initially zero.
 pub trait Storage {
     /// Check whether write on this index would result in an
     /// error. `write` should succeed if this function returns no
     /// error.
     fn check_write(&self, index: M256) -> Result<(), StorageError>;
 
+    /// Read a value from the storage.
     fn read(&self, index: M256) -> M256;
+    /// Write a new value into the storage.
     fn write(&mut self, index: M256, value: M256) -> Result<(), StorageError>;
 }
 
 #[derive(Debug, Clone)]
+/// An account storage representation that uses `HashMap`.
 pub struct HashMapStorage(HashMap<M256, M256>);
 
 impl From<HashMap<M256, M256>> for HashMapStorage {

@@ -1,6 +1,9 @@
+//! EVM stack
+
 use utils::bigint::M256;
 use super::errors::StackError;
 
+/// Represents an EVM stack.
 pub struct Stack {
     stack: Vec<M256>,
 }
@@ -26,6 +29,7 @@ impl Stack {
         Ok(())
     }
 
+    /// Push a new value to the stack.
     pub fn push(&mut self, elem: M256) -> Result<(), StackError> {
         self.stack.push(elem);
         if self.len() > 1024 {
@@ -36,6 +40,7 @@ impl Stack {
         }
     }
 
+    /// Pop a value from the stack.
     pub fn pop(&mut self) -> Result<M256, StackError> {
         match self.stack.pop() {
             Some(x) => Ok(x),
@@ -43,6 +48,9 @@ impl Stack {
         }
     }
 
+    /// Set a value at given index for the stack, where the top of the
+    /// stack is at index `0`. If the index is too large,
+    /// `StackError::Underflow` is returned.
     pub fn set(&mut self, no_from_top: usize, val: M256) -> Result<(), StackError> {
         if self.stack.len() > no_from_top {
             let len = self.stack.len();
@@ -53,6 +61,9 @@ impl Stack {
         }
     }
 
+    /// Peek a value at given index for the stack, where the top of
+    /// the stack is at index `0`. If the index is too large,
+    /// `StackError::Underflow` is returned.
     pub fn peek(&self, no_from_top: usize) -> Result<M256, StackError> {
         if self.stack.len() > no_from_top {
             Ok(self.stack[self.stack.len() - no_from_top - 1])
@@ -61,6 +72,7 @@ impl Stack {
         }
     }
 
+    /// Get the current stack length.
     pub fn len(&self) -> usize {
         self.stack.len()
     }
