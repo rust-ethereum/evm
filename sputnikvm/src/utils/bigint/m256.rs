@@ -1,3 +1,5 @@
+//! Unsigned modulo 256-bit integer
+
 use std::convert::{From, Into};
 use std::str::FromStr;
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
@@ -9,14 +11,21 @@ use rlp::{Encodable, RlpStream};
 use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Represent an unsigned modulo 256-bit integer
 pub struct M256(U256);
 
 impl M256 {
+    /// Zero value of M256,
     pub fn zero() -> M256 { M256(U256::zero()) }
+    /// One value of M256,
     pub fn one() -> M256 { M256(U256::one()) }
+    /// Maximum value of M256,
     pub fn max_value() -> M256 { M256(U256::max_value()) }
+    /// Minimum value of M256,
     pub fn min_value() -> M256 { M256(U256::min_value()) }
+    /// Bits required to represent this value.
     pub fn bits(self) -> usize { self.0.bits() }
+    /// Equals `floor(log2(*))`. This is always an integer.
     pub fn log2floor(self) -> usize { self.0.log2floor() }
 }
 

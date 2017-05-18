@@ -1,3 +1,5 @@
+//! Check logic for instructions
+
 use utils::bigint::M256;
 use utils::gas::Gas;
 
@@ -29,6 +31,8 @@ pub fn extra_check_opcode<M: Memory + Default, S: Storage + Default + Clone>(ins
 }
 
 #[allow(unused_variables)]
+/// Check whether `run_opcode` would fail without mutating any of the
+/// machine state.
 pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
     match instruction {
         Instruction::STOP => Ok(None),

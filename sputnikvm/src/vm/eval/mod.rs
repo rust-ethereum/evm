@@ -1,3 +1,4 @@
+//! VM Runtime
 use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
@@ -54,20 +55,32 @@ pub struct Machine<M, S> {
 }
 
 #[derive(Debug, Clone)]
+/// Represents the current runtime status.
 pub enum MachineStatus {
+    /// This runtime is actively running or has just been started.
     Running,
+    /// This runtime has exited successfully. Calling `step` on this
+    /// runtime again would panic.
     ExitedOk,
+    /// This runtime has exited with errors. Calling `step` on this
+    /// runtime again would panic.
     ExitedErr(MachineError),
+    /// This runtime requires execution of a sub runtime, which is a
+    /// ContractCreation instruction.
     InvokeCreate(Context),
+    /// This runtime requires execution of a sub runtime, which is a
+    /// MessageCall instruction.
     InvokeCall(Context, (M256, M256)),
 }
 
 #[derive(Debug, Clone)]
+/// Used for `check` for additional checks related to the runtime.
 pub enum ControlCheck {
     Jump(M256),
 }
 
 #[derive(Debug, Clone)]
+/// Used for `step` for additional operations related to the runtime.
 pub enum Control {
     Stop,
     Jump(M256),
@@ -76,6 +89,7 @@ pub enum Control {
 }
 
 impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
+    /// Create a new runtime.
     pub fn new(context: Context, block: BlockHeader, patch: Patch, depth: usize) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
@@ -103,6 +117,10 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
+    /// Derive this runtime to create a sub runtime. This will not
+    /// modify the current runtime, and it will have a chance to
+    /// review whether it wants to accept the result of this sub
+    /// runtime afterwards.
     pub fn derive(&self, context: Context) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
@@ -130,15 +148,22 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
+    /// Commit a new account into this runtime.
     pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
         self.state.account_state.commit(commitment)
     }
 
+    /// Commit a new blockhash into this runtime.
     pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
         self.state.blockhash_state.commit(number, hash)
     }
 
     #[allow(unused_variables)]
+    /// Apply a sub runtime into the current runtime. This sub runtime
+    /// should have been created by the current runtime's `derive`
+    /// function. Depending whether the current runtime is invoking a
+    /// ContractCreation or MessageCall instruction, it will apply
+    /// various states back.
     pub fn apply_sub(&mut self, sub: Machine<M, S>) {
         use std::mem::swap;
         let mut status = MachineStatus::Running;
@@ -212,6 +237,8 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
+    /// Check the next instruction about whether it will return
+    /// errors.
     pub fn check(&self) -> Result<(), EvalError> {
         let instruction = self.pc.peek()?;
         check_opcode(instruction, &self.state).and_then(|v| {
@@ -228,6 +255,11 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         })
     }
 
+    /// Step an instruction in the PC. The eval result is refected by
+    /// the runtime status, and it will only return an error if
+    /// there're accounts or blockhashes to be committed to this
+    /// runtime for it to run. In that case, the state of the current
+    /// runtime will not be affected.
     pub fn step(&mut self) -> Result<(), RequireError> {
         match &self.status {
             &MachineStatus::Running => (),
@@ -309,10 +341,12 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
+    /// Get the runtime state.
     pub fn state(&self) -> &State<M, S> {
         &self.state
     }
 
+    /// Get the current runtime status.
     pub fn status(&self) -> MachineStatus {
         self.status.clone()
     }

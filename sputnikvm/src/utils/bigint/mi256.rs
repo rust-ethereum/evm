@@ -1,3 +1,5 @@
+//! Signed modulo 256-bit integer
+
 use std::convert::{From, Into};
 use std::ops::{Div, Rem};
 use std::cmp::Ordering;
@@ -7,12 +9,17 @@ use super::u256::SIGN_BIT_MASK;
 use super::algorithms::from_signed;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Represents a signed module 256-bit integer.
 pub struct MI256(Sign, M256);
 
 impl MI256 {
+    /// Zero value of MI256.
     pub fn zero() -> MI256 { MI256(Sign::NoSign, M256::zero()) }
+    /// One value of MI256.
     pub fn one() -> MI256 { MI256(Sign::Plus, M256::one()) }
+    /// Maximum value of MI256.
     pub fn max_value() -> MI256 { MI256(Sign::Plus, M256::max_value() & SIGN_BIT_MASK.into()) }
+    /// Minimum value of MI256.
     pub fn min_value() -> MI256 { MI256(Sign::Minus, M256::min_value() & SIGN_BIT_MASK.into()) }
 }
 

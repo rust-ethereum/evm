@@ -1,3 +1,5 @@
+//! Environment instructions
+
 use vm::{Memory, Storage};
 use super::State;
 

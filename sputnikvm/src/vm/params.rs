@@ -1,8 +1,11 @@
+//! Parameters used by the VM.
+
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{M256, U256};
 
 #[derive(Debug, Clone)]
+/// Block header.
 pub struct BlockHeader {
     pub coinbase: Address,
     pub timestamp: M256,
@@ -12,6 +15,7 @@ pub struct BlockHeader {
 }
 
 #[derive(Debug, Clone)]
+/// A VM context. See the Yellow Paper for more information.
 pub struct Context {
     pub address: Address,
     pub caller: Address,
@@ -24,6 +28,9 @@ pub struct Context {
 }
 
 #[derive(Debug, Clone)]
+/// Additional logs to be added due to the current VM
+/// execution. SputnikVM defer calculation of log bloom to the client,
+/// because VMs can run concurrently.
 pub struct Log {
     pub address: Address,
     pub data: Vec<u8>,
@@ -31,6 +38,7 @@ pub struct Log {
 }
 
 #[derive(Debug, Clone, Copy)]
+/// Patches applied to the current blockchain.
 pub enum Patch {
     None,
     Homestead,
@@ -39,6 +47,7 @@ pub enum Patch {
 }
 
 impl Patch {
+    /// The homestead patch.
     pub fn homestead(&self) -> bool {
         match self {
             &Patch::None => false,
@@ -46,6 +55,7 @@ impl Patch {
         }
     }
 
+    /// The homestead and EIP150 patch.
     pub fn eip150(&self) -> bool {
         match self {
             &Patch::None | &Patch::Homestead => false,
@@ -53,6 +63,7 @@ impl Patch {
         }
     }
 
+    /// The homestead, EIP150 and EIP160 patch.
     pub fn eip160(&self) -> bool {
         match self {
             &Patch::None | &Patch::Homestead | &Patch::EIP150 => false,

@@ -1,3 +1,4 @@
+//! Ethereum address
 use std::str::FromStr;
 use std::fmt;
 
@@ -10,6 +11,7 @@ use rlp::{Encodable, RlpStream};
 pub struct Address([u8; 20]);
 
 impl Address {
+    /// Bits needed to represent this value.
     pub fn bits(&self) -> usize {
         let u: M256 = self.clone().into();
         u.bits()

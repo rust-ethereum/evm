@@ -1,3 +1,5 @@
+//! Arithmetic instructions
+
 use utils::bigint::{M256, U512};
 
 use vm::{Memory, Storage};

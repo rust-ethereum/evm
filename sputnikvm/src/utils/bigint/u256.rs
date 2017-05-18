@@ -36,6 +36,7 @@
 use std::convert::{From, Into, AsRef};
 use std::str::FromStr;
 use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
+
 use std::cmp::Ordering;
 use std::fmt;
 
@@ -49,20 +50,25 @@ pub const SIGN_BIT_MASK: U256 = U256([0b01111111111111111111111111111111u32,
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Represents an unsigned 256-bit integer.
 pub struct U256([u32; 8]);
 
 impl U256 {
+    /// Zero value of U256.
     pub fn zero() -> U256 { 0u64.into() }
+    /// One value of U256.
     pub fn one() -> U256 { 1u64.into() }
 
+    /// Maximum value of U256.
     pub fn max_value() -> U256 {
         !U256::zero()
     }
-
+    /// Minimum value of U256.
     pub fn min_value() -> U256 {
         U256::zero()
     }
 
+    /// Add two U256 with overflowing. The same as M256::add.
     pub fn overflowing_add(mut self, other: U256) -> (U256, bool) {
         let U256(ref mut a) = self;
         let U256(ref b) = other;
@@ -71,6 +77,7 @@ impl U256 {
         (U256(*a), if carry > 0 { true } else { false })
     }
 
+    /// Substract two U256 with underflowing. The same as M256::sub.
     pub fn underflowing_sub(mut self, other: U256) -> (U256, bool) {
         let U256(ref mut a) = self;
         let U256(ref b) = other;
@@ -80,6 +87,7 @@ impl U256 {
         (U256(*a), if sign == Sign::Minus { true } else { false })
     }
 
+    /// Multiply two U256 with overflowing. The same as M256::mul.
     pub fn overflowing_mul(mut self, other: U256) -> (U256, bool) {
         let mut ret = [0u32; 8];
         let U256(ref mut a) = self;
@@ -94,6 +102,7 @@ impl U256 {
         (U256(ret), if carry > 0 { true } else { false })
     }
 
+    /// Bits needed to represent this value.
     pub fn bits(&self) -> usize {
         let &U256(ref arr) = self;
         let mut current_bits = 0;
@@ -107,6 +116,7 @@ impl U256 {
         current_bits
     }
 
+    /// Equals `floor(log2(*))`. This is always an integer.
     pub fn log2floor(&self) -> usize {
         assert!(*self != U256::zero());
         let mut l: usize = 256;

@@ -1,3 +1,5 @@
+//! Eval utilities
+
 use utils::bigint::M256;
 use utils::gas::Gas;
 use vm::Memory;

@@ -10,6 +10,7 @@ pub use self::mi256::MI256;
 pub use self::u512::U512;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
+/// Sign of an integer.
 pub enum Sign {
     Minus,
     NoSign,

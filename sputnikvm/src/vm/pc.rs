@@ -1,9 +1,13 @@
+//! EVM Program Counter.
+
 use utils::bigint::M256;
 use utils::opcode::Opcode;
 use std::cmp::min;
 use super::errors::PCError;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+/// Instructions for the program counter. This is the same as `Opcode`
+/// except `PUSH`, which might take longer length.
 pub enum Instruction {
     STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP,
     SIGNEXTEND, LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE,
@@ -20,6 +24,7 @@ pub enum Instruction {
     LOG(usize),
 }
 
+/// Represents a program counter in EVM.
 pub struct PC {
     position: usize,
     code: Vec<u8>,
@@ -37,6 +42,7 @@ impl Default for PC {
 }
 
 impl PC {
+    /// Create a new program counter from the given code.
     pub fn new(code: &[u8]) -> Self {
         let code: Vec<u8> = code.into();
         let mut valids: Vec<bool> = Vec::with_capacity(code.len());
@@ -78,6 +84,8 @@ impl PC {
         Ok(M256::from(&self.code[position..max]))
     }
 
+    /// Jump to a position in the code. The destination must be valid
+    /// to jump.
     pub fn jump(&mut self, position: usize) -> Result<(), PCError> {
         if position >= self.code.len() {
             return Err(PCError::Overflow);
@@ -91,10 +99,13 @@ impl PC {
         Ok(())
     }
 
+    /// Get the current program counter position.
     pub fn position(&self) -> usize {
         self.position
     }
 
+    /// Check whether the position is a valid jump destination. If
+    /// not, returns `PCError`.
     pub fn check_valid(&self, position: usize) -> Result<(), PCError> {
         if self.is_valid(position) {
             Ok(())
@@ -103,6 +114,8 @@ impl PC {
         }
     }
 
+    /// Returns `true` if the position is a valid jump destination. If
+    /// not, returns `false`.
     pub fn is_valid(&self, position: usize) -> bool {
         if position >= self.code.len() {
             return false;
@@ -115,10 +128,13 @@ impl PC {
         return true;
     }
 
+    /// Check whether the PC is ended. Next `read` on this PC would
+    /// result in `PCError::PCOverflow`.
     pub fn is_end(&self) -> bool {
         self.position == self.code.len()
     }
 
+    /// Peek the next instruction.
     pub fn peek(&self) -> Result<Instruction, PCError> {
         let position = self.position;
         if position >= self.code.len() {
@@ -209,6 +225,7 @@ impl PC {
         })
     }
 
+    /// Read the next instruction and step the program counter.
     pub fn read(&mut self) -> Result<Instruction, PCError> {
         let result = self.peek()?;
         let opcode: Opcode = self.code[self.position].into();
