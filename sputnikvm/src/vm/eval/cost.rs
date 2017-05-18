@@ -117,14 +117,18 @@ fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
     max(current, new)
 }
 
+/// Calculate code deposit cost for a ContractCreation transaction.
 pub fn code_deposit_gas(len: usize) -> Gas {
     Gas::from(G_CODEDEPOSITE) * Gas::from(len)
 }
 
+/// Calculate the memory gas from the memory cost.
 pub fn memory_gas(a: Gas) -> Gas {
     (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
 }
 
+/// Calculate the memory cost. This is the same as the active memory
+/// length in the Yellow Paper.
 pub fn memory_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
     let ref stack = state.stack;
 
@@ -173,6 +177,7 @@ pub fn memory_cost<M: Memory + Default, S: Storage + Default + Clone>(instructio
     next
 }
 
+/// Calculate the gas cost.
 pub fn gas_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE |
@@ -260,6 +265,7 @@ pub fn gas_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: 
     }
 }
 
+/// Raise gas stipend for CALL and CALLCODE instruction.
 pub fn gas_stipend<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE => {
@@ -275,6 +281,7 @@ pub fn gas_stipend<M: Memory + Default, S: Storage + Default + Clone>(instructio
     }
 }
 
+/// Calculate the refunded gas.
 pub fn gas_refund<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
     match instruction {
         Instruction::SSTORE => {
