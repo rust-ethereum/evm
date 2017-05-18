@@ -1,3 +1,5 @@
+//! VM memory representation
+
 use utils::bigint::M256;
 
 use super::errors::MemoryError;
@@ -10,12 +12,18 @@ pub trait Memory {
     /// on this index should succeed.
     fn check_write(&self, index: M256) -> Result<(), MemoryError>;
 
+    /// Write value into the index.
     fn write(&mut self, index: M256, value: M256) -> Result<(), MemoryError>;
+    /// Write only one byte value into the index.
     fn write_raw(&mut self, index: M256, value: u8) -> Result<(), MemoryError>;
+    /// Read value from the index.
     fn read(&self, index: M256) -> M256;
+    /// Read only one byte value from the index.
     fn read_raw(&self, index: M256) -> u8;
 }
 
+/// A sequencial memory. It uses Rust's `Vec` for internal
+/// representation.
 pub struct SeqMemory {
     memory: Vec<u8>,
 }
