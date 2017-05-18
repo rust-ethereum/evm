@@ -7,7 +7,7 @@
 
 ## Project Description
 
-This is an implementation of the Ethereum Virtual Machine, it aims to be an efficient, pluggable virtual machine for different blockchains. Change to each blockchain VM's parameters is governed by the [rfc](github.com/ethereumproject/rfc) project.
+SputnikVM is an implementation of an Ethereum Virtual Machine, it aims to be an efficient, pluggable virtual machine for different blockchains. We encourage all Ethereum'esque blockchains to adopt SputnikVM as their VM and use SputnikVM's rfc governance [project](https://etcrfc.that.world/) which governs the parameters of each blockchain's VM. This way we can draw from the experience of the community and learn from other proposed RFCs.
 
 ## Problem 1
 
