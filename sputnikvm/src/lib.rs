@@ -6,6 +6,7 @@
 extern crate log;
 extern crate crypto;
 extern crate rlp;
+extern crate bigint;
 
 mod utils;
 pub mod vm;

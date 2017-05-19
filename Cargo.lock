@@ -2,6 +2,7 @@
 name = "sputnikvm"
 version = "0.1.0"
 dependencies = [
+ "bigint 0.1.0",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "rlp 0.2.0",
  "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -23,6 +24,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bigint"
+version = "0.1.0"
+dependencies = [
+ "rlp 0.2.0",
+]
+
+[[package]]
 name = "bitflags"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -31,6 +39,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "bitflags"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "blockchain_geth"
+version = "0.1.0"
 
 [[package]]
 name = "byteorder"
