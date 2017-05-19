@@ -1,0 +1,6 @@
+[package]
+name = "blockchain_geth"
+version = "0.1.0"
+authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
+
+[dependencies]

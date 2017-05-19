@@ -13,3 +13,4 @@ crate-type = ["rlib", "cdylib"]
 log = "0.3"
 rust-crypto = "^0.2"
 rlp = { path = '../rlp' }
+bigint = { path = '../bigint' }

@@ -6,9 +6,8 @@ use std::ops::{Add, Sub, Not, Mul, Div, Shr, Shl, BitAnd, BitOr, BitXor, Rem};
 use std::cmp::Ordering;
 use std::fmt;
 
-use super::{U512, U256};
+use super::{ParseHexError, U512, U256};
 use rlp::{Encodable, RlpStream};
-use utils::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 /// Represent an unsigned modulo 256-bit integer

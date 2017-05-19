@@ -3,5 +3,8 @@ members = [
   "./rlp",
   "./sputnikvm",
   "./jsontests",
+  "./trackertests",
   "./gaslighter",
+  "./bigint",
+  "./blockchain_geth",
 ]
