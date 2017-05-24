@@ -3,7 +3,7 @@ use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
-use super::{Stack, Context, BlockHeader, Patch, PC, Storage, Memory, AccountCommitment, Log};
+use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
@@ -16,7 +16,7 @@ mod check;
 mod utils;
 
 /// A VM state without PC.
-pub struct State<M, S> {
+pub struct State<M> {
     pub memory: M,
     pub stack: Stack,
 
@@ -30,14 +30,14 @@ pub struct State<M, S> {
     pub used_gas: Gas,
     pub refunded_gas: Gas,
 
-    pub account_state: AccountState<S>,
+    pub account_state: AccountState,
     pub blockhash_state: BlockhashState,
     pub logs: Vec<Log>,
 
     pub depth: usize,
 }
 
-impl<M, S> State<M, S> {
+impl<M> State<M> {
     pub fn memory_gas(&self) -> Gas {
         memory_gas(self.memory_cost)
     }
@@ -48,8 +48,8 @@ impl<M, S> State<M, S> {
 }
 
 /// A VM state with PC.
-pub struct Machine<M, S> {
-    state: State<M, S>,
+pub struct Machine<M> {
+    state: State<M>,
     pc: PC,
     status: MachineStatus,
 }
@@ -88,7 +88,7 @@ pub enum Control {
     InvokeCall(Context, (M256, M256)),
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
+impl<M: Memory + Default> Machine<M> {
     /// Create a new runtime.
     pub fn new(context: Context, block: BlockHeader, patch: Patch, depth: usize) -> Self {
         Machine {
@@ -149,7 +149,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     }
 
     /// Commit a new account into this runtime.
-    pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
+    pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         self.state.account_state.commit(commitment)
     }
 
@@ -164,7 +164,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     /// function. Depending whether the current runtime is invoking a
     /// ContractCreation or MessageCall instruction, it will apply
     /// various states back.
-    pub fn apply_sub(&mut self, sub: Machine<M, S>) {
+    pub fn apply_sub(&mut self, sub: Machine<M>) {
         use std::mem::swap;
         let mut status = MachineStatus::Running;
         swap(&mut status, &mut self.status);
@@ -179,7 +179,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
-    fn apply_create(&mut self, sub: Machine<M, S>) {
+    fn apply_create(&mut self, sub: Machine<M>) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }
@@ -209,7 +209,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
         }
     }
 
-    fn apply_call(&mut self, sub: Machine<M, S>, out_start: M256, out_len: M256) {
+    fn apply_call(&mut self, sub: Machine<M>, out_start: M256, out_len: M256) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }
@@ -342,7 +342,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> Machine<M, S> {
     }
 
     /// Get the runtime state.
-    pub fn state(&self) -> &State<M, S> {
+    pub fn state(&self) -> &State<M> {
         &self.state
     }
 

@@ -2,10 +2,10 @@
 
 use utils::bigint::{M256, U512};
 
-use vm::{Memory, Storage};
+use vm::Memory;
 use super::State;
 
-pub fn addmod<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn addmod<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1: U512, op2: U512, op3: U512);
 
     if op3 == U512::zero() {
@@ -16,7 +16,7 @@ pub fn addmod<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
     }
 }
 
-pub fn mulmod<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn mulmod<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1: U512, op2: U512, op3: U512);
 
     if op3 == U512::zero() {
@@ -28,7 +28,7 @@ pub fn mulmod<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
 }
 
 
-pub fn exp<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn exp<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1, op2);
     let mut op1 = op1;
     let mut op2 = op2;
@@ -45,7 +45,7 @@ pub fn exp<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<
     push!(state, r);
 }
 
-pub fn signextend<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn signextend<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1, op2);
 
     if op1 > M256::from(32) {

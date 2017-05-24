@@ -23,7 +23,7 @@ pub mod errors;
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::{PC, Instruction};
-pub use self::storage::{Storage, HashMapStorage};
+pub use self::storage::Storage;
 pub use self::params::{Context, BlockHeader, Log, Patch};
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account};
@@ -36,10 +36,10 @@ use self::errors::{RequireError, CommitError, VMError};
 
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
-pub type SeqVM = VM<SeqMemory, HashMapStorage>;
+pub type SeqVM = VM<SeqMemory>;
 
 /// A VM that executes using a context and block information.
-pub struct VM<M, S>(Vec<Machine<M, S>>, Vec<Context>);
+pub struct VM<M>(Vec<Machine<M>>, Vec<Context>);
 
 #[derive(Debug, Clone)]
 /// VM Status
@@ -53,9 +53,9 @@ pub enum VMStatus {
     ExitedErr(VMError),
 }
 
-impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
+impl<M: Memory + Default> VM<M> {
     /// Create a new VM using the given context, block header and patch.
-    pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M, S> {
+    pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M> {
         let mut machines = Vec::new();
         machines.push(Machine::new(context, block, patch, 1));
         VM(machines, Vec::new())
@@ -63,7 +63,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
 
     /// Commit an account information to this VM. This should only be
     /// used when receiving `RequireError`.
-    pub fn commit_account(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
+    pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         for machine in &mut self.0 {
             machine.commit_account(commitment.clone())?;
         }
@@ -132,7 +132,7 @@ impl<M: Memory + Default, S: Storage + Default + Clone> VM<M, S> {
 
     /// Returns the changed or committed accounts information up to
     /// current execution status.
-    pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
+    pub fn accounts(&self) -> hash_map::Values<Address, Account> {
         self.0[0].state().account_state.accounts()
     }
 

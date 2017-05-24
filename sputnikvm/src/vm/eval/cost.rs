@@ -5,7 +5,7 @@ use utils::address::Address;
 use utils::bigint::{M256, U256};
 
 use std::cmp::max;
-use vm::{Memory, Storage, Instruction};
+use vm::{Memory, Instruction};
 use super::State;
 
 const G_ZERO: usize = 0;
@@ -50,31 +50,27 @@ const G_SHA3WORD: usize = 6;
 const G_COPY: usize = 3;
 const G_BLOCKHASH: usize = 20;
 
-fn sstore_cost<M: Memory + Default,
-               S: Storage + Default + Clone>(machine: &State<M, S>) -> Gas {
+fn sstore_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let index = machine.stack.peek(0).unwrap();
     let value = machine.stack.peek(1).unwrap();
     let address = machine.context.address;
 
-    if value != M256::zero() && machine.account_state.storage(address).unwrap().read(index) == M256::zero() {
+    if value != M256::zero() && machine.account_state.storage(address).unwrap().read(index).unwrap() == M256::zero() {
         G_SSET.into()
     } else {
         G_SRESET.into()
     }
 }
 
-fn call_cost<M: Memory + Default,
-             S: Storage + Default + Clone>(machine: &State<M, S>) -> Gas {
+fn call_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     extra_cost(machine)
 }
 
-fn extra_cost<M: Memory + Default,
-              S: Storage + Default + Clone>(machine: &State<M, S>) -> Gas {
+fn extra_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     Gas::from(if machine.patch.eip150() { G_CALL_EIP150 } else { G_CALL_DEFAULT }) + xfer_cost(machine) + new_cost(machine)
 }
 
-fn xfer_cost<M: Memory + Default,
-             S: Storage + Default>(machine: &State<M, S>) -> Gas {
+fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let val = machine.stack.peek(2).unwrap();
     if val != M256::zero() {
         G_CALLVALUE.into()
@@ -83,8 +79,7 @@ fn xfer_cost<M: Memory + Default,
     }
 }
 
-fn new_cost<M: Memory + Default,
-            S: Storage + Default + Clone>(machine: &State<M, S>) -> Gas {
+fn new_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
     if machine.account_state.balance(address).unwrap() == U256::zero() && machine.account_state.nonce(address).unwrap() == M256::zero() && machine.account_state.code(address).unwrap().len() == 0 {
         G_NEWACCOUNT.into()
@@ -93,8 +88,7 @@ fn new_cost<M: Memory + Default,
     }
 }
 
-fn suicide_cost<M: Memory + Default,
-                S: Storage + Default>(machine: &State<M, S>) -> Gas {
+fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
     Gas::from(if machine.patch.eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
@@ -129,7 +123,7 @@ pub fn memory_gas(a: Gas) -> Gas {
 
 /// Calculate the memory cost. This is the same as the active memory
 /// length in the Yellow Paper.
-pub fn memory_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
+pub fn memory_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     let ref stack = state.stack;
 
     let current = state.memory_cost;
@@ -178,7 +172,7 @@ pub fn memory_cost<M: Memory + Default, S: Storage + Default + Clone>(instructio
 }
 
 /// Calculate the gas cost.
-pub fn gas_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
+pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE |
         Instruction::DELEGATECALL => call_cost(state),
@@ -266,7 +260,7 @@ pub fn gas_cost<M: Memory + Default, S: Storage + Default + Clone>(instruction: 
 }
 
 /// Raise gas stipend for CALL and CALLCODE instruction.
-pub fn gas_stipend<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
+pub fn gas_stipend<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE => {
             let value = state.stack.peek(2).unwrap();
@@ -282,14 +276,14 @@ pub fn gas_stipend<M: Memory + Default, S: Storage + Default + Clone>(instructio
 }
 
 /// Calculate the refunded gas.
-pub fn gas_refund<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Gas {
+pub fn gas_refund<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
         Instruction::SSTORE => {
             let index = state.stack.peek(0).unwrap();
             let value = state.stack.peek(1).unwrap();
             let address = state.context.address;
 
-            if value == M256::zero() && state.account_state.storage(address).unwrap().read(index) != M256::zero() {
+            if value == M256::zero() && state.account_state.storage(address).unwrap().read(index).unwrap() != M256::zero() {
                 Gas::from(R_SCLEAR)
             } else {
                 Gas::zero()
