@@ -53,13 +53,13 @@ use utils::gas::Gas;
 use utils::bigint::{M256, MI256};
 use utils::address::Address;
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
-use vm::{Memory, Storage, Instruction};
+use vm::{Memory, Instruction};
 use super::{State, Control};
 use super::utils::{copy_from_memory, copy_into_memory};
 
 #[allow(unused_variables)]
 /// Run an instruction.
-pub fn run_opcode<M: Memory + Default, S: Storage + Default + Clone>(pc: (Instruction, usize), state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
     match pc.0 {
         Instruction::STOP => { Some(Control::Stop) },
         Instruction::ADD => { op2!(state, add); None },

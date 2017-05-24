@@ -1,59 +1,67 @@
 //! EVM account storage
 
 use utils::bigint::M256;
+use utils::address::Address;
 use std::collections::hash_map::HashMap;
-use super::errors::StorageError;
+use super::errors::{CommitError, RequireError};
 
-/// Represents an account storage. All values in the storage are
-/// initially zero.
-pub trait Storage {
-    /// Check whether write on this index would result in an
-    /// error. `write` should succeed if this function returns no
-    /// error.
-    fn check_write(&self, index: M256) -> Result<(), StorageError>;
-
-    /// Read a value from the storage.
-    fn read(&self, index: M256) -> M256;
-    /// Write a new value into the storage.
-    fn write(&mut self, index: M256, value: M256) -> Result<(), StorageError>;
-}
-
+/// Internal representation of an account storage. It will return a
+/// `RequireError` if trying to access non-existing storage.
 #[derive(Debug, Clone)]
-/// An account storage representation that uses `HashMap`.
-pub struct HashMapStorage(HashMap<M256, M256>);
-
-impl From<HashMap<M256, M256>> for HashMapStorage {
-    fn from(val: HashMap<M256, M256>) -> HashMapStorage {
-        HashMapStorage(val)
-    }
+pub struct Storage {
+    partial: bool,
+    address: Address,
+    storage: HashMap<M256, M256>,
 }
 
-impl Into<HashMap<M256, M256>> for HashMapStorage {
+impl Into<HashMap<M256, M256>> for Storage {
     fn into(self) -> HashMap<M256, M256> {
-        self.0
+        self.storage
     }
 }
 
-impl Default for HashMapStorage {
-    fn default() -> HashMapStorage {
-        HashMapStorage(HashMap::new())
-    }
-}
-
-impl Storage for HashMapStorage {
-    fn check_write(&self, _: M256) -> Result<(), StorageError> {
-        Ok(())
-    }
-
-    fn read(&self, index: M256) -> M256 {
-        match self.0.get(&index) {
-            Some(&v) => v,
-            None => M256::zero()
+impl Storage {
+    /// Create a new storage.
+    pub fn new(address: Address, partial: bool) -> Self {
+        Storage {
+            partial: partial,
+            address: address,
+            storage: HashMap::new(),
         }
     }
 
-    fn write(&mut self, index: M256, val: M256) -> Result<(), StorageError> {
-        self.0.insert(index, val);
+    /// Commit a value into the storage.
+    pub fn commit(&mut self, index: M256, value: M256) -> Result<(), CommitError> {
+        if !self.partial {
+            return Err(CommitError::InvalidCommitment);
+        }
+
+        if self.storage.contains_key(&index) {
+            return Err(CommitError::AlreadyCommitted);
+        }
+
+        self.storage.insert(index, value);
+        Ok(())
+    }
+
+    /// Read a value from the storage.
+    pub fn read(&self, index: M256) -> Result<M256, RequireError> {
+        match self.storage.get(&index) {
+            Some(&v) => Ok(v),
+            None => if self.partial {
+                Err(RequireError::AccountStorage(self.address, index))
+            } else {
+                Ok(M256::zero())
+            }
+        }
+    }
+
+    /// Write a value into the storage.
+    pub fn write(&mut self, index: M256, value: M256) -> Result<(), RequireError> {
+        if !self.storage.contains_key(&index) && self.partial {
+            return Err(RequireError::AccountStorage(self.address, index));
+        }
+        self.storage.insert(index, value);
         Ok(())
     }
 }

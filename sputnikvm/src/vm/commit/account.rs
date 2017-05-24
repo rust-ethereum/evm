@@ -9,7 +9,7 @@ use vm::errors::{RequireError, CommitError};
 
 #[derive(Debug, Clone)]
 /// A single account commitment.
-pub enum AccountCommitment<S> {
+pub enum AccountCommitment {
     /// Full account commitment. The client that committed account
     /// should not change the account in other EVMs if it decides to
     /// accept the result.
@@ -17,7 +17,6 @@ pub enum AccountCommitment<S> {
         nonce: M256,
         address: Address,
         balance: U256,
-        storage: S,
         code: Vec<u8>,
     },
     /// Commit only code of the account. The client can keep changing
@@ -26,9 +25,15 @@ pub enum AccountCommitment<S> {
         address: Address,
         code: Vec<u8>,
     },
+    /// Commit a storage. Must be used given a full account.
+    Storage {
+        address: Address,
+        index: M256,
+        value: M256,
+    },
 }
 
-impl<S: Storage> AccountCommitment<S> {
+impl AccountCommitment {
     /// Address of this account commitment.
     pub fn address(&self) -> Address {
         match self {
@@ -40,28 +45,43 @@ impl<S: Storage> AccountCommitment<S> {
                 address,
                 ..
             } => address,
+            &AccountCommitment::Storage {
+                address,
+                ..
+            } => address,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 /// Represents an account. This is usually returned by the EVM.
-pub enum Account<S> {
+pub enum Account {
     /// A full account. The client is expected to replace its own account state with this.
     Full {
         nonce: M256,
         address: Address,
         balance: U256,
-        storage: S,
+        changing_storage: Storage,
         code: Vec<u8>,
     },
     /// Only balance is changed, and it is increasing for this address.
     IncreaseBalance(Address, U256),
     /// Only balance is changed, and it is decreasing for this address.
     DecreaseBalance(Address, U256),
+    /// Remove an account, the client is expected to handle only
+    /// removal without any ether transfer.
+    Remove(Address),
+    /// Create a new account.
+    Create {
+        nonce: M256,
+        address: Address,
+        balance: U256,
+        storage: Storage,
+        code: Vec<u8>,
+    },
 }
 
-impl<S: Storage> Account<S> {
+impl Account {
     /// Address of this account.
     pub fn address(&self) -> Address {
         match self {
@@ -71,18 +91,23 @@ impl<S: Storage> Account<S> {
             } => address,
             &Account::IncreaseBalance(address, _) => address,
             &Account::DecreaseBalance(address, _) => address,
+            &Account::Remove(address) => address,
+            &Account::Create {
+                address,
+                ..
+            } => address,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 /// A struct that manages the current account state for one EVM.
-pub struct AccountState<S> {
-    accounts: HashMap<Address, Account<S>>,
+pub struct AccountState {
+    accounts: HashMap<Address, Account>,
     codes: HashMap<Address, Vec<u8>>,
 }
 
-impl<S: Storage> Default for AccountState<S> {
+impl Default for AccountState {
     fn default() -> Self {
         Self {
             accounts: HashMap::new(),
@@ -91,9 +116,9 @@ impl<S: Storage> Default for AccountState<S> {
     }
 }
 
-impl<S: Storage + Default + Clone> AccountState<S> {
+impl AccountState {
     /// Returns all accounts right now in this account state.
-    pub fn accounts(&self) -> hash_map::Values<Address, Account<S>> {
+    pub fn accounts(&self) -> hash_map::Values<Address, Account> {
         self.accounts.values()
     }
 
@@ -119,14 +144,19 @@ impl<S: Storage + Default + Clone> AccountState<S> {
         }
     }
 
+    /// Returns Ok(()) if the storage exists in the VM. Otherwise
+    /// raise a `RequireError`.
+    pub fn require_storage(&self, address: Address, index: M256) -> Result<(), RequireError> {
+        self.storage(address)?.read(index).and_then(|_| Ok(()))
+    }
+
     /// Commit an account commitment into this account state.
-    pub fn commit(&mut self, commitment: AccountCommitment<S>) -> Result<(), CommitError> {
+    pub fn commit(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         match commitment {
             AccountCommitment::Full {
                 nonce,
                 address,
                 balance,
-                storage,
                 code
             } => {
                 if self.accounts.contains_key(&address) {
@@ -137,7 +167,7 @@ impl<S: Storage + Default + Clone> AccountState<S> {
                     nonce,
                     address,
                     balance,
-                    storage,
+                    changing_storage: Storage::new(address, true),
                     code,
                 });
             },
@@ -150,6 +180,23 @@ impl<S: Storage + Default + Clone> AccountState<S> {
                 }
 
                 self.codes.insert(address, code);
+            },
+            AccountCommitment::Storage {
+                address,
+                index,
+                value
+            } => {
+                match self.accounts.get_mut(&address) {
+                    Some(&mut Account::Full {
+                        ref mut changing_storage,
+                        ..
+                    }) => {
+                        changing_storage.commit(index, value)?;
+                    },
+                    _ => {
+                        return Err(CommitError::InvalidCommitment);
+                    },
+                }
             }
         }
         Ok(())
@@ -209,10 +256,14 @@ impl<S: Storage + Default + Clone> AccountState<S> {
 
     /// Returns the storage of an account. If the account is not yet
     /// committed, returns a `RequireError`.
-    pub fn storage(&self, address: Address) -> Result<&S, RequireError> {
+    pub fn storage(&self, address: Address) -> Result<&Storage, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &Account::Full {
+                    ref changing_storage,
+                    ..
+                } => return Ok(changing_storage),
+                &Account::Create {
                     ref storage,
                     ..
                 } => return Ok(storage),
@@ -225,10 +276,14 @@ impl<S: Storage + Default + Clone> AccountState<S> {
 
     /// Returns the mutable storage of an account. If the account is
     /// not yet committed. returns a `RequireError`.
-    pub fn storage_mut(&mut self, address: Address) -> Result<&mut S, RequireError> {
+    pub fn storage_mut(&mut self, address: Address) -> Result<&mut Storage, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get_mut(&address).unwrap() {
                 &mut Account::Full {
+                    ref mut changing_storage,
+                    ..
+                } => return Ok(changing_storage),
+                &mut Account::Create {
                     ref mut storage,
                     ..
                 } => return Ok(storage),
@@ -243,7 +298,7 @@ impl<S: Storage + Default + Clone> AccountState<S> {
     /// before).
     pub fn create(&mut self, address: Address, balance: U256, code: &[u8]) {
         self.accounts.insert(address, Account::Full {
-            address, balance, storage: S::default(), code: code.into(), nonce: M256::zero(),
+            address, balance, changing_storage: Storage::new(address, false), code: code.into(), nonce: M256::zero(),
         });
     }
 
@@ -254,14 +309,14 @@ impl<S: Storage + Default + Clone> AccountState<S> {
             Some(Account::Full {
                 address,
                 balance,
-                storage,
+                changing_storage,
                 code,
                 nonce,
             }) => {
                 Some(Account::Full {
                     address,
                     balance: balance + topup,
-                    storage,
+                    changing_storage,
                     code,
                     nonce,
                 })
@@ -277,6 +332,24 @@ impl<S: Storage + Default + Clone> AccountState<S> {
                 } else {
                     Some(Account::IncreaseBalance(address, topup - balance))
                 }
+            },
+            Some(Account::Remove(_)) => {
+                panic!()
+            },
+            Some(Account::Create {
+                address,
+                balance,
+                storage,
+                code,
+                nonce,
+            }) => {
+                Some(Account::Create {
+                    address,
+                    balance: balance + topup,
+                    storage,
+                    code,
+                    nonce,
+                })
             },
             None => {
                 Some(Account::IncreaseBalance(address, topup))
@@ -294,14 +367,14 @@ impl<S: Storage + Default + Clone> AccountState<S> {
             Some(Account::Full {
                 address,
                 balance,
-                storage,
+                changing_storage,
                 code,
                 nonce,
             }) => {
                 Some(Account::Full {
                     address,
                     balance: balance - withdraw,
-                    storage,
+                    changing_storage,
                     code,
                     nonce,
                 })
@@ -317,6 +390,24 @@ impl<S: Storage + Default + Clone> AccountState<S> {
                 } else {
                     Some(Account::DecreaseBalance(address, withdraw - balance))
                 }
+            },
+            Some(Account::Remove(_)) => {
+                panic!()
+            },
+            Some(Account::Create {
+                address,
+                balance,
+                storage,
+                code,
+                nonce,
+            }) => {
+                Some(Account::Create {
+                    address,
+                    balance: balance - withdraw,
+                    storage,
+                    code,
+                    nonce,
+                })
             },
             None => {
                 Some(Account::DecreaseBalance(address, withdraw))
@@ -353,19 +444,22 @@ impl<S: Storage + Default + Clone> AccountState<S> {
                 address,
                 ..
             }) => {
-                Account::Full {
-                    address,
-                    balance: U256::zero(),
-                    storage: S::default(),
-                    code: Vec::new(),
-                    nonce: M256::zero(),
-                }
+                Account::Remove(address)
             },
             Some(Account::DecreaseBalance(address, _)) => {
                 return Err(RequireError::Account(address));
             },
             Some(Account::IncreaseBalance(address, _)) => {
                 return Err(RequireError::Account(address));
+            },
+            Some(Account::Remove(_)) => {
+                panic!()
+            },
+            Some(Account::Create {
+                address,
+                ..
+            }) => {
+                Account::Remove(address)
             },
             None => {
                 return Err(RequireError::Account(address));

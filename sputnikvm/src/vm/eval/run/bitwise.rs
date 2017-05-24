@@ -2,10 +2,10 @@
 
 use utils::bigint::M256;
 
-use vm::{Memory, Storage};
+use vm::Memory;
 use super::State;
 
-pub fn iszero<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn iszero<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1);
 
     if op1 == M256::zero() {
@@ -15,12 +15,12 @@ pub fn iszero<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
     }
 }
 
-pub fn not<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn not<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1);
     push!(state, !op1);
 }
 
-pub fn byte<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn byte<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, op1, op2);
 
     let mut ret = M256::zero();

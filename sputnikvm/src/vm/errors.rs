@@ -62,20 +62,6 @@ impl From<PCError> for EvalError {
 }
 
 #[derive(Debug, Clone)]
-/// Errors returned by an EVM account storage.
-pub enum StorageError {
-    /// The index is too large for the implementation of the VM to
-    /// handle.
-    IndexNotSupported,
-}
-
-impl From<StorageError> for EvalError {
-    fn from(val: StorageError) -> EvalError {
-        EvalError::Machine(MachineError::Storage(val))
-    }
-}
-
-#[derive(Debug, Clone)]
 /// Errors returned when trying to step the instruction.
 pub enum EvalError {
     /// A runtime error. Non-recoverable.
@@ -95,8 +81,6 @@ pub enum MachineError {
     Stack(StackError),
     /// VM PC error.
     PC(PCError),
-    /// VM account storage error.
-    Storage(StorageError),
 
     /// Call stack is too large that it exceeds the limit.
     CallstackOverflow,
@@ -131,6 +115,7 @@ impl From<MachineError> for VMError {
 pub enum RequireError {
     Account(Address),
     AccountCode(Address),
+    AccountStorage(Address, M256),
     Blockhash(M256),
 }
 
@@ -143,5 +128,6 @@ impl From<RequireError> for EvalError {
 #[derive(Debug, Clone)]
 /// Errors returned when committing a new information.
 pub enum CommitError {
+    InvalidCommitment,
     AlreadyCommitted,
 }

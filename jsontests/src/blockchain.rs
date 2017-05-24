@@ -1,6 +1,6 @@
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::{Machine, Log, Context,
-                    Account, HashMapStorage, AccountCommitment,
+                    Account, Storage, AccountCommitment,
                     BlockHeader};
 
 use serde_json::Value;
@@ -35,23 +35,35 @@ impl JSONBlock {
         }
     }
 
-    pub fn request_account(&self, address: Address) -> AccountCommitment<HashMapStorage> {
+    pub fn request_account(&self, address: Address) -> AccountCommitment {
         let balance = self.balance(address);
         let code = self.account_code(address);
         let nonce = self.account_nonce(address);
-        let hashmap_default = HashMap::new();
-        let storage = self.storages.get(&address).unwrap_or(&hashmap_default);
 
         AccountCommitment::Full {
             address: address,
             balance: balance,
-            storage: storage.clone().into(),
             code: code.into(),
             nonce: nonce
         }
     }
 
-    pub fn request_account_code(&self, address: Address) -> AccountCommitment<HashMapStorage> {
+    pub fn request_account_storage(&self, address: Address, index: M256) -> AccountCommitment {
+        let hashmap_default = HashMap::new();
+        let storage = self.storages.get(&address).unwrap_or(&hashmap_default);
+        let value = match storage.get(&index) {
+            Some(val) => *val,
+            None => M256::zero(),
+        };
+
+        AccountCommitment::Storage {
+            address: address,
+            index: index,
+            value: value,
+        }
+    }
+
+    pub fn request_account_code(&self, address: Address) -> AccountCommitment {
         let default = Vec::new();
         let code = self.codes.get(&address).unwrap_or(&default);
 
@@ -61,9 +73,27 @@ impl JSONBlock {
         }
     }
 
-    pub fn apply_account(&mut self, account: Account<HashMapStorage>) {
+    pub fn apply_account(&mut self, account: Account) {
         match account {
             Account::Full {
+                address: address,
+                balance: balance,
+                changing_storage: changing_storage,
+                code: code,
+                nonce: nonce,
+            } => {
+                self.set_balance(address, balance);
+                self.set_account_code(address, code.as_slice());
+                if !self.storages.contains_key(&address) {
+                    self.storages.insert(address, HashMap::new());
+                }
+                let changing_storage: HashMap<M256, M256> = changing_storage.into();
+                for (key, value) in changing_storage {
+                    self.storages.get_mut(&address).unwrap().insert(key, value);
+                }
+                self.set_account_nonce(address, nonce);
+            },
+            Account::Create {
                 address: address,
                 balance: balance,
                 storage: storage,
@@ -74,6 +104,12 @@ impl JSONBlock {
                 self.set_account_code(address, code.as_slice());
                 self.storages.insert(address, storage.into());
                 self.set_account_nonce(address, nonce);
+            },
+            Account::Remove(address) => {
+                self.set_balance(address, U256::zero());
+                self.set_account_code(address, Vec::new().as_slice());
+                self.storages.insert(address, HashMap::new());
+                self.set_account_nonce(address, M256::zero());
             },
             Account::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);

@@ -1,9 +1,9 @@
 //! Environment instructions
 
-use vm::{Memory, Storage};
+use vm::Memory;
 use super::State;
 
-pub fn calldataload<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn calldataload<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, index);
     let index: Option<usize> = if index > usize::max_value().into() {
         None

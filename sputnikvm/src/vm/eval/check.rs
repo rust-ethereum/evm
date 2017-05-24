@@ -3,13 +3,13 @@
 use utils::bigint::M256;
 use utils::gas::Gas;
 
-use vm::{Memory, Storage, Instruction};
+use vm::{Memory, Instruction};
 use vm::errors::{MachineError, EvalError};
 
 use vm::eval::{State, ControlCheck};
 use super::utils::{check_range, check_memory_write_range};
 
-fn check_callstack_overflow<M: Memory, S: Storage>(state: &State<M, S>) -> Result<(), MachineError> {
+fn check_callstack_overflow<M: Memory>(state: &State<M>) -> Result<(), MachineError> {
     if state.depth >= 2 {
         return Err(MachineError::CallstackOverflow);
     } else {
@@ -17,7 +17,7 @@ fn check_callstack_overflow<M: Memory, S: Storage>(state: &State<M, S>) -> Resul
     }
 }
 
-pub fn extra_check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
+pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
     match instruction {
         Instruction::CALL => {
             if after_gas - stipend_gas < state.stack.peek(0).unwrap().into() {
@@ -33,7 +33,7 @@ pub fn extra_check_opcode<M: Memory + Default, S: Storage + Default + Clone>(ins
 #[allow(unused_variables)]
 /// Check whether `run_opcode` would fail without mutating any of the
 /// machine state.
-pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instruction: Instruction, state: &State<M, S>) -> Result<Option<ControlCheck>, EvalError> {
+pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Result<Option<ControlCheck>, EvalError> {
     match instruction {
         Instruction::STOP => Ok(None),
         Instruction::ADD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
@@ -134,13 +134,13 @@ pub fn check_opcode<M: Memory + Default, S: Storage + Default + Clone>(instructi
         Instruction::SLOAD => {
             state.stack.check_pop_push(1, 1)?;
             state.account_state.require(state.context.address)?;
+            state.account_state.require_storage(state.context.address, state.stack.peek(0).unwrap())?;
             Ok(None)
         },
         Instruction::SSTORE => {
             state.stack.check_pop_push(2, 0)?;
             state.account_state.require(state.context.address)?;
-            state.account_state.storage(state.context.address)
-                .unwrap().check_write(state.stack.peek(0).unwrap())?;
+            state.account_state.require_storage(state.context.address, state.stack.peek(0).unwrap())?;
             Ok(None)
         },
         Instruction::JUMP => {

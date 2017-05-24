@@ -3,7 +3,7 @@
 use utils::address::Address;
 use utils::bigint::{U256, M256};
 use utils::gas::Gas;
-use vm::{Memory, Storage, Log, Context};
+use vm::{Memory, Log, Context};
 use super::State;
 use rlp::RlpStream;
 
@@ -11,14 +11,14 @@ use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 use vm::eval::utils::copy_from_memory;
 
-pub fn suicide<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, address: Address);
     let balance = state.account_state.balance(state.context.address).unwrap();
     state.account_state.increase_balance(address, balance);
     state.account_state.remove(state.context.address).unwrap();
 }
 
-pub fn log<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, topic_len: usize) {
+pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
     pop!(state, index, len);
     let data = copy_from_memory(&state.memory, index, len);
     let mut topics = Vec::new();
@@ -33,7 +33,7 @@ pub fn log<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<
     });
 }
 
-pub fn sha3<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>) {
+pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, from, len);
     let data = copy_from_memory(&state.memory, from, len);
     let mut sha3 = Sha3::keccak256();
@@ -43,7 +43,7 @@ pub fn sha3<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
     push!(state, M256::from(ret.as_ref()));
 }
 
-pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, after_gas: Gas) -> Option<Context> {
+pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Context> {
     pop!(state, value: U256);
     pop!(state, init_start, init_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
@@ -77,7 +77,7 @@ pub fn create<M: Memory + Default, S: Storage + Default + Clone>(state: &mut Sta
 }
 
 #[allow(unused_variables)]
-pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
@@ -102,7 +102,7 @@ pub fn call<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State
 }
 
 #[allow(unused_variables)]
-pub fn callcode<M: Memory + Default, S: Storage + Default + Clone>(state: &mut State<M, S>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+pub fn callcode<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
