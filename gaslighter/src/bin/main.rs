@@ -1,10 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate sputnikvm;
-extern crate libloading;
-extern crate libc;
 extern crate serde_json;
-extern crate rustyline;
 
 mod reg;
 
@@ -14,7 +11,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
 
-use reg::{perform_regression};
+use reg::{regression};
 
 fn main() {
     let matches = clap_app!(gaslighter =>
@@ -23,8 +20,8 @@ fn main() {
         (about: "Gaslighter - Tests the Ethereum Classic Virtual Machine in 5 different ways.")
         (@arg KEEP_GOING: -k --keep_going "Don't exit the program even if a test fails.")
         (@subcommand reg =>
-            (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Parity 1.4.10 with this command: `$ cargo install --git https://github.com/paritytech/parity.git parity`.\n* Run Parity with this command: `[~/.cargo/bin]$ ./parity --chain classic --db-path /path/to/regression/dir`.\n* Wait for the chain to sync.\n* <ctrl-c>\n* Run this command: `$ cargo run --bin gaslighter -- -k reg -c /path/to/regression/dir/classic/db/906a34e69aec8c0d/`")
-            (@arg CHAINDATA: -c --chaindata +takes_value +required "Path to parity's `chaindata` folder. e.g. `-c /path/to/regression/dir/classic/db/906a34e69aec8c0d/`, note the 906a34e69aec8c0d will probably be different.")
+            (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Ethereum Classic Geth: `$ go install github.com/ethereumproject/go-ethereum/cmd/geth`.\n* Run Geth with this command: `$ ~/go/bin/geth`.\n* Wait for the chain to sync.\n* <ctrl-c>\n* Change directory into the gaslighter directory `$ cd gaslighter`\n* Run this command: `$ RUST_BACKTRACE=1 RUST_LOG=gaslighter cargo run --bin gaslighter -- -k reg -c ~/.ethereum/chaindata/`")
+            (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r localhost:8888`.")
         )
         (@subcommand srv =>
             (about: "Allows SputnikVM to be run as a service.")
@@ -37,8 +34,8 @@ fn main() {
     let mut has_regression_test_passed = true;
     let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
     if let Some(ref matches) = matches.subcommand_matches("reg") {
-        let path = matches.value_of("CHAINDATA").unwrap();
-        has_regression_test_passed = perform_regression(path);
+        let path = matches.value_of("RPC").unwrap();
+        has_regression_test_passed = regression(path);
     }
     if let Some(ref matches) = matches.subcommand_matches("cli") {
         let path = matches.value_of("CODE").unwrap();

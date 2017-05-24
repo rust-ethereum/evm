@@ -11,7 +11,4 @@ name = "gaslighter"
 [dependencies]
 sputnikvm = { path = '../sputnikvm' }
 clap = "2.22"
-libc = "0.2"
-libloading = "0.3"
 serde_json = "0.9"
-rustyline = "1.0.0"
