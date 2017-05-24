@@ -1,6 +1,12 @@
 [root]
-name = "trackertests"
+name = "sputnikvm"
 version = "0.1.0"
+dependencies = [
+ "bigint 0.1.0",
+ "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
+ "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "ansi_term"
@@ -32,6 +38,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "blockchain_geth"
 version = "0.1.0"
+dependencies = [
+ "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "byteorder"
@@ -64,15 +74,6 @@ version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "heapsize 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "gaslighter"
-version = "0.1.0"
-dependencies = [
- "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "sputnikvm 0.1.0",
 ]
 
 [[package]]
@@ -145,6 +146,16 @@ version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
+name = "regression_test"
+version = "0.1.0"
+dependencies = [
+ "blockchain_geth 0.1.0",
+ "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sputnikvm 0.1.0",
+]
+
+[[package]]
 name = "rlp"
 version = "0.2.0"
 dependencies = [
@@ -185,16 +196,6 @@ dependencies = [
  "itoa 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "num-traits 0.1.37 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "sputnikvm"
-version = "0.1.0"
-dependencies = [
- "bigint 0.1.0",
- "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp 0.2.0",
- "rust-crypto 0.2.36 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]

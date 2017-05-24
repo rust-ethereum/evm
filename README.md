@@ -68,7 +68,7 @@ $ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8888
 $ <ctrl-c>
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm
-$ RUST_BACKTRACE=1 RUST_LOG=gaslighter cargo run --bin gaslighter -- -k reg -r localhost:8888
+$ RUST_BACKTRACE=1 RUST_LOG=regression_test cargo run --bin regression_test -- -k reg -r localhost:8888
 ```
 
 ## Stability Status:
