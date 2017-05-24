@@ -15,7 +15,7 @@ experience of the community and learn from other proposed RFCs.
 
 ## Reasoning
 
-__ECIP Advancement__: As the Ethereum Classic Improvement Proposal (ECIP)
+__RFC Advancement__: As the Ethereum Classic Request For Comment (RFC)
 process advances, it'll become harder for the many and varied Ethereum Classic
 clients to keep up with these changes.
 
@@ -56,21 +56,19 @@ before is not supported.
 
 ## Build Instructions
 
-SputnikVM is written Rust. If you are not familiar with Rust please see the
+SputnikVM is written Rust. If you are not familiar with Rust please
+see the
 [getting started guide](https://doc.rust-lang.org/book/getting-started.html).
 
-```shell
+* Ethereum Classic Regression Test:
+```
+$ go install github.com/ethereumproject/go-ethereum/cmd/geth
+$ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8888
+# wait for the blockchain to sync
+$ <ctrl-c>
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm
-$ capnp eval --binary tests/mod.capnp all > tests.bin
-$ RUST_LOG=gaslighter cargo run --bin gaslighter -- -k ffi -s target/debug/libsputnikvm.so --capnp_test_bin tests.bin --run_test
-```
-
-for a quick compile, test, code cycle, run this command chain:
-
-```
-$ capnp eval --binary tests/mod.capnp all > tests.bin && RUST_BACKTRACE=1
-$ RUST_LOG=gaslighter cargo run --bin gaslighter -- -k ffi -s target/debug/libsputnikvm.so -t tests.bin -r
+$ RUST_BACKTRACE=1 RUST_LOG=gaslighter cargo run --bin gaslighter -- -k reg -r localhost:8888
 ```
 
 ## Stability Status:
@@ -80,5 +78,3 @@ $ RUST_LOG=gaslighter cargo run --bin gaslighter -- -k ffi -s target/debug/libsp
 - [ ] Stable
 - [ ] Deprecated
 - [ ] Legacy
-
-
