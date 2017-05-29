@@ -2,7 +2,7 @@
 extern crate clap;
 extern crate sputnikvm;
 extern crate serde_json;
-extern crate blockchain_geth;
+extern crate gethrpc;
 
 use serde_json::{Value};
 use std::process;
@@ -10,7 +10,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
 
-use blockchain_geth::{regression};
+use gethrpc::{regression};
 
 fn main() {
     let matches = clap_app!(regression_test =>

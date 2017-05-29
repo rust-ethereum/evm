@@ -44,17 +44,6 @@ version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
-name = "blockchain_geth"
-version = "0.1.0"
-dependencies = [
- "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "hyper 0.10.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_derive 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
- "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "byteorder"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,6 +80,17 @@ dependencies = [
 name = "gcc"
 version = "0.3.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "gethrpc"
+version = "0.1.0"
+dependencies = [
+ "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyper 0.10.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 0.9.15 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "heapsize"
@@ -225,8 +225,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "regression_test"
 version = "0.1.0"
 dependencies = [
- "blockchain_geth 0.1.0",
  "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gethrpc 0.1.0",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "sputnikvm 0.1.0",
 ]

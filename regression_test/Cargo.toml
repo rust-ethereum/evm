@@ -10,6 +10,6 @@ name = "regression_test"
 
 [dependencies]
 sputnikvm = { path = '../sputnikvm' }
-blockchain_geth = { path = '../blockchain_geth' }
+gethrpc = { path = '../gethrpc' }
 clap = "2.22"
 serde_json = "0.9"

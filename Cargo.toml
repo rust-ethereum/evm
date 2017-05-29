@@ -5,5 +5,5 @@ members = [
   "./jsontests",
   "./regression_test",
   "./bigint",
-  "./blockchain_geth",
+  "./gethrpc",
 ]
