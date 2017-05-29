@@ -1,13 +1,16 @@
 [package]
-name = "blockchain_geth"
+name = "gethrpc"
 version = "0.1.0"
 license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
-description = "blockchain_geth - provides functionality for interacting with geth's blockchain."
+description = "gethrpc - provides functionality for interacting with geth's blockchain."
 
 [lib]
-name = "blockchain_geth"
+name = "gethrpc"
 
 [dependencies]
 clap = "2.22"
+serde = "0.9"
+serde_derive = "0.9"
 serde_json = "0.9"
+hyper = "0.10.9"
