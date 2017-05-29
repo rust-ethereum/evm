@@ -3,7 +3,7 @@ members = [
   "./rlp",
   "./sputnikvm",
   "./jsontests",
-  "./regression_test",
+  "./regtests",
   "./bigint",
   "./gethrpc",
 ]

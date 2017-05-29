@@ -1,12 +1,12 @@
 [package]
-name = "regression_test"
+name = "regtests"
 version = "0.1.0"
 license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
-description = "regression_test - performs a regression test of the entire ethereum classic blockchain."
+description = "regtests - performs a regression test of the entire ethereum classic blockchain."
 
 [[bin]]
-name = "regression_test"
+name = "regtests"
 
 [dependencies]
 sputnikvm = { path = '../sputnikvm' }
