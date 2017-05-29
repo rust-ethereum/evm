@@ -10,4 +10,7 @@ name = "blockchain_geth"
 
 [dependencies]
 clap = "2.22"
+serde = "0.9"
+serde_derive = "0.9"
 serde_json = "0.9"
+hyper = "0.10.9"
