@@ -262,13 +262,13 @@ impl GethRPCClient {
     }
 
     pub fn get_block_by_hash(&mut self, hash: &str) -> RPCBlock {
-        self.rpc_request::<RPCBlock>("eth_getBlockByHash",
-                                     vec![hash.to_string(), "false".to_string()])
+        self.rpc_object_request::<(String, bool), RPCBlock>("eth_getBlockByHash",
+                                                            (hash.to_string(), false))
     }
 
     pub fn get_block_by_number(&mut self, number: &str) -> RPCBlock {
-        self.rpc_request::<RPCBlock>("eth_getBlockByNumber",
-                                     vec![number.to_string(), "false".to_string()])
+        self.rpc_object_request::<(String, bool), RPCBlock>("eth_getBlockByNumber",
+                                                            (number.to_string(), false))
     }
 
     pub fn get_transaction_by_hash(&mut self, hash: &str) -> RPCTransaction {
