@@ -5,7 +5,7 @@ use utils::address::Address;
 use utils::bigint::{M256, U256};
 
 use std::cmp::max;
-use vm::{Memory, Instruction};
+use vm::{Memory, Instruction, PATCH_EIP150, PATCH_EIP160};
 use super::State;
 
 const G_ZERO: usize = 0;
@@ -67,7 +67,8 @@ fn call_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 }
 
 fn extra_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
-    Gas::from(if machine.patch.eip150() { G_CALL_EIP150 } else { G_CALL_DEFAULT }) + xfer_cost(machine) + new_cost(machine)
+    Gas::from(if machine.patch.contains(PATCH_EIP150) { G_CALL_EIP150 }
+              else { G_CALL_DEFAULT }) + xfer_cost(machine) + new_cost(machine)
 }
 
 fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
@@ -90,7 +91,8 @@ fn new_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 
 fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
-    Gas::from(if machine.patch.eip150() { G_SUICIDE_EIP150 } else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
+    Gas::from(if machine.patch.contains(PATCH_EIP150) { G_SUICIDE_EIP150 }
+              else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -195,7 +197,8 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
             let len = state.stack.peek(3).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(if state.patch.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            (Gas::from(if state.patch.contains(PATCH_EIP150) { G_EXTCODE_EIP150 }
+                       else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Instruction::CALLDATACOPY | Instruction::CODECOPY => {
@@ -209,13 +212,15 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
             if state.stack.peek(1).unwrap() == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(if state.patch.eip160() { G_EXPBYTE_EIP160 } else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + Gas::from(if state.patch.contains(PATCH_EIP160) { G_EXPBYTE_EIP160 }
+                                             else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
             }
         }
 
         Instruction::CREATE => G_CREATE.into(),
         Instruction::JUMPDEST => G_JUMPDEST.into(),
-        Instruction::SLOAD => (if state.patch.eip150() { G_SLOAD_EIP150 } else { G_SLOAD_DEFAULT }).into(),
+        Instruction::SLOAD => (if state.patch.contains(PATCH_EIP150) { G_SLOAD_EIP150 }
+                               else { G_SLOAD_DEFAULT }).into(),
 
         // W_zero
         Instruction::STOP | Instruction::RETURN
@@ -252,9 +257,11 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
         Instruction::JUMPI => G_HIGH.into(),
 
         // W_extcode
-        Instruction::EXTCODESIZE => (if state.patch.eip150() { G_EXTCODE_EIP150 } else { G_EXTCODE_DEFAULT }).into(),
+        Instruction::EXTCODESIZE => (if state.patch.contains(PATCH_EIP150) { G_EXTCODE_EIP150 }
+                                     else { G_EXTCODE_DEFAULT }).into(),
 
-        Instruction::BALANCE => (if state.patch.eip150() { G_BALANCE_EIP150 } else { G_BALANCE_DEFAULT }).into(),
+        Instruction::BALANCE => (if state.patch.contains(PATCH_EIP150) { G_BALANCE_EIP150 }
+                                 else { G_BALANCE_DEFAULT }).into(),
         Instruction::BLOCKHASH => G_BLOCKHASH.into(),
     }
 }

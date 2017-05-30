@@ -20,7 +20,15 @@ struct RPCRequest {
 }
 
 #[derive(Serialize, Deserialize)]
-struct RPCResponse<T> {
+struct RPCObjectRequest<T> {
+    jsonrpc: String,
+    method: String,
+    params: T,
+    id: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct RPCObjectResponse<T> {
     jsonrpc: String,
     result: T,
     id: usize,
@@ -108,7 +116,11 @@ impl GethRPCClient {
     }
 
     fn rpc_request<T: serde::Deserialize>(&mut self, method: &str, params: Vec<String>) -> T {
-        let request = RPCRequest {
+        self.rpc_object_request::<Vec<String>, T>(method, params)
+    }
+
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(&mut self, method: &str, params: Req) -> Res {
+        let request = RPCObjectRequest {
             jsonrpc: "2.0".to_string(),
             method: method.to_string(),
             params: params,
@@ -124,7 +136,7 @@ impl GethRPCClient {
         let mut buffer = String::new();
         response_raw.read_to_string(&mut buffer).unwrap();
 
-        let response: RPCResponse<T> = serde_json::from_str(&buffer).unwrap();
+        let response: RPCObjectResponse<Res> = serde_json::from_str(&buffer).unwrap();
         response.result
     }
 
@@ -232,7 +244,7 @@ impl GethRPCClient {
     }
 
     pub fn call(&mut self, transaction: RPCTransaction) -> String {
-        unimplemented!()
+        self.rpc_object_request::<[RPCTransaction; 1], String>("eth_call", [transaction])
     }
 
     pub fn estimate_gas(&mut self, transaction: RPCTransaction) -> String {
