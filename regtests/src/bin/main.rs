@@ -26,18 +26,8 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
-        let call_result = client.call(RPCCall {
-            from: transaction.from.clone(),
-            to: transaction.to.clone(),
-            gas: transaction.gas.clone(),
-            gasPrice: transaction.gasPrice.clone(),
-            value: transaction.value.clone(),
-            data: transaction.input.clone(),
-        }, &receipt.blockNumber);
-        println!("call result: {:?}", call_result);
 
         println!("\ntests after the vm has run:");
-        println!("1. test out == {:?}", call_result);
         println!("2. test gasUsed == {:?}", receipt.gasUsed);
         println!("3. logs and order is {:?}", receipt.logs);
     }
