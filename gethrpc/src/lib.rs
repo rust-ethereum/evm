@@ -50,6 +50,16 @@ pub struct RPCTransaction {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+pub struct RPCCall {
+    pub from: String,
+    pub to: String,
+    pub gas: String,
+    pub gasPrice: String,
+    pub value: String,
+    pub data: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct RPCBlock {
     pub number: String,
     pub hash: String,
@@ -243,8 +253,8 @@ impl GethRPCClient {
         self.rpc_request::<String>("eth_sendRawTransaction", vec![data.to_string()])
     }
 
-    pub fn call(&mut self, transaction: RPCTransaction) -> String {
-        self.rpc_object_request::<[RPCTransaction; 1], String>("eth_call", [transaction])
+    pub fn call(&mut self, transaction: RPCCall, number: &str) -> String {
+        self.rpc_object_request::<(RPCCall, String), String>("eth_call", (transaction, number.to_string()))
     }
 
     pub fn estimate_gas(&mut self, transaction: RPCTransaction) -> String {
