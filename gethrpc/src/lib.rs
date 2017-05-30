@@ -244,7 +244,7 @@ impl GethRPCClient {
     }
 
     pub fn call(&mut self, transaction: RPCTransaction) -> String {
-        unimplemented!()
+        self.rpc_object_request::<[RPCTransaction; 1], String>("eth_call", [transaction])
     }
 
     pub fn estimate_gas(&mut self, transaction: RPCTransaction) -> String {
