@@ -24,7 +24,7 @@ pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
 pub use self::pc::{PC, Instruction};
 pub use self::storage::Storage;
-pub use self::params::{Context, BlockHeader, Log, Patch};
+pub use self::params::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account};
 
@@ -93,9 +93,6 @@ impl<M: Memory + Default> VM<M> {
     /// this will only executes the last items' one single
     /// instruction.
     pub fn step(&mut self) -> Result<(), RequireError> {
-        if self.0.len() > 1024 {
-            panic!();
-        }
         match self.0.last().unwrap().status().clone() {
             MachineStatus::Running => {
                 self.0.last_mut().unwrap().step()

@@ -37,37 +37,11 @@ pub struct Log {
     pub topics: Vec<M256>,
 }
 
-#[derive(Debug, Clone, Copy)]
-/// Patches applied to the current blockchain.
-pub enum Patch {
-    None,
-    Homestead,
-    EIP150,
-    EIP160
-}
-
-impl Patch {
-    /// The homestead patch.
-    pub fn homestead(&self) -> bool {
-        match self {
-            &Patch::None => false,
-            _ => true,
-        }
-    }
-
-    /// The homestead and EIP150 patch.
-    pub fn eip150(&self) -> bool {
-        match self {
-            &Patch::None | &Patch::Homestead => false,
-            _ => true,
-        }
-    }
-
-    /// The homestead, EIP150 and EIP160 patch.
-    pub fn eip160(&self) -> bool {
-        match self {
-            &Patch::None | &Patch::Homestead | &Patch::EIP150 => false,
-            _ => true,
-        }
+bitflags! {
+    pub struct Patch: u32 {
+        const PATCH_TEST      = 0b00000001;
+        const PATCH_HOMESTEAD = 0b00000010;
+        const PATCH_EIP150    = 0b00000100;
+        const PATCH_EIP160    = 0b00001000;
     }
 }
