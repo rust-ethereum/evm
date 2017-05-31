@@ -14,7 +14,8 @@ use std::str::FromStr;
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch};
+use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch, AccountCommitment};
+use sputnikvm::vm::errors::RequireError;
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
@@ -68,6 +69,32 @@ fn main() {
                     println!("VM exited successfully, checking results ...");
                     break;
                 },
+                Err(RequireError::Account(address)) => {
+                    println!("Feeding VM account at 0x{:x} ...", address);
+                    let nonce = M256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
+                                                                             &block.number)).unwrap();
+                    let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
+                                                                    &block.number)).unwrap();
+                    let code = read_hex(&client.get_code(&format!("0x{:x}", address),
+                                                         &block.number)).unwrap();
+                    vm.commit_account(AccountCommitment::Full {
+                        nonce: nonce,
+                        address: address,
+                        balance: balance,
+                        code: code,
+                    });
+                },
+                Err(RequireError::AccountStorage(address, index)) => {
+                    println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
+                    let value = M256::from_str(&client.get_storage_at(&format!("0x{:x}", address),
+                                                                      &format!("0x{:x}", index),
+                                                                      &block.number)).unwrap();
+                    vm.commit_account(AccountCommitment::Storage {
+                        address: address,
+                        index: index,
+                        value: value,
+                    });
+                }
                 Err(err) => {
                     println!("Unhandled require: {:?}", err);
                     unimplemented!()
