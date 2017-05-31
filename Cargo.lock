@@ -231,6 +231,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "regtests"
 version = "0.1.0"
 dependencies = [
+ "bigint 0.1.0",
  "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gethrpc 0.1.0",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
