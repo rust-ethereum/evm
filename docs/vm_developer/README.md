@@ -17,3 +17,10 @@ $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm/regtests
 $ RUST_BACKTRACE=1 RUST_LOG=regression_test cargo run --bin regression_test -- -k reg -r localhost:8888
 ```
+* SputnikVM Common Unit Tests for all Ethereum implementations.
+These tests are a clone of github.com/ethereumproject/tests
+```
+$ git clone git@github.com:ethereumproject/sputnikvm.git
+$ cd sputnikvm/jsontests
+$ cargo test
+```
