@@ -13,9 +13,9 @@ use std::io::{BufReader};
 use std::str::FromStr;
 
 use sputnikvm::{Gas, Address};
-use bigint::M256;
+use bigint::{U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, VM};
-use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock};
+use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
@@ -24,6 +24,19 @@ fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
         number: M256::from_str(&block.number).unwrap(),
         difficulty: M256::from_str(&block.difficulty).unwrap(),
         gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
+    }
+}
+
+fn from_rpc_transaction_and_code(transaction: &RPCTransaction, code: &str) -> Context {
+    Context {
+        caller: Address::from_str(&transaction.from).unwrap(),
+        address: Address::from_str(&transaction.to).unwrap(),
+        origin: Address::from_str(&transaction.to).unwrap(),
+        value: U256::from_str(&transaction.value).unwrap(),
+        code: read_hex(code).unwrap(),
+        data: read_hex(&transaction.input).unwrap(),
+        gas_limit: Gas::from_str(&transaction.gas).unwrap(),
+        gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
     }
 }
 
