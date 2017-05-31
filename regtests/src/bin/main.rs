@@ -54,6 +54,8 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
+        let code = client.get_code(&transaction.to, &block.number);
+        println!("code: {:?}", code);
 
         println!("\ntests after the vm has run:");
         println!("2. test gasUsed == {:?}", receipt.gasUsed);
