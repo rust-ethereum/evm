@@ -59,7 +59,7 @@ fn main() {
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
         let code = client.get_code(&transaction.to, &last_block_number);
-        println!("code: {:?}", code);
+        println!("code: {:?}\n", code);
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
 
@@ -104,6 +104,7 @@ fn main() {
         }
 
         println!("\ntests after the vm has run:");
+        println!("1. return status: {:?}", vm.status());
         println!("2. test gasUsed == {}, actual VM result: 0x{:x}", receipt.gasUsed,
                  context.gas_limit - vm.available_gas());
         println!("3. logs and order is {:?}, actual VM result: {:?}", receipt.logs, vm.logs());
