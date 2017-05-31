@@ -49,7 +49,6 @@ fn main() {
     println!("block {}, transaction count: {}", block.number, block.transactions.len());
 
     let block_header = from_rpc_block(&block);
-    println!("block header: {:?}", block_header);
 
     for transaction_hash in block.transactions {
         println!("\nworking on transaction {}", transaction_hash);
@@ -61,7 +60,6 @@ fn main() {
         println!("code: {:?}", code);
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
-        println!("context: {:?}", context);
 
         let mut vm = SeqVM::new(context, block_header.clone(), Patch::empty());
         loop {
