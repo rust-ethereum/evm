@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate sputnikvm;
+extern crate bigint;
 extern crate serde_json;
 extern crate gethrpc;
 
@@ -9,8 +10,22 @@ use std::process;
 use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
+use std::str::FromStr;
 
-use gethrpc::{regression, GethRPCClient, RPCCall};
+use sputnikvm::{Gas, Address};
+use bigint::M256;
+use sputnikvm::vm::{BlockHeader, Context, VM};
+use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock};
+
+fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
+    BlockHeader {
+        coinbase: Address::from_str(&block.miner).unwrap(),
+        timestamp: M256::from_str(&block.timestamp).unwrap(),
+        number: M256::from_str(&block.number).unwrap(),
+        difficulty: M256::from_str(&block.difficulty).unwrap(),
+        gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
+    }
+}
 
 fn main() {
     let mut client = GethRPCClient::new("http://127.0.0.1:8545");
