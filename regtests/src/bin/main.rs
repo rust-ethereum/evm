@@ -72,7 +72,10 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
-        let code = client.get_code(&transaction.to, &last_block_number);
+        if transaction.to.is_empty() {
+            continue;
+        }
+        let code = client.get_code(&transaction.to, &block.number);
         println!("code: {:?}\n", code);
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
