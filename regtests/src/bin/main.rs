@@ -57,6 +57,9 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
+        if transaction.to.is_empty() {
+            continue;
+        }
         let code = client.get_code(&transaction.to, &block.number);
         println!("code: {:?}", code);
 
