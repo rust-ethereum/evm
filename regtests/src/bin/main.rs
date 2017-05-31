@@ -48,6 +48,7 @@ fn main() {
 
     let block = client.get_block_by_number(format!("0x{:x}", 49439).as_str());
     println!("block {}, transaction count: {}", block.number, block.transactions.len());
+    let last_block_number = format!("0x{:x}", M256::from_str(&block.number).unwrap() - M256::from(1u64));
 
     let block_header = from_rpc_block(&block);
 
@@ -57,7 +58,7 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
-        let code = client.get_code(&transaction.to, &block.number);
+        let code = client.get_code(&transaction.to, &last_block_number);
         println!("code: {:?}", code);
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
@@ -72,11 +73,11 @@ fn main() {
                 Err(RequireError::Account(address)) => {
                     println!("Feeding VM account at 0x{:x} ...", address);
                     let nonce = M256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
-                                                                             &block.number)).unwrap();
+                                                                             &last_block_number)).unwrap();
                     let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
-                                                                    &block.number)).unwrap();
+                                                                    &last_block_number)).unwrap();
                     let code = read_hex(&client.get_code(&format!("0x{:x}", address),
-                                                         &block.number)).unwrap();
+                                                         &last_block_number)).unwrap();
                     vm.commit_account(AccountCommitment::Full {
                         nonce: nonce,
                         address: address,
@@ -88,7 +89,7 @@ fn main() {
                     println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
                     let value = M256::from_str(&client.get_storage_at(&format!("0x{:x}", address),
                                                                       &format!("0x{:x}", index),
-                                                                      &block.number)).unwrap();
+                                                                      &last_block_number)).unwrap();
                     vm.commit_account(AccountCommitment::Storage {
                         address: address,
                         index: index,
