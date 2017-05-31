@@ -265,24 +265,26 @@ impl<M: Memory + Default> Machine<M> {
         let rip160_address = Address::from_str("0x0000000000000000000000000000000000000003").unwrap();
         let id_address = Address::from_str("0x0000000000000000000000000000000000000004").unwrap();
 
-        match self.state.context.address {
-            id_address => {
-                let gas = Gas::from(15u64) +
-                    Gas::from(3u64) * (Gas::from(self.state.context.data.len()) / Gas::from(32u64));
-                if gas > self.state.context.gas_limit {
-                    self.state.used_gas = self.state.context.gas_limit;
-                    self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-                } else {
-                    self.state.used_gas = gas;
-                    self.state.out = self.state.context.data.clone();
-                    self.status = MachineStatus::ExitedOk;
-                }
-                return true;
-            },
-            ecrec_address => unimplemented!(),
-            sha256_address => unimplemented!(),
-            rip160_address => unimplemented!(),
-            _ => return false,
+        if self.state.context.address == id_address {
+            let gas = Gas::from(15u64) +
+                Gas::from(3u64) * (Gas::from(self.state.context.data.len()) / Gas::from(32u64));
+            if gas > self.state.context.gas_limit {
+                self.state.used_gas = self.state.context.gas_limit;
+                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            } else {
+                self.state.used_gas = gas;
+                self.state.out = self.state.context.data.clone();
+                self.status = MachineStatus::ExitedOk;
+            }
+            return true;
+        } else if self.state.context.address == rip160_address {
+            unimplemented!();
+        } else if self.state.context.address == sha256_address {
+            unimplemented!();
+        } else if self.state.context.address == ecrec_address {
+            unimplemented!();
+        } else {
+            return false;
         }
     }
 
