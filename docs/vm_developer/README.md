@@ -15,7 +15,7 @@ $ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8888
 $ <ctrl-c>
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm/regtests
-$ RUST_BACKTRACE=1 RUST_LOG=regression_test cargo run --bin regression_test -- -k reg -r localhost:8888
+$ RUST_BACKTRACE=1 RUST_LOG=regtests cargo run --bin regtests -- -r localhost:8888
 ```
 ## SputnikVM Common Unit Tests for all Ethereum implementations.
 These tests are a clone of github.com/ethereumproject/tests

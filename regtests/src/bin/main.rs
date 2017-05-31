@@ -56,7 +56,15 @@ fn from_rpc_transaction_and_code(transaction: &RPCTransaction, code: &str) -> Co
 }
 
 fn main() {
-    let mut client = GethRPCClient::new("http://127.0.0.1:8545");
+    let matches = clap_app!(regtests =>
+        (version: "0.1")
+        (author: "Ethereum Classic Contributors")
+        (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Ethereum Classic Geth: `$ go install github.com/ethereumproject/go-ethereum/cmd/geth`.\n* Run Geth with this command: `$ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8545`.\n* Wait for the chain to sync.\n* Change directory into the `regtests` directory `$ cd regtests`\n* Run this command: `$ RUST_BACKTRACE=1 cargo run --bin regtests -- -r http://127.0.0.1:8545")
+        (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r http://127.0.0.1:8545`.")
+    ).get_matches();
+
+    let address = matches.value_of("RPC").unwrap();
+    let mut client = GethRPCClient::new(address);
 
     println!("net version: {}", client.net_version());
 
@@ -154,26 +162,4 @@ fn main() {
             }
         }
     }
-
-    // let matches = clap_app!(regression_test =>
-    //     (version: "0.1")
-    //     (author: "Ethereum Classic Contributors")
-    //     (about: "Gaslighter - Tests the Ethereum Classic Virtual Machine in 5 different ways.")
-    //     (@arg KEEP_GOING: -k --keep_going "Don't exit the program even if a test fails.")
-    //     (@subcommand reg =>
-    //         (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Ethereum Classic Geth: `$ go install github.com/ethereumproject/go-ethereum/cmd/geth`.\n* Run Geth with this command: `$ ~/go/bin/geth`.\n* Wait for the chain to sync.\n* <ctrl-c>\n* Change directory into the gaslighter directory `$ cd gaslighter`\n* Run this command: `$ RUST_BACKTRACE=1 RUST_LOG=gaslighter cargo run --bin gaslighter -- -k reg -c ~/.ethereum/chaindata/`")
-    //         (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r localhost:8888`.")
-    //     )
-    // ).get_matches();
-    // let mut has_regression_test_passed = true;
-    // let keep_going = if matches.is_present("KEEP_GOING") { true } else { false };
-    // if let Some(ref matches) = matches.subcommand_matches("reg") {
-    //     let path = matches.value_of("RPC").unwrap();
-    //     has_regression_test_passed = regression(path);
-    // }
-    // if has_regression_test_passed {
-    //     process::exit(0);
-    // } else {
-    //     process::exit(1);
-    // }
 }

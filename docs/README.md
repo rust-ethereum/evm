@@ -6,7 +6,7 @@ You want to run an application or contract that is executed on SputnikVM.
 ### [Application Developer](/docs/app_dev/README.md)
 You know a language that compiles to SputnikVM bytecode.
 ### [Blockchain Developer](/docs/bc_dev/README.md)
-You are developing a blockchain and are looking to for an off the shelf, efficient, cryptocontract virtual machine to plug into your blockchain.
+You are developing a blockchain and are looking for an off the shelf, efficient, cryptocontract virtual machine to plug into your blockchain.
 ### [VM User](/docs/vm_user/README.md)
 You implement languages that targets SputnikVM bytecode. This might include implementing a LLVM backend that targets SputnikVM bytecode.
 ### [VM Integrator](/docs/vm_integrator/README.md)
