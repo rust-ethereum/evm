@@ -277,12 +277,6 @@ impl<M: Memory + Default> Machine<M> {
                 self.status = MachineStatus::ExitedOk;
             }
             return true;
-        } else if self.state.context.address == rip160_address {
-            unimplemented!();
-        } else if self.state.context.address == sha256_address {
-            unimplemented!();
-        } else if self.state.context.address == ecrec_address {
-            unimplemented!();
         } else {
             return false;
         }
