@@ -48,6 +48,9 @@ fn main() {
     let block = client.get_block_by_number(format!("0x{:x}", 49439).as_str());
     println!("block {}, transaction count: {}", block.number, block.transactions.len());
 
+    let block_header = from_rpc_block(&block);
+    println!("block header: {:?}", block_header);
+
     for transaction_hash in block.transactions {
         println!("\nworking on transaction {}", transaction_hash);
         let transaction = client.get_transaction_by_hash(&transaction_hash);
@@ -56,6 +59,9 @@ fn main() {
         println!("receipt: {:?}", receipt);
         let code = client.get_code(&transaction.to, &block.number);
         println!("code: {:?}", code);
+
+        let context = from_rpc_transaction_and_code(&transaction, &code);
+        println!("context: {:?}", context);
 
         println!("\ntests after the vm has run:");
         println!("2. test gasUsed == {:?}", receipt.gasUsed);
