@@ -36,6 +36,12 @@ pub fn read_hex(s: &str) -> Result<Vec<u8>, ParseHexError> {
         return read_hex(&s[2..s.len()]);
     }
 
+    if s.len() & 1 == 1 {
+        let mut new_s = "0".to_string();
+        new_s.push_str(s);
+        return read_hex(&new_s);
+    }
+
     let mut res = Vec::<u8>::new();
 
     let mut cur = 0;
