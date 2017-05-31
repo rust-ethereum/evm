@@ -63,7 +63,7 @@ fn main() {
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
 
-        let mut vm = SeqVM::new(context, block_header.clone(), Patch::empty());
+        let mut vm = SeqVM::new(context.clone(), block_header.clone(), Patch::empty());
         loop {
             match vm.fire() {
                 Ok(()) => {
@@ -104,8 +104,9 @@ fn main() {
         }
 
         println!("\ntests after the vm has run:");
-        println!("2. test gasUsed == {:?}", receipt.gasUsed);
-        println!("3. logs and order is {:?}", receipt.logs);
+        println!("2. test gasUsed == {}, actual VM result: 0x{:x}", receipt.gasUsed,
+                 context.gas_limit - vm.available_gas());
+        println!("3. logs and order is {:?}, actual VM result: {:?}", receipt.logs, vm.logs());
     }
 
     println!("\nwhen the block is finished, test:");
