@@ -14,7 +14,7 @@ use std::str::FromStr;
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, VM};
+use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch};
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
@@ -62,6 +62,20 @@ fn main() {
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
         println!("context: {:?}", context);
+
+        let mut vm = SeqVM::new(context, block_header.clone(), Patch::empty());
+        loop {
+            match vm.fire() {
+                Ok(()) => {
+                    println!("VM exited successfully, checking results ...");
+                    break;
+                },
+                Err(err) => {
+                    println!("Unhandled require: {:?}", err);
+                    unimplemented!()
+                },
+            }
+        }
 
         println!("\ntests after the vm has run:");
         println!("2. test gasUsed == {:?}", receipt.gasUsed);
