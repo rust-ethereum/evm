@@ -11,12 +11,26 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
 use std::str::FromStr;
+use std::collections::HashMap;
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch, AccountCommitment};
+use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch, AccountCommitment, Account};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
+
+fn upfront_cost(data: &str) -> Gas {
+    let mut cost = Gas::from(21000u64);
+    let data = read_hex(data).unwrap();
+    for v in data {
+        if v == 0 {
+            cost = cost + Gas::from(4u64);
+        } else {
+            cost = cost + Gas::from(68u64);
+        }
+    }
+    return cost;
+}
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
@@ -106,13 +120,37 @@ fn main() {
         println!("\ntests after the vm has run:");
         println!("1. return status: {:?}", vm.status());
         println!("2. test gasUsed == {}, actual VM result: 0x{:x}", receipt.gasUsed,
-                 context.gas_limit - vm.available_gas());
+                 context.gas_limit + upfront_cost(&transaction.input) - vm.available_gas());
         println!("3. logs and order is {:?}, actual VM result: {:?}", receipt.logs, vm.logs());
-    }
 
-    println!("\nwhen the block is finished, test:");
-    println!("1. balances of all used accounts.");
-    println!("2. storage values touched.");
+        println!("\nwhen the block is finished, test:");
+        println!("1. balances of all used accounts.");
+        println!("2. storage values touched.");
+        for account in vm.accounts() {
+            match account {
+                &Account::Full {
+                    address,
+                    balance,
+                    ref changing_storage,
+                    ..
+                } => {
+                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                              &block.number);
+                    println!("account 0x{:x}, balance: 0x{:x} == {}", address,
+                             balance, expected_balance);
+                    let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
+                    for (key, value) in changing_storage {
+                        let expected_value = client.get_storage_at(&format!("0x{:x}", address),
+                                                                   &format!("0x{:x}", key),
+                                                                   &block.number);
+                        println!("account 0x{:x}, storage 0x{:x}: 0x{:x} == {}", address,
+                                 key, value, expected_value);
+                    }
+                },
+                _ => unimplemented!(),
+            }
+        }
+    }
 
     // let matches = clap_app!(regression_test =>
     //     (version: "0.1")
