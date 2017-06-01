@@ -3,7 +3,7 @@
 use utils::bigint::M256;
 use utils::gas::Gas;
 
-use vm::{Memory, Instruction, PATCH_TEST};
+use vm::{Memory, Instruction};
 use vm::errors::{MachineError, EvalError};
 
 use vm::eval::{State, ControlCheck};
@@ -13,8 +13,7 @@ const CALLSTACK_LIMIT_DEFAULT: usize = 1024;
 const CALLSTACK_LIMIT_TEST: usize = 2;
 
 fn check_callstack_overflow<M: Memory>(state: &State<M>) -> Result<(), MachineError> {
-    if state.depth >= (if state.patch.contains(PATCH_TEST) { CALLSTACK_LIMIT_TEST }
-                       else { CALLSTACK_LIMIT_DEFAULT }) {
+    if state.depth >= state.patch.callstack_limit {
         return Err(MachineError::CallstackOverflow);
     } else {
         return Ok(());

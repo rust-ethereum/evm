@@ -7,8 +7,6 @@ extern crate log;
 extern crate crypto;
 extern crate rlp;
 extern crate bigint;
-#[macro_use]
-extern crate bitflags;
 
 mod utils;
 pub mod vm;
