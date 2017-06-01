@@ -9,7 +9,7 @@ use serde_json::Value;
 use std::str::FromStr;
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::errors::RequireError;
-use sputnikvm::vm::{VM, SeqVM, AccountCommitment, Context, Account, Storage, Patch, VMStatus, PATCH_TEST};
+use sputnikvm::vm::{VM, SeqVM, AccountCommitment, Context, Account, Storage, Patch, VMStatus, VMTEST_PATCH};
 
 pub fn fire_with_block(machine: &mut SeqVM, block: &JSONBlock) {
     loop {
@@ -64,7 +64,7 @@ pub fn apply_to_block(machine: &SeqVM, block: &mut JSONBlock) {
 pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqVM {
     let transaction = create_context(v);
 
-    SeqVM::new(transaction, block.block_header(), PATCH_TEST)
+    SeqVM::new(transaction, block.block_header(), &VMTEST_PATCH)
 }
 
 pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) -> bool {

@@ -36,12 +36,3 @@ pub struct Log {
     pub data: Vec<u8>,
     pub topics: Vec<M256>,
 }
-
-bitflags! {
-    pub struct Patch: u32 {
-        const PATCH_TEST      = 0b00000001;
-        const PATCH_HOMESTEAD = 0b00000010;
-        const PATCH_EIP150    = 0b00000100;
-        const PATCH_EIP160    = 0b00001000;
-    }
-}

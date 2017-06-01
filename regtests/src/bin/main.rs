@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch, AccountCommitment, Account};
+use sputnikvm::vm::{BlockHeader, Context, SeqVM, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
@@ -88,7 +88,7 @@ fn main() {
 
         let context = from_rpc_transaction_and_code(&transaction, &code);
 
-        let mut vm = SeqVM::new(context.clone(), block_header.clone(), Patch::empty());
+        let mut vm = SeqVM::new(context.clone(), block_header.clone(), &FRONTIER_PATCH);
         loop {
             match vm.fire() {
                 Ok(()) => {

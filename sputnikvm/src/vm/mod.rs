@@ -18,6 +18,7 @@ mod storage;
 mod params;
 mod eval;
 mod commit;
+mod patch;
 pub mod errors;
 
 pub use self::memory::{Memory, SeqMemory};
@@ -25,6 +26,7 @@ pub use self::stack::Stack;
 pub use self::pc::{PC, Instruction};
 pub use self::storage::Storage;
 pub use self::params::*;
+pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account};
 
@@ -55,7 +57,7 @@ pub enum VMStatus {
 
 impl<M: Memory + Default> VM<M> {
     /// Create a new VM using the given context, block header and patch.
-    pub fn new(context: Context, block: BlockHeader, patch: Patch) -> VM<M> {
+    pub fn new(context: Context, block: BlockHeader, patch: &'static Patch) -> VM<M> {
         let mut machines = Vec::new();
         machines.push(Machine::new(context, block, patch, 1));
         VM(machines, Vec::new())
