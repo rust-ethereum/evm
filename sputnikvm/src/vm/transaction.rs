@@ -2,6 +2,9 @@ use std::collections::hash_map;
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{U256, M256};
+use rlp::RlpStream;
+use crypto::sha3::Sha3;
+use crypto::digest::Digest;
 
 use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
@@ -31,7 +34,6 @@ pub enum Transaction {
 }
 
 impl Transaction {
-    #[allow(unused_variables)]
     pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
         match self {
@@ -62,13 +64,44 @@ impl Transaction {
         return gas;
     }
 
-    #[allow(unused_variables)]
     pub fn into_context(self, upfront: Gas, origin: Option<Address>,
                         account_state: &AccountState) -> Result<Context, RequireError> {
-        unimplemented!()
+        match self {
+            Transaction::MessageCall {
+                address, caller, gas_price, gas_limit, value, data
+            } => {
+                Ok(Context {
+                    address, caller, data, gas_price, value,
+                    gas_limit: gas_limit - upfront,
+                    code: account_state.code(address)?.into(),
+                    origin: origin.unwrap_or(caller),
+                })
+            },
+            Transaction::ContractCreation {
+                caller, gas_price, gas_limit, value, init,
+            } => {
+                let nonce = account_state.nonce(caller)?;
+                let mut rlp = RlpStream::new();
+                rlp.begin_list(2);
+                rlp.append(&caller);
+                rlp.append(&nonce);
+                let mut address_array = [0u8; 32];
+                let mut sha3 = Sha3::keccak256();
+                sha3.input(rlp.out().as_slice());
+                sha3.result(&mut address_array);
+                let address = Address::from(M256::from(address_array));
+
+                Ok(Context {
+                    address, caller, gas_price, value,
+                    gas_limit: gas_limit - upfront,
+                    data: Vec::new(),
+                    code: init,
+                    origin: origin.unwrap_or(caller),
+                })
+            }
+        }
     }
 
-    #[allow(unused_variables)]
     pub fn gas_limit(&self) -> Gas {
         match self {
             &Transaction::MessageCall { gas_limit, .. } => gas_limit,
