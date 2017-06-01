@@ -6,6 +6,7 @@ use utils::gas::Gas;
 use vm::{Memory, Log, Context, Transaction};
 use super::State;
 
+use std::cmp::min;
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
 use vm::eval::utils::copy_from_memory;
@@ -66,8 +67,7 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
     Some(context)
 }
 
-#[allow(unused_variables)]
-pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<(Context, (M256, M256))> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
     if state.account_state.balance(state.context.address).unwrap() < value {
@@ -76,36 +76,10 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
     }
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = gas + stipend_gas;
+    let gas_limit = min(gas + stipend_gas, after_gas);
 
     let transaction = Transaction::MessageCall {
-        address: to,
-        caller: state.context.address,
-        gas_price: state.context.gas_price,
-        gas_limit: gas_limit,
-        value: value,
-        data: input,
-    };
-    let context = transaction.into_context(
-        Gas::zero(), Some(state.context.origin), &state.account_state
-    ).unwrap();
-    push!(state, M256::zero());
-    Some((context, (out_start, out_len)))
-}
-
-#[allow(unused_variables)]
-pub fn callcode<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<(Context, (M256, M256))> {
-    pop!(state, gas: Gas, to: Address, value: U256);
-    pop!(state, in_start, in_len, out_start, out_len);
-    if state.account_state.balance(state.context.address).unwrap() < value {
-        push!(state, M256::zero());
-        return None;
-    }
-
-    let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = gas + stipend_gas;
-    let transaction = Transaction::MessageCall {
-        address: state.context.address,
+        address: if as_self { state.context.address } else { to },
         caller: state.context.address,
         gas_price: state.context.gas_price,
         gas_limit: gas_limit,
