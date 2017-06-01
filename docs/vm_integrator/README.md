@@ -13,7 +13,7 @@ SputnikVM for the moment has taken a rather functional approach to executing the
 A code snippet from the regression test demonstrates the setup and execution.
 
 ``` rust
-let mut vm = SeqVM::new(context, block_header.clone(), Patch::empty());
+let mut vm = SeqVM::new(context, block_header.clone(), &FRONTIER_PATCH);
 loop {
     match vm.fire() {
         Ok(()) => {
