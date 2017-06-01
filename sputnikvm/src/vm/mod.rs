@@ -19,6 +19,7 @@ mod params;
 mod eval;
 mod commit;
 mod patch;
+mod transaction;
 pub mod errors;
 
 pub use self::memory::{Memory, SeqMemory};
@@ -28,7 +29,7 @@ pub use self::storage::Storage;
 pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
-pub use self::commit::{AccountCommitment, Account};
+pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
 
 use std::collections::hash_map;
 use utils::bigint::M256;
