@@ -34,7 +34,7 @@ use std::collections::hash_map;
 use utils::bigint::M256;
 use utils::gas::Gas;
 use utils::address::Address;
-use self::errors::{RequireError, CommitError, VMError};
+use self::errors::{RequireError, CommitError, MachineError};
 
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
@@ -55,7 +55,7 @@ pub enum VMStatus {
     ExitedOk,
     /// VM is stopped due to an error. The state of the VM is before
     /// the last failing instruction.
-    ExitedErr(VMError),
+    ExitedErr(MachineError),
 }
 
 impl<M: Memory + Default> VM<M> {

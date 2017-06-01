@@ -97,19 +97,6 @@ impl From<MachineError> for EvalError {
 }
 
 #[derive(Debug, Clone)]
-/// Errors returned by the VM.
-pub enum VMError {
-    /// VM runtime error.
-    Machine(MachineError),
-}
-
-impl From<MachineError> for VMError {
-    fn from(val: MachineError) -> VMError {
-        VMError::Machine(val)
-    }
-}
-
-#[derive(Debug, Clone)]
 /// Errors stating that the VM requires additional information to
 /// continue running.
 pub enum RequireError {
