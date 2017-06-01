@@ -91,6 +91,16 @@ impl<M: Memory + Default> ContextVM<M> {
         }
     }
 
+    pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
+                       account_state: AccountState, blockhash_state: BlockhashState) -> Self {
+        let mut machines = Vec::new();
+        machines.push(Machine::with_states(context, block, patch, 1, account_state, blockhash_state));
+        ContextVM {
+            machines,
+            history: Vec::new()
+        }
+    }
+
     /// Returns the call create history. Only used in testing.
     pub fn history(&self) -> &[Context] {
         self.history.as_slice()
