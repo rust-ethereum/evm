@@ -9,9 +9,9 @@ use serde_json::Value;
 use std::str::FromStr;
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::errors::RequireError;
-use sputnikvm::vm::{VM, SeqVM, AccountCommitment, Context, Account, Storage, Patch, VMStatus, VMTEST_PATCH};
+use sputnikvm::vm::{VM, SeqContextVM, AccountCommitment, Context, Account, Storage, Patch, VMStatus, VMTEST_PATCH};
 
-pub fn fire_with_block(machine: &mut SeqVM, block: &JSONBlock) {
+pub fn fire_with_block(machine: &mut SeqContextVM, block: &JSONBlock) {
     loop {
         match machine.fire() {
             Err(RequireError::Account(address)) => {
@@ -50,7 +50,7 @@ pub fn fire_with_block(machine: &mut SeqVM, block: &JSONBlock) {
     }
 }
 
-pub fn apply_to_block(machine: &SeqVM, block: &mut JSONBlock) {
+pub fn apply_to_block(machine: &SeqContextVM, block: &mut JSONBlock) {
     for account in machine.accounts() {
         let account = (*account).clone();
         block.apply_account(account);
@@ -61,13 +61,13 @@ pub fn apply_to_block(machine: &SeqVM, block: &mut JSONBlock) {
     }
 }
 
-pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqVM {
+pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqContextVM {
     let transaction = create_context(v);
 
-    SeqVM::new(transaction, block.block_header(), &VMTEST_PATCH)
+    SeqContextVM::new(transaction, block.block_header(), &VMTEST_PATCH)
 }
 
-pub fn test_machine(v: &Value, machine: &SeqVM, block: &JSONBlock, debug: bool) -> bool {
+pub fn test_machine(v: &Value, machine: &SeqContextVM, block: &JSONBlock, debug: bool) -> bool {
     let ref callcreates = v["callcreates"];
 
     if callcreates.as_array().is_some() {
