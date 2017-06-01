@@ -5,7 +5,7 @@ use utils::address::Address;
 use utils::bigint::{M256, U256};
 
 use std::cmp::max;
-use vm::{Memory, Instruction, PATCH_EIP150, PATCH_EIP160};
+use vm::{Memory, Instruction};
 use super::State;
 
 const G_ZERO: usize = 0;
@@ -14,29 +14,17 @@ const G_VERYLOW: usize = 3;
 const G_LOW: usize = 5;
 const G_MID: usize = 8;
 const G_HIGH: usize = 10;
-const G_EXTCODE_DEFAULT: usize = 20;
-const G_EXTCODE_EIP150: usize = 700;
-const G_BALANCE_DEFAULT: usize = 20;
-const G_BALANCE_EIP150: usize = 400;
-const G_SLOAD_DEFAULT: usize = 50;
-const G_SLOAD_EIP150: usize = 200;
 const G_JUMPDEST: usize = 1;
 const G_SSET: usize = 20000;
 const G_SRESET: usize = 5000;
 const R_SCLEAR: usize = 15000;
 const R_SUICIDE: usize = 24000;
-const G_SUICIDE_DEFAULT: usize = 0;
-const G_SUICIDE_EIP150: usize = 5000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSITE: usize = 200;
-const G_CALL_DEFAULT: usize = 40;
-const G_CALL_EIP150: usize = 700;
 const G_CALLVALUE: usize = 9000;
 const G_CALLSTIPEND: usize = 2300;
 const G_NEWACCOUNT: usize = 25000;
 const G_EXP: usize = 10;
-const G_EXPBYTE_DEFAULT: usize = 10;
-const G_EXPBYTE_EIP160: usize = 50;
 const G_MEMORY: usize = 3;
 const G_TXCREATE: usize = 32000;
 const G_TXDATAZERO: usize = 4;
@@ -67,8 +55,7 @@ fn call_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 }
 
 fn extra_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
-    Gas::from(if machine.patch.contains(PATCH_EIP150) { G_CALL_EIP150 }
-              else { G_CALL_DEFAULT }) + xfer_cost(machine) + new_cost(machine)
+    Gas::from(machine.patch.gas_call) + xfer_cost(machine) + new_cost(machine)
 }
 
 fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
@@ -91,8 +78,7 @@ fn new_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 
 fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
-    Gas::from(if machine.patch.contains(PATCH_EIP150) { G_SUICIDE_EIP150 }
-              else { G_SUICIDE_DEFAULT }) + if address == Address::default() {
+    Gas::from(machine.patch.gas_suicide) + if address == Address::default() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -197,8 +183,7 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
             let len = state.stack.peek(3).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(if state.patch.contains(PATCH_EIP150) { G_EXTCODE_EIP150 }
-                       else { G_EXTCODE_DEFAULT }) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            (Gas::from(state.patch.gas_extcode) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Instruction::CALLDATACOPY | Instruction::CODECOPY => {
@@ -212,15 +197,13 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
             if state.stack.peek(1).unwrap() == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(if state.patch.contains(PATCH_EIP160) { G_EXPBYTE_EIP160 }
-                                             else { G_EXPBYTE_DEFAULT }) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + Gas::from(state.patch.gas_expbyte) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
             }
         }
 
         Instruction::CREATE => G_CREATE.into(),
         Instruction::JUMPDEST => G_JUMPDEST.into(),
-        Instruction::SLOAD => (if state.patch.contains(PATCH_EIP150) { G_SLOAD_EIP150 }
-                               else { G_SLOAD_DEFAULT }).into(),
+        Instruction::SLOAD => state.patch.gas_sload.into(),
 
         // W_zero
         Instruction::STOP | Instruction::RETURN
@@ -257,11 +240,8 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
         Instruction::JUMPI => G_HIGH.into(),
 
         // W_extcode
-        Instruction::EXTCODESIZE => (if state.patch.contains(PATCH_EIP150) { G_EXTCODE_EIP150 }
-                                     else { G_EXTCODE_DEFAULT }).into(),
-
-        Instruction::BALANCE => (if state.patch.contains(PATCH_EIP150) { G_BALANCE_EIP150 }
-                                 else { G_BALANCE_DEFAULT }).into(),
+        Instruction::EXTCODESIZE => state.patch.gas_extcode.into(),
+        Instruction::BALANCE => state.patch.gas_balance.into(),
         Instruction::BLOCKHASH => G_BLOCKHASH.into(),
     }
 }
