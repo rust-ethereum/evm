@@ -40,7 +40,10 @@ impl Transaction {
 
     #[allow(unused_variables)]
     pub fn gas_limit(&self) -> Gas {
-        unimplemented!()
+        match self {
+            &Transaction::MessageCall { gas_limit, .. } => gas_limit,
+            &Transaction::ContractCreation { gas_limit, .. } => gas_limit,
+        }
     }
 }
 
