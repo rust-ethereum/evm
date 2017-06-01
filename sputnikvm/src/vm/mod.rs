@@ -41,7 +41,10 @@ use self::errors::{RequireError, CommitError, VMError};
 pub type SeqVM = VM<SeqMemory>;
 
 /// A VM that executes using a context and block information.
-pub struct VM<M>(Vec<Machine<M>>, Vec<Context>);
+pub struct VM<M> {
+    machines: Vec<Machine<M>>,
+    history: Vec<Context>
+}
 
 #[derive(Debug, Clone)]
 /// VM Status
@@ -60,13 +63,16 @@ impl<M: Memory + Default> VM<M> {
     pub fn new(context: Context, block: BlockHeader, patch: &'static Patch) -> VM<M> {
         let mut machines = Vec::new();
         machines.push(Machine::new(context, block, patch, 1));
-        VM(machines, Vec::new())
+        VM {
+            machines,
+            history: Vec::new()
+        }
     }
 
     /// Commit an account information to this VM. This should only be
     /// used when receiving `RequireError`.
     pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
-        for machine in &mut self.0 {
+        for machine in &mut self.machines {
             machine.commit_account(commitment.clone())?;
         }
         Ok(())
@@ -75,7 +81,7 @@ impl<M: Memory + Default> VM<M> {
     /// Commit a block hash to this VM. This should only be used when
     /// receiving `RequireError`.
     pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
-        for machine in &mut self.0 {
+        for machine in &mut self.machines {
             machine.commit_blockhash(number, hash)?;
         }
         Ok(())
@@ -83,7 +89,7 @@ impl<M: Memory + Default> VM<M> {
 
     /// Returns the current status of the VM.
     pub fn status(&self) -> VMStatus {
-        match self.0[0].status() {
+        match self.machines[0].status() {
             MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
             MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err.into()),
@@ -95,23 +101,23 @@ impl<M: Memory + Default> VM<M> {
     /// this will only executes the last items' one single
     /// instruction.
     pub fn step(&mut self) -> Result<(), RequireError> {
-        match self.0.last().unwrap().status().clone() {
+        match self.machines.last().unwrap().status().clone() {
             MachineStatus::Running => {
-                self.0.last_mut().unwrap().step()
+                self.machines.last_mut().unwrap().step()
             },
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
-                if self.0.len() <= 1 {
+                if self.machines.len() <= 1 {
                     Ok(())
                 } else {
-                    let finished = self.0.pop().unwrap();
-                    self.0.last_mut().unwrap().apply_sub(finished);
+                    let finished = self.machines.pop().unwrap();
+                    self.machines.last_mut().unwrap().apply_sub(finished);
                     Ok(())
                 }
             },
             MachineStatus::InvokeCall(context, _) | MachineStatus::InvokeCreate(context) => {
-                self.1.push(context.clone());
-                let sub = self.0.last().unwrap().derive(context);
-                self.0.push(sub);
+                self.history.push(context.clone());
+                let sub = self.machines.last().unwrap().derive(context);
+                self.machines.push(sub);
                 Ok(())
             },
         }
@@ -132,37 +138,37 @@ impl<M: Memory + Default> VM<M> {
     /// Returns the changed or committed accounts information up to
     /// current execution status.
     pub fn accounts(&self) -> hash_map::Values<Address, Account> {
-        self.0[0].state().account_state.accounts()
+        self.machines[0].state().account_state.accounts()
     }
 
     /// Returns the out value, if any.
     pub fn out(&self) -> &[u8] {
-        self.0[0].state().out.as_slice()
+        self.machines[0].state().out.as_slice()
     }
 
     /// Returns the available gas of this VM.
     pub fn available_gas(&self) -> Gas {
-        self.0[0].state().available_gas()
+        self.machines[0].state().available_gas()
     }
 
     /// Returns the used gas of this VM.
     pub fn used_gas(&self) -> Gas {
-        self.0[0].state().used_gas
+        self.machines[0].state().used_gas
     }
 
     /// Returns the refunded gas of this VM.
     pub fn refunded_gas(&self) -> Gas {
-        self.0[0].state().refunded_gas
+        self.machines[0].state().refunded_gas
     }
 
     /// Returns logs to be appended to the current block if the user
     /// decided to accept the running status of this VM.
     pub fn logs(&self) -> &[Log] {
-        self.0[0].state().logs.as_slice()
+        self.machines[0].state().logs.as_slice()
     }
 
     /// Returns the call create history. Only used in testing.
     pub fn history(&self) -> &[Context] {
-        self.1.as_slice()
+        self.history.as_slice()
     }
 }
