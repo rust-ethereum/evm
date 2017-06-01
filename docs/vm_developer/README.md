@@ -4,7 +4,7 @@
 ```
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm
-$ cargo build
+$ cargo build --all
 ```
 ## SputnikVM Regression test
 Steps to reproduce:
