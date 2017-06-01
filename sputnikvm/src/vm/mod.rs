@@ -30,6 +30,7 @@ pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
+pub use self::transaction::{Transaction, TransactionVM};
 
 use std::collections::hash_map;
 use utils::bigint::M256;
@@ -73,6 +74,7 @@ pub trait VM {
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
 pub type SeqContextVM = ContextVM<SeqMemory>;
+pub type SeqTransactionVM = TransactionVM<SeqMemory>;
 
 /// A VM that executes using a context and block information.
 pub struct ContextVM<M> {
@@ -85,6 +87,16 @@ impl<M: Memory + Default> ContextVM<M> {
     pub fn new(context: Context, block: BlockHeader, patch: &'static Patch) -> Self {
         let mut machines = Vec::new();
         machines.push(Machine::new(context, block, patch, 1));
+        ContextVM {
+            machines,
+            history: Vec::new()
+        }
+    }
+
+    pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
+                       account_state: AccountState, blockhash_state: BlockhashState) -> Self {
+        let mut machines = Vec::new();
+        machines.push(Machine::with_states(context, block, patch, 1, account_state, blockhash_state));
         ContextVM {
             machines,
             history: Vec::new()
@@ -182,7 +194,7 @@ impl<M: Memory + Default> VM for ContextVM<M> {
 
     /// Returns the used gas of this VM.
     fn used_gas(&self) -> Gas {
-        self.machines[0].state().used_gas
+        self.machines[0].state().memory_gas() + self.machines[0].state().used_gas
     }
 
     /// Returns the refunded gas of this VM.

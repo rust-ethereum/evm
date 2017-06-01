@@ -94,6 +94,13 @@ pub enum Control {
 impl<M: Memory + Default> Machine<M> {
     /// Create a new runtime.
     pub fn new(context: Context, block: BlockHeader, patch: &'static Patch, depth: usize) -> Self {
+        Self::with_states(context, block, patch, depth,
+                          AccountState::default(), BlockhashState::default())
+    }
+
+    pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
+                       depth: usize, account_state: AccountState,
+                       blockhash_state: BlockhashState) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -101,9 +108,9 @@ impl<M: Memory + Default> Machine<M> {
                 memory: M::default(),
                 stack: Stack::default(),
 
-                context: context,
-                block: block,
-                patch: patch,
+                context,
+                block,
+                patch,
 
                 out: Vec::new(),
 
@@ -111,11 +118,11 @@ impl<M: Memory + Default> Machine<M> {
                 used_gas: Gas::zero(),
                 refunded_gas: Gas::zero(),
 
-                account_state: AccountState::default(),
-                blockhash_state: BlockhashState::default(),
+                account_state,
+                blockhash_state,
                 logs: Vec::new(),
 
-                depth: depth,
+                depth,
             },
         }
     }
