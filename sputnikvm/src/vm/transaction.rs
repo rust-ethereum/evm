@@ -3,7 +3,7 @@ use utils::address::Address;
 use utils::bigint::U256;
 
 use super::errors::RequireError;
-use super::{Context, AccountState};
+use super::{Context, ContextVM, AccountState, BlockhashState, Patch, BlockHeader, Memory};
 
 pub enum Transaction {
     MessageCall {
@@ -31,7 +31,37 @@ impl Transaction {
 
     #[allow(unused_variables)]
     pub fn into_context(self, origin: Option<Address>,
-                        account_state: AccountState) -> Result<Context, RequireError> {
+                        account_state: &AccountState) -> Result<Context, RequireError> {
         unimplemented!()
+    }
+}
+
+enum TransactionVMState<M> {
+    Running {
+        vm: ContextVM<M>,
+        intrinsic_gas: Gas,
+    },
+    Constructing {
+        transaction: Transaction,
+        block: BlockHeader,
+        patch: &'static Patch,
+
+        account_state: AccountState,
+        blockhash_state: BlockhashState,
+    },
+}
+
+pub struct TransactionVM<M>(TransactionVMState<M>);
+
+impl<M: Memory + Default> TransactionVM<M> {
+    pub fn new(transaction: Transaction, block: BlockHeader, patch: &'static Patch) -> Self {
+        TransactionVM(TransactionVMState::Constructing {
+            transaction: transaction,
+            block: block,
+            patch: patch,
+
+            account_state: AccountState::default(),
+            blockhash_state: BlockhashState::default(),
+        })
     }
 }
