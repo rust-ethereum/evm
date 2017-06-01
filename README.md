@@ -60,16 +60,7 @@ SputnikVM is written Rust. If you are not familiar with Rust please
 see the
 [getting started guide](https://doc.rust-lang.org/book/getting-started.html).
 
-* Ethereum Classic Regression Test:
-```
-$ go install github.com/ethereumproject/go-ethereum/cmd/geth
-$ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8888
-# wait for the blockchain to sync
-$ <ctrl-c>
-$ git clone git@github.com:ethereumproject/sputnikvm.git
-$ cd sputnikvm
-$ RUST_BACKTRACE=1 RUST_LOG=regression_test cargo run --bin regression_test -- -k reg -r localhost:8888
-```
+* [SputnikVM Compilation](/docs/vm_developer)
 
 ## Stability Status:
 

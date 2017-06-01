@@ -1,21 +1,20 @@
 # Documentation
 
 ## User Classes
-### Application User
+### [Application User](/docs/app_user/README.md)
 You want to run an application or contract that is executed on SputnikVM.
-[start here](/docs/app_user/README.md)
-### Application Developer
+### [Application Developer](/docs/app_dev/README.md)
 You know a language that compiles to SputnikVM bytecode.
-[start here](/docs/app_dev/README.md)
-### VM User
+### [Blockchain Developer](/docs/bc_dev/README.md)
+You are developing a blockchain and are looking for an off the shelf, efficient, cryptocontract virtual machine to plug into your blockchain.
+### [VM User](/docs/vm_user/README.md)
 You implement languages that targets SputnikVM bytecode. This might include implementing a LLVM backend that targets SputnikVM bytecode.
-[start here](/docs/vm_user/README.md)
-### VM Integrator
+### [VM Integrator](/docs/vm_integrator/README.md)
 You integrate SputnikVM library into some application. You are concerned how the VM interacts with the external world.
-[start here](/docs/vm_integrator/README.md)
-### VM Developer
-You extend SputnikVM with new interfaces, fixes, features etc. in support of Application Developers. You know the API of SputnikVM, how it's built, etc.
-[start here](/docs/vm_developer/README.md)
-### VM Guru
+### [VM Developer](/docs/vm_developer/README.md)
+You extend SputnikVM with new interfaces, fixes, features etc. in support of Application Developers. You know the API of SputnikVM, how it's built. Consists of:
+* Building SputnikVM
+* Running the regression tests
+* Running the common unit tests for all Ethereum implementations
+### [VM Guru](/docs/vm_guru/README.md)
 You know the implementation of the VM itself.
-[start here](/docs/vm_guru/README.md)
