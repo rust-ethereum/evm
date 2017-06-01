@@ -194,7 +194,7 @@ impl<M: Memory + Default> VM for ContextVM<M> {
 
     /// Returns the used gas of this VM.
     fn used_gas(&self) -> Gas {
-        self.machines[0].state().used_gas
+        self.machines[0].state().memory_gas() + self.machines[0].state().used_gas
     }
 
     /// Returns the refunded gas of this VM.
