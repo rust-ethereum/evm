@@ -5,7 +5,6 @@ use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use vm::{Memory, Log, Context, Transaction};
 use super::State;
-use rlp::RlpStream;
 
 use crypto::sha3::Sha3;
 use crypto::digest::Digest;
@@ -52,27 +51,18 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
     }
 
     let init = copy_from_memory(&state.memory, init_start, init_len);
-    let nonce = state.account_state.nonce(state.context.address).unwrap();
-    let mut rlp = RlpStream::new();
-    rlp.begin_list(2);
-    rlp.append(&state.context.address);
-    rlp.append(&nonce);
-    let mut address_array = [0u8; 32];
-    let mut sha3 = Sha3::keccak256();
-    sha3.input(rlp.out().as_slice());
-    sha3.result(&mut address_array);
-    let address = Address::from(M256::from(address_array));
-    let context = Context {
-        address: address,
+    let transaction = Transaction::ContractCreation {
         caller: state.context.address,
-        code: init,
-        data: Vec::new(),
-        gas_limit: after_gas,
         gas_price: state.context.gas_price,
-        origin: state.context.origin,
+        gas_limit: after_gas,
         value: value,
+        init: init,
     };
-    push!(state, address.into());
+    let context = transaction.into_context(
+        Gas::zero(), Some(state.context.origin), &state.account_state
+    ).unwrap();
+
+    push!(state, context.address.into());
     Some(context)
 }
 
