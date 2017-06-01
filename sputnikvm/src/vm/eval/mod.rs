@@ -25,7 +25,7 @@ pub struct State<M> {
 
     pub context: Context,
     pub block: BlockHeader,
-    pub patch: Patch,
+    pub patch: &'static Patch,
 
     pub out: Vec<u8>,
 
@@ -93,7 +93,7 @@ pub enum Control {
 
 impl<M: Memory + Default> Machine<M> {
     /// Create a new runtime.
-    pub fn new(context: Context, block: BlockHeader, patch: Patch, depth: usize) -> Self {
+    pub fn new(context: Context, block: BlockHeader, patch: &'static Patch, depth: usize) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
