@@ -7,6 +7,10 @@ use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
             VMStatus, AccountCommitment, Log, Account};
 
+const G_TXDATAZERO: usize = 4;
+const G_TXDATANONZERO: usize = 68;
+const G_TRANSACTION: usize = 21000;
+
 #[derive(Debug, Clone)]
 pub enum Transaction {
     MessageCall {
@@ -28,12 +32,38 @@ pub enum Transaction {
 
 impl Transaction {
     #[allow(unused_variables)]
-    pub fn intrinsic_gas(&self) -> Gas {
-        unimplemented!()
+    pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
+        let mut gas = Gas::from(G_TRANSACTION);
+        match self {
+            &Transaction::MessageCall {
+                ref data, ..
+            } => {
+                for d in data {
+                    if *d == 0 {
+                        gas = gas + Gas::from(G_TXDATAZERO);
+                    } else {
+                        gas = gas + Gas::from(G_TXDATANONZERO);
+                    }
+                }
+            },
+            &Transaction::ContractCreation {
+                ref init, ..
+            } => {
+                gas = gas + Gas::from(patch.gas_transaction_create);
+                for d in init {
+                    if *d == 0 {
+                        gas = gas + Gas::from(G_TXDATAZERO);
+                    } else {
+                        gas = gas + Gas::from(G_TXDATANONZERO);
+                    }
+                }
+            }
+        }
+        return gas;
     }
 
     #[allow(unused_variables)]
-    pub fn into_context(self, origin: Option<Address>,
+    pub fn into_context(self, upfront: Gas, origin: Option<Address>,
                         account_state: &AccountState) -> Result<Context, RequireError> {
         unimplemented!()
     }
@@ -113,8 +143,8 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 ref transaction, ref block, ref patch,
                 ref account_state, ref blockhash_state } => {
 
-                cgas = Some(transaction.intrinsic_gas());
-                ccontext = Some(transaction.clone().into_context(None, account_state)?);
+                cgas = Some(transaction.intrinsic_gas(patch));
+                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state)?);
                 cblock = Some(block.clone());
                 cpatch = Some(patch);
                 caccount_state = Some(account_state.clone());
@@ -154,7 +184,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
 
     fn used_gas(&self) -> Gas {
         match self.0 {
-            TransactionVMState::Running { ref vm, .. } => vm.used_gas(),
+            TransactionVMState::Running { ref vm, intrinsic_gas } => vm.used_gas() + intrinsic_gas,
             TransactionVMState::Constructing { .. } => Gas::zero(),
         }
     }
