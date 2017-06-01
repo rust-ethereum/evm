@@ -3,7 +3,7 @@
 use utils::address::Address;
 use utils::bigint::{U256, M256};
 use utils::gas::Gas;
-use vm::{Memory, Log, Context};
+use vm::{Memory, Log, Context, Transaction};
 use super::State;
 use rlp::RlpStream;
 
@@ -87,16 +87,18 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let gas_limit = gas + stipend_gas;
-    let context = Context {
+
+    let transaction = Transaction::MessageCall {
         address: to,
         caller: state.context.address,
-        code: state.account_state.code(to).unwrap().into(),
-        data: input,
-        gas_limit: gas_limit,
         gas_price: state.context.gas_price,
-        origin: state.context.origin,
+        gas_limit: gas_limit,
         value: value,
+        data: input,
     };
+    let context = transaction.into_context(
+        Gas::zero(), Some(state.context.origin), &state.account_state
+    ).unwrap();
     push!(state, M256::zero());
     Some((context, (out_start, out_len)))
 }
@@ -112,16 +114,17 @@ pub fn callcode<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, aft
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let gas_limit = gas + stipend_gas;
-    let context = Context {
+    let transaction = Transaction::MessageCall {
         address: state.context.address,
         caller: state.context.address,
-        code: state.account_state.code(to).unwrap().into(),
-        data: input,
-        gas_limit: gas_limit,
         gas_price: state.context.gas_price,
-        origin: state.context.origin,
+        gas_limit: gas_limit,
         value: value,
+        data: input,
     };
+    let context = transaction.into_context(
+        Gas::zero(), Some(state.context.origin), &state.account_state
+    ).unwrap();
     push!(state, M256::zero());
     Some((context, (out_start, out_len)))
 }
