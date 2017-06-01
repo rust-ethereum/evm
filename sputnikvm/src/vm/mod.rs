@@ -145,6 +145,11 @@ impl<M: Memory + Default> VM<M> {
         self.0[0].state().available_gas()
     }
 
+    /// Returns the used gas of this VM.
+    pub fn used_gas(&self) -> Gas {
+        self.0[0].state().used_gas
+    }
+
     /// Returns the refunded gas of this VM.
     pub fn refunded_gas(&self) -> Gas {
         self.0[0].state().refunded_gas
