@@ -30,6 +30,7 @@ pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
+pub use self::transaction::Transaction;
 
 use std::collections::hash_map;
 use utils::bigint::M256;
