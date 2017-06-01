@@ -30,7 +30,7 @@ pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
-pub use self::transaction::Transaction;
+pub use self::transaction::{Transaction, TransactionVM};
 
 use std::collections::hash_map;
 use utils::bigint::M256;
@@ -74,6 +74,7 @@ pub trait VM {
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
 pub type SeqContextVM = ContextVM<SeqMemory>;
+pub type SeqTransactionVM = TransactionVM<SeqMemory>;
 
 /// A VM that executes using a context and block information.
 pub struct ContextVM<M> {

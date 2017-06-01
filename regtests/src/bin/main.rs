@@ -15,7 +15,7 @@ use std::collections::HashMap;
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqContextVM, VM, Patch, AccountCommitment, Account, FRONTIER_PATCH};
+use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
@@ -42,16 +42,14 @@ fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     }
 }
 
-fn from_rpc_transaction_and_code(transaction: &RPCTransaction, code: &str) -> Context {
-    Context {
+fn from_rpc_transaction(transaction: &RPCTransaction) -> Transaction {
+    Transaction::MessageCall {
         caller: Address::from_str(&transaction.from).unwrap(),
         address: Address::from_str(&transaction.to).unwrap(),
-        origin: Address::from_str(&transaction.to).unwrap(),
         value: U256::from_str(&transaction.value).unwrap(),
-        code: read_hex(code).unwrap(),
-        data: read_hex(&transaction.input).unwrap(),
         gas_limit: Gas::from_str(&transaction.gas).unwrap(),
         gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+        data: read_hex(&transaction.input).unwrap(),
     }
 }
 
@@ -81,14 +79,12 @@ fn main() {
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
         if transaction.to.is_empty() {
-            continue;
+            unimplemented!();
         }
-        let code = client.get_code(&transaction.to, &block.number);
-        println!("code: {:?}\n", code);
 
-        let context = from_rpc_transaction_and_code(&transaction, &code);
+        let transaction = from_rpc_transaction(&transaction);
 
-        let mut vm = SeqContextVM::new(context.clone(), block_header.clone(), &FRONTIER_PATCH);
+        let mut vm = SeqTransactionVM::new(transaction, block_header.clone(), &FRONTIER_PATCH);
         loop {
             match vm.fire() {
                 Ok(()) => {
@@ -120,6 +116,14 @@ fn main() {
                         index: index,
                         value: value,
                     });
+                },
+                Err(RequireError::AccountCode(address)) => {
+                    println!("Feeding VM account code at 0x{:x} ...", address);
+                    let code = read_hex(&client.get_code(&format!("0x{:x}", address), &last_block_number)).unwrap();
+                    vm.commit_account(AccountCommitment::Code {
+                        address: address,
+                        code: code,
+                    });
                 }
                 Err(err) => {
                     println!("Unhandled require: {:?}", err);
@@ -130,8 +134,7 @@ fn main() {
 
         println!("\ntests after the vm has run:");
         println!("1. return status: {:?}", vm.status());
-        println!("2. test gasUsed == {}, actual VM result: 0x{:x}", receipt.gasUsed,
-                 context.gas_limit + upfront_cost(&transaction.input) - vm.available_gas());
+        println!("2. test gasUsed == {}, actual VM result: 0x{:x}", receipt.gasUsed, vm.used_gas());
         println!("3. logs and order is {:?}, actual VM result: {:?}", receipt.logs, vm.logs());
 
         println!("\nwhen the block is finished, test:");
