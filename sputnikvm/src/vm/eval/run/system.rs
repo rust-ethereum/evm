@@ -7,8 +7,7 @@ use vm::{Memory, Log, Context, Transaction};
 use super::State;
 
 use std::cmp::min;
-use crypto::sha3::Sha3;
-use crypto::digest::Digest;
+use tiny_keccak::Keccak;
 use vm::eval::utils::copy_from_memory;
 
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
@@ -36,10 +35,10 @@ pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
 pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, from, len);
     let data = copy_from_memory(&state.memory, from, len);
-    let mut sha3 = Sha3::keccak256();
-    sha3.input(data.as_slice());
+    let mut sha3 = Keccak::new_keccak256();
+    sha3.update(data.as_slice());
     let mut ret = [0u8; 32];
-    sha3.result(&mut ret);
+    sha3.finalize(&mut ret);
     push!(state, M256::from(ret.as_ref()));
 }
 

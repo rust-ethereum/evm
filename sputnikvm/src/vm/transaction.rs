@@ -3,8 +3,7 @@ use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{U256, M256};
 use rlp::RlpStream;
-use crypto::sha3::Sha3;
-use crypto::digest::Digest;
+use tiny_keccak::Keccak;
 
 use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
@@ -86,9 +85,9 @@ impl Transaction {
                 rlp.append(&caller);
                 rlp.append(&nonce);
                 let mut address_array = [0u8; 32];
-                let mut sha3 = Sha3::keccak256();
-                sha3.input(rlp.out().as_slice());
-                sha3.result(&mut address_array);
+                let mut sha3 = Keccak::new_keccak256();
+                sha3.update(rlp.out().as_slice());
+                sha3.finalize(&mut address_array);
                 let address = Address::from(M256::from(address_array));
 
                 Ok(Context {
