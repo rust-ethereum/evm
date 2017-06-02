@@ -1,6 +1,6 @@
 # Welcome
 
-Our goal is to encourage frictionless contributions to the project. In order to achieve that, we use the Ethereum Classic [1/C4 RFC](https://etcrfc.that.world/spec:1/C4), which is derived from this project [Unprotocols](https://rfc.unprotocols.org). Please read it, it will answer a lot of questions. Our goal is to merge pull requests as quickly as possible and make new stable releases regularly.
+Our goal is to encourage frictionless contributions to the project. In order to achieve that, we use the Ethereum Classic [20-C4 RFC](https://etcrfc.that.world/20-C4/), which is derived from this project [Unprotocols](https://rfc.unprotocols.org). Please read it, it will answer a lot of questions. Our goal is to merge pull requests as quickly as possible and make new stable releases regularly.
 
 In a nutshell, this means:
 
