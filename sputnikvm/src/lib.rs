@@ -4,7 +4,7 @@
         unreachable_code)]
 
 extern crate log;
-extern crate crypto;
+extern crate tiny_keccak;
 extern crate rlp;
 extern crate bigint;
 
