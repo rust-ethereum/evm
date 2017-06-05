@@ -137,6 +137,28 @@ impl<M: Memory + Default> TransactionVM<M> {
             blockhash_state: BlockhashState::default(),
         })
     }
+
+    pub fn with_previous(transaction: Transaction, block: BlockHeader, patch: &'static Patch,
+                         vm: &TransactionVM<M>) -> Self {
+        TransactionVM(TransactionVMState::Constructing {
+            transaction: transaction,
+            block: block,
+            patch: patch,
+
+            account_state: match vm.0 {
+                TransactionVMState::Constructing { ref account_state, .. } =>
+                    account_state.clone(),
+                TransactionVMState::Running { ref vm, .. } =>
+                    vm.machines[0].state().account_state.clone(),
+            },
+            blockhash_state: match vm.0 {
+                TransactionVMState::Constructing { ref blockhash_state, .. } =>
+                    blockhash_state.clone(),
+                TransactionVMState::Running { ref vm, .. } =>
+                    vm.machines[0].state().blockhash_state.clone(),
+            },
+        })
+    }
 }
 
 impl<M: Memory + Default> VM for TransactionVM<M> {
