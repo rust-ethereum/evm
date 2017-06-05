@@ -19,19 +19,6 @@ use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Pat
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
-fn upfront_cost(data: &str) -> Gas {
-    let mut cost = Gas::from(21000u64);
-    let data = read_hex(data).unwrap();
-    for v in data {
-        if v == 0 {
-            cost = cost + Gas::from(4u64);
-        } else {
-            cost = cost + Gas::from(68u64);
-        }
-    }
-    return cost;
-}
-
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
         coinbase: Address::from_str(&block.miner).unwrap(),
