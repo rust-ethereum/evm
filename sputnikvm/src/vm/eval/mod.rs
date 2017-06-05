@@ -168,6 +168,15 @@ impl<M: Memory + Default> Machine<M> {
         self.state.blockhash_state.commit(number, hash)
     }
 
+    pub fn finalize(&mut self) -> Result<(), RequireError> {
+        self.state.account_state.decrease_balance(self.state.context.caller,
+                                                  self.state.context.value);
+        self.state.account_state.increase_balance(self.state.context.address,
+                                                  self.state.context.value);
+
+        Ok(())
+    }
+
     #[allow(unused_variables)]
     /// Apply a sub runtime into the current runtime. This sub runtime
     /// should have been created by the current runtime's `derive`
