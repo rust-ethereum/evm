@@ -171,11 +171,13 @@ fn main() {
         (author: "Ethereum Classic Contributors")
         (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Ethereum Classic Geth: `$ go install github.com/ethereumproject/go-ethereum/cmd/geth`.\n* Run Geth with this command: `$ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8545`.\n* Wait for the chain to sync.\n* Change directory into the `regtests` directory `$ cd regtests`\n* Run this command: `$ RUST_BACKTRACE=1 cargo run --bin regtests -- -r http://127.0.0.1:8545")
         (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r http://127.0.0.1:8545`.")
+        (@arg NUMBER: -n --number +takes_value + required "Block number to run this test. Radix is 10. e.g. `-n 49439`.")
     ).get_matches();
 
     let address = matches.value_of("RPC").unwrap();
+    let number = usize::from_str_radix(&matches.value_of("NUMBER").unwrap(), 10).unwrap();
     let mut client = GethRPCClient::new(address);
     println!("net version: {}", client.net_version());
 
-    test_block(&mut client, 49439);
+    test_block(&mut client, number);
 }
