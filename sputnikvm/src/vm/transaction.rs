@@ -113,6 +113,7 @@ enum TransactionVMState<M> {
     Running {
         vm: ContextVM<M>,
         intrinsic_gas: Gas,
+        finalized: bool,
     },
     Constructing {
         transaction: Transaction,
@@ -137,6 +138,28 @@ impl<M: Memory + Default> TransactionVM<M> {
             blockhash_state: BlockhashState::default(),
         })
     }
+
+    pub fn with_previous(transaction: Transaction, block: BlockHeader, patch: &'static Patch,
+                         vm: &TransactionVM<M>) -> Self {
+        TransactionVM(TransactionVMState::Constructing {
+            transaction: transaction,
+            block: block,
+            patch: patch,
+
+            account_state: match vm.0 {
+                TransactionVMState::Constructing { ref account_state, .. } =>
+                    account_state.clone(),
+                TransactionVMState::Running { ref vm, .. } =>
+                    vm.machines[0].state().account_state.clone(),
+            },
+            blockhash_state: match vm.0 {
+                TransactionVMState::Constructing { ref blockhash_state, .. } =>
+                    blockhash_state.clone(),
+                TransactionVMState::Running { ref vm, .. } =>
+                    vm.machines[0].state().blockhash_state.clone(),
+            },
+        })
+    }
 }
 
 impl<M: Memory + Default> VM for TransactionVM<M> {
@@ -156,7 +179,13 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
 
     fn status(&self) -> VMStatus {
         match self.0 {
-            TransactionVMState::Running { ref vm, .. } => vm.status(),
+            TransactionVMState::Running { ref vm, finalized, .. } => {
+                if !finalized {
+                    VMStatus::Running
+                } else {
+                    vm.status()
+                }
+            },
             TransactionVMState::Constructing { .. } => VMStatus::Running,
         }
     }
@@ -170,7 +199,22 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         let mut cblockhash_state: Option<BlockhashState> = None;
 
         match self.0 {
-            TransactionVMState::Running { ref mut vm, .. } => return vm.step(),
+            TransactionVMState::Running { ref mut vm, ref mut finalized, .. } => {
+                match vm.status() {
+                    VMStatus::Running => {
+                        return vm.step();
+                    },
+                    _ => {
+                        if !*finalized {
+                            vm.machines[0].finalize()?;
+                            *finalized = true;
+                            return Ok(());
+                        } else {
+                            return vm.step();
+                        }
+                    },
+                }
+            }
             TransactionVMState::Constructing {
                 ref transaction, ref block, ref patch,
                 ref account_state, ref blockhash_state } => {
@@ -188,6 +232,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             vm: ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
                                        caccount_state.unwrap(), cblockhash_state.unwrap()),
             intrinsic_gas: cgas.unwrap(),
+            finalized: false,
         };
 
         Ok(())
@@ -216,7 +261,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
 
     fn used_gas(&self) -> Gas {
         match self.0 {
-            TransactionVMState::Running { ref vm, intrinsic_gas } => vm.used_gas() + intrinsic_gas,
+            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => vm.used_gas() + intrinsic_gas,
             TransactionVMState::Constructing { .. } => Gas::zero(),
         }
     }

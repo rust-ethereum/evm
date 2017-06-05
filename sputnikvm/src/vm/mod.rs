@@ -103,6 +103,13 @@ impl<M: Memory + Default> ContextVM<M> {
         }
     }
 
+    pub fn with_previous(context: Context, block: BlockHeader, patch: &'static Patch,
+                         vm: &ContextVM<M>) -> Self {
+        Self::with_states(context, block, patch,
+                          vm.machines[0].state().account_state.clone(),
+                          vm.machines[0].state().blockhash_state.clone())
+    }
+
     /// Returns the call create history. Only used in testing.
     pub fn history(&self) -> &[Context] {
         self.history.as_slice()
