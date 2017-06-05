@@ -15,9 +15,9 @@ use std::collections::HashMap;
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Patch, AccountCommitment, Account, FRONTIER_PATCH};
+use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
-use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
+use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
@@ -50,6 +50,121 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> Transaction {
     }
 }
 
+fn from_rpc_log(log: &RPCLog) -> Log {
+    let mut topics: Vec<M256> = Vec::new();
+    for topic in &log.topics {
+        topics.push(M256::from_str(&topic).unwrap());
+    }
+    Log {
+        address: Address::from_str(&log.address).unwrap(),
+        data: read_hex(&log.data).unwrap(),
+        topics: topics,
+    }
+}
+
+fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_number: &str) {
+    loop {
+        match vm.fire() {
+            Ok(()) => {
+                println!("VM exited successfully, checking results ...");
+                break;
+            },
+            Err(RequireError::Account(address)) => {
+                println!("Feeding VM account at 0x{:x} ...", address);
+                let nonce = M256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
+                                                                         &last_block_number)).unwrap();
+                let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
+                                                                 &last_block_number)).unwrap();
+                let code = read_hex(&client.get_code(&format!("0x{:x}", address),
+                                                     &last_block_number)).unwrap();
+                vm.commit_account(AccountCommitment::Full {
+                    nonce: nonce,
+                    address: address,
+                    balance: balance,
+                    code: code,
+                });
+            },
+            Err(RequireError::AccountStorage(address, index)) => {
+                println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
+                let value = M256::from_str(&client.get_storage_at(&format!("0x{:x}", address),
+                                                                  &format!("0x{:x}", index),
+                                                                  &last_block_number)).unwrap();
+                vm.commit_account(AccountCommitment::Storage {
+                    address: address,
+                    index: index,
+                    value: value,
+                });
+            },
+            Err(RequireError::AccountCode(address)) => {
+                println!("Feeding VM account code at 0x{:x} ...", address);
+                let code = read_hex(&client.get_code(&format!("0x{:x}", address),
+                                                     &last_block_number)).unwrap();
+                vm.commit_account(AccountCommitment::Code {
+                    address: address,
+                    code: code,
+                });
+            }
+            Err(err) => {
+                println!("Unhandled require: {:?}", err);
+                unimplemented!()
+            },
+        }
+    }
+}
+
+fn test_block(client: &mut GethRPCClient, number: usize) {
+    let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
+    println!("block {}, transaction count: {}", block.number, block.transactions.len());
+    let last_number = number - 1;
+    let block_header = from_rpc_block(&block);
+
+    let mut last_vm: Option<SeqTransactionVM> = None;
+    for transaction_hash in block.transactions {
+        println!("\nworking on transaction {}", transaction_hash);
+        let transaction = from_rpc_transaction(&client.get_transaction_by_hash(&transaction_hash));
+        let receipt = client.get_transaction_receipt(&transaction_hash);
+
+        let mut vm = if last_vm.is_none() {
+            SeqTransactionVM::new(transaction, block_header.clone(), &FRONTIER_PATCH)
+        } else {
+            SeqTransactionVM::with_previous(transaction, block_header.clone(), &FRONTIER_PATCH, last_vm.as_ref().unwrap())
+        };
+
+        handle_fire(client, &mut vm, &format!("0x{:x}", last_number));
+
+        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.used_gas());
+        assert!(receipt.logs.len() == vm.logs().len());
+        for i in 0..receipt.logs.len() {
+            assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
+        }
+    }
+
+    if last_vm.is_some() {
+        for account in last_vm.as_ref().unwrap().accounts() {
+            match account {
+                &Account::Full {
+                    address,
+                    balance,
+                    ref changing_storage,
+                    ..
+                } => {
+                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                              &block.number);
+                    assert!(U256::from_str(&expected_balance).unwrap() == balance);
+                    let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
+                    for (key, value) in changing_storage {
+                        let expected_value = client.get_storage_at(&format!("0x{:x}", address),
+                                                                   &format!("0x{:x}", key),
+                                                                   &block.number);
+                        assert!(M256::from_str(&expected_value).unwrap() == value);
+                    }
+                },
+                _ => unimplemented!(),
+            }
+        }
+    }
+}
+
 fn main() {
     let matches = clap_app!(regtests =>
         (version: "0.1")
@@ -60,103 +175,7 @@ fn main() {
 
     let address = matches.value_of("RPC").unwrap();
     let mut client = GethRPCClient::new(address);
-
     println!("net version: {}", client.net_version());
 
-    let block = client.get_block_by_number(format!("0x{:x}", 49439).as_str());
-    println!("block {}, transaction count: {}", block.number, block.transactions.len());
-    let last_block_number = format!("0x{:x}", M256::from_str(&block.number).unwrap() - M256::from(1u64));
-
-    let block_header = from_rpc_block(&block);
-
-    for transaction_hash in block.transactions {
-        println!("\nworking on transaction {}", transaction_hash);
-        let transaction = client.get_transaction_by_hash(&transaction_hash);
-        println!("transaction: {:?}", transaction);
-        let receipt = client.get_transaction_receipt(&transaction_hash);
-        println!("receipt: {:?}", receipt);
-
-        let transaction = from_rpc_transaction(&transaction);
-
-        let mut vm = SeqTransactionVM::new(transaction, block_header.clone(), &FRONTIER_PATCH);
-        loop {
-            match vm.fire() {
-                Ok(()) => {
-                    println!("VM exited successfully, checking results ...");
-                    break;
-                },
-                Err(RequireError::Account(address)) => {
-                    println!("Feeding VM account at 0x{:x} ...", address);
-                    let nonce = M256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
-                                                                             &last_block_number)).unwrap();
-                    let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
-                                                                    &last_block_number)).unwrap();
-                    let code = read_hex(&client.get_code(&format!("0x{:x}", address),
-                                                         &last_block_number)).unwrap();
-                    vm.commit_account(AccountCommitment::Full {
-                        nonce: nonce,
-                        address: address,
-                        balance: balance,
-                        code: code,
-                    });
-                },
-                Err(RequireError::AccountStorage(address, index)) => {
-                    println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
-                    let value = M256::from_str(&client.get_storage_at(&format!("0x{:x}", address),
-                                                                      &format!("0x{:x}", index),
-                                                                      &last_block_number)).unwrap();
-                    vm.commit_account(AccountCommitment::Storage {
-                        address: address,
-                        index: index,
-                        value: value,
-                    });
-                },
-                Err(RequireError::AccountCode(address)) => {
-                    println!("Feeding VM account code at 0x{:x} ...", address);
-                    let code = read_hex(&client.get_code(&format!("0x{:x}", address), &last_block_number)).unwrap();
-                    vm.commit_account(AccountCommitment::Code {
-                        address: address,
-                        code: code,
-                    });
-                }
-                Err(err) => {
-                    println!("Unhandled require: {:?}", err);
-                    unimplemented!()
-                },
-            }
-        }
-
-        println!("\ntests after the vm has run:");
-        println!("1. return status: {:?}", vm.status());
-        println!("2. test gasUsed == {}, actual VM result: 0x{:x}", receipt.gasUsed, vm.used_gas());
-        println!("3. logs and order is {:?}, actual VM result: {:?}", receipt.logs, vm.logs());
-
-        println!("\nwhen the block is finished, test:");
-        println!("1. balances of all used accounts.");
-        println!("2. storage values touched.");
-        for account in vm.accounts() {
-            match account {
-                &Account::Full {
-                    address,
-                    balance,
-                    ref changing_storage,
-                    ..
-                } => {
-                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &block.number);
-                    println!("account 0x{:x}, balance: 0x{:x} == {}", address,
-                             balance, expected_balance);
-                    let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
-                    for (key, value) in changing_storage {
-                        let expected_value = client.get_storage_at(&format!("0x{:x}", address),
-                                                                   &format!("0x{:x}", key),
-                                                                   &block.number);
-                        println!("account 0x{:x}, storage 0x{:x}: 0x{:x} == {}", address,
-                                 key, value, expected_value);
-                    }
-                },
-                _ => unimplemented!(),
-            }
-        }
-    }
+    test_block(&mut client, 49439);
 }
