@@ -19,19 +19,6 @@ use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Pat
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction};
 
-fn upfront_cost(data: &str) -> Gas {
-    let mut cost = Gas::from(21000u64);
-    let data = read_hex(data).unwrap();
-    for v in data {
-        if v == 0 {
-            cost = cost + Gas::from(4u64);
-        } else {
-            cost = cost + Gas::from(68u64);
-        }
-    }
-    return cost;
-}
-
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
         coinbase: Address::from_str(&block.miner).unwrap(),
@@ -43,13 +30,23 @@ fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
 }
 
 fn from_rpc_transaction(transaction: &RPCTransaction) -> Transaction {
-    Transaction::MessageCall {
-        caller: Address::from_str(&transaction.from).unwrap(),
-        address: Address::from_str(&transaction.to).unwrap(),
-        value: U256::from_str(&transaction.value).unwrap(),
-        gas_limit: Gas::from_str(&transaction.gas).unwrap(),
-        gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
-        data: read_hex(&transaction.input).unwrap(),
+    if transaction.to.is_empty() {
+        Transaction::ContractCreation {
+            caller: Address::from_str(&transaction.from).unwrap(),
+            value: U256::from_str(&transaction.value).unwrap(),
+            gas_limit: Gas::from_str(&transaction.gas).unwrap(),
+            gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+            init: read_hex(&transaction.input).unwrap(),
+        }
+    } else {
+        Transaction::MessageCall {
+            caller: Address::from_str(&transaction.from).unwrap(),
+            address: Address::from_str(&transaction.to).unwrap(),
+            value: U256::from_str(&transaction.value).unwrap(),
+            gas_limit: Gas::from_str(&transaction.gas).unwrap(),
+            gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+            data: read_hex(&transaction.input).unwrap(),
+        }
     }
 }
 
@@ -78,9 +75,6 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
-        if transaction.to.is_empty() {
-            unimplemented!();
-        }
 
         let transaction = from_rpc_transaction(&transaction);
 
