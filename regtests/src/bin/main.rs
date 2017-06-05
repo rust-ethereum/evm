@@ -30,13 +30,23 @@ fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
 }
 
 fn from_rpc_transaction(transaction: &RPCTransaction) -> Transaction {
-    Transaction::MessageCall {
-        caller: Address::from_str(&transaction.from).unwrap(),
-        address: Address::from_str(&transaction.to).unwrap(),
-        value: U256::from_str(&transaction.value).unwrap(),
-        gas_limit: Gas::from_str(&transaction.gas).unwrap(),
-        gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
-        data: read_hex(&transaction.input).unwrap(),
+    if transaction.to.is_empty() {
+        Transaction::ContractCreation {
+            caller: Address::from_str(&transaction.from).unwrap(),
+            value: U256::from_str(&transaction.value).unwrap(),
+            gas_limit: Gas::from_str(&transaction.gas).unwrap(),
+            gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+            init: read_hex(&transaction.input).unwrap(),
+        }
+    } else {
+        Transaction::MessageCall {
+            caller: Address::from_str(&transaction.from).unwrap(),
+            address: Address::from_str(&transaction.to).unwrap(),
+            value: U256::from_str(&transaction.value).unwrap(),
+            gas_limit: Gas::from_str(&transaction.gas).unwrap(),
+            gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+            data: read_hex(&transaction.input).unwrap(),
+        }
     }
 }
 
@@ -65,9 +75,6 @@ fn main() {
         println!("transaction: {:?}", transaction);
         let receipt = client.get_transaction_receipt(&transaction_hash);
         println!("receipt: {:?}", receipt);
-        if transaction.to.is_empty() {
-            unimplemented!();
-        }
 
         let transaction = from_rpc_transaction(&transaction);
 
