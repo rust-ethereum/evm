@@ -27,7 +27,7 @@ pub struct Context {
     pub value: U256,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// Additional logs to be added due to the current VM
 /// execution. SputnikVM defer calculation of log bloom to the client,
 /// because VMs can run concurrently.

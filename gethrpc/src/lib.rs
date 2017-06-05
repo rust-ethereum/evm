@@ -101,7 +101,20 @@ pub struct RPCTransactionReceipt {
     pub cumulativeGasUsed: String,
     pub gasUsed: String,
     pub contractAddress: String,
-    pub logs: Vec<String>,
+    pub logs: Vec<RPCLog>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RPCLog {
+    pub removed: bool,
+    pub logIndex: String,
+    pub transactionIndex: String,
+    pub transactionHash: String,
+    pub blockHash: String,
+    pub blockNumber: String,
+    pub address: String,
+    pub data: String,
+    pub topics: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
