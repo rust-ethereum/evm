@@ -175,9 +175,19 @@ fn main() {
     ).get_matches();
 
     let address = matches.value_of("RPC").unwrap();
-    let number = usize::from_str_radix(&matches.value_of("NUMBER").unwrap(), 10).unwrap();
+    let number = matches.value_of("NUMBER").unwrap();
     let mut client = GethRPCClient::new(address);
     println!("net version: {}", client.net_version());
 
-    test_block(&mut client, number);
+    if number.contains("..") {
+        let number: Vec<&str> = number.split("..").collect();
+        let from = usize::from_str_radix(&number[0], 10).unwrap();
+        let to = usize::from_str_radix(&number[1], 10).unwrap();
+        for n in from..to {
+            test_block(&mut client, n);
+        }
+    } else {
+        let number = usize::from_str_radix(&number, 10).unwrap();
+        test_block(&mut client, number);
+    }
 }

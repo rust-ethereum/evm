@@ -1,12 +1,9 @@
 //! VM Runtime
 use utils::bigint::M256;
 use utils::gas::Gas;
-use utils::address::Address;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
-
-use std::str::FromStr;
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
@@ -17,6 +14,7 @@ mod cost;
 mod run;
 mod check;
 mod utils;
+mod precompiled;
 
 /// A VM state without PC.
 pub struct State<M> {
@@ -272,30 +270,6 @@ impl<M: Memory + Default> Machine<M> {
                 }
             }
         })
-    }
-
-    #[allow(unused_variables)]
-    fn step_precompiled(&mut self) -> bool {
-        let ecrec_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
-        let sha256_address = Address::from_str("0x0000000000000000000000000000000000000002").unwrap();
-        let rip160_address = Address::from_str("0x0000000000000000000000000000000000000003").unwrap();
-        let id_address = Address::from_str("0x0000000000000000000000000000000000000004").unwrap();
-
-        if self.state.context.address == id_address {
-            let gas = Gas::from(15u64) +
-                Gas::from(3u64) * (Gas::from(self.state.context.data.len()) / Gas::from(32u64));
-            if gas > self.state.context.gas_limit {
-                self.state.used_gas = self.state.context.gas_limit;
-                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-            } else {
-                self.state.used_gas = gas;
-                self.state.out = self.state.context.data.clone();
-                self.status = MachineStatus::ExitedOk;
-            }
-            return true;
-        } else {
-            return false;
-        }
     }
 
     /// Step an instruction in the PC. The eval result is refected by
