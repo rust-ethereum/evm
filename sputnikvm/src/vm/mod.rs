@@ -66,7 +66,7 @@ pub trait VM {
     fn accounts(&self) -> hash_map::Values<Address, Account>;
     fn out(&self) -> &[u8];
     fn available_gas(&self) -> Gas;
-    fn used_gas(&self) -> Gas;
+    fn real_used_gas(&self) -> Gas;
     fn refunded_gas(&self) -> Gas;
     fn logs(&self) -> &[Log];
 }
@@ -199,9 +199,10 @@ impl<M: Memory + Default> VM for ContextVM<M> {
         self.machines[0].state().available_gas()
     }
 
-    /// Returns the used gas of this VM.
-    fn used_gas(&self) -> Gas {
-        self.machines[0].state().memory_gas() + self.machines[0].state().used_gas
+    /// If the VM is exited with EmptyGas, return gas_limit,
+    /// otherwise return the sum of memory gas and used gas.
+    fn real_used_gas(&self) -> Gas {
+        self.machines[0].real_used_gas()
     }
 
     /// Returns the refunded gas of this VM.

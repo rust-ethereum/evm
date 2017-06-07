@@ -259,9 +259,9 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         }
     }
 
-    fn used_gas(&self) -> Gas {
+    fn real_used_gas(&self) -> Gas {
         match self.0 {
-            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => vm.used_gas() + intrinsic_gas,
+            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => vm.real_used_gas() + intrinsic_gas,
             TransactionVMState::Constructing { .. } => Gas::zero(),
         }
     }
