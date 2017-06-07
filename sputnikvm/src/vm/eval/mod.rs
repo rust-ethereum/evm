@@ -184,10 +184,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn finalize(&mut self, real_used_gas: Gas) -> Result<(), RequireError> {
-        println!("finalizing ...");
-
         let gas_dec = real_used_gas * self.state.context.gas_price;
-        println!("gas_dec: 0x{:x}", gas_dec);
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
 
         match self.status() {
