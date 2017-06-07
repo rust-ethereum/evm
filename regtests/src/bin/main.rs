@@ -112,6 +112,26 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
     }
 }
 
+fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCClient) -> bool {
+    // Give up balance testing if the address is a miner or an uncle.
+
+    let miner = Address::from_str(&block.miner).unwrap();
+    if miner == address {
+        return true;
+    }
+    if block.uncles.len() > 0 {
+        for uncle_hash in &block.uncles {
+            let uncle = client.get_block_by_hash(&uncle_hash);
+            let uncle_miner = Address::from_str(&uncle.miner).unwrap();
+            if uncle_miner == address {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 fn test_block(client: &mut GethRPCClient, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
     println!("block {}, transaction count: {}", block.number, block.transactions.len());
@@ -120,7 +140,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
     let block_header = from_rpc_block(&block);
 
     let mut last_vm: Option<SeqTransactionVM> = None;
-    for transaction_hash in block.transactions {
+    for transaction_hash in &block.transactions {
         println!("\nworking on transaction {}", transaction_hash);
         let transaction = from_rpc_transaction(&client.get_transaction_by_hash(&transaction_hash));
         let receipt = client.get_transaction_receipt(&transaction_hash);
@@ -151,9 +171,11 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref changing_storage,
                     ..
                 } => {
-                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &cur_number);
-                    assert!(U256::from_str(&expected_balance).unwrap() == balance);
+                    if !is_miner_or_uncle(address, &block, client) {
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                                  &cur_number);
+                        assert!(U256::from_str(&expected_balance).unwrap() == balance);
+                    }
                     let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
                     for (key, value) in changing_storage {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
@@ -168,9 +190,11 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref storage,
                     ..
                 } => {
-                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &cur_number);
-                    assert!(U256::from_str(&expected_balance).unwrap() == balance);
+                    if !is_miner_or_uncle(address, &block, client) {
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                                  &cur_number);
+                        assert!(U256::from_str(&expected_balance).unwrap() == balance);
+                    }
                     let storage: HashMap<M256, M256> = storage.clone().into();
                     for (key, value) in storage {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
@@ -180,27 +204,33 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     }
                 },
                 &Account::Remove(address) => {
-                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &cur_number);
-                    assert!(U256::from_str(&expected_balance).unwrap() == U256::zero());
+                    if !is_miner_or_uncle(address, &block, client) {
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                                  &cur_number);
+                        assert!(U256::from_str(&expected_balance).unwrap() == U256::zero());
+                    }
                 },
                 &Account::IncreaseBalance(address, balance) => {
-                    let last_balance = client.get_balance(&format!("0x{:x}", address),
-                                                          &last_number);
-                    let cur_balance = client.get_balance(&format!("0x{:x}", address),
-                                                         &cur_number);
+                    if !is_miner_or_uncle(address, &block, client) {
+                        let last_balance = client.get_balance(&format!("0x{:x}", address),
+                                                              &last_number);
+                        let cur_balance = client.get_balance(&format!("0x{:x}", address),
+                                                             &cur_number);
 
-                    assert!(U256::from_str(&last_balance).unwrap() + balance ==
-                            U256::from_str(&cur_balance).unwrap());
+                        assert!(U256::from_str(&last_balance).unwrap() + balance ==
+                                U256::from_str(&cur_balance).unwrap());
+                    }
                 },
                 &Account::DecreaseBalance(address, balance) => {
-                    let last_balance = client.get_balance(&format!("0x{:x}", address),
-                                                          &last_number);
-                    let cur_balance = client.get_balance(&format!("0x{:x}", address),
-                                                         &cur_number);
+                    if !is_miner_or_uncle(address, &block, client) {
+                        let last_balance = client.get_balance(&format!("0x{:x}", address),
+                                                              &last_number);
+                        let cur_balance = client.get_balance(&format!("0x{:x}", address),
+                                                             &cur_number);
 
-                    assert!(U256::from_str(&last_balance).unwrap() - balance ==
-                            U256::from_str(&cur_balance).unwrap());
+                        assert!(U256::from_str(&last_balance).unwrap() - balance ==
+                                U256::from_str(&cur_balance).unwrap());
+                    }
                 },
             }
         }
