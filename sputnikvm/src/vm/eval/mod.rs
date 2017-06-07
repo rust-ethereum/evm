@@ -1,5 +1,5 @@
 //! VM Runtime
-use utils::bigint::M256;
+use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
@@ -166,7 +166,18 @@ impl<M: Memory + Default> Machine<M> {
         self.state.blockhash_state.commit(number, hash)
     }
 
-    pub fn finalize(&mut self) -> Result<(), RequireError> {
+    pub fn finalize(&mut self, code_deposit: bool) -> Result<(), RequireError> {
+        match self.status() { MachineStatus::ExitedOk => (), _ => return Ok(()) }
+        if code_deposit {
+            let deposit_cost = code_deposit_gas(self.state.out.len());
+            if deposit_cost > self.state.available_gas() {
+                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+                return Ok(());
+            }
+            self.state.used_gas = self.state.used_gas + deposit_cost;
+            self.state.account_state.create(self.state.context.address, U256::zero(),
+                                            self.state.out.as_slice());
+        }
         self.state.account_state.decrease_balance(self.state.context.caller,
                                                   self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address,
