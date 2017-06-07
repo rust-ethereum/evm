@@ -120,8 +120,9 @@ fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCCli
         return true;
     }
     if block.uncles.len() > 0 {
-        for uncle_hash in &block.uncles {
-            let uncle = client.get_block_by_hash(&uncle_hash);
+        for i in 0..block.uncles.len() {
+            let uncle = client.get_uncle_by_block_number_and_index(&block.number,
+                                                                   &format!("0x{:x}", i));
             let uncle_miner = Address::from_str(&uncle.miner).unwrap();
             if uncle_miner == address {
                 return true;
