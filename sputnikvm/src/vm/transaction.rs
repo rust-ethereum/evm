@@ -201,19 +201,32 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         let mut ccode_deposit: Option<bool> = None;
 
         match self.0 {
-            TransactionVMState::Running { ref mut vm, ref mut finalized, ref code_deposit, .. } => {
+            TransactionVMState::Running {
+                ref mut vm,
+                ref mut finalized,
+                ref mut code_deposit,
+                intrinsic_gas,
+                ..
+            } => {
                 match vm.status() {
                     VMStatus::Running => {
                         return vm.step();
                     },
                     _ => {
+                        if *code_deposit {
+                            vm.machines[0].code_deposit()?;
+                            *code_deposit = false;
+                            return Ok(());
+                        }
+
                         if !*finalized {
-                            vm.machines[0].finalize(*code_deposit)?;
+                            let real_used_gas = vm.real_used_gas() + intrinsic_gas;
+                            vm.machines[0].finalize(real_used_gas)?;
                             *finalized = true;
                             return Ok(());
-                        } else {
-                            return vm.step();
                         }
+
+                        return vm.step();
                     },
                 }
             }
