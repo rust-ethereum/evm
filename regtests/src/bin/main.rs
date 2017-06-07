@@ -66,7 +66,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
     loop {
         match vm.fire() {
             Ok(()) => {
-                println!("VM exited successfully, checking results ...");
+                println!("VM exited with {:?}.", vm.status());
                 break;
             },
             Err(RequireError::Account(address)) => {
