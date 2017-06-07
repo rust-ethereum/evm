@@ -20,7 +20,7 @@ const G_SRESET: usize = 5000;
 const R_SCLEAR: usize = 15000;
 const R_SUICIDE: usize = 24000;
 const G_CREATE: usize = 32000;
-const G_CODEDEPOSITE: usize = 200;
+const G_CODEDEPOSIT: usize = 200;
 const G_CALLVALUE: usize = 9000;
 const G_CALLSTIPEND: usize = 2300;
 const G_NEWACCOUNT: usize = 25000;
@@ -97,7 +97,7 @@ fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
 
 /// Calculate code deposit cost for a ContractCreation transaction.
 pub fn code_deposit_gas(len: usize) -> Gas {
-    Gas::from(G_CODEDEPOSITE) * Gas::from(len)
+    Gas::from(G_CODEDEPOSIT) * Gas::from(len)
 }
 
 /// Calculate the memory gas from the memory cost.

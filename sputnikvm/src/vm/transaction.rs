@@ -114,6 +114,7 @@ enum TransactionVMState<M> {
         vm: ContextVM<M>,
         intrinsic_gas: Gas,
         finalized: bool,
+        code_deposit: bool,
     },
     Constructing {
         transaction: Transaction,
@@ -197,16 +198,17 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         let mut cpatch: Option<&'static Patch> = None;
         let mut caccount_state: Option<AccountState> = None;
         let mut cblockhash_state: Option<BlockhashState> = None;
+        let mut ccode_deposit: Option<bool> = None;
 
         match self.0 {
-            TransactionVMState::Running { ref mut vm, ref mut finalized, .. } => {
+            TransactionVMState::Running { ref mut vm, ref mut finalized, ref code_deposit, .. } => {
                 match vm.status() {
                     VMStatus::Running => {
                         return vm.step();
                     },
                     _ => {
                         if !*finalized {
-                            vm.machines[0].finalize()?;
+                            vm.machines[0].finalize(*code_deposit)?;
                             *finalized = true;
                             return Ok(());
                         } else {
@@ -219,6 +221,10 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 ref transaction, ref block, ref patch,
                 ref account_state, ref blockhash_state } => {
 
+                ccode_deposit = Some(match transaction {
+                    &Transaction::MessageCall { .. } => false,
+                    &Transaction::ContractCreation { .. } => true,
+                });
                 cgas = Some(transaction.intrinsic_gas(patch));
                 ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state)?);
                 cblock = Some(block.clone());
@@ -233,6 +239,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                                        caccount_state.unwrap(), cblockhash_state.unwrap()),
             intrinsic_gas: cgas.unwrap(),
             finalized: false,
+            code_deposit: ccode_deposit.unwrap(),
         };
 
         Ok(())
