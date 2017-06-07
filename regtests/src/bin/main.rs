@@ -115,7 +115,8 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
 fn test_block(client: &mut GethRPCClient, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
     println!("block {}, transaction count: {}", block.number, block.transactions.len());
-    let last_number = number - 1;
+    let last_number = format!("0x{:x}", number - 1);
+    let cur_number = block.number.to_string();
     let block_header = from_rpc_block(&block);
 
     let mut last_vm: Option<SeqTransactionVM> = None;
@@ -130,13 +131,15 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
             SeqTransactionVM::with_previous(transaction, block_header.clone(), &FRONTIER_PATCH, last_vm.as_ref().unwrap())
         };
 
-        handle_fire(client, &mut vm, &format!("0x{:x}", last_number));
+        handle_fire(client, &mut vm, &last_number);
 
         assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
             assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
         }
+
+        last_vm = Some(vm);
     }
 
     if last_vm.is_some() {
@@ -148,14 +151,16 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref changing_storage,
                     ..
                 } => {
+                    let block_number = cur_number.clone();
+
                     let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &block.number);
+                                                              &block_number);
                     assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
                     for (key, value) in changing_storage {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
-                                                                   &block.number);
+                                                                   &block_number);
                         assert!(M256::from_str(&expected_value).unwrap() == value);
                     }
                 },

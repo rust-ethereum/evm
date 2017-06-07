@@ -166,18 +166,33 @@ impl<M: Memory + Default> Machine<M> {
         self.state.blockhash_state.commit(number, hash)
     }
 
-    pub fn finalize(&mut self, code_deposit: bool) -> Result<(), RequireError> {
-        match self.status() { MachineStatus::ExitedOk => (), _ => return Ok(()) }
-        if code_deposit {
-            let deposit_cost = code_deposit_gas(self.state.out.len());
-            if deposit_cost > self.state.available_gas() {
-                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-                return Ok(());
-            }
+    pub fn code_deposit(&mut self) -> Result<(), RequireError> {
+        match self.status() {
+            MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
+            _ => panic!(),
+        }
+
+        let deposit_cost = code_deposit_gas(self.state.out.len());
+        if deposit_cost > self.state.available_gas() {
+            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+        } else {
             self.state.used_gas = self.state.used_gas + deposit_cost;
             self.state.account_state.create(self.state.context.address, U256::zero(),
                                             self.state.out.as_slice());
         }
+        Ok(())
+    }
+
+    pub fn finalize(&mut self, real_used_gas: Gas) -> Result<(), RequireError> {
+        let gas_dec = real_used_gas * self.state.context.gas_price;
+        self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
+
+        match self.status() {
+            MachineStatus::ExitedOk => (),
+            MachineStatus::ExitedErr(_) => return Ok(()),
+            _ => panic!(),
+        }
+
         self.state.account_state.decrease_balance(self.state.context.caller,
                                                   self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address,
