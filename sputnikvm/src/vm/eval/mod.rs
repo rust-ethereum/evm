@@ -167,7 +167,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn finalize(&mut self, code_deposit: bool) -> Result<(), RequireError> {
-        match self.status() { MachineStatus::ExitedOk => (), _ => panic!() }
+        match self.status() { MachineStatus::ExitedOk => (), _ => return Ok(()) }
         if code_deposit {
             let deposit_cost = code_deposit_gas(self.state.out.len());
             if deposit_cost > self.state.available_gas() {
