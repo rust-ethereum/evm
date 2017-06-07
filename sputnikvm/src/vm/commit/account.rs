@@ -380,7 +380,7 @@ impl AccountState {
                 })
             },
             Some(Account::DecreaseBalance(address, balance)) => {
-                Some(Account::DecreaseBalance(address, balance - withdraw))
+                Some(Account::DecreaseBalance(address, balance + withdraw))
             },
             Some(Account::IncreaseBalance(address, balance)) => {
                 if balance == withdraw {

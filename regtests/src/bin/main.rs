@@ -151,20 +151,57 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref changing_storage,
                     ..
                 } => {
-                    let block_number = cur_number.clone();
-
                     let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &block_number);
+                                                              &cur_number);
                     assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
                     for (key, value) in changing_storage {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
-                                                                   &block_number);
+                                                                   &cur_number);
                         assert!(M256::from_str(&expected_value).unwrap() == value);
                     }
                 },
-                _ => unimplemented!(),
+                &Account::Create {
+                    address,
+                    balance,
+                    ref storage,
+                    ..
+                } => {
+                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                              &cur_number);
+                    assert!(U256::from_str(&expected_balance).unwrap() == balance);
+                    let storage: HashMap<M256, M256> = storage.clone().into();
+                    for (key, value) in storage {
+                        let expected_value = client.get_storage_at(&format!("0x{:x}", address),
+                                                                   &format!("0x{:x}", key),
+                                                                   &cur_number);
+                        assert!(M256::from_str(&expected_value).unwrap() == value);
+                    }
+                },
+                &Account::Remove(address) => {
+                    let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                              &cur_number);
+                    assert!(U256::from_str(&expected_balance).unwrap() == U256::zero());
+                },
+                &Account::IncreaseBalance(address, balance) => {
+                    let last_balance = client.get_balance(&format!("0x{:x}", address),
+                                                          &last_number);
+                    let cur_balance = client.get_balance(&format!("0x{:x}", address),
+                                                         &cur_number);
+
+                    assert!(U256::from_str(&last_balance).unwrap() + balance ==
+                            U256::from_str(&cur_balance).unwrap());
+                },
+                &Account::DecreaseBalance(address, balance) => {
+                    let last_balance = client.get_balance(&format!("0x{:x}", address),
+                                                          &last_number);
+                    let cur_balance = client.get_balance(&format!("0x{:x}", address),
+                                                         &cur_number);
+
+                    assert!(U256::from_str(&last_balance).unwrap() - balance ==
+                            U256::from_str(&cur_balance).unwrap());
+                },
             }
         }
     }
