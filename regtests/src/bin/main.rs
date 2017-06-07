@@ -66,7 +66,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
     loop {
         match vm.fire() {
             Ok(()) => {
-                println!("VM exited successfully, checking results ...");
+                println!("VM exited with {:?}.", vm.status());
                 break;
             },
             Err(RequireError::Account(address)) => {
@@ -132,7 +132,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
 
         handle_fire(client, &mut vm, &format!("0x{:x}", last_number));
 
-        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.used_gas());
+        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
             assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
