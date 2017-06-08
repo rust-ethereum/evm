@@ -106,7 +106,6 @@ pub struct RPCTransactionReceipt {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RPCLog {
-    pub removed: bool,
     pub logIndex: String,
     pub transactionIndex: String,
     pub transactionHash: String,
