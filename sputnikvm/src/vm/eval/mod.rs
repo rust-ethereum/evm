@@ -3,7 +3,7 @@ use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
-use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log, ExecutionMode};
+use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
@@ -97,20 +97,8 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
-                       depth: usize, mut account_state: AccountState,
+                       depth: usize, account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
-        match context.mode {
-            ExecutionMode::Call => {
-                account_state.decrease_balance(context.caller, context.value);
-                account_state.increase_balance(context.address, context.value);
-            },
-            ExecutionMode::Create => {
-                account_state.decrease_balance(context.caller, context.value);
-                account_state.create(context.address, context.value);
-            },
-            ExecutionMode::None => (),
-        }
-
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -142,20 +130,6 @@ impl<M: Memory + Default> Machine<M> {
     /// review whether it wants to accept the result of this sub
     /// runtime afterwards.
     pub fn derive(&self, context: Context) -> Self {
-        let mut account_state = self.state.account_state.clone();
-
-        match context.mode {
-            ExecutionMode::Call => {
-                account_state.decrease_balance(context.caller, context.value);
-                account_state.increase_balance(context.address, context.value);
-            },
-            ExecutionMode::Create => {
-                account_state.decrease_balance(context.caller, context.value);
-                account_state.create(context.address, context.value);
-            },
-            ExecutionMode::None => (),
-        }
-
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -173,13 +147,23 @@ impl<M: Memory + Default> Machine<M> {
                 used_gas: Gas::zero(),
                 refunded_gas: Gas::zero(),
 
-                account_state,
+                account_state: self.state.account_state.clone(),
                 blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
 
                 depth: self.state.depth + 1,
             },
         }
+    }
+
+    pub fn initialize_call(&mut self) {
+        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
+    }
+
+    pub fn initialize_create(&mut self) {
+        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        self.state.account_state.create(self.state.context.address, self.state.context.value);
     }
 
     /// Commit a new account into this runtime.
@@ -193,7 +177,6 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn code_deposit(&mut self) -> Result<(), RequireError> {
-        assert!(self.state.context.mode == ExecutionMode::Create);
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
             _ => panic!(),
@@ -215,8 +198,6 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn finalize(&mut self, real_used_gas: Gas, fresh_account_state: &AccountState) -> Result<(), RequireError> {
-        assert!(self.state.context.mode == ExecutionMode::Call ||
-                self.state.context.mode == ExecutionMode::Create);
         match self.status() {
             MachineStatus::ExitedOk => (),
             MachineStatus::ExitedErr(_) => {

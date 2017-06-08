@@ -8,7 +8,7 @@ use tiny_keccak::Keccak;
 
 use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
-            VMStatus, AccountCommitment, Log, Account, MachineStatus, ExecutionMode};
+            VMStatus, AccountCommitment, Log, Account, MachineStatus};
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
@@ -75,7 +75,6 @@ impl Transaction {
                     gas_limit: gas_limit - upfront,
                     code: account_state.code(address)?.into(),
                     origin: origin.unwrap_or(caller),
-                    mode: ExecutionMode::Call,
                 })
             },
             Transaction::ContractCreation {
@@ -98,7 +97,6 @@ impl Transaction {
                     data: Vec::new(),
                     code: init,
                     origin: origin.unwrap_or(caller),
-                    mode: ExecutionMode::Create,
                 })
             }
         }
@@ -271,10 +269,19 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             }
         }
 
+        let mut vm = ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
+                                            caccount_state.as_ref().unwrap().clone(),
+                                            cblockhash_state.unwrap());
+
+        if ccode_deposit.unwrap() {
+            vm.machines[0].initialize_create();
+        } else {
+            vm.machines[0].initialize_call();
+        }
+
         self.0 = TransactionVMState::Running {
-            fresh_account_state: caccount_state.as_ref().unwrap().clone(),
-            vm: ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
-                                       caccount_state.unwrap(), cblockhash_state.unwrap()),
+            fresh_account_state: caccount_state.unwrap(),
+            vm,
             intrinsic_gas: cgas.unwrap(),
             finalized: false,
             code_deposit: ccode_deposit.unwrap(),
