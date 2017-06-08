@@ -345,7 +345,14 @@ impl<M: Memory + Default> Machine<M> {
         let gas_cost = gas_cost(instruction, &self.state);
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
-        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost + gas_stipend;
+
+        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost - gas_stipend;
+        if self.state.context.gas_limit < all_gas_cost {
+            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            return Ok(());
+        }
+
+        let after_gas = self.state.context.gas_limit - all_gas_cost;
 
         match extra_check_opcode(instruction, &self.state, gas_stipend, after_gas) {
             Ok(()) => (),
@@ -356,11 +363,6 @@ impl<M: Memory + Default> Machine<M> {
             Err(EvalError::Require(error)) => {
                 return Err(error);
             },
-        }
-
-        if self.state.context.gas_limit < memory_gas + self.state.used_gas + gas_cost - gas_stipend {
-            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-            return Ok(());
         }
 
         let instruction = self.pc.read().unwrap();
