@@ -187,7 +187,16 @@ impl<M: Memory + Default> Machine<M> {
         Ok(())
     }
 
-    pub fn finalize(&mut self, real_used_gas: Gas) -> Result<(), RequireError> {
+    pub fn finalize(&mut self, real_used_gas: Gas, fresh_account_state: &AccountState) -> Result<(), RequireError> {
+        match self.status() {
+            MachineStatus::ExitedOk => (),
+            MachineStatus::ExitedErr(_) => {
+                // If exited with error, reset all changes.
+                self.state.account_state = fresh_account_state.clone();
+            },
+            _ => panic!(),
+        }
+
         let gas_dec = real_used_gas * self.state.context.gas_price;
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
 

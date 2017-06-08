@@ -115,6 +115,7 @@ enum TransactionVMState<M> {
         intrinsic_gas: Gas,
         finalized: bool,
         code_deposit: bool,
+        fresh_account_state: AccountState,
     },
     Constructing {
         transaction: Transaction,
@@ -206,6 +207,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 ref mut finalized,
                 ref mut code_deposit,
                 intrinsic_gas,
+                ref fresh_account_state,
                 ..
             } => {
                 match vm.status() {
@@ -221,7 +223,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
 
                         if !*finalized {
                             let real_used_gas = vm.real_used_gas() + intrinsic_gas;
-                            vm.machines[0].finalize(real_used_gas)?;
+                            vm.machines[0].finalize(real_used_gas, fresh_account_state)?;
                             *finalized = true;
                             return Ok(());
                         }
@@ -248,6 +250,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         }
 
         self.0 = TransactionVMState::Running {
+            fresh_account_state: caccount_state.as_ref().unwrap().clone(),
             vm: ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
                                        caccount_state.unwrap(), cblockhash_state.unwrap()),
             intrinsic_gas: cgas.unwrap(),
