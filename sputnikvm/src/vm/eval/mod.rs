@@ -174,7 +174,11 @@ impl<M: Memory + Default> Machine<M> {
 
         let deposit_cost = code_deposit_gas(self.state.out.len());
         if deposit_cost > self.state.available_gas() {
-            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            if !self.state.patch.force_code_deposit {
+                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            } else {
+                self.state.account_state.create(self.state.context.address, U256::zero(), &[]);
+            }
         } else {
             self.state.used_gas = self.state.used_gas + deposit_cost;
             self.state.account_state.create(self.state.context.address, U256::zero(),
