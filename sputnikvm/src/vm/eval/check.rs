@@ -9,17 +9,6 @@ use vm::errors::{MachineError, EvalError};
 use vm::eval::{State, ControlCheck};
 use super::utils::{check_range, check_memory_write_range};
 
-const CALLSTACK_LIMIT_DEFAULT: usize = 1024;
-const CALLSTACK_LIMIT_TEST: usize = 2;
-
-fn check_callstack_overflow<M: Memory>(state: &State<M>) -> Result<(), MachineError> {
-    if state.depth >= state.patch.callstack_limit {
-        return Err(MachineError::CallstackOverflow);
-    } else {
-        return Ok(());
-    }
-}
-
 pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
     match instruction {
         Instruction::CALL => {
