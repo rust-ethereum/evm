@@ -327,9 +327,37 @@ impl AccountState {
     /// Create a new account (that should not yet have existed
     /// before).
     pub fn create(&mut self, address: Address, balance: U256, code: &[u8]) {
-        self.accounts.insert(address, Account::Full {
-            address, balance, changing_storage: Storage::new(address, false), code: code.into(), nonce: M256::zero(),
-        });
+        let account = if self.accounts.contains_key(&address) {
+            match self.accounts.remove(&address).unwrap() {
+                Account::Full { .. } => panic!(),
+                Account::Create { .. } => panic!(),
+                Account::Remove(address) => {
+                    Account::Create {
+                        address, balance, code: code.into(), nonce: M256::zero(),
+                        storage: Storage::new(address, false)
+                    }
+                },
+                Account::IncreaseBalance(address, topup) => {
+                    Account::Create {
+                        address, code: code.into(), nonce: M256::zero(),
+                        balance: balance + topup, storage: Storage::new(address, false)
+                    }
+                },
+                Account::DecreaseBalance(address, withdraw) => {
+                    Account::Create {
+                        address, code: code.into(), nonce: M256::zero(),
+                        balance: balance - withdraw, storage: Storage::new(address, false)
+                    }
+                },
+            }
+        } else {
+            Account::Create {
+                address, balance, code: code.into(), nonce: M256::zero(),
+                storage: Storage::new(address, false)
+            }
+        };
+
+        self.accounts.insert(address, account);
     }
 
     /// Increase the balance of an account.
