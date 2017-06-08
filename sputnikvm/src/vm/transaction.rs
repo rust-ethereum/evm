@@ -1,4 +1,5 @@
 use std::collections::hash_map;
+use std::cmp::min;
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{U256, M256};
@@ -7,7 +8,7 @@ use tiny_keccak::Keccak;
 
 use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
-            VMStatus, AccountCommitment, Log, Account};
+            VMStatus, AccountCommitment, Log, Account, MachineStatus, ExecutionMode};
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
@@ -74,6 +75,7 @@ impl Transaction {
                     gas_limit: gas_limit - upfront,
                     code: account_state.code(address)?.into(),
                     origin: origin.unwrap_or(caller),
+                    mode: ExecutionMode::Call,
                 })
             },
             Transaction::ContractCreation {
@@ -96,6 +98,7 @@ impl Transaction {
                     data: Vec::new(),
                     code: init,
                     origin: origin.unwrap_or(caller),
+                    mode: ExecutionMode::Create,
                 })
             }
         }
@@ -115,6 +118,7 @@ enum TransactionVMState<M> {
         intrinsic_gas: Gas,
         finalized: bool,
         code_deposit: bool,
+        fresh_account_state: AccountState,
     },
     Constructing {
         transaction: Transaction,
@@ -161,6 +165,25 @@ impl<M: Memory + Default> TransactionVM<M> {
             },
         })
     }
+
+    pub fn real_used_gas(&self) -> Gas {
+        match self.0 {
+            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
+                match vm.machines[0].status() {
+                    MachineStatus::ExitedErr(_) =>
+                        vm.machines[0].state().context.gas_limit + intrinsic_gas,
+                    MachineStatus::ExitedOk => {
+                        let total_used = vm.machines[0].state().memory_gas() + vm.machines[0].state().used_gas + intrinsic_gas;
+                        let refund_cap = total_used / Gas::from(2u64);
+                        let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
+                        total_used - refunded
+                    }
+                    _ => Gas::zero(),
+                }
+            }
+            TransactionVMState::Constructing { .. } => Gas::zero(),
+        }
+    }
 }
 
 impl<M: Memory + Default> VM for TransactionVM<M> {
@@ -200,12 +223,14 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         let mut cblockhash_state: Option<BlockhashState> = None;
         let mut ccode_deposit: Option<bool> = None;
 
+        let real_used_gas = self.real_used_gas();
+
         match self.0 {
             TransactionVMState::Running {
                 ref mut vm,
                 ref mut finalized,
                 ref mut code_deposit,
-                intrinsic_gas,
+                ref fresh_account_state,
                 ..
             } => {
                 match vm.status() {
@@ -220,8 +245,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                         }
 
                         if !*finalized {
-                            let real_used_gas = vm.real_used_gas() + intrinsic_gas;
-                            vm.machines[0].finalize(real_used_gas)?;
+                            vm.machines[0].finalize(real_used_gas, fresh_account_state)?;
                             *finalized = true;
                             return Ok(());
                         }
@@ -248,6 +272,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         }
 
         self.0 = TransactionVMState::Running {
+            fresh_account_state: caccount_state.as_ref().unwrap().clone(),
             vm: ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
                                        caccount_state.unwrap(), cblockhash_state.unwrap()),
             intrinsic_gas: cgas.unwrap(),
@@ -276,13 +301,6 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.available_gas(),
             TransactionVMState::Constructing { ref transaction, .. } => transaction.gas_limit(),
-        }
-    }
-
-    fn real_used_gas(&self) -> Gas {
-        match self.0 {
-            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => vm.real_used_gas() + intrinsic_gas,
-            TransactionVMState::Constructing { .. } => Gas::zero(),
         }
     }
 

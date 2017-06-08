@@ -273,8 +273,12 @@ pub fn gas_refund<M: Memory + Default>(instruction: Instruction, state: &State<M
             }
         },
         Instruction::SUICIDE => {
-            // TODO: check whether I_a belongs to A_s
-            Gas::zero()
+            let address: Address = state.stack.peek(0).unwrap().into();
+            if state.account_state.is_removed(address) {
+                Gas::zero()
+            } else {
+                Gas::from(R_SUICIDE)
+            }
         },
         _ => Gas::zero()
     }

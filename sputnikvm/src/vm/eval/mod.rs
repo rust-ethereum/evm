@@ -1,9 +1,9 @@
 //! VM Runtime
-use utils::bigint::{U256, M256};
+use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
-use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
+use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log, ExecutionMode};
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
@@ -97,8 +97,20 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
-                       depth: usize, account_state: AccountState,
+                       depth: usize, mut account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
+        match context.mode {
+            ExecutionMode::Call => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.increase_balance(context.address, context.value);
+            },
+            ExecutionMode::Create => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.create(context.address, context.value);
+            },
+            ExecutionMode::None => (),
+        }
+
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -130,6 +142,20 @@ impl<M: Memory + Default> Machine<M> {
     /// review whether it wants to accept the result of this sub
     /// runtime afterwards.
     pub fn derive(&self, context: Context) -> Self {
+        let mut account_state = self.state.account_state.clone();
+
+        match context.mode {
+            ExecutionMode::Call => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.increase_balance(context.address, context.value);
+            },
+            ExecutionMode::Create => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.create(context.address, context.value);
+            },
+            ExecutionMode::None => (),
+        }
+
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -147,7 +173,7 @@ impl<M: Memory + Default> Machine<M> {
                 used_gas: Gas::zero(),
                 refunded_gas: Gas::zero(),
 
-                account_state: self.state.account_state.clone(),
+                account_state,
                 blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
 
@@ -167,6 +193,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn code_deposit(&mut self) -> Result<(), RequireError> {
+        assert!(self.state.context.mode == ExecutionMode::Create);
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
             _ => panic!(),
@@ -174,16 +201,31 @@ impl<M: Memory + Default> Machine<M> {
 
         let deposit_cost = code_deposit_gas(self.state.out.len());
         if deposit_cost > self.state.available_gas() {
-            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            if !self.state.patch.force_code_deposit {
+                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            } else {
+                self.state.account_state.code_deposit(self.state.context.address, &[]);
+            }
         } else {
             self.state.used_gas = self.state.used_gas + deposit_cost;
-            self.state.account_state.create(self.state.context.address, U256::zero(),
-                                            self.state.out.as_slice());
+            self.state.account_state.code_deposit(self.state.context.address,
+                                                  self.state.out.as_slice());
         }
         Ok(())
     }
 
-    pub fn finalize(&mut self, real_used_gas: Gas) -> Result<(), RequireError> {
+    pub fn finalize(&mut self, real_used_gas: Gas, fresh_account_state: &AccountState) -> Result<(), RequireError> {
+        assert!(self.state.context.mode == ExecutionMode::Call ||
+                self.state.context.mode == ExecutionMode::Create);
+        match self.status() {
+            MachineStatus::ExitedOk => (),
+            MachineStatus::ExitedErr(_) => {
+                // If exited with error, reset all changes.
+                self.state.account_state = fresh_account_state.clone();
+            },
+            _ => panic!(),
+        }
+
         let gas_dec = real_used_gas * self.state.context.gas_price;
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
 
@@ -192,11 +234,6 @@ impl<M: Memory + Default> Machine<M> {
             MachineStatus::ExitedErr(_) => return Ok(()),
             _ => panic!(),
         }
-
-        self.state.account_state.decrease_balance(self.state.context.caller,
-                                                  self.state.context.value);
-        self.state.account_state.increase_balance(self.state.context.address,
-                                                  self.state.context.value);
 
         Ok(())
     }
@@ -235,11 +272,12 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
-                    self.state.account_state.decrease_balance(self.state.context.address,
-                                                              sub.state.context.value);
-                    self.state.account_state.create(sub.state.context.address,
-                                                    sub.state.context.value,
-                                                    sub.state.out.as_slice());
+                    self.state.account_state.decrease_balance(sub.state.context.caller,
+                                                              code_deposit_gas(sub.state.out.len()).into());
+                    self.state.account_state.code_deposit(sub.state.context.address,
+                                                          sub.state.out.as_slice());
+                } else {
+                    self.state.account_state.code_deposit(sub.state.context.address, &[]);
                 }
 
             },
@@ -264,10 +302,6 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.logs = sub.state.logs;
                 self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                self.state.account_state.decrease_balance(self.state.context.address,
-                                                          sub.state.context.value);
-                self.state.account_state.increase_balance(sub.state.context.address,
-                                                          sub.state.context.value);
                 copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),
                                  out_start, M256::zero(), out_len);
             },
@@ -313,7 +347,7 @@ impl<M: Memory + Default> Machine<M> {
             return Ok(());
         }
 
-        if self.state.depth >= 2 {
+        if self.state.depth >= self.state.patch.callstack_limit {
             self.status = MachineStatus::ExitedErr(MachineError::CallstackOverflow);
             return Ok(());
         }
@@ -341,7 +375,14 @@ impl<M: Memory + Default> Machine<M> {
         let gas_cost = gas_cost(instruction, &self.state);
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
-        let after_gas = self.state.context.gas_limit - memory_gas - self.state.used_gas - gas_cost + gas_stipend;
+
+        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost - gas_stipend;
+        if self.state.context.gas_limit < all_gas_cost {
+            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            return Ok(());
+        }
+
+        let after_gas = self.state.context.gas_limit - all_gas_cost;
 
         match extra_check_opcode(instruction, &self.state, gas_stipend, after_gas) {
             Ok(()) => (),
@@ -352,11 +393,6 @@ impl<M: Memory + Default> Machine<M> {
             Err(EvalError::Require(error)) => {
                 return Err(error);
             },
-        }
-
-        if self.state.context.gas_limit < memory_gas + self.state.used_gas + gas_cost - gas_stipend {
-            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-            return Ok(());
         }
 
         let instruction = self.pc.read().unwrap();
@@ -396,15 +432,5 @@ impl<M: Memory + Default> Machine<M> {
     /// Get the current runtime status.
     pub fn status(&self) -> MachineStatus {
         self.status.clone()
-    }
-
-    /// If the machine is exited with EmptyGas, return gas_limit,
-    /// otherwise return the sum of memory gas and used gas.
-    pub fn real_used_gas(&self) -> Gas {
-        match self.status() {
-            MachineStatus::ExitedErr(MachineError::EmptyGas) =>
-                self.state.context.gas_limit,
-            _ => self.state.memory_gas() + self.state.used_gas,
-        }
     }
 }

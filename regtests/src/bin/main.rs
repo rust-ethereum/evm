@@ -82,7 +82,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                     address: address,
                     balance: balance,
                     code: code,
-                });
+                }).unwrap();
             },
             Err(RequireError::AccountStorage(address, index)) => {
                 println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
@@ -93,7 +93,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                     address: address,
                     index: index,
                     value: value,
-                });
+                }).unwrap();
             },
             Err(RequireError::AccountCode(address)) => {
                 println!("Feeding VM account code at 0x{:x} ...", address);
@@ -102,7 +102,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                 vm.commit_account(AccountCommitment::Code {
                     address: address,
                     code: code,
-                });
+                }).unwrap();
             }
             Err(err) => {
                 println!("Unhandled require: {:?}", err);
@@ -120,8 +120,9 @@ fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCCli
         return true;
     }
     if block.uncles.len() > 0 {
-        for uncle_hash in &block.uncles {
-            let uncle = client.get_block_by_hash(&uncle_hash);
+        for i in 0..block.uncles.len() {
+            let uncle = client.get_uncle_by_block_number_and_index(&block.number,
+                                                                   &format!("0x{:x}", i));
             let uncle_miner = Address::from_str(&uncle.miner).unwrap();
             if uncle_miner == address {
                 return true;

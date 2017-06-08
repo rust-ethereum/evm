@@ -122,11 +122,20 @@ impl AccountState {
         self.accounts.values()
     }
 
+    pub fn is_removed(&self, address: Address) -> bool {
+        match self.accounts.get(&address) {
+            Some(&Account::Remove(_)) => true,
+            _ => false,
+        }
+    }
+
     /// Returns Ok(()) if a full account is in this account
     /// state. Otherwise raise a `RequireError`.
     pub fn require(&self, address: Address) -> Result<(), RequireError> {
         match self.accounts.get(&address) {
             Some(&Account::Full { .. }) => return Ok(()),
+            Some(&Account::Create { .. }) => return Ok(()),
+            Some(&Account::Remove(_)) => panic!(),
             _ => return Err(RequireError::Account(address)),
         }
     }
@@ -140,6 +149,8 @@ impl AccountState {
         }
         match self.accounts.get(&address) {
             Some(&Account::Full { .. }) => return Ok(()),
+            Some(&Account::Create { .. }) => return Ok(()),
+            Some(&Account::Remove(_)) => panic!(),
             _ => return Err(RequireError::AccountCode(address)),
         }
     }
@@ -159,17 +170,41 @@ impl AccountState {
                 balance,
                 code
             } => {
-                if self.accounts.contains_key(&address) {
-                    return Err(CommitError::AlreadyCommitted);
-                }
+                let account = if self.accounts.contains_key(&address) {
+                    match self.accounts.remove(&address).unwrap() {
+                        Account::Full { .. } => return Err(CommitError::AlreadyCommitted),
+                        Account::Create { .. } => return Err(CommitError::AlreadyCommitted),
+                        Account::Remove(address) => Account::Remove(address),
+                        Account::IncreaseBalance(address, topup) => {
+                            Account::Full {
+                                nonce,
+                                address,
+                                balance: balance + topup,
+                                changing_storage: Storage::new(address, true),
+                                code,
+                            }
+                        },
+                        Account::DecreaseBalance(address, withdraw) => {
+                            Account::Full {
+                                nonce,
+                                address,
+                                balance: balance - withdraw,
+                                changing_storage: Storage::new(address, true),
+                                code,
+                            }
+                        },
+                    }
+                } else {
+                    Account::Full {
+                        nonce,
+                        address,
+                        balance,
+                        changing_storage: Storage::new(address, true),
+                        code,
+                    }
+                };
 
-                self.accounts.insert(address, Account::Full {
-                    nonce,
-                    address,
-                    balance,
-                    changing_storage: Storage::new(address, true),
-                    code,
-                });
+                self.accounts.insert(address, account);
             },
             AccountCommitment::Code {
                 address,
@@ -215,7 +250,13 @@ impl AccountState {
                     ref code,
                     ..
                 } => return Ok(code.as_slice()),
-                _ => (),
+                &Account::Create {
+                    ref code,
+                    ..
+                } => return Ok(code.as_slice()),
+                &Account::Remove(_) => panic!(),
+                &Account::IncreaseBalance(address, _) => return Err(RequireError::Account(address)),
+                &Account::DecreaseBalance(address, _) => return Err(RequireError::Account(address)),
             }
         }
 
@@ -231,6 +272,11 @@ impl AccountState {
                     nonce,
                     ..
                 } => return Ok(nonce),
+                &Account::Create {
+                    nonce,
+                    ..
+                } => return Ok(nonce),
+                &Account::Remove(_) => panic!(),
                 _ => (),
             }
         }
@@ -247,6 +293,11 @@ impl AccountState {
                     balance,
                     ..
                 } => return Ok(balance),
+                &Account::Create {
+                    balance,
+                    ..
+                } => return Ok(balance),
+                &Account::Remove(_) => return Ok(U256::zero()),
                 _ => (),
             }
         }
@@ -267,6 +318,7 @@ impl AccountState {
                     ref storage,
                     ..
                 } => return Ok(storage),
+                &Account::Remove(_) => panic!(),
                 _ => (),
             }
         }
@@ -287,6 +339,7 @@ impl AccountState {
                     ref mut storage,
                     ..
                 } => return Ok(storage),
+                &mut Account::Remove(_) => panic!(),
                 _ => (),
             }
         }
@@ -296,10 +349,48 @@ impl AccountState {
 
     /// Create a new account (that should not yet have existed
     /// before).
-    pub fn create(&mut self, address: Address, balance: U256, code: &[u8]) {
-        self.accounts.insert(address, Account::Full {
-            address, balance, changing_storage: Storage::new(address, false), code: code.into(), nonce: M256::zero(),
-        });
+    pub fn create(&mut self, address: Address, balance: U256) {
+        let account = if self.accounts.contains_key(&address) {
+            match self.accounts.remove(&address).unwrap() {
+                Account::Full { .. } => panic!(),
+                Account::Create { .. } => panic!(),
+                Account::Remove(address) => {
+                    Account::Create {
+                        address, balance, code: Vec::new(), nonce: M256::zero(),
+                        storage: Storage::new(address, false)
+                    }
+                },
+                Account::IncreaseBalance(address, topup) => {
+                    Account::Create {
+                        address, code: Vec::new(), nonce: M256::zero(),
+                        balance: balance + topup, storage: Storage::new(address, false)
+                    }
+                },
+                Account::DecreaseBalance(address, withdraw) => {
+                    Account::Create {
+                        address, code: Vec::new(), nonce: M256::zero(),
+                        balance: balance - withdraw, storage: Storage::new(address, false)
+                    }
+                },
+            }
+        } else {
+            Account::Create {
+                address, balance, code: Vec::new(), nonce: M256::zero(),
+                storage: Storage::new(address, false)
+            }
+        };
+
+        self.accounts.insert(address, account);
+    }
+
+    /// Deposit code in to a created account.
+    pub fn code_deposit(&mut self, address: Address, new_code: &[u8]) {
+        match self.accounts.get_mut(&address).unwrap() {
+            &mut Account::Create { ref mut code, .. } => {
+                *code = new_code.into();
+            },
+            _ => panic!(),
+        }
     }
 
     /// Increase the balance of an account.
@@ -429,6 +520,14 @@ impl AccountState {
                 *nonce = new_nonce;
                 Ok(())
             },
+            Some(&mut Account::Create {
+                ref mut nonce,
+                ..
+            }) => {
+                *nonce = new_nonce;
+                Ok(())
+            },
+            Some(&mut Account::Remove(_)) => panic!(),
             _ => {
                 Err(RequireError::Account(address))
             },

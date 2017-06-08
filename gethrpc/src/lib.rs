@@ -128,6 +128,7 @@ pub struct RPCFilter {
 pub struct GethRPCClient {
     endpoint: String,
     free_id: usize,
+    http: Client,
 }
 
 impl GethRPCClient {
@@ -135,6 +136,7 @@ impl GethRPCClient {
         GethRPCClient {
             endpoint: endpoint.to_string(),
             free_id: 1,
+            http: Client::new(),
         }
     }
 
@@ -151,8 +153,7 @@ impl GethRPCClient {
         };
         self.free_id = self.free_id + 1;
 
-        let client = Client::new();
-        let mut response_raw = client.post(&self.endpoint)
+        let mut response_raw = self.http.post(&self.endpoint)
             .header(ContentType::json())
             .body(&serde_json::to_string(&request).unwrap())
             .send().unwrap();
