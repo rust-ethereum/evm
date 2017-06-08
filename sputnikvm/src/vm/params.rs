@@ -25,6 +25,7 @@ pub struct Context {
     pub gas_price: Gas,
     pub origin: Address,
     pub value: U256,
+    pub create: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

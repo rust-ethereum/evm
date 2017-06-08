@@ -1,5 +1,5 @@
 //! VM Runtime
-use utils::bigint::{U256, M256};
+use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
@@ -100,7 +100,11 @@ impl<M: Memory + Default> Machine<M> {
                        depth: usize, mut account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
         account_state.decrease_balance(context.caller, context.value);
-        account_state.increase_balance(context.address, context.value);
+        if context.create {
+            account_state.create(context.address, context.value);
+        } else {
+            account_state.increase_balance(context.address, context.value);
+        }
 
         Machine {
             pc: PC::new(context.code.as_slice()),
@@ -136,7 +140,11 @@ impl<M: Memory + Default> Machine<M> {
         let mut account_state = self.state.account_state.clone();
 
         account_state.decrease_balance(context.caller, context.value);
-        account_state.increase_balance(context.address, context.value);
+        if context.create {
+            account_state.create(context.address, context.value);
+        } else {
+            account_state.increase_balance(context.address, context.value);
+        }
 
         Machine {
             pc: PC::new(context.code.as_slice()),
@@ -185,12 +193,12 @@ impl<M: Memory + Default> Machine<M> {
             if !self.state.patch.force_code_deposit {
                 self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
             } else {
-                self.state.account_state.create(self.state.context.address, U256::zero(), &[]);
+                self.state.account_state.code_deposit(self.state.context.address, &[]);
             }
         } else {
             self.state.used_gas = self.state.used_gas + deposit_cost;
-            self.state.account_state.create(self.state.context.address, U256::zero(),
-                                            self.state.out.as_slice());
+            self.state.account_state.code_deposit(self.state.context.address,
+                                                  self.state.out.as_slice());
         }
         Ok(())
     }
@@ -253,13 +261,10 @@ impl<M: Memory + Default> Machine<M> {
                 if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
                     self.state.account_state.decrease_balance(sub.state.context.caller,
                                                               code_deposit_gas(sub.state.out.len()).into());
-                    self.state.account_state.create(sub.state.context.address,
-                                                    U256::zero(),
-                                                    sub.state.out.as_slice());
+                    self.state.account_state.code_deposit(sub.state.context.address,
+                                                          sub.state.out.as_slice());
                 } else {
-                    self.state.account_state.create(sub.state.context.address,
-                                                    U256::zero(),
-                                                    &[]);
+                    self.state.account_state.code_deposit(sub.state.context.address, &[]);
                 }
 
             },
