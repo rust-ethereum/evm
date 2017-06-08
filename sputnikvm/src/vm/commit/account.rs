@@ -159,17 +159,41 @@ impl AccountState {
                 balance,
                 code
             } => {
-                if self.accounts.contains_key(&address) {
-                    return Err(CommitError::AlreadyCommitted);
-                }
+                let account = if self.accounts.contains_key(&address) {
+                    match self.accounts.remove(&address).unwrap() {
+                        Account::Full { .. } => return Err(CommitError::AlreadyCommitted),
+                        Account::Create { .. } => return Err(CommitError::AlreadyCommitted),
+                        Account::Remove(address) => Account::Remove(address),
+                        Account::IncreaseBalance(address, topup) => {
+                            Account::Full {
+                                nonce,
+                                address,
+                                balance: balance + topup,
+                                changing_storage: Storage::new(address, true),
+                                code,
+                            }
+                        },
+                        Account::DecreaseBalance(address, withdraw) => {
+                            Account::Full {
+                                nonce,
+                                address,
+                                balance: balance - withdraw,
+                                changing_storage: Storage::new(address, true),
+                                code,
+                            }
+                        },
+                    }
+                } else {
+                    Account::Full {
+                        nonce,
+                        address,
+                        balance,
+                        changing_storage: Storage::new(address, true),
+                        code,
+                    }
+                };
 
-                self.accounts.insert(address, Account::Full {
-                    nonce,
-                    address,
-                    balance,
-                    changing_storage: Storage::new(address, true),
-                    code,
-                });
+                self.accounts.insert(address, account);
             },
             AccountCommitment::Code {
                 address,
@@ -215,7 +239,13 @@ impl AccountState {
                     ref code,
                     ..
                 } => return Ok(code.as_slice()),
-                _ => (),
+                &Account::Create {
+                    ref code,
+                    ..
+                } => return Ok(code.as_slice()),
+                &Account::Remove(_) => return Ok(&[]),
+                &Account::IncreaseBalance(address, _) => return Err(RequireError::Account(address)),
+                &Account::DecreaseBalance(address, _) => return Err(RequireError::Account(address)),
             }
         }
 
