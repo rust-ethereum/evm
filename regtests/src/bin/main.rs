@@ -82,7 +82,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                     address: address,
                     balance: balance,
                     code: code,
-                });
+                }).unwrap();
             },
             Err(RequireError::AccountStorage(address, index)) => {
                 println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
@@ -93,7 +93,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                     address: address,
                     index: index,
                     value: value,
-                });
+                }).unwrap();
             },
             Err(RequireError::AccountCode(address)) => {
                 println!("Feeding VM account code at 0x{:x} ...", address);
@@ -102,7 +102,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                 vm.commit_account(AccountCommitment::Code {
                     address: address,
                     code: code,
-                });
+                }).unwrap();
             }
             Err(err) => {
                 println!("Unhandled require: {:?}", err);
