@@ -8,7 +8,7 @@ use tiny_keccak::Keccak;
 
 use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
-            VMStatus, AccountCommitment, Log, Account, MachineStatus};
+            VMStatus, AccountCommitment, Log, Account, MachineStatus, ExecutionMode};
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
@@ -75,7 +75,7 @@ impl Transaction {
                     gas_limit: gas_limit - upfront,
                     code: account_state.code(address)?.into(),
                     origin: origin.unwrap_or(caller),
-                    create: false,
+                    mode: ExecutionMode::Call,
                 })
             },
             Transaction::ContractCreation {
@@ -98,7 +98,7 @@ impl Transaction {
                     data: Vec::new(),
                     code: init,
                     origin: origin.unwrap_or(caller),
-                    create: true,
+                    mode: ExecutionMode::Create,
                 })
             }
         }

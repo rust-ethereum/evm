@@ -14,6 +14,11 @@ pub struct BlockHeader {
     pub gas_limit: Gas
 }
 
+#[derive(Copy, Debug, Clone, PartialEq, Eq)]
+pub enum ExecutionMode {
+    Call, Create, None
+}
+
 #[derive(Debug, Clone)]
 /// A VM context. See the Yellow Paper for more information.
 pub struct Context {
@@ -25,7 +30,7 @@ pub struct Context {
     pub gas_price: Gas,
     pub origin: Address,
     pub value: U256,
-    pub create: bool,
+    pub mode: ExecutionMode,
 }
 
 #[derive(Debug, Clone, PartialEq)]

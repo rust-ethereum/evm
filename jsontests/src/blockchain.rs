@@ -1,7 +1,7 @@
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::{Machine, Log, Context,
                     Account, Storage, AccountCommitment,
-                    BlockHeader};
+                    BlockHeader, ExecutionMode};
 
 use serde_json::Value;
 use std::collections::HashMap;
@@ -267,6 +267,6 @@ pub fn create_context(v: &Value) -> Context {
         gas_price: gas_price,
         origin: origin,
         value: value,
-        create: false,
+        mode: ExecutionMode::None,
     }
 }

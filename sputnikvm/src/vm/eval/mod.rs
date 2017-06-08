@@ -3,7 +3,7 @@ use utils::bigint::M256;
 use utils::gas::Gas;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
-use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
+use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log, ExecutionMode};
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
@@ -99,11 +99,16 @@ impl<M: Memory + Default> Machine<M> {
     pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
                        depth: usize, mut account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
-        account_state.decrease_balance(context.caller, context.value);
-        if context.create {
-            account_state.create(context.address, context.value);
-        } else {
-            account_state.increase_balance(context.address, context.value);
+        match context.mode {
+            ExecutionMode::Call => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.increase_balance(context.address, context.value);
+            },
+            ExecutionMode::Create => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.create(context.address, context.value);
+            },
+            ExecutionMode::None => (),
         }
 
         Machine {
@@ -139,11 +144,16 @@ impl<M: Memory + Default> Machine<M> {
     pub fn derive(&self, context: Context) -> Self {
         let mut account_state = self.state.account_state.clone();
 
-        account_state.decrease_balance(context.caller, context.value);
-        if context.create {
-            account_state.create(context.address, context.value);
-        } else {
-            account_state.increase_balance(context.address, context.value);
+        match context.mode {
+            ExecutionMode::Call => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.increase_balance(context.address, context.value);
+            },
+            ExecutionMode::Create => {
+                account_state.decrease_balance(context.caller, context.value);
+                account_state.create(context.address, context.value);
+            },
+            ExecutionMode::None => (),
         }
 
         Machine {
@@ -183,6 +193,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn code_deposit(&mut self) -> Result<(), RequireError> {
+        assert!(self.state.context.mode == ExecutionMode::Create);
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
             _ => panic!(),
@@ -204,6 +215,8 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn finalize(&mut self, real_used_gas: Gas, fresh_account_state: &AccountState) -> Result<(), RequireError> {
+        assert!(self.state.context.mode == ExecutionMode::Call ||
+                self.state.context.mode == ExecutionMode::Create);
         match self.status() {
             MachineStatus::ExitedOk => (),
             MachineStatus::ExitedErr(_) => {
