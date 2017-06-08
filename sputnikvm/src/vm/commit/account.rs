@@ -122,6 +122,13 @@ impl AccountState {
         self.accounts.values()
     }
 
+    pub fn is_removed(&self, address: Address) -> bool {
+        match self.accounts.get(&address) {
+            Some(&Account::Remove(_)) => true,
+            _ => false,
+        }
+    }
+
     /// Returns Ok(()) if a full account is in this account
     /// state. Otherwise raise a `RequireError`.
     pub fn require(&self, address: Address) -> Result<(), RequireError> {

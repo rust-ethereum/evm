@@ -420,16 +420,4 @@ impl<M: Memory + Default> Machine<M> {
     pub fn status(&self) -> MachineStatus {
         self.status.clone()
     }
-
-    /// If the machine is exited with EmptyGas, return gas_limit,
-    /// otherwise return the sum of memory gas and used gas.
-    pub fn real_used_gas(&self) -> Gas {
-        match self.status() {
-            MachineStatus::ExitedErr(_) =>
-                self.state.context.gas_limit,
-            MachineStatus::ExitedOk =>
-                self.state.memory_gas() + self.state.used_gas - self.state.refunded_gas,
-            _ => Gas::zero(),
-        }
-    }
 }
