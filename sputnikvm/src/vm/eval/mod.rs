@@ -402,7 +402,7 @@ impl<M: Memory + Default> Machine<M> {
     /// otherwise return the sum of memory gas and used gas.
     pub fn real_used_gas(&self) -> Gas {
         match self.status() {
-            MachineStatus::ExitedErr(MachineError::EmptyGas) =>
+            MachineStatus::ExitedErr(_) =>
                 self.state.context.gas_limit,
             _ => self.state.memory_gas() + self.state.used_gas,
         }
