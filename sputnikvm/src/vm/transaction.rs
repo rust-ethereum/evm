@@ -34,6 +34,13 @@ pub enum Transaction {
 }
 
 impl Transaction {
+    pub fn caller(&self) -> Address {
+        match self {
+            &Transaction::MessageCall { caller, .. } => caller,
+            &Transaction::ContractCreation { caller, .. } => caller,
+        }
+    }
+
     pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
         match self {
@@ -81,8 +88,7 @@ impl Transaction {
                 caller, gas_price, gas_limit, value, init,
             } => {
                 let nonce = account_state.nonce(caller)?;
-                let mut rlp = RlpStream::new();
-                rlp.begin_list(2);
+                let mut rlp = RlpStream::new_list(2);
                 rlp.append(&caller);
                 rlp.append(&nonce);
                 let mut address_array = [0u8; 32];
@@ -269,8 +275,9 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             }
         }
 
+        let account_state = caccount_state.unwrap();
         let mut vm = ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
-                                            caccount_state.as_ref().unwrap().clone(),
+                                            account_state.clone(),
                                             cblockhash_state.unwrap());
 
         if ccode_deposit.unwrap() {
@@ -280,7 +287,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         }
 
         self.0 = TransactionVMState::Running {
-            fresh_account_state: caccount_state.unwrap(),
+            fresh_account_state: account_state,
             vm,
             intrinsic_gas: cgas.unwrap(),
             finalized: false,
