@@ -103,10 +103,12 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                     address: address,
                     code: code,
                 }).unwrap();
-            }
-            Err(err) => {
-                println!("Unhandled require: {:?}", err);
-                unimplemented!()
+            },
+            Err(RequireError::Blockhash(number)) => {
+                println!("Feeding blockhash with number 0x{:x} ...", number);
+                let hash = M256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
+                                          .hash).unwrap();
+                vm.commit_blockhash(number, hash);
             },
         }
     }
