@@ -72,11 +72,16 @@ impl Transaction {
     }
 
     pub fn into_context(self, upfront: Gas, origin: Option<Address>,
-                        account_state: &AccountState) -> Result<Context, RequireError> {
+                        account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
         match self {
             Transaction::MessageCall {
                 address, caller, gas_price, gas_limit, value, data
             } => {
+                if !is_code {
+                    let nonce = account_state.nonce(caller)?;
+                    account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
+                }
+
                 Ok(Context {
                     address, caller, data, gas_price, value,
                     gas_limit: gas_limit - upfront,
@@ -88,6 +93,8 @@ impl Transaction {
                 caller, gas_price, gas_limit, value, init,
             } => {
                 let nonce = account_state.nonce(caller)?;
+                account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
+
                 let mut rlp = RlpStream::new_list(2);
                 rlp.append(&caller);
                 rlp.append(&nonce);
@@ -260,14 +267,14 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             }
             TransactionVMState::Constructing {
                 ref transaction, ref block, ref patch,
-                ref account_state, ref blockhash_state } => {
+                ref mut account_state, ref blockhash_state } => {
 
                 ccode_deposit = Some(match transaction {
                     &Transaction::MessageCall { .. } => false,
                     &Transaction::ContractCreation { .. } => true,
                 });
                 cgas = Some(transaction.intrinsic_gas(patch));
-                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state)?);
+                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state, false)?);
                 cblock = Some(block.clone());
                 cpatch = Some(patch);
                 caccount_state = Some(account_state.clone());
