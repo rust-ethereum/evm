@@ -203,6 +203,7 @@ impl<M: Memory + Default> Machine<M> {
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
+                self.state.logs = Vec::new();
             },
             _ => panic!(),
         }
