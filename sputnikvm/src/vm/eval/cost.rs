@@ -82,8 +82,8 @@ fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     }
 }
 
-fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
-    if len == Gas::zero() {
+fn memory_expand(current: Gas, from: Gas, len: Gas, return_on_empty: bool) -> Gas {
+    if len == Gas::zero() && return_on_empty {
         return current;
     }
 
@@ -116,38 +116,38 @@ pub fn memory_cost<M: Memory + Default>(instruction: Instruction, state: &State<
         Instruction::SHA3 | Instruction::RETURN | Instruction::LOG(_) => {
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(1).unwrap().into();
-            memory_expand(current, Gas::from(from), Gas::from(len))
+            memory_expand(current, Gas::from(from), Gas::from(len), true)
         },
         Instruction::CODECOPY | Instruction::CALLDATACOPY => {
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(2).unwrap().into();
-            memory_expand(current, Gas::from(from), Gas::from(len))
+            memory_expand(current, Gas::from(from), Gas::from(len), true)
         },
         Instruction::EXTCODECOPY => {
             let from: U256 = stack.peek(1).unwrap().into();
             let len: U256 = stack.peek(3).unwrap().into();
-            memory_expand(current, Gas::from(from), Gas::from(len))
+            memory_expand(current, Gas::from(from), Gas::from(len), true)
         },
         Instruction::MLOAD | Instruction::MSTORE => {
             let from: U256 = stack.peek(0).unwrap().into();
-            memory_expand(current, Gas::from(from), Gas::from(32u64))
+            memory_expand(current, Gas::from(from), Gas::from(32u64), false)
         },
         Instruction::MSTORE8 => {
             let from: U256 = stack.peek(0).unwrap().into();
-            memory_expand(current, Gas::from(from), Gas::from(1u64))
+            memory_expand(current, Gas::from(from), Gas::from(1u64), false)
         },
         Instruction::CREATE => {
             let from: U256 = stack.peek(1).unwrap().into();
             let len: U256 = stack.peek(2).unwrap().into();
-            memory_expand(current, Gas::from(from), Gas::from(len))
+            memory_expand(current, Gas::from(from), Gas::from(len), true)
         },
         Instruction::CALL => {
             let in_from: U256 = stack.peek(3).unwrap().into();
             let in_len: U256 = stack.peek(4).unwrap().into();
             let out_from: U256 = stack.peek(5).unwrap().into();
             let out_len: U256 = stack.peek(6).unwrap().into();
-            memory_expand(memory_expand(current, Gas::from(in_from), Gas::from(in_len)),
-                          Gas::from(out_from), Gas::from(out_len))
+            memory_expand(memory_expand(current, Gas::from(in_from), Gas::from(in_len), true),
+                          Gas::from(out_from), Gas::from(out_len), true)
         },
         _ => {
             current
