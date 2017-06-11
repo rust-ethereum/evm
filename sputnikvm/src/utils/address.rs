@@ -26,9 +26,8 @@ impl Default for Address {
 
 impl Encodable for Address {
     fn rlp_append(&self, s: &mut RlpStream) {
-        let leading_empty_bytes = 20 - (self.bits() + 7) / 8;
         let buffer: [u8; 20] = self.clone().into();
-        s.encoder().encode_value(&buffer[leading_empty_bytes..]);
+        s.encoder().encode_value(&buffer);
     }
 }
 

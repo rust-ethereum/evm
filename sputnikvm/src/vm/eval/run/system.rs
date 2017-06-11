@@ -59,7 +59,7 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
         init: init,
     };
     let context = transaction.into_context(
-        Gas::zero(), Some(state.context.origin), &state.account_state
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
 
     push!(state, context.address.into());
@@ -86,7 +86,7 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
         data: input,
     };
     let context = transaction.into_context(
-        Gas::zero(), Some(state.context.origin), &state.account_state
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
     push!(state, M256::zero());
     Some((context, (out_start, out_len)))

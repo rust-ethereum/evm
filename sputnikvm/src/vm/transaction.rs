@@ -8,7 +8,7 @@ use tiny_keccak::Keccak;
 
 use super::errors::{RequireError, CommitError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
-            VMStatus, AccountCommitment, Log, Account, MachineStatus, ExecutionMode};
+            VMStatus, AccountCommitment, Log, Account, MachineStatus};
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
@@ -34,6 +34,13 @@ pub enum Transaction {
 }
 
 impl Transaction {
+    pub fn caller(&self) -> Address {
+        match self {
+            &Transaction::MessageCall { caller, .. } => caller,
+            &Transaction::ContractCreation { caller, .. } => caller,
+        }
+    }
+
     pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
         match self {
@@ -65,25 +72,30 @@ impl Transaction {
     }
 
     pub fn into_context(self, upfront: Gas, origin: Option<Address>,
-                        account_state: &AccountState) -> Result<Context, RequireError> {
+                        account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
         match self {
             Transaction::MessageCall {
                 address, caller, gas_price, gas_limit, value, data
             } => {
+                if !is_code {
+                    let nonce = account_state.nonce(caller)?;
+                    account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
+                }
+
                 Ok(Context {
                     address, caller, data, gas_price, value,
                     gas_limit: gas_limit - upfront,
                     code: account_state.code(address)?.into(),
                     origin: origin.unwrap_or(caller),
-                    mode: ExecutionMode::Call,
                 })
             },
             Transaction::ContractCreation {
                 caller, gas_price, gas_limit, value, init,
             } => {
                 let nonce = account_state.nonce(caller)?;
-                let mut rlp = RlpStream::new();
-                rlp.begin_list(2);
+                account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
+
+                let mut rlp = RlpStream::new_list(2);
                 rlp.append(&caller);
                 rlp.append(&nonce);
                 let mut address_array = [0u8; 32];
@@ -98,7 +110,6 @@ impl Transaction {
                     data: Vec::new(),
                     code: init,
                     origin: origin.unwrap_or(caller),
-                    mode: ExecutionMode::Create,
                 })
             }
         }
@@ -256,14 +267,14 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             }
             TransactionVMState::Constructing {
                 ref transaction, ref block, ref patch,
-                ref account_state, ref blockhash_state } => {
+                ref mut account_state, ref blockhash_state } => {
 
                 ccode_deposit = Some(match transaction {
                     &Transaction::MessageCall { .. } => false,
                     &Transaction::ContractCreation { .. } => true,
                 });
                 cgas = Some(transaction.intrinsic_gas(patch));
-                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state)?);
+                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state, false)?);
                 cblock = Some(block.clone());
                 cpatch = Some(patch);
                 caccount_state = Some(account_state.clone());
@@ -271,10 +282,20 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             }
         }
 
+        let account_state = caccount_state.unwrap();
+        let mut vm = ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
+                                            account_state.clone(),
+                                            cblockhash_state.unwrap());
+
+        if ccode_deposit.unwrap() {
+            vm.machines[0].initialize_create();
+        } else {
+            vm.machines[0].initialize_call();
+        }
+
         self.0 = TransactionVMState::Running {
-            fresh_account_state: caccount_state.as_ref().unwrap().clone(),
-            vm: ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
-                                       caccount_state.unwrap(), cblockhash_state.unwrap()),
+            fresh_account_state: account_state,
+            vm,
             intrinsic_gas: cgas.unwrap(),
             finalized: false,
             code_deposit: ccode_deposit.unwrap(),
