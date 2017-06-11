@@ -12,6 +12,18 @@ use ripemd160::Ripemd160;
 use secp256k1::{Secp256k1, RecoverableSignature, Message, RecoveryId, Error};
 use digest::{Input, FixedOutput};
 
+pub fn is_precompiled(address: Address) -> bool {
+    let ecrec_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
+    let sha256_address = Address::from_str("0x0000000000000000000000000000000000000002").unwrap();
+    let rip160_address = Address::from_str("0x0000000000000000000000000000000000000003").unwrap();
+    let id_address = Address::from_str("0x0000000000000000000000000000000000000004").unwrap();
+
+    address == ecrec_address ||
+        address == sha256_address ||
+        address == rip160_address ||
+        address == id_address
+}
+
 impl<M: Memory + Default> Machine<M> {
     #[allow(unused_variables)]
     pub fn step_precompiled(&mut self) -> bool {

@@ -7,6 +7,7 @@ use utils::bigint::{M256, U256};
 use std::cmp::max;
 use vm::{Memory, Instruction};
 use super::State;
+use super::precompiled::is_precompiled;
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -65,7 +66,7 @@ fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 
 fn new_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if machine.account_state.balance(address).unwrap() == U256::zero() && machine.account_state.nonce(address).unwrap() == M256::zero() && machine.account_state.code(address).unwrap().len() == 0 {
+    if machine.account_state.balance(address).unwrap() == U256::zero() && machine.account_state.nonce(address).unwrap() == M256::zero() && machine.account_state.code(address).unwrap().len() == 0 && !is_precompiled(address) {
         G_NEWACCOUNT.into()
     } else {
         Gas::zero()
