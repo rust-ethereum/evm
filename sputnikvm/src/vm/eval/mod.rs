@@ -46,6 +46,10 @@ impl<M> State<M> {
     pub fn available_gas(&self) -> Gas {
         self.context.gas_limit - self.memory_gas() - self.used_gas
     }
+
+    pub fn total_used_gas(&self) -> Gas {
+        self.memory_gas() + self.used_gas
+    }
 }
 
 /// A VM state with PC.
@@ -248,10 +252,12 @@ impl<M: Memory + Default> Machine<M> {
 
         match sub.status() {
             MachineStatus::ExitedOk => {
+                let sub_total_used_gas = sub.state.total_used_gas();
+
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
-                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
                     self.state.account_state.decrease_balance(sub.state.context.caller,
@@ -279,10 +285,12 @@ impl<M: Memory + Default> Machine<M> {
 
         match sub.status() {
             MachineStatus::ExitedOk => {
+                let sub_total_used_gas = sub.state.total_used_gas();
+
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
-                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
+                self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),
                                  out_start, M256::zero(), out_len);
