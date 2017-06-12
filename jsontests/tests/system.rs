@@ -30,7 +30,6 @@ lazy_static! {
 #[test] fn callToNameRegistratorTooMuchMemory0() { assert_eq!(test_transaction("CallToNameRegistratorTooMuchMemory0", &TESTS["CallToNameRegistratorTooMuchMemory0"], true), true); }
 #[test] fn callToNameRegistratorTooMuchMemory1() { assert_eq!(test_transaction("CallToNameRegistratorTooMuchMemory1", &TESTS["CallToNameRegistratorTooMuchMemory1"], true), true); }
 #[test] fn callToNameRegistratorTooMuchMemory2() { assert_eq!(test_transaction("CallToNameRegistratorTooMuchMemory2", &TESTS["CallToNameRegistratorTooMuchMemory2"], true), true); }
-#[test] fn callToPrecompiledContract() { assert_eq!(test_transaction("CallToPrecompiledContract", &TESTS["CallToPrecompiledContract"], true), true); }
 #[test] fn callToReturn1() { assert_eq!(test_transaction("CallToReturn1", &TESTS["CallToReturn1"], true), true); }
 #[test] fn postToNameRegistrator0() { assert_eq!(test_transaction("PostToNameRegistrator0", &TESTS["PostToNameRegistrator0"], true), true); }
 #[test] fn postToReturn1() { assert_eq!(test_transaction("PostToReturn1", &TESTS["PostToReturn1"], true), true); }
