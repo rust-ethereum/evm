@@ -12,7 +12,7 @@ use ripemd160::Ripemd160;
 use secp256k1::{Secp256k1, RecoverableSignature, Message, RecoveryId, Error};
 use digest::{Input, FixedOutput};
 
-pub fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
+fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
     if a % b == Gas::zero() {
         a / b
     } else {
