@@ -88,6 +88,6 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
     let context = transaction.into_context(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
-    push!(state, M256::zero());
+    push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }

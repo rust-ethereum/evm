@@ -290,7 +290,7 @@ impl<M: Memory + Default> Machine<M> {
             MachineStatus::ExitedErr(_) => {
                 // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
                 self.state.stack.pop().unwrap();
-                self.state.stack.push(M256::from(1u64)).unwrap();
+                self.state.stack.push(M256::zero()).unwrap();
             },
             _ => panic!(),
         }
