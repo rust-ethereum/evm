@@ -77,22 +77,27 @@ impl Transaction {
             Transaction::MessageCall {
                 address, caller, gas_price, gas_limit, value, data
             } => {
+                account_state.require(caller)?;
+                account_state.require_code(address)?;
+
                 if !is_code {
-                    let nonce = account_state.nonce(caller)?;
+                    let nonce = account_state.nonce(caller).unwrap();
                     account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
                 }
 
                 Ok(Context {
                     address, caller, data, gas_price, value,
                     gas_limit: gas_limit - upfront,
-                    code: account_state.code(address)?.into(),
+                    code: account_state.code(address).unwrap().into(),
                     origin: origin.unwrap_or(caller),
                 })
             },
             Transaction::ContractCreation {
                 caller, gas_price, gas_limit, value, init,
             } => {
-                let nonce = account_state.nonce(caller)?;
+                account_state.require(caller)?;
+
+                let nonce = account_state.nonce(caller).unwrap();
                 account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
 
                 let mut rlp = RlpStream::new_list(2);
