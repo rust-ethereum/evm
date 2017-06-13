@@ -4,4 +4,4 @@ version = "0.1.0"
 authors = ["Wei Tang <hi@that.world>"]
 
 [dependencies]
-rlp = { path = '../rlp' }
+rlp2 = { path = '../rlp2' }
