@@ -54,7 +54,6 @@ lazy_static! {
 #[test] fn codecopyZeroMemExpansion() { assert_eq!(test_transaction("codecopyZeroMemExpansion", &TESTS["codecopyZeroMemExpansion"], true), true); }
 #[test] fn codecopy_DataIndexTooHigh() { assert_eq!(test_transaction("codecopy_DataIndexTooHigh", &TESTS["codecopy_DataIndexTooHigh"], true), true); }
 #[test] fn codesize() { assert_eq!(test_transaction("codesize", &TESTS["codesize"], true), true); }
-#[test] fn env1() { assert_eq!(test_transaction("env1", &TESTS["env1"], true), true); }
 #[test] fn extcodecopy0() { assert_eq!(test_transaction("extcodecopy0", &TESTS["extcodecopy0"], true), true); }
 #[test] fn extcodecopy0AddressTooBigLeft() { assert_eq!(test_transaction("extcodecopy0AddressTooBigLeft", &TESTS["extcodecopy0AddressTooBigLeft"], true), true); }
 #[test] fn extcodecopy0AddressTooBigRight() { assert_eq!(test_transaction("extcodecopy0AddressTooBigRight", &TESTS["extcodecopy0AddressTooBigRight"], true), true); }

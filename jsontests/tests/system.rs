@@ -16,7 +16,6 @@ lazy_static! {
 #[test] fn aBAcalls1() { assert_eq!(test_transaction("ABAcalls1", &TESTS["ABAcalls1"], true), true); }
 #[test] fn aBAcalls2() { assert_eq!(test_transaction("ABAcalls2", &TESTS["ABAcalls2"], true), true); }
 #[test] fn aBAcalls3() { assert_eq!(test_transaction("ABAcalls3", &TESTS["ABAcalls3"], true), true); }
-#[test] fn callRecursiveBomb0() { assert_eq!(test_transaction("CallRecursiveBomb0", &TESTS["CallRecursiveBomb0"], true), true); }
 #[test] fn callToNameRegistratorNotMuchMemory0() { assert_eq!(test_transaction("CallToNameRegistratorNotMuchMemory0", &TESTS["CallToNameRegistratorNotMuchMemory0"], true), true); }
 #[test] fn callToNameRegistratorNotMuchMemory1() { assert_eq!(test_transaction("CallToNameRegistratorNotMuchMemory1", &TESTS["CallToNameRegistratorNotMuchMemory1"], true), true); }
 #[test] fn callToNameRegistratorOutOfGas() { assert_eq!(test_transaction("CallToNameRegistratorOutOfGas", &TESTS["CallToNameRegistratorOutOfGas"], true), true); }
@@ -28,7 +27,6 @@ lazy_static! {
 #[test] fn testNameRegistrator() { assert_eq!(test_transaction("TestNameRegistrator", &TESTS["TestNameRegistrator"], true), true); }
 #[test] fn callstatelessToNameRegistrator0() { assert_eq!(test_transaction("callstatelessToNameRegistrator0", &TESTS["callstatelessToNameRegistrator0"], true), true); }
 #[test] fn callstatelessToReturn1() { assert_eq!(test_transaction("callstatelessToReturn1", &TESTS["callstatelessToReturn1"], true), true); }
-#[test] fn createNameRegistrator() { assert_eq!(test_transaction("createNameRegistrator", &TESTS["createNameRegistrator"], true), true); }
 #[test] fn createNameRegistratorOutOfMemoryBonds0() { assert_eq!(test_transaction("createNameRegistratorOutOfMemoryBonds0", &TESTS["createNameRegistratorOutOfMemoryBonds0"], true), true); }
 #[test] fn createNameRegistratorOutOfMemoryBonds1() { assert_eq!(test_transaction("createNameRegistratorOutOfMemoryBonds1", &TESTS["createNameRegistratorOutOfMemoryBonds1"], true), true); }
 #[test] fn createNameRegistratorValueTooHigh() { assert_eq!(test_transaction("createNameRegistratorValueTooHigh", &TESTS["createNameRegistratorValueTooHigh"], true), true); }
