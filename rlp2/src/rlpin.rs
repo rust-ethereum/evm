@@ -41,8 +41,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// The raw data of the RLP as slice.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -73,8 +73,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Returns number of RLP items.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -91,8 +91,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Returns the number of bytes in the data, or zero if it isn't data.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -112,8 +112,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// slices is faster.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -129,8 +129,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// No value
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![];
@@ -145,8 +145,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Contains a zero-length string or zero-length list.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc0];
@@ -161,8 +161,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// List value
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -177,8 +177,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// String value
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];
@@ -193,8 +193,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Int value
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc1, 0x10];
@@ -210,8 +210,8 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Get iterator over rlp-slices
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let data = vec![0xc8, 0x83, b'c', b'a', b't', 0x83, b'd', b'o', b'g'];

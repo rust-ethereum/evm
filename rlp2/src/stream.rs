@@ -61,8 +61,8 @@ impl RlpStream {
 	/// Appends value to the end of stream, chainable.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -99,8 +99,8 @@ impl RlpStream {
 	/// Declare appending the list of given size, chainable.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -149,8 +149,8 @@ impl RlpStream {
 	/// Apends null to the end of stream, chainable.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);
@@ -215,8 +215,8 @@ impl RlpStream {
 	/// Clear the output stream so far.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(3);
@@ -237,8 +237,8 @@ impl RlpStream {
 	/// Returns true if stream doesnt expect any more items.
 	///
 	/// ```rust
-	/// extern crate rlp;
-	/// use rlp::*;
+	/// extern crate rlp2;
+	/// use rlp2::*;
 	///
 	/// fn main () {
 	/// 	let mut stream = RlpStream::new_list(2);

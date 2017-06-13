@@ -72,11 +72,11 @@ pub const EMPTY_LIST_RLP: [u8; 1] = [0xC0; 1];
 /// Shortcut function to decode trusted rlp
 ///
 /// ```rust
-/// extern crate rlp;
+/// extern crate rlp2;
 ///
 /// fn main () {
 /// 	let data = vec![0x83, b'c', b'a', b't'];
-/// 	let animal: String = rlp::decode(&data);
+/// 	let animal: String = rlp2::decode(&data);
 /// 	assert_eq!(animal, "cat".to_owned());
 /// }
 /// ```
@@ -93,11 +93,11 @@ pub fn decode_list<T>(bytes: &[u8]) -> Vec<T> where T: Decodable {
 /// Shortcut function to encode structure into rlp.
 ///
 /// ```rust
-/// extern crate rlp;
+/// extern crate rlp2;
 ///
 /// fn main () {
 /// 	let animal = "cat";
-/// 	let out = rlp::encode(&animal).to_vec();
+/// 	let out = rlp2::encode(&animal).to_vec();
 /// 	assert_eq!(out, vec![0x83, b'c', b'a', b't']);
 /// }
 /// ```
