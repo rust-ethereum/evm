@@ -6,10 +6,10 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate rlp2;
+extern crate rlp;
 
 use std::{fmt, cmp};
-use rlp2::{Encodable, Decodable, UntrustedRlp, RlpStream, DecoderError};
+use rlp::{Encodable, Decodable, UntrustedRlp, RlpStream, DecoderError};
 
 #[test]
 fn rlp_at() {
@@ -82,7 +82,7 @@ fn run_encode_tests<T>(tests: Vec<ETestPair<T>>)
 	where T: Encodable
 {
 	for t in &tests {
-		let res = rlp2::encode(&t.0);
+		let res = rlp::encode(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -93,7 +93,7 @@ fn run_encode_tests_list<T>(tests: Vec<VETestPair<T>>)
 	where T: Encodable
 {
 	for t in &tests {
-		let res = rlp2::encode_list(&t.0);
+		let res = rlp::encode_list(&t.0);
 		assert_eq!(&res[..], &t.1[..]);
 	}
 }
@@ -181,14 +181,14 @@ struct VDTestPair<T>(Vec<T>, Vec<u8>) where T: Decodable + fmt::Debug + cmp::Eq;
 
 fn run_decode_tests<T>(tests: Vec<DTestPair<T>>) where T: Decodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
-		let res: T = rlp2::decode(&t.1);
+		let res: T = rlp::decode(&t.1);
 		assert_eq!(res, t.0);
 	}
 }
 
 fn run_decode_tests_list<T>(tests: Vec<VDTestPair<T>>) where T: Decodable + fmt::Debug + cmp::Eq {
 	for t in &tests {
-		let res: Vec<T> = rlp2::decode_list(&t.1);
+		let res: Vec<T> = rlp::decode_list(&t.1);
 		assert_eq!(res, t.0);
 	}
 }
@@ -367,3 +367,4 @@ fn test_rlp_stream_unbounded_list() {
 	stream.complete_unbounded_list();
 	assert!(stream.is_finished());
 }
+
