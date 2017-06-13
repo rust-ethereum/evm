@@ -4,6 +4,6 @@ members = [
   "./sputnikvm",
   "./jsontests",
   "./regtests",
-  "./bigint2",
+  "./bigint",
   "./gethrpc",
 ]

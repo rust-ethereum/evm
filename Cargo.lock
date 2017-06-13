@@ -2,11 +2,11 @@
 name = "sputnikvm"
 version = "0.1.0"
 dependencies = [
- "bigint2 0.1.0",
+ "bigint 0.1.0",
  "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "ripemd160 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp2 0.2.0",
+ "rlp 0.2.0",
  "secp256k1 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -45,10 +45,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "bigint2"
+name = "bigint"
 version = "0.1.0"
 dependencies = [
- "rlp2 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rlp 0.2.0",
 ]
 
 [[package]]
@@ -348,7 +348,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "regtests"
 version = "0.1.0"
 dependencies = [
- "bigint2 0.1.0",
+ "bigint 0.1.0",
  "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gethrpc 0.1.0",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -367,19 +367,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "rlp2"
+name = "rlp"
 version = "0.2.0"
-dependencies = [
- "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "elastic-array 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "rlp2"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "elastic-array 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -648,7 +637,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "022e0636ec2519ddae48154b028864bdce4eaf7d35226ab8e65c611be97b189d"
 "checksum redox_syscall 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)" = "29dbdfd4b9df8ab31dec47c6087b7b13cbf4a776f335e4de8efba8288dda075b"
 "checksum ripemd160 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "62f5e9946b0762caf459b7accf86c40887ec2809b8dc892e1925f7d4b44b9eeb"
-"checksum rlp2 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "615b472c6b3002561d08694a97d1b9828b87311fee3757b5ded5958a0c53f622"
 "checksum rustc-serialize 0.3.24 (registry+https://github.com/rust-lang/crates.io-index)" = "dcf128d1287d2ea9d80910b5f1120d0b8eede3fbf1abe91c40d39ea7d51e6fda"
 "checksum rustc_version 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "c5f5376ea5e30ce23c03eb77cbe4962b988deead10910c372b226388b594c084"
 "checksum secp256k1 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "89337332d12a98dd8f949f3fcfa5bc505783e9b620317ef1bbd89af7d4ca7302"
