@@ -16,5 +16,5 @@ ripemd160 = "0.5.2"
 sha2 = "0.5.3"
 digest = { version = "0.5", features = ["std"]}
 secp256k1 = "0.6.2"
-rlp2 = { path = '../rlp2' }
-bigint2 = { path = '../bigint2' }
+rlp2 = "0.2.0"
+bigint2 = "0.1.0"

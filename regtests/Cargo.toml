@@ -10,7 +10,7 @@ name = "regtests"
 
 [dependencies]
 sputnikvm = { path = '../sputnikvm' }
-bigint2 = { path = '../bigint2' }
+bigint2 = "0.1.0"
 gethrpc = { path = '../gethrpc' }
 clap = "2.22"
 serde_json = "0.9"

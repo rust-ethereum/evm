@@ -2,11 +2,11 @@
 name = "sputnikvm"
 version = "0.1.0"
 dependencies = [
- "bigint2 0.1.0",
+ "bigint2 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
  "ripemd160 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "rlp2 0.2.0",
+ "rlp2 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "secp256k1 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "sha2 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
  "tiny-keccak 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -47,6 +47,14 @@ dependencies = [
 [[package]]
 name = "bigint2"
 version = "0.1.0"
+dependencies = [
+ "rlp2 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "bigint2"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "rlp2 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -348,7 +356,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "regtests"
 version = "0.1.0"
 dependencies = [
- "bigint2 0.1.0",
+ "bigint2 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "gethrpc 0.1.0",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -611,6 +619,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum arrayvec 0.3.23 (registry+https://github.com/rust-lang/crates.io-index)" = "699e63a93b79d717e8c3b5eb1b28b7780d0d6d9e59a72eb769291c83b0c8dc67"
 "checksum atty 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "d912da0db7fa85514874458ca3651fe2cddace8d0b0505571dbdcd41ab490159"
 "checksum base64 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)" = "30e93c03064e7590d0466209155251b90c22e37fab1daf2771582598b5827557"
+"checksum bigint2 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "29cf893a83807f40b7c93a426da0a23a9f752529c221fdd25a4acc66b007d310"
 "checksum bitflags 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1370e9fc2a6ae53aea8b7a5110edbd08836ed87c88736dfabccade1c2b44bff4"
 "checksum byte-tools 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)" = "0919189ba800c7ffe8778278116b7e0de3905ab81c72abb69c85cbfef7991279"
 "checksum byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)" = "c40977b0ee6b9885c9013cd41d9feffdd22deb3bb4dc3a71d901cc7a77de18c8"
