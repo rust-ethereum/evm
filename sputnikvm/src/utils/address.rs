@@ -4,7 +4,7 @@ use std::fmt;
 
 use utils::bigint::M256;
 use utils::{read_hex, ParseHexError};
-use rlp2::{Encodable, RlpStream};
+use rlp::{Encodable, RlpStream};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 /// Represents an Ethereum address. This address is 20 bytes long.

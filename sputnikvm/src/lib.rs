@@ -5,8 +5,8 @@
 
 extern crate log;
 extern crate tiny_keccak;
-extern crate rlp2;
-extern crate bigint2;
+extern crate rlp;
+extern crate bigint;
 extern crate ripemd160;
 extern crate sha2;
 extern crate secp256k1;
