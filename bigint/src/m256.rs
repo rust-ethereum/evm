@@ -7,7 +7,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use super::{ParseHexError, U512, U256};
-use rlp2::{Encodable, RlpStream};
+use rlp::{Encodable, RlpStream};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 /// Represent an unsigned modulo 256-bit integer

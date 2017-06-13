@@ -1,9 +1,9 @@
 [workspace]
 members = [
-  "./rlp2",
+  "./rlp",
   "./sputnikvm",
   "./jsontests",
   "./regtests",
-  "./bigint2",
+  "./bigint",
   "./gethrpc",
 ]

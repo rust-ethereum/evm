@@ -3,7 +3,7 @@ use std::cmp::min;
 use utils::gas::Gas;
 use utils::address::Address;
 use utils::bigint::{U256, M256};
-use rlp2::RlpStream;
+use rlp::RlpStream;
 use tiny_keccak::Keccak;
 
 use super::errors::{RequireError, CommitError};
