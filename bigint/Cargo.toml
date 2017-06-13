@@ -1,7 +1,0 @@
-[package]
-name = "bigint"
-version = "0.1.0"
-authors = ["Wei Tang <hi@that.world>"]
-
-[dependencies]
-rlp2 = { path = '../rlp2' }

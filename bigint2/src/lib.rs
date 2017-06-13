@@ -1,5 +1,5 @@
 mod algorithms;
-extern crate rlp;
+extern crate rlp2;
 
 mod m256;
 mod mi256;
