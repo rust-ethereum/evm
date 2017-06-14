@@ -68,6 +68,7 @@ pub trait VM {
     fn available_gas(&self) -> Gas;
     fn refunded_gas(&self) -> Gas;
     fn logs(&self) -> &[Log];
+    fn removed(&self) -> &[Address];
 }
 
 /// A sequencial VM. It uses sequencial memory representation and hash
@@ -215,5 +216,9 @@ impl<M: Memory + Default> VM for ContextVM<M> {
     /// decided to accept the running status of this VM.
     fn logs(&self) -> &[Log] {
         self.machines[0].state().logs.as_slice()
+    }
+
+    fn removed(&self) -> &[Address] {
+        self.machines[0].state().removed.as_slice()
     }
 }

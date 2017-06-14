@@ -276,7 +276,7 @@ pub fn gas_refund<M: Memory + Default>(instruction: Instruction, state: &State<M
         },
         Instruction::SUICIDE => {
             let address: Address = state.stack.peek(0).unwrap().into();
-            if state.account_state.is_removed(address) {
+            if state.removed.contains(&address) {
                 Gas::zero()
             } else {
                 Gas::from(R_SUICIDE)

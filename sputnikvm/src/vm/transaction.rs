@@ -343,4 +343,11 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             TransactionVMState::Constructing { .. } => &[],
         }
     }
+
+    fn removed(&self) -> &[Address] {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => vm.removed(),
+            TransactionVMState::Constructing { .. } => &[],
+        }
+    }
 }

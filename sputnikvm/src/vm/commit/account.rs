@@ -75,7 +75,6 @@ pub enum Account {
         balance: U256,
         storage: Storage,
         code: Vec<u8>,
-        removed: bool,
     },
 }
 
@@ -117,13 +116,6 @@ impl AccountState {
     /// Returns all accounts right now in this account state.
     pub fn accounts(&self) -> hash_map::Values<Address, Account> {
         self.accounts.values()
-    }
-
-    pub fn is_removed(&self, address: Address) -> bool {
-        match self.accounts.get(&address) {
-            Some(&Account::Create { removed, .. }) => removed,
-            _ => false,
-        }
     }
 
     /// Returns Ok(()) if a full account is in this account
@@ -347,21 +339,19 @@ impl AccountState {
                     Account::Create {
                         address, code: Vec::new(), nonce: M256::zero(),
                         balance: balance + topup, storage: Storage::new(address, false),
-                        removed: false,
                     }
                 },
                 Account::DecreaseBalance(address, withdraw) => {
                     Account::Create {
                         address, code: Vec::new(), nonce: M256::zero(),
                         balance: balance - withdraw, storage: Storage::new(address, false),
-                        removed: false,
                     }
                 },
             }
         } else {
             Account::Create {
                 address, balance, code: Vec::new(), nonce: M256::zero(),
-                storage: Storage::new(address, false), removed: false,
+                storage: Storage::new(address, false),
             }
         };
 
@@ -415,7 +405,6 @@ impl AccountState {
                 storage,
                 code,
                 nonce,
-                removed,
             }) => {
                 Some(Account::Create {
                     address,
@@ -423,7 +412,6 @@ impl AccountState {
                     storage,
                     code,
                     nonce,
-                    removed,
                 })
             },
             None => {
@@ -472,7 +460,6 @@ impl AccountState {
                 storage,
                 code,
                 nonce,
-                removed,
             }) => {
                 Some(Account::Create {
                     address,
@@ -480,7 +467,6 @@ impl AccountState {
                     storage,
                     code,
                     nonce,
-                    removed,
                 })
             },
             None => {
@@ -532,7 +518,6 @@ impl AccountState {
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
                     code: Vec::new(),
-                    removed: true,
                 }
             },
             Some(Account::DecreaseBalance(address, _)) => {
@@ -543,17 +528,14 @@ impl AccountState {
             },
             Some(Account::Create {
                 address,
-                removed,
                 ..
             }) => {
-                assert!(!removed);
                 Account::Create {
                     nonce: M256::zero(),
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
                     code: Vec::new(),
-                    removed: true,
                 }
             },
             None => {

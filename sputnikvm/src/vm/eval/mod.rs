@@ -1,6 +1,7 @@
 //! VM Runtime
 use utils::bigint::M256;
 use utils::gas::Gas;
+use utils::address::Address;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
@@ -34,6 +35,7 @@ pub struct State<M> {
     pub account_state: AccountState,
     pub blockhash_state: BlockhashState,
     pub logs: Vec<Log>,
+    pub removed: Vec<Address>,
 
     pub depth: usize,
 }
@@ -123,6 +125,7 @@ impl<M: Memory + Default> Machine<M> {
                 account_state,
                 blockhash_state,
                 logs: Vec::new(),
+                removed: Vec::new(),
 
                 depth,
             },
@@ -154,6 +157,7 @@ impl<M: Memory + Default> Machine<M> {
                 account_state: self.state.account_state.clone(),
                 blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
+                removed: self.state.removed.clone(),
 
                 depth: self.state.depth + 1,
             },
@@ -208,6 +212,7 @@ impl<M: Memory + Default> Machine<M> {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
                 self.state.logs = Vec::new();
+                self.state.removed = Vec::new();
             },
             _ => panic!(),
         }
@@ -257,6 +262,7 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
+                self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
@@ -289,6 +295,7 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.account_state = sub.state.account_state;
                 self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
+                self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),

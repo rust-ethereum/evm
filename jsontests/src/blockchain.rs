@@ -99,7 +99,6 @@ impl JSONBlock {
                 storage: storage,
                 code: code,
                 nonce: nonce,
-                removed: removed,
             } => {
                 self.set_balance(address, balance);
                 self.set_account_code(address, code.as_slice());

@@ -15,6 +15,7 @@ pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     let balance = state.account_state.balance(state.context.address).unwrap();
     state.account_state.increase_balance(address, balance);
     state.account_state.remove(state.context.address).unwrap();
+    state.removed.push(address);
 }
 
 pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
