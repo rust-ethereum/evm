@@ -260,8 +260,7 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
                 if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
-                    self.state.account_state.decrease_balance(sub.state.context.caller,
-                                                              code_deposit_gas(sub.state.out.len()).into());
+                    self.state.used_gas = self.state.used_gas + code_deposit_gas(sub.state.out.len());
                     self.state.account_state.code_deposit(sub.state.context.address,
                                                           sub.state.out.as_slice());
                 } else {
