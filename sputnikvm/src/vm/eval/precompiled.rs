@@ -5,6 +5,7 @@ use vm::errors::MachineError;
 use vm::{Memory, Machine, MachineStatus};
 
 use std::str::FromStr;
+use std::cmp::min;
 
 use tiny_keccak::Keccak;
 use sha2::Sha256;
@@ -121,7 +122,7 @@ impl<M: Memory + Default> Machine<M> {
         } else {
             self.state.used_gas = gas;
             let mut data = [0u8; 128];
-            for i in 0..self.state.context.data.len() {
+            for i in 0..min(self.state.context.data.len(), 128) {
                 data[i] = self.state.context.data[i];
             }
             match kececrec(&data) {
