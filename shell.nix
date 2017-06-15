@@ -1,4 +1,4 @@
-{ pkgs ? (
+let pkgs = (
   let
     nixpkgs = import <nixpkgs>;
     pkgs_ = (nixpkgs {});
@@ -22,10 +22,9 @@
         });
       })
     ];
-  }))
-}:
+  }));
 
-with pkgs;
+in with pkgs;
 
 stdenv.mkDerivation {
   name = "sputnikvm-env";
