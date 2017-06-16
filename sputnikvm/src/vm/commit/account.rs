@@ -152,6 +152,17 @@ impl AccountState {
         self.storage(address)?.read(index).and_then(|_| Ok(()))
     }
 
+    pub fn mark_exists(&mut self, address: Address) -> Result<(), RequireError> {
+        match self.accounts.get_mut(&address) {
+            Some(&mut Account::Full { .. }) => Ok(()),
+            Some(&mut Account::Create { ref mut exists, .. }) => {
+                *exists = true;
+                Ok(())
+            },
+            _ => Err(RequireError::Account(address)),
+        }
+    }
+
     /// Commit an account commitment into this account state.
     pub fn commit(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         match commitment {

@@ -63,6 +63,8 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
 
+    state.account_state.mark_exists(context.address).unwrap();
+
     push!(state, context.address.into());
     Some(context)
 }
@@ -86,12 +88,16 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
         value: value,
         data: input,
     };
+
     let mut context = transaction.into_context(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
     if as_self {
         context.address = state.context.address;
     }
+
+    state.account_state.mark_exists(context.address).unwrap();
+
     push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }

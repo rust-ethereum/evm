@@ -7,7 +7,6 @@ use utils::bigint::{M256, U256};
 use std::cmp::max;
 use vm::{Memory, Instruction};
 use super::State;
-use super::precompiled::is_precompiled;
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -66,7 +65,7 @@ fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 
 fn new_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if !machine.account_state.exists(address).unwrap() && !is_precompiled(address) && !is_callcode {
+    if !machine.account_state.exists(address).unwrap() && !is_callcode {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -247,7 +246,7 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
 /// Raise gas stipend for CALL and CALLCODE instruction.
 pub fn gas_stipend<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
-        Instruction::CALL | Instruction::CALLCODE => {
+        Instruction::CALL => {
             let value = state.stack.peek(2).unwrap();
 
             if value != M256::zero() {
