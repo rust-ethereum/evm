@@ -206,13 +206,6 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                         assert!(M256::from_str(&expected_value).unwrap() == value);
                     }
                 },
-                &Account::Remove(address) => {
-                    if !is_miner_or_uncle(address, &block, client) {
-                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                                  &cur_number);
-                        assert!(U256::from_str(&expected_balance).unwrap() == U256::zero());
-                    }
-                },
                 &Account::IncreaseBalance(address, balance) => {
                     if !is_miner_or_uncle(address, &block, client) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),

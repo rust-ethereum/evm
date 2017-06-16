@@ -15,6 +15,7 @@ pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     let balance = state.account_state.balance(state.context.address).unwrap();
     state.account_state.increase_balance(address, balance);
     state.account_state.remove(state.context.address).unwrap();
+    state.removed.push(address);
 }
 
 pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
@@ -78,16 +79,19 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
     let gas_limit = min(gas + stipend_gas, after_gas);
 
     let transaction = Transaction::MessageCall {
-        address: if as_self { state.context.address } else { to },
+        address: to,
         caller: state.context.address,
         gas_price: state.context.gas_price,
         gas_limit: gas_limit,
         value: value,
         data: input,
     };
-    let context = transaction.into_context(
+    let mut context = transaction.into_context(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
-    push!(state, M256::zero());
+    if as_self {
+        context.address = state.context.address;
+    }
+    push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }

@@ -77,6 +77,7 @@ pub struct RPCBlock {
     pub gasLimit: String,
     pub gasUsed: String,
     pub timestamp: String,
+    #[serde(default)]
     pub transactions: Vec<String>,
     pub uncles: Vec<String>
 }

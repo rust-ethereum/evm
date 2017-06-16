@@ -5,12 +5,33 @@ use vm::errors::MachineError;
 use vm::{Memory, Machine, MachineStatus};
 
 use std::str::FromStr;
+use std::cmp::min;
 
 use tiny_keccak::Keccak;
 use sha2::Sha256;
 use ripemd160::Ripemd160;
 use secp256k1::{Secp256k1, RecoverableSignature, Message, RecoveryId, Error};
 use digest::{Input, FixedOutput};
+
+fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
+    if a % b == Gas::zero() {
+        a / b
+    } else {
+        a / b + Gas::from(1u64)
+    }
+}
+
+pub fn is_precompiled(address: Address) -> bool {
+    let ecrec_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
+    let sha256_address = Address::from_str("0x0000000000000000000000000000000000000002").unwrap();
+    let rip160_address = Address::from_str("0x0000000000000000000000000000000000000003").unwrap();
+    let id_address = Address::from_str("0x0000000000000000000000000000000000000004").unwrap();
+
+    address == ecrec_address ||
+        address == sha256_address ||
+        address == rip160_address ||
+        address == id_address
+}
 
 impl<M: Memory + Default> Machine<M> {
     #[allow(unused_variables)]
@@ -39,7 +60,8 @@ impl<M: Memory + Default> Machine<M> {
 
     fn step_precompiled_id(&mut self) {
         let gas = Gas::from(15u64) +
-            Gas::from(3u64) * (Gas::from(self.state.context.data.len()) / Gas::from(32u64));
+            Gas::from(3u64) * gas_div_ceil(Gas::from(self.state.context.data.len()),
+                                           Gas::from(32u64));
         if gas > self.state.context.gas_limit {
             self.state.used_gas = self.state.context.gas_limit;
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
@@ -52,7 +74,8 @@ impl<M: Memory + Default> Machine<M> {
 
     fn step_precompiled_rip160(&mut self) {
         let gas = Gas::from(600u64) +
-            Gas::from(120u64) * (Gas::from(self.state.context.data.len()) / Gas::from(32u64));
+            Gas::from(120u64) * gas_div_ceil(Gas::from(self.state.context.data.len()),
+                                             Gas::from(32u64));
         if gas > self.state.context.gas_limit {
             self.state.used_gas = self.state.context.gas_limit;
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
@@ -72,7 +95,8 @@ impl<M: Memory + Default> Machine<M> {
 
     fn step_precompiled_sha256(&mut self) {
         let gas = Gas::from(60u64) +
-            Gas::from(12u64) * (Gas::from(self.state.context.data.len()) / Gas::from(32u64));
+            Gas::from(12u64) * gas_div_ceil(Gas::from(self.state.context.data.len()),
+                                            Gas::from(32u64));
         if gas > self.state.context.gas_limit {
             self.state.used_gas = self.state.context.gas_limit;
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
@@ -98,7 +122,7 @@ impl<M: Memory + Default> Machine<M> {
         } else {
             self.state.used_gas = gas;
             let mut data = [0u8; 128];
-            for i in 0..self.state.context.data.len() {
+            for i in 0..min(self.state.context.data.len(), 128) {
                 data[i] = self.state.context.data[i];
             }
             match kececrec(&data) {

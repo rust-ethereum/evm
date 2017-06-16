@@ -7,6 +7,7 @@ use utils::bigint::{M256, U256};
 use std::cmp::max;
 use vm::{Memory, Instruction};
 use super::State;
+use super::precompiled::is_precompiled;
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -46,12 +47,12 @@ fn sstore_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     }
 }
 
-fn call_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
-    extra_cost(machine)
+fn call_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
+    extra_cost(machine, is_callcode)
 }
 
-fn extra_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
-    Gas::from(machine.patch.gas_call) + xfer_cost(machine) + new_cost(machine)
+fn extra_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
+    Gas::from(machine.patch.gas_call) + xfer_cost(machine) + new_cost(machine, is_callcode)
 }
 
 fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
@@ -63,9 +64,9 @@ fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     }
 }
 
-fn new_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
+fn new_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if machine.account_state.balance(address).unwrap() == U256::zero() && machine.account_state.nonce(address).unwrap() == M256::zero() && machine.account_state.code(address).unwrap().len() == 0 {
+    if machine.account_state.balance(address).unwrap() == U256::zero() && machine.account_state.nonce(address).unwrap() == M256::zero() && machine.account_state.code(address).unwrap().len() == 0 && !is_precompiled(address) && !is_callcode {
         G_NEWACCOUNT.into()
     } else {
         Gas::zero()
@@ -158,8 +159,9 @@ pub fn memory_cost<M: Memory + Default>(instruction: Instruction, state: &State<
 /// Calculate the gas cost.
 pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
-        Instruction::CALL | Instruction::CALLCODE |
-        Instruction::DELEGATECALL => call_cost(state),
+        Instruction::CALL => call_cost(state, false),
+        Instruction::CALLCODE => call_cost(state, true),
+        Instruction::DELEGATECALL => unimplemented!(),
         Instruction::SUICIDE => suicide_cost(state),
         Instruction::SSTORE => sstore_cost(state),
 
@@ -274,7 +276,7 @@ pub fn gas_refund<M: Memory + Default>(instruction: Instruction, state: &State<M
         },
         Instruction::SUICIDE => {
             let address: Address = state.stack.peek(0).unwrap().into();
-            if state.account_state.is_removed(address) {
+            if state.removed.contains(&address) {
                 Gas::zero()
             } else {
                 Gas::from(R_SUICIDE)

@@ -1,19 +1,20 @@
 //! VM Runtime
 use utils::bigint::M256;
 use utils::gas::Gas;
+use utils::address::Address;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
-use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas, code_deposit_gas};
-use self::utils::copy_into_memory;
+use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
 
 mod cost;
 mod run;
 mod check;
 mod utils;
+mod lifecycle;
 mod precompiled;
 
 /// A VM state without PC.
@@ -34,6 +35,7 @@ pub struct State<M> {
     pub account_state: AccountState,
     pub blockhash_state: BlockhashState,
     pub logs: Vec<Log>,
+    pub removed: Vec<Address>,
 
     pub depth: usize,
 }
@@ -45,6 +47,10 @@ impl<M> State<M> {
 
     pub fn available_gas(&self) -> Gas {
         self.context.gas_limit - self.memory_gas() - self.used_gas
+    }
+
+    pub fn total_used_gas(&self) -> Gas {
+        self.memory_gas() + self.used_gas
     }
 }
 
@@ -119,6 +125,7 @@ impl<M: Memory + Default> Machine<M> {
                 account_state,
                 blockhash_state,
                 logs: Vec::new(),
+                removed: Vec::new(),
 
                 depth,
             },
@@ -150,21 +157,13 @@ impl<M: Memory + Default> Machine<M> {
                 account_state: self.state.account_state.clone(),
                 blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
+                removed: self.state.removed.clone(),
 
                 depth: self.state.depth + 1,
             },
         }
     }
 
-    pub fn initialize_call(&mut self) {
-        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
-    }
-
-    pub fn initialize_create(&mut self) {
-        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        self.state.account_state.create(self.state.context.address, self.state.context.value);
-    }
 
     /// Commit a new account into this runtime.
     pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
@@ -174,126 +173,6 @@ impl<M: Memory + Default> Machine<M> {
     /// Commit a new blockhash into this runtime.
     pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
         self.state.blockhash_state.commit(number, hash)
-    }
-
-    pub fn code_deposit(&mut self) -> Result<(), RequireError> {
-        match self.status() {
-            MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
-            _ => panic!(),
-        }
-
-        let deposit_cost = code_deposit_gas(self.state.out.len());
-        if deposit_cost > self.state.available_gas() {
-            if !self.state.patch.force_code_deposit {
-                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-            } else {
-                self.state.account_state.code_deposit(self.state.context.address, &[]);
-            }
-        } else {
-            self.state.used_gas = self.state.used_gas + deposit_cost;
-            self.state.account_state.code_deposit(self.state.context.address,
-                                                  self.state.out.as_slice());
-        }
-        Ok(())
-    }
-
-    pub fn finalize(&mut self, real_used_gas: Gas, fresh_account_state: &AccountState) -> Result<(), RequireError> {
-        match self.status() {
-            MachineStatus::ExitedOk => (),
-            MachineStatus::ExitedErr(_) => {
-                // If exited with error, reset all changes.
-                self.state.account_state = fresh_account_state.clone();
-                self.state.logs = Vec::new();
-            },
-            _ => panic!(),
-        }
-
-        let gas_dec = real_used_gas * self.state.context.gas_price;
-        self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
-
-        match self.status() {
-            MachineStatus::ExitedOk => (),
-            MachineStatus::ExitedErr(_) => return Ok(()),
-            _ => panic!(),
-        }
-
-        Ok(())
-    }
-
-    #[allow(unused_variables)]
-    /// Apply a sub runtime into the current runtime. This sub runtime
-    /// should have been created by the current runtime's `derive`
-    /// function. Depending whether the current runtime is invoking a
-    /// ContractCreation or MessageCall instruction, it will apply
-    /// various states back.
-    pub fn apply_sub(&mut self, sub: Machine<M>) {
-        use std::mem::swap;
-        let mut status = MachineStatus::Running;
-        swap(&mut status, &mut self.status);
-        match status {
-            MachineStatus::InvokeCreate(_) => {
-                self.apply_create(sub);
-            },
-            MachineStatus::InvokeCall(_, (out_start, out_len)) => {
-                self.apply_call(sub, out_start, out_len);
-            },
-            _ => panic!(),
-        }
-    }
-
-    fn apply_create(&mut self, sub: Machine<M>) {
-        if self.state.available_gas() < sub.state.used_gas {
-            panic!();
-        }
-
-        match sub.status() {
-            MachineStatus::ExitedOk => {
-                self.state.account_state = sub.state.account_state;
-                self.state.blockhash_state = sub.state.blockhash_state;
-                self.state.logs = sub.state.logs;
-                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
-                self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
-                    self.state.account_state.decrease_balance(sub.state.context.caller,
-                                                              code_deposit_gas(sub.state.out.len()).into());
-                    self.state.account_state.code_deposit(sub.state.context.address,
-                                                          sub.state.out.as_slice());
-                } else {
-                    self.state.account_state.code_deposit(sub.state.context.address, &[]);
-                }
-
-            },
-            MachineStatus::ExitedErr(_) => {
-                // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
-                // self.state.stack.pop().unwrap();
-                // self.state.stack.push(M256::zero()).unwrap();
-            },
-            _ => panic!(),
-        }
-    }
-
-    fn apply_call(&mut self, sub: Machine<M>, out_start: M256, out_len: M256) {
-        if self.state.available_gas() < sub.state.used_gas {
-            panic!();
-        }
-
-        match sub.status() {
-            MachineStatus::ExitedOk => {
-                self.state.account_state = sub.state.account_state;
-                self.state.blockhash_state = sub.state.blockhash_state;
-                self.state.logs = sub.state.logs;
-                self.state.used_gas = self.state.used_gas + sub.state.used_gas;
-                self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),
-                                 out_start, M256::zero(), out_len);
-            },
-            MachineStatus::ExitedErr(_) => {
-                // self.state.used_gas = self.state.used_gas + sub.state.used_gas;
-                self.state.stack.pop().unwrap();
-                self.state.stack.push(M256::from(1u64)).unwrap();
-            },
-            _ => panic!(),
-        }
     }
 
     /// Check the next instruction about whether it will return

@@ -105,12 +105,6 @@ impl JSONBlock {
                 self.storages.insert(address, storage.into());
                 self.set_account_nonce(address, nonce);
             },
-            Account::Remove(address) => {
-                self.set_balance(address, U256::zero());
-                self.set_account_code(address, Vec::new().as_slice());
-                self.storages.insert(address, HashMap::new());
-                self.set_account_nonce(address, M256::zero());
-            },
             Account::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);
                 self.set_balance(address, balance + topup);
