@@ -4,6 +4,7 @@ use utils::bigint::M256;
 use utils::gas::Gas;
 use vm::Memory;
 use vm::errors::MachineError;
+use std::cmp::min;
 
 pub fn l64(gas: Gas) -> Gas {
     gas - gas / Gas::from(64u64)
@@ -51,5 +52,17 @@ pub fn copy_into_memory<M: Memory>(memory: &mut M, values: &[u8], start: M256, v
             memory.write_raw(i, 0u8).unwrap();
         }
         i = i + M256::from(1u64);
+    }
+}
+
+pub fn copy_into_memory_apply<M: Memory>(memory: &mut M, values: &[u8], start: M256, len: M256) {
+    let value_len = M256::from(values.len());
+    let actual_len = min(len, value_len);
+    let mut i = start;
+    let mut j = 0;
+    while i < start + actual_len {
+        memory.write_raw(i, values[j]).unwrap();
+        i = i + M256::from(1u64);
+        j = j + 1;
     }
 }

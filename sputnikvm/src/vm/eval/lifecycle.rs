@@ -4,7 +4,7 @@ use vm::errors::{RequireError, MachineError};
 use vm::commit::AccountState;
 use vm::Memory;
 use super::{Machine, MachineStatus};
-use super::utils::copy_into_memory;
+use super::utils::copy_into_memory_apply;
 use super::cost::code_deposit_gas;
 
 /// # Lifecycle of a Machine
@@ -156,8 +156,8 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),
-                                 out_start, M256::zero(), out_len);
+                copy_into_memory_apply(&mut self.state.memory, sub.state.out.as_slice(),
+                                       out_start, out_len);
             },
             MachineStatus::ExitedErr(_) => {
                 self.state.used_gas = self.state.used_gas + sub.state.context.gas_limit;
