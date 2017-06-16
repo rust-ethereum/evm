@@ -77,12 +77,16 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                                                                  &last_block_number)).unwrap();
                 let code = read_hex(&client.get_code(&format!("0x{:x}", address),
                                                      &last_block_number)).unwrap();
-                vm.commit_account(AccountCommitment::Full {
-                    nonce: nonce,
-                    address: address,
-                    balance: balance,
-                    code: code,
-                }).unwrap();
+                if nonce == M256::zero() && balance == U256::zero() && code.len() == 0 {
+                    vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                } else {
+                    vm.commit_account(AccountCommitment::Full {
+                        nonce: nonce,
+                        address: address,
+                        balance: balance,
+                        code: code,
+                    }).unwrap();
+                }
             },
             Err(RequireError::AccountStorage(address, index)) => {
                 println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);

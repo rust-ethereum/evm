@@ -196,6 +196,7 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::SUICIDE => {
             state.stack.check_pop_push(1, 0)?;
             state.account_state.require(state.context.address)?;
+            state.account_state.require(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
     }
