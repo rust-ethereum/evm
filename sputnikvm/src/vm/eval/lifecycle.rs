@@ -69,6 +69,7 @@ impl<M: Memory + Default> Machine<M> {
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
+                self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
                 self.state.logs = Vec::new();
                 self.state.removed = Vec::new();
             },
