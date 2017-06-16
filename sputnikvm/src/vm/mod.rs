@@ -165,14 +165,14 @@ impl<M: Memory + Default> VM for ContextVM<M> {
             MachineStatus::InvokeCall(context, _) => {
                 self.history.push(context.clone());
                 let mut sub = self.machines.last().unwrap().derive(context);
-                sub.initialize_call();
+                sub.invoke_call();
                 self.machines.push(sub);
                 Ok(())
             },
             MachineStatus::InvokeCreate(context) => {
                 self.history.push(context.clone());
                 let mut sub = self.machines.last().unwrap().derive(context);
-                sub.initialize_create();
+                sub.invoke_create();
                 self.machines.push(sub);
                 Ok(())
             },

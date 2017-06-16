@@ -126,12 +126,24 @@ impl Transaction {
             &Transaction::ContractCreation { gas_limit, .. } => gas_limit,
         }
     }
+
+    pub fn gas_price(&self) -> Gas {
+        match self {
+            &Transaction::MessageCall { gas_price, .. } => gas_price,
+            &Transaction::ContractCreation { gas_price, .. } => gas_price,
+        }
+    }
+
+    pub fn preclaimed_value(&self) -> U256 {
+        (self.gas_limit() * self.gas_price()).into()
+    }
 }
 
 enum TransactionVMState<M> {
     Running {
         vm: ContextVM<M>,
         intrinsic_gas: Gas,
+        preclaimed_value: U256,
         finalized: bool,
         code_deposit: bool,
         fresh_account_state: AccountState,
@@ -238,6 +250,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         let mut caccount_state: Option<AccountState> = None;
         let mut cblockhash_state: Option<BlockhashState> = None;
         let mut ccode_deposit: Option<bool> = None;
+        let mut cpreclaimed_value: Option<U256> = None;
 
         let real_used_gas = self.real_used_gas();
 
@@ -247,6 +260,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 ref mut finalized,
                 ref mut code_deposit,
                 ref fresh_account_state,
+                preclaimed_value,
                 ..
             } => {
                 match vm.status() {
@@ -261,7 +275,8 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                         }
 
                         if !*finalized {
-                            vm.machines[0].finalize(real_used_gas, fresh_account_state)?;
+                            vm.machines[0].finalize(real_used_gas, preclaimed_value,
+                                                    fresh_account_state)?;
                             *finalized = true;
                             return Ok(());
                         }
@@ -279,6 +294,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                     &Transaction::ContractCreation { .. } => true,
                 });
                 cgas = Some(transaction.intrinsic_gas(patch));
+                cpreclaimed_value = Some(transaction.preclaimed_value());
                 ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state, false)?);
                 cblock = Some(block.clone());
                 cpatch = Some(patch);
@@ -293,9 +309,9 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                                             cblockhash_state.unwrap());
 
         if ccode_deposit.unwrap() {
-            vm.machines[0].initialize_create();
+            vm.machines[0].initialize_create(cpreclaimed_value.unwrap());
         } else {
-            vm.machines[0].initialize_call();
+            vm.machines[0].initialize_call(cpreclaimed_value.unwrap());
         }
 
         self.0 = TransactionVMState::Running {
@@ -304,6 +320,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
             intrinsic_gas: cgas.unwrap(),
             finalized: false,
             code_deposit: ccode_deposit.unwrap(),
+            preclaimed_value: cpreclaimed_value.unwrap(),
         };
 
         Ok(())
