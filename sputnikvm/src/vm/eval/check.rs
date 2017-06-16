@@ -7,7 +7,7 @@ use vm::{Memory, Instruction};
 use vm::errors::{MachineError, EvalError};
 
 use vm::eval::{State, ControlCheck};
-use super::utils::{check_range, check_memory_write_range};
+use super::utils::check_range;
 
 #[allow(unused_variables)]
 pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
@@ -72,15 +72,15 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALLDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CALLDATACOPY => {
             state.stack.check_pop_push(3, 0)?;
-            check_memory_write_range(&state.memory,
-                                     state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+            state.memory.check_write_range(
+                state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
             Ok(None)
         },
         Instruction::CODESIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CODECOPY => {
             state.stack.check_pop_push(3, 0)?;
-            check_memory_write_range(&state.memory,
-                               state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+            state.memory.check_write_range(
+                state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
             Ok(None)
         },
         Instruction::GASPRICE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
@@ -92,8 +92,8 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::EXTCODECOPY => {
             state.stack.check_pop_push(4, 0)?;
             state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
-            check_memory_write_range(&state.memory,
-                                     state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
+            state.memory.check_write_range(
+                state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
             Ok(None)
         },
 
@@ -172,8 +172,8 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALL => {
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
-            check_memory_write_range(&state.memory,
-                                     state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
+            state.memory.check_write_range(
+                state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
@@ -181,8 +181,8 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALLCODE => {
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
-            check_memory_write_range(&state.memory,
-                                     state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
+            state.memory.check_write_range(
+                state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)

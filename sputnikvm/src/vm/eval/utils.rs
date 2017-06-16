@@ -18,16 +18,6 @@ pub fn check_range(start: M256, len: M256) -> Result<(), MachineError> {
     }
 }
 
-pub fn check_memory_write_range<M: Memory>(memory: &M, start: M256, len: M256) -> Result<(), MachineError> {
-    check_range(start, len)?;
-    let mut i = start;
-    while i < start + len {
-        memory.check_write(i)?;
-        i = i + M256::from(1u64);
-    }
-    Ok(())
-}
-
 pub fn copy_from_memory<M: Memory>(memory: &M, start: M256, len: M256) -> Vec<u8> {
     let mut result: Vec<u8> = Vec::new();
     let mut i = start;
