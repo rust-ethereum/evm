@@ -11,7 +11,7 @@ use super::utils::{check_range, check_memory_write_range};
 
 pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
     match instruction {
-        Instruction::CALL => {
+        Instruction::CALL | Instruction::CALLCODE => {
             if after_gas - stipend_gas < state.stack.peek(0).unwrap().into() {
                 Err(EvalError::Machine(MachineError::EmptyGas))
             } else {
