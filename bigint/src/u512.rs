@@ -5,7 +5,7 @@ use std::ops::{Add, Sub, Mul, Div, Shr, Shl, BitAnd, Rem};
 use std::cmp::Ordering;
 use std::fmt;
 
-use super::U256;
+use super::{U256, Sign};
 use super::algorithms::{add2, mac3, from_signed, sub2_sign};
 
 #[repr(C)]
@@ -153,6 +153,7 @@ impl Sub for U512 {
         let U512(ref b) = other;
 
         let sign = sub2_sign(a, b);
+        assert!(sign != Sign::Minus);
         from_signed(sign, a);
         U512(*a)
     }

@@ -13,9 +13,9 @@ use vm::eval::utils::copy_from_memory;
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, address: Address);
     let balance = state.account_state.balance(state.context.address).unwrap();
-    state.account_state.increase_balance(address, balance);
     state.account_state.remove(state.context.address).unwrap();
-    state.removed.push(address);
+    state.removed.push(state.context.address);
+    state.account_state.increase_balance(address, balance);
 }
 
 pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
@@ -86,12 +86,14 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
         value: value,
         data: input,
     };
+
     let mut context = transaction.into_context(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
     if as_self {
         context.address = state.context.address;
     }
+
     push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }

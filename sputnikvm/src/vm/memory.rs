@@ -11,6 +11,7 @@ pub trait Memory {
     /// this function returns None, then both `write` and `write_raw`
     /// on this index should succeed.
     fn check_write(&self, index: M256) -> Result<(), MemoryError>;
+    fn check_write_range(&self, start: M256, len: M256) -> Result<(), MemoryError>;
 
     /// Write value into the index.
     fn write(&mut self, index: M256, value: M256) -> Result<(), MemoryError>;
@@ -43,6 +44,18 @@ impl Memory for SeqMemory {
             Err(MemoryError::IndexNotSupported)
         } else {
             Ok(())
+        }
+    }
+
+    fn check_write_range(&self, start: M256, len: M256) -> Result<(), MemoryError> {
+        if len == M256::zero() {
+            return Ok(());
+        }
+
+        if start + len < start {
+            Err(MemoryError::IndexNotSupported)
+        } else {
+            self.check_write(start + len - M256::from(1u64))
         }
     }
 

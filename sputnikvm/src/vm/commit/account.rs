@@ -1,5 +1,6 @@
 //! Account commitment managment
 
+use std::collections::hash_set::HashSet;
 use std::collections::hash_map::{self, HashMap};
 use utils::address::Address;
 use utils::bigint::{M256, U256};
@@ -31,6 +32,8 @@ pub enum AccountCommitment {
         index: M256,
         value: M256,
     },
+    /// Indicate that an account does not exist.
+    Nonexist(Address),
 }
 
 impl AccountCommitment {
@@ -49,6 +52,7 @@ impl AccountCommitment {
                 address,
                 ..
             } => address,
+            &AccountCommitment::Nonexist(address) => address,
         }
     }
 }
@@ -75,6 +79,7 @@ pub enum Account {
         balance: U256,
         storage: Storage,
         code: Vec<u8>,
+        exists: bool,
     },
 }
 
@@ -101,6 +106,7 @@ impl Account {
 pub struct AccountState {
     accounts: HashMap<Address, Account>,
     codes: HashMap<Address, Vec<u8>>,
+    premarked_exists: HashSet<Address>,
 }
 
 impl Default for AccountState {
@@ -108,6 +114,7 @@ impl Default for AccountState {
         Self {
             accounts: HashMap::new(),
             codes: HashMap::new(),
+            premarked_exists: HashSet::new(),
         }
     }
 }
@@ -218,9 +225,59 @@ impl AccountState {
                         return Err(CommitError::InvalidCommitment);
                     },
                 }
+            },
+            AccountCommitment::Nonexist(address) => {
+                let account = if self.accounts.contains_key(&address) {
+                    match self.accounts.remove(&address).unwrap() {
+                        Account::Full { .. } => return Err(CommitError::AlreadyCommitted),
+                        Account::Create { .. } => return Err(CommitError::AlreadyCommitted),
+                        Account::IncreaseBalance(address, topup) => {
+                            Account::Create {
+                                nonce: M256::zero(),
+                                address,
+                                balance: topup,
+                                storage: Storage::new(address, false),
+                                code: Vec::new(),
+                                exists: true,
+                            }
+                        },
+                        Account::DecreaseBalance(_, _) => panic!(),
+                    }
+                } else {
+                    Account::Create {
+                        nonce: M256::zero(),
+                        address,
+                        balance: U256::zero(),
+                        storage: Storage::new(address, false),
+                        code: Vec::new(),
+                        exists: self.premarked_exists.contains(&address),
+                    }
+                };
+
+                self.accounts.insert(address, account);
             }
         }
         Ok(())
+    }
+
+    pub fn exists(&self, address: Address) -> Result<bool, RequireError> {
+        match self.accounts.get(&address) {
+            Some(&Account::Create { exists, .. }) => Ok(exists),
+            Some(&Account::Full { .. }) => Ok(true),
+            _ => Err(RequireError::Account(address)),
+        }
+    }
+
+    pub fn premark_exists(&mut self, address: Address) {
+        match self.accounts.get_mut(&address) {
+            Some(&mut Account::Full { .. }) => (),
+            Some(&mut Account::Create { ref mut exists, .. }) => {
+                *exists = true;
+            },
+            _ => {
+                self.premarked_exists.insert(address);
+            }
+        }
     }
 
     /// Find code by its address in this account state. If the search
@@ -330,38 +387,41 @@ impl AccountState {
 
     /// Create a new account (that should not yet have existed
     /// before).
-    pub fn create(&mut self, address: Address, balance: U256) {
+    pub fn create(&mut self, address: Address, topup: U256) -> Result<(), RequireError> {
         let account = if self.accounts.contains_key(&address) {
             match self.accounts.remove(&address).unwrap() {
-                Account::Full { .. } => panic!(),
-                Account::Create { .. } => panic!(),
-                Account::IncreaseBalance(address, topup) => {
+                Account::Full { balance, .. } => {
                     Account::Create {
                         address, code: Vec::new(), nonce: M256::zero(),
                         balance: balance + topup, storage: Storage::new(address, false),
+                        exists: true,
                     }
                 },
-                Account::DecreaseBalance(address, withdraw) => {
+                Account::Create { balance, .. } => {
                     Account::Create {
                         address, code: Vec::new(), nonce: M256::zero(),
-                        balance: balance - withdraw, storage: Storage::new(address, false),
+                        balance: balance + topup, storage: Storage::new(address, false),
+                        exists: true,
                     }
+                },
+                _ => {
+                    return Err(RequireError::Account(address));
                 },
             }
         } else {
-            Account::Create {
-                address, balance, code: Vec::new(), nonce: M256::zero(),
-                storage: Storage::new(address, false),
-            }
+            return Err(RequireError::Account(address));
         };
 
         self.accounts.insert(address, account);
+
+        Ok(())
     }
 
     /// Deposit code in to a created account.
     pub fn code_deposit(&mut self, address: Address, new_code: &[u8]) {
         match self.accounts.get_mut(&address).unwrap() {
-            &mut Account::Create { ref mut code, .. } => {
+            &mut Account::Create { ref mut code, ref mut exists, .. } => {
+                *exists = true;
                 *code = new_code.into();
             },
             _ => panic!(),
@@ -405,6 +465,7 @@ impl AccountState {
                 storage,
                 code,
                 nonce,
+                exists: _,
             }) => {
                 Some(Account::Create {
                     address,
@@ -412,6 +473,7 @@ impl AccountState {
                     storage,
                     code,
                     nonce,
+                    exists: true,
                 })
             },
             None => {
@@ -460,6 +522,7 @@ impl AccountState {
                 storage,
                 code,
                 nonce,
+                exists: _,
             }) => {
                 Some(Account::Create {
                     address,
@@ -467,6 +530,7 @@ impl AccountState {
                     storage,
                     code,
                     nonce,
+                    exists: true,
                 })
             },
             None => {
@@ -491,8 +555,10 @@ impl AccountState {
             },
             Some(&mut Account::Create {
                 ref mut nonce,
+                ref mut exists,
                 ..
             }) => {
+                *exists = true;
                 *nonce = new_nonce;
                 Ok(())
             },
@@ -507,6 +573,7 @@ impl AccountState {
     /// `RequireError`.
     pub fn remove(&mut self, address: Address) -> Result<(), RequireError> {
         self.codes.remove(&address);
+        self.premarked_exists.remove(&address);
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
                 address,
@@ -518,6 +585,7 @@ impl AccountState {
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
                     code: Vec::new(),
+                    exists: false,
                 }
             },
             Some(Account::DecreaseBalance(address, _)) => {
@@ -536,6 +604,7 @@ impl AccountState {
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
                     code: Vec::new(),
+                    exists: false,
                 }
             },
             None => {

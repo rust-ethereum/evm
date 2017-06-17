@@ -142,12 +142,16 @@ impl<M: Memory + Default> Machine<M> {
 fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
     let ecrec = Secp256k1::new();
     let message = Message::from_slice(&data[0..32])?;
-    let recid = RecoveryId::from_i32(data[63] as i32)?;
+    let recid_raw = match data[63] {
+        27 | 28 if data[32..63] == [0; 31] => data[63] - 27,
+        _ => return Err(Error::InvalidRecoveryId),
+    };
+    let recid = RecoveryId::from_i32(recid_raw as i32)?;
     let sig = RecoverableSignature::from_compact(&ecrec, &data[64..128], recid)?;
     let recovered = ecrec.recover(&message, &sig)?;
     let key = recovered.serialize_vec(&ecrec, false);
     let mut kec = Keccak::new_keccak256();
-    kec.update(&key);
+    kec.update(&key[1..65]);
     let mut ret = [0u8; 32];
     kec.finalize(&mut ret);
     Ok(ret)

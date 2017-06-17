@@ -11,7 +11,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
 use std::str::FromStr;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
@@ -62,7 +62,37 @@ fn from_rpc_log(log: &RPCLog) -> Log {
     }
 }
 
-fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_number: &str) {
+/// Accounts in this list should always be considered exists.
+fn irregular_addresses(number: usize) -> HashSet<Address> {
+    let config: HashMap<Address, usize> = {
+        let mut config = HashMap::new();
+        config.insert(Address::from_str("0x0000000000000000000000000000000000000000").unwrap(), 0);
+        config.insert(Address::from_str("0x0000000000000000000000000000000000000001").unwrap(), 0);
+        config.insert(Address::from_str("0x0000000000000000000000000000000000000002").unwrap(), 505137);
+        config.insert(Address::from_str("0x0000000000000000000000000000000000000003").unwrap(), 0);
+        config.insert(Address::from_str("0x0000000000000000000000000000000000000004").unwrap(), 0);
+
+        config.insert(Address::from_str("0xbfe465e7eb5a2928b5bf22bef93ad06089dc6179").unwrap(), 229894);
+        config.insert(Address::from_str("0xc7585b4ea1829ef37f2fcc6ceaa6063700000000").unwrap(), 188235);
+        config.insert(Address::from_str("0x4fea5cb278edfabcc24f7c1425951a0d2faa609b").unwrap(), 370489);
+        config.insert(Address::from_str("0x000000000000000000000000000007329b54129c").unwrap(), 254277);
+        config.insert(Address::from_str("0x0000000000000000000000000000000000000194").unwrap(), 257654);
+        config.insert(Address::from_str("0xf5ed057f297c6389d80245c8631b040f05804578").unwrap(), 637752);
+
+        config
+    };
+
+    let mut result: HashSet<Address> = HashSet::new();
+    for (key, value) in config {
+        if number > value {
+            result.insert(key);
+        }
+    }
+    result
+}
+
+fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_number: &str,
+               irregular_addresses: &HashSet<Address>) {
     loop {
         match vm.fire() {
             Ok(()) => {
@@ -77,12 +107,18 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                                                                  &last_block_number)).unwrap();
                 let code = read_hex(&client.get_code(&format!("0x{:x}", address),
                                                      &last_block_number)).unwrap();
-                vm.commit_account(AccountCommitment::Full {
-                    nonce: nonce,
-                    address: address,
-                    balance: balance,
-                    code: code,
-                }).unwrap();
+                if nonce == M256::zero() && balance == U256::zero() && code.len() == 0 &&
+                    !irregular_addresses.contains(&address)
+                {
+                    vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                } else {
+                    vm.commit_account(AccountCommitment::Full {
+                        nonce: nonce,
+                        address: address,
+                        balance: balance,
+                        code: code,
+                    }).unwrap();
+                }
             },
             Err(RequireError::AccountStorage(address, index)) => {
                 println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
@@ -141,6 +177,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
     let last_number = format!("0x{:x}", number - 1);
     let cur_number = block.number.to_string();
     let block_header = from_rpc_block(&block);
+    let irregular_addresses = irregular_addresses(number);
 
     let mut last_vm: Option<SeqTransactionVM> = None;
     for transaction_hash in &block.transactions {
@@ -154,7 +191,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
             SeqTransactionVM::with_previous(transaction, block_header.clone(), &FRONTIER_PATCH, last_vm.as_ref().unwrap())
         };
 
-        handle_fire(client, &mut vm, &last_number);
+        handle_fire(client, &mut vm, &last_number, &irregular_addresses);
 
         assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
@@ -245,7 +282,6 @@ fn main() {
     let address = matches.value_of("RPC").unwrap();
     let number = matches.value_of("NUMBER").unwrap();
     let mut client = GethRPCClient::new(address);
-    println!("net version: {}", client.net_version());
 
     if number.contains("..") {
         let number: Vec<&str> = number.split("..").collect();

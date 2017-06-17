@@ -41,6 +41,24 @@ impl Transaction {
         }
     }
 
+    pub fn address(&self, account_state: &AccountState) -> Result<Address, RequireError> {
+        match self {
+            &Transaction::MessageCall { address, .. } => Ok(address),
+            &Transaction::ContractCreation { caller, .. } => {
+                let nonce = account_state.nonce(caller)?;
+                let mut rlp = RlpStream::new_list(2);
+                rlp.append(&caller);
+                rlp.append(&nonce);
+                let mut address_array = [0u8; 32];
+                let mut sha3 = Keccak::new_keccak256();
+                sha3.update(rlp.out().as_slice());
+                sha3.finalize(&mut address_array);
+
+                Ok(Address::from(M256::from(address_array)))
+            },
+        }
+    }
+
     pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
         match self {
@@ -73,9 +91,11 @@ impl Transaction {
 
     pub fn into_context(self, upfront: Gas, origin: Option<Address>,
                         account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
+        let address = self.address(account_state)?;
+
         match self {
             Transaction::MessageCall {
-                address, caller, gas_price, gas_limit, value, data
+                caller, gas_price, gas_limit, value, data, ..
             } => {
                 account_state.require(caller)?;
                 account_state.require_code(address)?;
@@ -99,15 +119,6 @@ impl Transaction {
 
                 let nonce = account_state.nonce(caller).unwrap();
                 account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
-
-                let mut rlp = RlpStream::new_list(2);
-                rlp.append(&caller);
-                rlp.append(&nonce);
-                let mut address_array = [0u8; 32];
-                let mut sha3 = Keccak::new_keccak256();
-                sha3.update(rlp.out().as_slice());
-                sha3.finalize(&mut address_array);
-                let address = Address::from(M256::from(address_array));
 
                 Ok(Context {
                     address, caller, gas_price, value,
@@ -289,6 +300,9 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 ref transaction, ref block, ref patch,
                 ref mut account_state, ref blockhash_state } => {
 
+                let address = transaction.address(account_state)?;
+                account_state.require(address)?;
+
                 ccode_deposit = Some(match transaction {
                     &Transaction::MessageCall { .. } => false,
                     &Transaction::ContractCreation { .. } => true,
@@ -309,7 +323,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                                             cblockhash_state.unwrap());
 
         if ccode_deposit.unwrap() {
-            vm.machines[0].initialize_create(cpreclaimed_value.unwrap());
+            vm.machines[0].initialize_create(cpreclaimed_value.unwrap()).unwrap();
         } else {
             vm.machines[0].initialize_call(cpreclaimed_value.unwrap());
         }

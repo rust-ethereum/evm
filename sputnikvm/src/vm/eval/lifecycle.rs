@@ -4,7 +4,7 @@ use vm::errors::{RequireError, MachineError};
 use vm::commit::AccountState;
 use vm::Memory;
 use super::{Machine, MachineStatus};
-use super::utils::copy_into_memory;
+use super::utils::copy_into_memory_apply;
 use super::cost::code_deposit_gas;
 
 /// # Lifecycle of a Machine
@@ -21,25 +21,37 @@ use super::cost::code_deposit_gas;
 
 impl<M: Memory + Default> Machine<M> {
     pub fn initialize_call(&mut self, preclaimed_value: U256) {
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
     pub fn invoke_call(&mut self) {
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
-    pub fn initialize_create(&mut self, preclaimed_value: U256) {
+    pub fn initialize_create(&mut self, preclaimed_value: U256) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
+
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        self.state.account_state.create(self.state.context.address, self.state.context.value);
+        self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
+
+        Ok(())
     }
 
-    pub fn invoke_create(&mut self) {
+    pub fn invoke_create(&mut self) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
+
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        self.state.account_state.create(self.state.context.address, self.state.context.value);
+        self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
+
+        Ok(())
     }
 
     pub fn code_deposit(&mut self) -> Result<(), RequireError> {
@@ -64,11 +76,14 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn finalize(&mut self, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
+
         match self.status() {
             MachineStatus::ExitedOk => (),
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
+                self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
                 self.state.logs = Vec::new();
                 self.state.removed = Vec::new();
             },
@@ -155,8 +170,8 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                copy_into_memory(&mut self.state.memory, sub.state.out.as_slice(),
-                                 out_start, M256::zero(), out_len);
+                copy_into_memory_apply(&mut self.state.memory, sub.state.out.as_slice(),
+                                       out_start, out_len);
             },
             MachineStatus::ExitedErr(_) => {
                 self.state.used_gas = self.state.used_gas + sub.state.context.gas_limit;

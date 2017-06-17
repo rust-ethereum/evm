@@ -7,7 +7,6 @@ use utils::bigint::{M256, U256};
 use std::cmp::max;
 use vm::{Memory, Instruction};
 use super::State;
-use super::precompiled::is_precompiled;
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -66,8 +65,8 @@ fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
 
 fn new_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if machine.account_state.balance(address).unwrap() == U256::zero() && machine.account_state.nonce(address).unwrap() == M256::zero() && machine.account_state.code(address).unwrap().len() == 0 && !is_precompiled(address) && !is_callcode {
-        G_NEWACCOUNT.into()
+    if !machine.account_state.exists(address).unwrap() && !is_callcode {
+        Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
     }
@@ -75,7 +74,7 @@ fn new_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
 
 fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
-    Gas::from(machine.patch.gas_suicide) + if address == Address::default() {
+    Gas::from(machine.patch.gas_suicide) + if !machine.account_state.exists(address).unwrap() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
