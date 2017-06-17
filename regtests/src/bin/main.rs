@@ -75,6 +75,7 @@ fn irregular_addresses(number: usize) -> HashSet<Address> {
         config.insert(Address::from_str("0xbfe465e7eb5a2928b5bf22bef93ad06089dc6179").unwrap(), 229894);
         config.insert(Address::from_str("0xc7585b4ea1829ef37f2fcc6ceaa6063700000000").unwrap(), 188235);
         config.insert(Address::from_str("0x4fea5cb278edfabcc24f7c1425951a0d2faa609b").unwrap(), 370489);
+        config.insert(Address::from_str("0x000000000000000000000000000007329b54129c").unwrap(), 254277);
 
         config
     };
