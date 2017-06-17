@@ -387,45 +387,34 @@ impl AccountState {
 
     /// Create a new account (that should not yet have existed
     /// before).
-    pub fn create(&mut self, address: Address, balance: U256) {
+    pub fn create(&mut self, address: Address, topup: U256) -> Result<(), RequireError> {
         let account = if self.accounts.contains_key(&address) {
             match self.accounts.remove(&address).unwrap() {
-                Account::Full { .. } => panic!(),
-                Account::Create { exists, .. } => {
-                    if exists {
-                        panic!()
-                    } else {
-                        Account::Create {
-                            address, code: Vec::new(), nonce: M256::zero(),
-                            balance, storage: Storage::new(address, false),
-                            exists: true,
-                        }
-                    }
-                },
-                Account::IncreaseBalance(address, topup) => {
+                Account::Full { balance, .. } => {
                     Account::Create {
                         address, code: Vec::new(), nonce: M256::zero(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
                 },
-                Account::DecreaseBalance(address, withdraw) => {
+                Account::Create { balance, .. } => {
                     Account::Create {
                         address, code: Vec::new(), nonce: M256::zero(),
-                        balance: balance - withdraw, storage: Storage::new(address, false),
+                        balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
                 },
+                _ => {
+                    return Err(RequireError::Account(address));
+                },
             }
         } else {
-            Account::Create {
-                address, balance, code: Vec::new(), nonce: M256::zero(),
-                storage: Storage::new(address, false),
-                exists: true,
-            }
+            return Err(RequireError::Account(address));
         };
 
         self.accounts.insert(address, account);
+
+        Ok(())
     }
 
     /// Deposit code in to a created account.

@@ -33,17 +33,25 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
-    pub fn initialize_create(&mut self, preclaimed_value: U256) {
+    pub fn initialize_create(&mut self, preclaimed_value: U256) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
+
         self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        self.state.account_state.create(self.state.context.address, self.state.context.value);
+        self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
+
+        Ok(())
     }
 
-    pub fn invoke_create(&mut self) {
+    pub fn invoke_create(&mut self) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
+
         self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        self.state.account_state.create(self.state.context.address, self.state.context.value);
+        self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
+
+        Ok(())
     }
 
     pub fn code_deposit(&mut self) -> Result<(), RequireError> {
@@ -68,6 +76,8 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     pub fn finalize(&mut self, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
+
         match self.status() {
             MachineStatus::ExitedOk => (),
             MachineStatus::ExitedErr(_) => {
