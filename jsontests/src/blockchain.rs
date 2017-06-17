@@ -94,11 +94,7 @@ impl JSONBlock {
                 self.set_account_nonce(address, nonce);
             },
             Account::Create {
-                address: address,
-                balance: balance,
-                storage: storage,
-                code: code,
-                nonce: nonce,
+                address, balance, storage, code, nonce, ..
             } => {
                 self.set_balance(address, balance);
                 self.set_account_code(address, code.as_slice());
