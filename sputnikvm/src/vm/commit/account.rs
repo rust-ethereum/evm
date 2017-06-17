@@ -1,5 +1,6 @@
 //! Account commitment managment
 
+use std::collections::hash_set::HashSet;
 use std::collections::hash_map::{self, HashMap};
 use utils::address::Address;
 use utils::bigint::{M256, U256};
@@ -105,6 +106,7 @@ impl Account {
 pub struct AccountState {
     accounts: HashMap<Address, Account>,
     codes: HashMap<Address, Vec<u8>>,
+    premarked_exists: HashSet<Address>,
 }
 
 impl Default for AccountState {
@@ -112,6 +114,7 @@ impl Default for AccountState {
         Self {
             accounts: HashMap::new(),
             codes: HashMap::new(),
+            premarked_exists: HashSet::new(),
         }
     }
 }
@@ -150,17 +153,6 @@ impl AccountState {
     /// raise a `RequireError`.
     pub fn require_storage(&self, address: Address, index: M256) -> Result<(), RequireError> {
         self.storage(address)?.read(index).and_then(|_| Ok(()))
-    }
-
-    pub fn mark_exists(&mut self, address: Address) -> Result<(), RequireError> {
-        match self.accounts.get_mut(&address) {
-            Some(&mut Account::Full { .. }) => Ok(()),
-            Some(&mut Account::Create { ref mut exists, .. }) => {
-                *exists = true;
-                Ok(())
-            },
-            _ => Err(RequireError::Account(address)),
-        }
     }
 
     /// Commit an account commitment into this account state.
@@ -246,7 +238,7 @@ impl AccountState {
                                 balance: topup,
                                 storage: Storage::new(address, false),
                                 code: Vec::new(),
-                                exists: false,
+                                exists: true,
                             }
                         },
                         Account::DecreaseBalance(_, _) => panic!(),
@@ -258,7 +250,7 @@ impl AccountState {
                         balance: U256::zero(),
                         storage: Storage::new(address, false),
                         code: Vec::new(),
-                        exists: false,
+                        exists: self.premarked_exists.contains(&address),
                     }
                 };
 
@@ -273,6 +265,18 @@ impl AccountState {
             Some(&Account::Create { exists, .. }) => Ok(exists),
             Some(&Account::Full { .. }) => Ok(true),
             _ => Err(RequireError::Account(address)),
+        }
+    }
+
+    pub fn premark_exists(&mut self, address: Address) {
+        match self.accounts.get_mut(&address) {
+            Some(&mut Account::Full { .. }) => (),
+            Some(&mut Account::Create { ref mut exists, .. }) => {
+                *exists = true;
+            },
+            _ => {
+                self.premarked_exists.insert(address);
+            }
         }
     }
 
@@ -580,6 +584,7 @@ impl AccountState {
     /// `RequireError`.
     pub fn remove(&mut self, address: Address) -> Result<(), RequireError> {
         self.codes.remove(&address);
+        self.premarked_exists.remove(&address);
         let account = match self.accounts.remove(&address) {
             Some(Account::Full {
                 address,

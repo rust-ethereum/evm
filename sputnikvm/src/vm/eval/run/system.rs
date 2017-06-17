@@ -94,8 +94,6 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
         context.address = state.context.address;
     }
 
-    state.account_state.mark_exists(context.address).unwrap();
-
     push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }

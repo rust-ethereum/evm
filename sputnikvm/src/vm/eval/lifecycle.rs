@@ -21,23 +21,27 @@ use super::cost::code_deposit_gas;
 
 impl<M: Memory + Default> Machine<M> {
     pub fn initialize_call(&mut self, preclaimed_value: U256) {
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
     pub fn invoke_call(&mut self) {
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
     pub fn initialize_create(&mut self, preclaimed_value: U256) {
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.create(self.state.context.address, self.state.context.value);
     }
 
     pub fn invoke_create(&mut self) {
+        self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.create(self.state.context.address, self.state.context.value);
     }
