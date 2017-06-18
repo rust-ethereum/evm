@@ -62,37 +62,8 @@ fn from_rpc_log(log: &RPCLog) -> Log {
     }
 }
 
-/// Accounts in this list should always be considered exists.
-fn irregular_addresses(number: usize) -> HashSet<Address> {
-    let config: HashMap<Address, usize> = {
-        let mut config = HashMap::new();
-        config.insert(Address::from_str("0x0000000000000000000000000000000000000000").unwrap(), 0);
-        config.insert(Address::from_str("0x0000000000000000000000000000000000000001").unwrap(), 0);
-        config.insert(Address::from_str("0x0000000000000000000000000000000000000002").unwrap(), 505137);
-        config.insert(Address::from_str("0x0000000000000000000000000000000000000003").unwrap(), 0);
-        config.insert(Address::from_str("0x0000000000000000000000000000000000000004").unwrap(), 0);
-
-        config.insert(Address::from_str("0xbfe465e7eb5a2928b5bf22bef93ad06089dc6179").unwrap(), 229894);
-        config.insert(Address::from_str("0xc7585b4ea1829ef37f2fcc6ceaa6063700000000").unwrap(), 188235);
-        config.insert(Address::from_str("0x4fea5cb278edfabcc24f7c1425951a0d2faa609b").unwrap(), 370489);
-        config.insert(Address::from_str("0x000000000000000000000000000007329b54129c").unwrap(), 254277);
-        config.insert(Address::from_str("0x0000000000000000000000000000000000000194").unwrap(), 257654);
-        config.insert(Address::from_str("0xf5ed057f297c6389d80245c8631b040f05804578").unwrap(), 637752);
-
-        config
-    };
-
-    let mut result: HashSet<Address> = HashSet::new();
-    for (key, value) in config {
-        if number > value {
-            result.insert(key);
-        }
-    }
-    result
-}
-
-fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_number: &str,
-               irregular_addresses: &HashSet<Address>) {
+fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_id: usize) {
+    let last_block_number = format!("0x{:x}", last_block_id);
     loop {
         match vm.fire() {
             Ok(()) => {
@@ -107,9 +78,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                                                                  &last_block_number)).unwrap();
                 let code = read_hex(&client.get_code(&format!("0x{:x}", address),
                                                      &last_block_number)).unwrap();
-                if nonce == M256::zero() && balance == U256::zero() && code.len() == 0 &&
-                    !irregular_addresses.contains(&address)
-                {
+                if !client.account_exist(&format!("0x{:x}", address), last_block_id) {
                     vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
                 } else {
                     vm.commit_account(AccountCommitment::Full {
@@ -174,10 +143,10 @@ fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCCli
 fn test_block(client: &mut GethRPCClient, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
     println!("block {}, transaction count: {}", block.number, block.transactions.len());
-    let last_number = format!("0x{:x}", number - 1);
+    let last_id = number - 1;
+    let last_number = format!("0x{:x}", last_id);
     let cur_number = block.number.to_string();
     let block_header = from_rpc_block(&block);
-    let irregular_addresses = irregular_addresses(number);
 
     let mut last_vm: Option<SeqTransactionVM> = None;
     for transaction_hash in &block.transactions {
@@ -191,7 +160,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
             SeqTransactionVM::with_previous(transaction, block_header.clone(), &FRONTIER_PATCH, last_vm.as_ref().unwrap())
         };
 
-        handle_fire(client, &mut vm, &last_number, &irregular_addresses);
+        handle_fire(client, &mut vm, last_id);
 
         assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
