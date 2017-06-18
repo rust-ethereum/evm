@@ -78,8 +78,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
                                                                  &last_block_number)).unwrap();
                 let code = read_hex(&client.get_code(&format!("0x{:x}", address),
                                                      &last_block_number)).unwrap();
-                if !client.account_exist(&format!("0x{:x}", address), last_block_id)
-                {
+                if !client.account_exist(&format!("0x{:x}", address), last_block_id) {
                     vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
                 } else {
                     vm.commit_account(AccountCommitment::Full {
