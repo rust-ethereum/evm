@@ -212,6 +212,11 @@ impl GethRPCClient {
         self.rpc_request::<Vec<String>>("eth_accounts", vec![])
     }
 
+    pub fn account_exist(&mut self, address: &str, number: usize) -> bool {
+        self.rpc_object_request::<(String, usize), bool>(
+            "debug_accountExist", (address.to_string(), number))
+    }
+
     pub fn block_number(&mut self) -> String {
         self.rpc_request::<String>("eth_blockNumber", vec![])
     }
