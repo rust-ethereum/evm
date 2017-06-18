@@ -162,7 +162,6 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
 
         handle_fire(client, &mut vm, last_id);
 
-        println!("expected: {}, actual: 0x{:x}", receipt.gasUsed, vm.real_used_gas());
         assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
