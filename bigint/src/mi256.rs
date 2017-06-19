@@ -6,7 +6,6 @@ use std::cmp::Ordering;
 
 use super::{Sign, M256};
 use super::u256::SIGN_BIT_MASK;
-use super::algorithms::from_signed;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 /// Represents a signed module 256-bit integer.
@@ -20,7 +19,7 @@ impl MI256 {
     /// Maximum value of MI256.
     pub fn max_value() -> MI256 { MI256(Sign::Plus, M256::max_value() & SIGN_BIT_MASK.into()) }
     /// Minimum value of MI256.
-    pub fn min_value() -> MI256 { MI256(Sign::Minus, M256::min_value() & SIGN_BIT_MASK.into()) }
+    pub fn min_value() -> MI256 { MI256(Sign::Minus, (M256::max_value() & SIGN_BIT_MASK.into()) + M256::from(1u64)) }
 }
 
 impl Default for MI256 { fn default() -> MI256 { MI256::zero() } }
@@ -31,18 +30,20 @@ impl From<M256> for MI256 {
         } else if val & SIGN_BIT_MASK.into() == val {
             MI256(Sign::Plus, val)
         } else {
-            let mut digits: [u32; 8] = val.into();
-            from_signed(Sign::Minus, &mut digits);
-            MI256(Sign::Minus, digits.into())
+            MI256(Sign::Minus, !val + M256::from(1u64))
         }
     }
 }
 impl Into<M256> for MI256 {
     fn into(self) -> M256 {
         let sign = self.0;
-        let mut digits: [u32; 8] = self.1.into();
-        from_signed(sign, &mut digits);
-        M256::from(digits)
+        if sign == Sign::NoSign {
+            M256::zero()
+        } else if sign == Sign::Plus {
+            self.1
+        } else {
+            !self.1 + M256::from(1u64)
+        }
     }
 }
 
@@ -72,6 +73,14 @@ impl Div for MI256 {
     type Output = MI256;
 
     fn div(self, other: MI256) -> MI256 {
+        if other == MI256::zero() {
+            return MI256::zero();
+        }
+
+        if self == MI256::min_value() && other == MI256(Sign::Minus, M256::from(1u64)) {
+            return MI256::min_value();
+        }
+
         let d = (self.1 / other.1) & SIGN_BIT_MASK.into();
 
         if d == M256::zero() {
@@ -99,5 +108,25 @@ impl Rem for MI256 {
         }
 
         MI256(self.0, r)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MI256;
+    use m256::M256;
+    use std::str::FromStr;
+
+    #[test]
+    pub fn sdiv() {
+        assert_eq!(MI256::from(M256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap()) / MI256::from(M256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap()), MI256::from(M256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap()));
+    }
+
+    #[test]
+    pub fn m256() {
+        let m256 = M256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap();
+        let mi256 = MI256::from(m256);
+        let m256b: M256 = mi256.into();
+        assert_eq!(m256, m256b);
     }
 }

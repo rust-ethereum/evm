@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use super::{U256, Sign};
-use super::algorithms::{add2, mac3, from_signed, sub2_sign};
+use super::algorithms::{add2, mac3, sub2_sign};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
@@ -154,7 +154,6 @@ impl Sub for U512 {
 
         let sign = sub2_sign(a, b);
         assert!(sign != Sign::Minus);
-        from_signed(sign, a);
         U512(*a)
     }
 }

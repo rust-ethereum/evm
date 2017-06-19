@@ -122,8 +122,11 @@ impl Sub<M256> for M256 {
     type Output = M256;
 
     fn sub(self, other: M256) -> M256 {
-        let (o, _) = self.0.underflowing_sub(other.0);
-        M256(o)
+        if self.0 >= other.0 {
+            M256(self.0 - other.0)
+        } else {
+            M256(U256::max_value() - other.0 + self.0 + U256::from(1u64))
+        }
     }
 }
 
@@ -177,5 +180,18 @@ impl fmt::LowerHex for M256 {
 impl fmt::UpperHex for M256 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{:X}", self.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::M256;
+    use std::str::FromStr;
+
+    #[test]
+    pub fn sub() {
+        assert_eq!(M256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap() - M256::from_str("0000000000000000000000000000000100000000000000000000000000000000").unwrap(), M256::from_str("ffffffffffffffffffffffffffffffff00000000000000000000000000000000").unwrap());
+        assert_eq!(M256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap() - M256::from_str("0000000000000000000000000000000000000000000000000000000000000001").unwrap(), M256::from_str("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").unwrap());
+        assert_eq!(M256::from_str("0000000000000000000000000000000000000000000000000000000000000000").unwrap() - M256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap(), M256::from_str("8000000000000000000000000000000000000000000000000000000000000000").unwrap());
     }
 }
