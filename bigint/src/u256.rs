@@ -41,7 +41,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use super::{Sign, ParseHexError, read_hex};
-use super::algorithms::{add2, mac3, from_signed, sub2_sign, big_digit};
+use super::algorithms::{add2, mac3, sub2_sign, big_digit};
 
 pub const SIGN_BIT_MASK: U256 = U256([0b01111111111111111111111111111111u32,
                                       0xffffffffu32, 0xffffffffu32, 0xffffffffu32,

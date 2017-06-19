@@ -3,22 +3,6 @@
 use std::cmp::Ordering::{self, Less, Greater, Equal};
 use super::Sign;
 
-#[inline]
-pub fn from_signed(sign: Sign, digits: &mut [BigDigit]) {
-    match sign {
-        Sign::NoSign => {
-            debug_assert!(digits.iter().all(|x: &BigDigit| *x == 0));
-        },
-        Sign::Plus => (),
-        Sign::Minus => {
-            for digit in digits.as_mut() {
-                *digit = !*digit;
-            }
-            inc(digits);
-        },
-    }
-}
-
 #[allow(non_snake_case)]
 pub mod big_digit {
     /// A `BigDigit` is a `BigUint`'s composing element.

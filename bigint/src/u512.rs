@@ -6,7 +6,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use super::{U256, Sign};
-use super::algorithms::{add2, mac3, from_signed, sub2_sign};
+use super::algorithms::{add2, mac3, sub2_sign};
 
 #[repr(C)]
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
