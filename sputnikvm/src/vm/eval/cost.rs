@@ -75,7 +75,7 @@ fn new_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
 fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
     Gas::from(machine.patch.gas_suicide) + if !machine.account_state.exists(address).unwrap() {
-        Gas::from(G_NEWACCOUNT)
+        Gas::from(machine.patch.gas_suicide_new_account)
     } else {
         Gas::zero()
     }
