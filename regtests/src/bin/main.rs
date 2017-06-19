@@ -142,7 +142,7 @@ fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCCli
 
 fn test_block(client: &mut GethRPCClient, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
-    println!("block {}, transaction count: {}", block.number, block.transactions.len());
+    println!("block {} ({}), transaction count: {}", number, block.number, block.transactions.len());
     let last_id = number - 1;
     let last_number = format!("0x{:x}", last_id);
     let cur_number = block.number.to_string();
