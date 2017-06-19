@@ -76,16 +76,6 @@ impl U256 {
         (U256(*a), if carry > 0 { true } else { false })
     }
 
-    /// Substract two U256 with underflowing. The same as M256::sub.
-    pub fn underflowing_sub(mut self, other: U256) -> (U256, bool) {
-        let U256(ref mut a) = self;
-        let U256(ref b) = other;
-
-        let sign = sub2_sign(a, b);
-        from_signed(sign, a);
-        (U256(*a), if sign == Sign::Minus { true } else { false })
-    }
-
     /// Multiply two U256 with overflowing. The same as M256::mul.
     pub fn overflowing_mul(mut self, other: U256) -> (U256, bool) {
         let mut ret = [0u32; 8];
@@ -357,10 +347,13 @@ impl Add<U256> for U256 {
 impl Sub<U256> for U256 {
     type Output = U256;
 
-    fn sub(self, other: U256) -> U256 {
-        let (o, v) = self.underflowing_sub(other);
-        assert!(!v);
-        o
+    fn sub(mut self, other: U256) -> U256 {
+        let U256(ref mut a) = self;
+        let U256(ref b) = other;
+
+        let sign = sub2_sign(a, b);
+        assert!(sign != Sign::Minus);
+        U256(*a)
     }
 }
 

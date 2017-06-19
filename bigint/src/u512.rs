@@ -154,7 +154,6 @@ impl Sub for U512 {
 
         let sign = sub2_sign(a, b);
         assert!(sign != Sign::Minus);
-        from_signed(sign, a);
         U512(*a)
     }
 }
