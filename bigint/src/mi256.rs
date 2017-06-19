@@ -73,7 +73,6 @@ impl Div for MI256 {
     type Output = MI256;
 
     fn div(self, other: MI256) -> MI256 {
-        println!("self: {:?}, other: {:?}", self, other);
         if other == MI256::zero() {
             return MI256::zero();
         }
