@@ -121,7 +121,7 @@ dependencies = [
 
 [[package]]
 name = "gethrpc"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "hyper 0.10.10 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -179,11 +179,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "jsontests"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "lazy_static 0.2.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "sputnikvm 0.1.0",
+ "sputnikvm 0.2.0",
 ]
 
 [[package]]
@@ -335,12 +335,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "regtests"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "clap 2.24.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "gethrpc 0.1.0",
+ "gethrpc 0.2.0",
  "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
- "sputnikvm 0.1.0",
+ "sputnikvm 0.2.0",
  "sputnikvm-bigint 0.2.0",
 ]
 
@@ -452,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "sputnikvm"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.7 (registry+https://github.com/rust-lang/crates.io-index)",
