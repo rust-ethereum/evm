@@ -1,7 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate sputnikvm;
-extern crate bigint;
+extern crate sputnikvm_bigint as bigint;
 extern crate serde_json;
 extern crate gethrpc;
 

@@ -5,8 +5,8 @@
 
 extern crate log;
 extern crate tiny_keccak;
-extern crate rlp;
-extern crate bigint;
+extern crate sputnikvm_rlp as rlp;
+extern crate sputnikvm_bigint as bigint;
 extern crate ripemd160;
 extern crate sha2;
 extern crate secp256k1;

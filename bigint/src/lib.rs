@@ -1,5 +1,5 @@
 mod algorithms;
-extern crate rlp;
+extern crate sputnikvm_rlp as rlp;
 
 mod m256;
 mod mi256;

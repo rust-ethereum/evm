@@ -41,7 +41,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// The raw data of the RLP as slice.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -73,7 +73,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Returns number of RLP items.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -91,7 +91,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Returns the number of bytes in the data, or zero if it isn't data.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -112,7 +112,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// slices is faster.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -129,7 +129,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// No value
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -145,7 +145,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Contains a zero-length string or zero-length list.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -161,7 +161,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// List value
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -177,7 +177,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// String value
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -193,7 +193,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Int value
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -210,7 +210,7 @@ impl<'a, 'view> Rlp<'a> where 'a: 'view {
 	/// Get iterator over rlp-slices
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
