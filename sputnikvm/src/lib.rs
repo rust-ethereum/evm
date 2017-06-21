@@ -1,3 +1,5 @@
+//! SputnikVM EVM implementation.
+
 #![deny(unused_import_braces, unused_imports,
         unused_comparisons, unused_must_use,
         unused_variables, non_shorthand_field_patterns,

@@ -1,3 +1,5 @@
+//! Transaction related functionality.
+
 use std::collections::hash_map;
 use std::cmp::min;
 use utils::gas::Gas;
@@ -15,25 +17,40 @@ const G_TXDATANONZERO: usize = 68;
 const G_TRANSACTION: usize = 21000;
 
 #[derive(Debug, Clone)]
+/// Represents an Ethereum transaction.
 pub enum Transaction {
+    /// Message call transaction.
     MessageCall {
+        /// To address of this transaction.
         address: Address,
+        /// Caller of this transaction.
         caller: Address,
+        /// Gas price of this transaction.
         gas_price: Gas,
+        /// Gas limit of this transaction.
         gas_limit: Gas,
+        /// Value of this transaction.
         value: U256,
+        /// Data associated with this transaction.
         data: Vec<u8>,
     },
+    /// Contract creation transaction.
     ContractCreation {
+        /// Caller of this transaction.
         caller: Address,
+        /// Gas price of this transaction.
         gas_price: Gas,
+        /// Gas limit of this transaction.
         gas_limit: Gas,
+        /// Value of this transaction.
         value: U256,
+        /// Init data that will be used as code.
         init: Vec<u8>,
     },
 }
 
 impl Transaction {
+    /// Caller address of the transaction.
     pub fn caller(&self) -> Address {
         match self {
             &Transaction::MessageCall { caller, .. } => caller,
@@ -41,6 +58,7 @@ impl Transaction {
         }
     }
 
+    /// To address of the transaction.
     pub fn address(&self, account_state: &AccountState) -> Result<Address, RequireError> {
         match self {
             &Transaction::MessageCall { address, .. } => Ok(address),
@@ -59,6 +77,8 @@ impl Transaction {
         }
     }
 
+    /// Intrinsic gas to be paid in prior to this transaction
+    /// execution.
     pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
         match self {
@@ -89,6 +109,8 @@ impl Transaction {
         return gas;
     }
 
+    /// Convert this transaction into a context. Note that this will
+    /// change the account state.
     pub fn into_context(self, upfront: Gas, origin: Option<Address>,
                         account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
         let address = self.address(account_state)?;
@@ -131,6 +153,7 @@ impl Transaction {
         }
     }
 
+    /// Gas limit of the transaction.
     pub fn gas_limit(&self) -> Gas {
         match self {
             &Transaction::MessageCall { gas_limit, .. } => gas_limit,
@@ -138,6 +161,7 @@ impl Transaction {
         }
     }
 
+    /// Gas price of the transaction.
     pub fn gas_price(&self) -> Gas {
         match self {
             &Transaction::MessageCall { gas_price, .. } => gas_price,
@@ -145,6 +169,8 @@ impl Transaction {
         }
     }
 
+    /// When the execution of a transaction begins, this preclaimed
+    /// value is deducted from the account.
     pub fn preclaimed_value(&self) -> U256 {
         (self.gas_limit() * self.gas_price()).into()
     }
@@ -169,9 +195,12 @@ enum TransactionVMState<M> {
     },
 }
 
+/// A VM that executes using a transaction and block information.
 pub struct TransactionVM<M>(TransactionVMState<M>);
 
 impl<M: Memory + Default> TransactionVM<M> {
+    /// Create a new VM using the given transaction, block header and
+    /// patch. This VM runs at the transaction level.
     pub fn new(transaction: Transaction, block: BlockHeader, patch: &'static Patch) -> Self {
         TransactionVM(TransactionVMState::Constructing {
             transaction: transaction,
@@ -183,6 +212,8 @@ impl<M: Memory + Default> TransactionVM<M> {
         })
     }
 
+    /// Create a new VM with the result of the previous VM. This is
+    /// usually used by transaction for chaining them.
     pub fn with_previous(transaction: Transaction, block: BlockHeader, patch: &'static Patch,
                          vm: &TransactionVM<M>) -> Self {
         TransactionVM(TransactionVMState::Constructing {
@@ -205,6 +236,8 @@ impl<M: Memory + Default> TransactionVM<M> {
         })
     }
 
+    /// Returns the real used gas by the transaction. This is what is
+    /// recorded in the transaction receipt.
     pub fn real_used_gas(&self) -> Gas {
         match self.0 {
             TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
