@@ -61,7 +61,7 @@ impl RlpStream {
 	/// Appends value to the end of stream, chainable.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -99,7 +99,7 @@ impl RlpStream {
 	/// Declare appending the list of given size, chainable.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -149,7 +149,7 @@ impl RlpStream {
 	/// Apends null to the end of stream, chainable.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -215,7 +215,7 @@ impl RlpStream {
 	/// Clear the output stream so far.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {
@@ -237,7 +237,7 @@ impl RlpStream {
 	/// Returns true if stream doesnt expect any more items.
 	///
 	/// ```rust
-	/// extern crate rlp;
+	/// extern crate sputnikvm_rlp as rlp;
 	/// use rlp::*;
 	///
 	/// fn main () {

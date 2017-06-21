@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 
-extern crate rlp;
+extern crate sputnikvm_rlp as rlp;
 
 use std::{fmt, cmp};
 use rlp::{Encodable, Decodable, UntrustedRlp, RlpStream, DecoderError};
