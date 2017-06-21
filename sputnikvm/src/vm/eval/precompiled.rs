@@ -1,3 +1,5 @@
+//! Functionality for precompiled accounts.
+
 use utils::address::Address;
 use utils::gas::Gas;
 
@@ -34,7 +36,9 @@ pub fn is_precompiled(address: Address) -> bool {
 }
 
 impl<M: Memory + Default> Machine<M> {
-    #[allow(unused_variables)]
+    /// Step a precompiled runtime. This function returns true if the
+    /// runtime is indeed a precompiled address. Otherwise return
+    /// false with state unchanged.
     pub fn step_precompiled(&mut self) -> bool {
         let ecrec_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
         let sha256_address = Address::from_str("0x0000000000000000000000000000000000000002").unwrap();

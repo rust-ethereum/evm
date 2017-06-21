@@ -8,9 +8,12 @@ use super::errors::MemoryError;
 /// fall.
 pub trait Memory {
     /// Check whether write on this index would result in an error. If
-    /// this function returns None, then both `write` and `write_raw`
-    /// on this index should succeed.
+    /// this function returns Ok, then both `write` and `write_raw` on
+    /// this index should succeed.
     fn check_write(&self, index: M256) -> Result<(), MemoryError>;
+    /// Check whether write on the given index range would result in
+    /// an error. If this function returns Ok, then both `write` and
+    /// `write_raw` on the given index range should succeed.
     fn check_write_range(&self, start: M256, len: M256) -> Result<(), MemoryError>;
 
     /// Write value into the index.

@@ -15,21 +15,30 @@ pub enum AccountCommitment {
     /// should not change the account in other EVMs if it decides to
     /// accept the result.
     Full {
+        /// Nonce of the account.
         nonce: M256,
+        /// Account address.
         address: Address,
+        /// Account balance.
         balance: U256,
+        /// Code associated with this account.
         code: Vec<u8>,
     },
     /// Commit only code of the account. The client can keep changing
     /// it in other EVMs if the code remains unchanged.
     Code {
+        /// Account address.
         address: Address,
+        /// Code associated with this account.
         code: Vec<u8>,
     },
     /// Commit a storage. Must be used given a full account.
     Storage {
+        /// Account address.
         address: Address,
+        /// Account storage index.
         index: M256,
+        /// Value at the given account storage index.
         value: M256,
     },
     /// Indicate that an account does not exist.
@@ -62,23 +71,36 @@ impl AccountCommitment {
 pub enum Account {
     /// A full account. The client is expected to replace its own account state with this.
     Full {
+        /// Account nonce.
         nonce: M256,
+        /// Account address.
         address: Address,
+        /// Account balance.
         balance: U256,
+        /// Change storage with given indexes and values.
         changing_storage: Storage,
+        /// Code associated with this account.
         code: Vec<u8>,
     },
     /// Only balance is changed, and it is increasing for this address.
     IncreaseBalance(Address, U256),
     /// Only balance is changed, and it is decreasing for this address.
     DecreaseBalance(Address, U256),
-    /// Create a new account.
+    /// Create or delete a (new) account.
     Create {
+        /// Account nonce.
         nonce: M256,
+        /// Account address.
         address: Address,
+        /// Account balance.
         balance: U256,
+        /// All storage values of this account, with given indexes and values.
         storage: Storage,
+        /// Code associated with this account.
         code: Vec<u8>,
+        /// Whether, at this point, the account is considered
+        /// existing. The client should delete this address if this is
+        /// set to `false`.
         exists: bool,
     },
 }
@@ -260,6 +282,8 @@ impl AccountState {
         Ok(())
     }
 
+    /// Test whether an account at given address is considered
+    /// existing.
     pub fn exists(&self, address: Address) -> Result<bool, RequireError> {
         match self.accounts.get(&address) {
             Some(&Account::Create { exists, .. }) => Ok(exists),
@@ -268,6 +292,7 @@ impl AccountState {
         }
     }
 
+    /// Premark an address as exist.
     pub fn premark_exists(&mut self, address: Address) {
         match self.accounts.get_mut(&address) {
             Some(&mut Account::Full { .. }) => (),
