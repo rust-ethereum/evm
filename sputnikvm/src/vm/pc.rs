@@ -6,6 +6,7 @@ use std::cmp::min;
 use super::errors::PCError;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
+#[allow(missing_docs)]
 /// Instructions for the program counter. This is the same as `Opcode`
 /// except `PUSH`, which might take longer length.
 pub enum Instruction {

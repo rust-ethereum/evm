@@ -19,36 +19,54 @@ mod precompiled;
 
 /// A VM state without PC.
 pub struct State<M> {
+    /// Memory of this runtime.
     pub memory: M,
+    /// Stack of this runtime.
     pub stack: Stack,
 
+    /// Context.
     pub context: Context,
+    /// Block header.
     pub block: BlockHeader,
+    /// Patch that is used by this runtime.
     pub patch: &'static Patch,
 
+    /// The current out value.
     pub out: Vec<u8>,
 
+    /// The current memory cost. Note that this is different from
+    /// memory gas.
     pub memory_cost: Gas,
+    /// Used gas excluding memory gas.
     pub used_gas: Gas,
+    /// Refunded gas.
     pub refunded_gas: Gas,
 
+    /// The current account commitment states.
     pub account_state: AccountState,
+    /// The current blockhash commitment states.
     pub blockhash_state: BlockhashState,
+    /// Logs appended.
     pub logs: Vec<Log>,
+    /// Removed accounts using the SUICIDE opcode.
     pub removed: Vec<Address>,
 
+    /// Depth of this runtime.
     pub depth: usize,
 }
 
 impl<M> State<M> {
+    /// Memory gas, part of total used gas.
     pub fn memory_gas(&self) -> Gas {
         memory_gas(self.memory_cost)
     }
 
+    /// Available gas at this moment.
     pub fn available_gas(&self) -> Gas {
         self.context.gas_limit - self.memory_gas() - self.used_gas
     }
 
+    /// Total used gas including the memory gas.
     pub fn total_used_gas(&self) -> Gas {
         self.memory_gas() + self.used_gas
     }
@@ -102,6 +120,7 @@ impl<M: Memory + Default> Machine<M> {
                           AccountState::default(), BlockhashState::default())
     }
 
+    /// Create a new runtime with the given states.
     pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
                        depth: usize, account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {

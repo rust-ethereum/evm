@@ -1,3 +1,5 @@
+//! Runtime lifecycle related functionality.
+
 use utils::bigint::{U256, M256};
 use utils::gas::Gas;
 use vm::errors::{RequireError, MachineError};
@@ -20,6 +22,7 @@ use super::cost::code_deposit_gas;
 /// transaction. After that, it should call `finalize`.
 
 impl<M: Memory + Default> Machine<M> {
+    /// Initialize a MessageCall transaction.
     pub fn initialize_call(&mut self, preclaimed_value: U256) {
         self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
@@ -27,12 +30,14 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
+    /// Initialize the runtime as a call from a CALL or CALLCODE opcode.
     pub fn invoke_call(&mut self) {
         self.state.account_state.premark_exists(self.state.context.address);
         self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
+    /// Initialize a ContractCreation transaction.
     pub fn initialize_create(&mut self, preclaimed_value: U256) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
@@ -44,6 +49,7 @@ impl<M: Memory + Default> Machine<M> {
         Ok(())
     }
 
+    /// Initialize the runtime as a call from a CREATE opcode.
     pub fn invoke_create(&mut self) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
@@ -54,6 +60,7 @@ impl<M: Memory + Default> Machine<M> {
         Ok(())
     }
 
+    /// Deposit code for a ContractCreation transaction or a CREATE opcode.
     pub fn code_deposit(&mut self) -> Result<(), RequireError> {
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
@@ -75,6 +82,8 @@ impl<M: Memory + Default> Machine<M> {
         Ok(())
     }
 
+    /// Finalize a transaction. This should not be used when invoked
+    /// by an opcode.
     pub fn finalize(&mut self, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
@@ -101,7 +110,6 @@ impl<M: Memory + Default> Machine<M> {
         }
     }
 
-    #[allow(unused_variables)]
     /// Apply a sub runtime into the current runtime. This sub runtime
     /// should have been created by the current runtime's `derive`
     /// function. Depending whether the current runtime is invoking a

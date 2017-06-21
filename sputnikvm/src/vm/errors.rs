@@ -100,9 +100,21 @@ impl From<MachineError> for EvalError {
 /// Errors stating that the VM requires additional information to
 /// continue running.
 pub enum RequireError {
+    /// Requires the account at address for the VM to continue
+    /// running, this should usually be dealt by
+    /// `vm.commit_account(AccountCommitment::Full { .. })` or
+    /// `vm.commit_account(AccountCommitment::Nonexist(..))`.
     Account(Address),
+    /// Requires the account code at address for the VM to continue
+    /// running, this should usually be dealt by
+    /// `vm.commit_account(AccountCommitment::Code { .. })`.
     AccountCode(Address),
+    /// Requires the current value of the storage for the VM to
+    /// continue running, this should usually be dealt by
+    /// `vm.commit_account(AccountCommitment::Storage { .. }`.
     AccountStorage(Address, M256),
+    /// Requires the blockhash for the VM to continue running, this
+    /// should usually be dealt by `vm.commit_blockhash(..)`.
     Blockhash(M256),
 }
 
@@ -115,6 +127,8 @@ impl From<RequireError> for EvalError {
 #[derive(Debug, Clone)]
 /// Errors returned when committing a new information.
 pub enum CommitError {
+    /// The commitment is invalid.
     InvalidCommitment,
+    /// The commitment has already been committed.
     AlreadyCommitted,
 }
