@@ -3,7 +3,7 @@ description = "Recursive-length prefix encoding, decoding, and compression"
 repository = "https://github.com/ethereumproject/sputnikvm"
 license = "MIT/Apache-2.0"
 name = "sputnikvm-rlp"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Parity Technologies <admin@parity.io>"]
 
 [dependencies]

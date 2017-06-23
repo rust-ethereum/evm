@@ -1,6 +1,6 @@
 [package]
 name = "jsontests"
-version = "0.2.0"
+version = "0.3.0"
 license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
 
