@@ -2,8 +2,10 @@
 
 [![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
 [![Coverage Status](https://coveralls.io/repos/github/ethereumproject/sputnikvm/badge.svg?branch=master)](https://coveralls.io/github/ethereumproject/sputnikvm?branch=master)
+[![Cargo](https://img.shields.io/crates/v/sputnikvm.svg)](https://crates.io/crates/sputnikvm)
 
-* [Documentation](https://that.world/~docs/sputnikvm/sputnikvm)
+* [Latest release documentation](https://docs.rs/sputnikvm)
+* [Unstable documentation](https://that.world/~docs/sputnikvm/sputnikvm)
 
 SputnikVM is an implementation of an Ethereum Virtual Machine. It aims to be an
 efficient, pluggable virtual machine for different blockchains.
@@ -60,12 +62,4 @@ SputnikVM is written Rust. If you are not familiar with Rust please
 see the
 [getting started guide](https://doc.rust-lang.org/book/getting-started.html).
 
-* [SputnikVM Compilation](/docs/vm_developer)
-
-## Stability Status:
-
-- [x] Raw
-- [ ] Draft
-- [ ] Stable
-- [ ] Deprecated
-- [ ] Legacy
+* [Building and Testing](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)
