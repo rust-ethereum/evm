@@ -17,7 +17,7 @@ use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
-use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
+use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
@@ -62,7 +62,7 @@ fn from_rpc_log(log: &RPCLog) -> Log {
     }
 }
 
-fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_id: usize) {
+fn handle_fire<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactionVM, last_block_id: usize) {
     let last_block_number = format!("0x{:x}", last_block_id);
     loop {
         match vm.fire() {
@@ -119,7 +119,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
     }
 }
 
-fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCClient) -> bool {
+fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: &RPCBlock) -> bool {
     // Give up balance testing if the address is a miner or an uncle.
 
     let miner = Address::from_str(&block.miner).unwrap();
@@ -140,7 +140,7 @@ fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCCli
     return false;
 }
 
-fn test_block(client: &mut GethRPCClient, number: usize) {
+fn test_block<T: GethRPCClient>(client: &mut T, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
     println!("block {} ({}), transaction count: {}", number, block.number, block.transactions.len());
     let last_id = number - 1;
@@ -180,7 +180,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref changing_storage,
                     ..
                 } => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),
                                                                   &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
@@ -199,7 +199,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref storage,
                     ..
                 } => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),
                                                                   &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
@@ -213,7 +213,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     }
                 },
                 &Account::IncreaseBalance(address, balance) => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);
                         let cur_balance = client.get_balance(&format!("0x{:x}", address),
@@ -224,7 +224,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     }
                 },
                 &Account::DecreaseBalance(address, balance) => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);
                         let cur_balance = client.get_balance(&format!("0x{:x}", address),
@@ -239,28 +239,74 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
     }
 }
 
+fn test_blocks<T: GethRPCClient>(client: &mut T, number: &str) {
+    if number.contains(".json") {
+        let file = File::open(number).unwrap();
+        let numbers: Vec<usize> = serde_json::from_reader(file).unwrap();
+        for n in numbers {
+            test_block(client, n);
+        }
+    } else if number.contains("..") {
+        let number: Vec<&str> = number.split("..").collect();
+        let from = usize::from_str_radix(&number[0], 10).unwrap();
+        let to = usize::from_str_radix(&number[1], 10).unwrap();
+        for n in from..to {
+            test_block(client, n);
+        }
+    } else if number.contains(",") {
+        let numbers: Vec<&str> = number.split("..").collect();
+        for number in numbers {
+            let n = usize::from_str_radix(number, 10).unwrap();
+            test_block(client, n);
+        }
+    } else {
+        let number = usize::from_str_radix(&number, 10).unwrap();
+        test_block(client, number);
+    }
+}
+
 fn main() {
     let matches = clap_app!(regtests =>
         (version: "0.1")
         (author: "Ethereum Classic Contributors")
         (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Ethereum Classic Geth: `$ go install github.com/ethereumproject/go-ethereum/cmd/geth`.\n* Run Geth with this command: `$ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8545`.\n* Wait for the chain to sync.\n* Change directory into the `regtests` directory `$ cd regtests`\n* Run this command: `$ RUST_BACKTRACE=1 cargo run --bin regtests -- -r http://127.0.0.1:8545")
         (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r http://127.0.0.1:8545`.")
-        (@arg NUMBER: -n --number +takes_value + required "Block number to run this test. Radix is 10. e.g. `-n 49439`.")
+        (@arg NUMBER: -n --number +takes_value +required "Block number to run this test. Radix is 10. e.g. `-n 49439`.")
+        (@arg RECORD: --record +takes_value "Record to file path.")
     ).get_matches();
 
     let address = matches.value_of("RPC").unwrap();
     let number = matches.value_of("NUMBER").unwrap();
-    let mut client = GethRPCClient::new(address);
+    let record = matches.value_of("RECORD");
 
-    if number.contains("..") {
-        let number: Vec<&str> = number.split("..").collect();
-        let from = usize::from_str_radix(&number[0], 10).unwrap();
-        let to = usize::from_str_radix(&number[1], 10).unwrap();
-        for n in from..to {
-            test_block(&mut client, n);
-        }
+    if address.contains(".json") {
+        let file = File::open(address).unwrap();
+        let cached: serde_json::Value = serde_json::from_reader(file).unwrap();
+        let mut client = CachedGethRPCClient::from_value(cached);
+        test_blocks(&mut client, number);
     } else {
-        let number = usize::from_str_radix(&number, 10).unwrap();
-        test_block(&mut client, number);
+        match record {
+            Some(val) => {
+                let mut file = File::create(val).unwrap();
+                let mut client = RecordGethRPCClient::new(address);
+                test_blocks(&mut client, number);
+                serde_json::to_writer(&mut file, &client.to_value());
+            },
+            None => {
+                let mut client = NormalGethRPCClient::new(address);
+                test_blocks(&mut client, number);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn test_all_previously_failed_blocks() {
+    let cached: serde_json::Value = serde_json::from_str(include_str!("../../res/records.json")).unwrap();
+    let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/numbers.json")).unwrap();
+    let mut client = CachedGethRPCClient::from_value(cached);
+    for n in numbers {
+        test_block(&mut client, n);
     }
 }
