@@ -239,6 +239,26 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize) {
     }
 }
 
+fn test_blocks<T: GethRPCClient>(client: &mut T, number: &str) {
+    if number.contains("..") {
+        let number: Vec<&str> = number.split("..").collect();
+        let from = usize::from_str_radix(&number[0], 10).unwrap();
+        let to = usize::from_str_radix(&number[1], 10).unwrap();
+        for n in from..to {
+            test_block(client, n);
+        }
+    } else if number.contains(",") {
+        let numbers: Vec<&str> = number.split("..").collect();
+        for number in numbers {
+            let n = usize::from_str_radix(number, 10).unwrap();
+            test_block(client, n);
+        }
+    } else {
+        let number = usize::from_str_radix(&number, 10).unwrap();
+        test_block(client, number);
+    }
+}
+
 fn main() {
     let matches = clap_app!(regtests =>
         (version: "0.1")
@@ -252,15 +272,5 @@ fn main() {
     let number = matches.value_of("NUMBER").unwrap();
     let mut client = NormalGethRPCClient::new(address);
 
-    if number.contains("..") {
-        let number: Vec<&str> = number.split("..").collect();
-        let from = usize::from_str_radix(&number[0], 10).unwrap();
-        let to = usize::from_str_radix(&number[1], 10).unwrap();
-        for n in from..to {
-            test_block(&mut client, n);
-        }
-    } else {
-        let number = usize::from_str_radix(&number, 10).unwrap();
-        test_block(&mut client, number);
-    }
+    test_blocks(&mut client, number);
 }
