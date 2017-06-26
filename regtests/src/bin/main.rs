@@ -299,3 +299,14 @@ fn main() {
         }
     }
 }
+
+#[cfg(test)]
+#[test]
+fn test_all_previously_failed_blocks() {
+    let cached: serde_json::Value = serde_json::from_str(include_str!("../../res/records.json")).unwrap();
+    let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/numbers.json")).unwrap();
+    let mut client = CachedGethRPCClient::from_value(cached);
+    for n in numbers {
+        test_block(&mut client, n);
+    }
+}
