@@ -17,7 +17,7 @@ use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
-use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
+use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
@@ -240,7 +240,13 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize) {
 }
 
 fn test_blocks<T: GethRPCClient>(client: &mut T, number: &str) {
-    if number.contains("..") {
+    if number.contains(".json") {
+        let file = File::open(number).unwrap();
+        let numbers: Vec<usize> = serde_json::from_reader(file).unwrap();
+        for n in numbers {
+            test_block(client, n);
+        }
+    } else if number.contains("..") {
         let number: Vec<&str> = number.split("..").collect();
         let from = usize::from_str_radix(&number[0], 10).unwrap();
         let to = usize::from_str_radix(&number[1], 10).unwrap();
@@ -265,12 +271,31 @@ fn main() {
         (author: "Ethereum Classic Contributors")
         (about: "Performs an regression test on the entire Ethereum Classic blockchain.\n\nSteps to reproduce:\n* Install Ethereum Classic Geth: `$ go install github.com/ethereumproject/go-ethereum/cmd/geth`.\n* Run Geth with this command: `$ ~/go/bin/geth --rpc --rpcaddr 127.0.0.1 --rpcport 8545`.\n* Wait for the chain to sync.\n* Change directory into the `regtests` directory `$ cd regtests`\n* Run this command: `$ RUST_BACKTRACE=1 cargo run --bin regtests -- -r http://127.0.0.1:8545")
         (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r http://127.0.0.1:8545`.")
-        (@arg NUMBER: -n --number +takes_value + required "Block number to run this test. Radix is 10. e.g. `-n 49439`.")
+        (@arg NUMBER: -n --number +takes_value +required "Block number to run this test. Radix is 10. e.g. `-n 49439`.")
+        (@arg RECORD: --record +takes_value "Record to file path.")
     ).get_matches();
 
     let address = matches.value_of("RPC").unwrap();
     let number = matches.value_of("NUMBER").unwrap();
-    let mut client = NormalGethRPCClient::new(address);
+    let record = matches.value_of("RECORD");
 
-    test_blocks(&mut client, number);
+    if address.contains(".json") {
+        let file = File::open(address).unwrap();
+        let cached: serde_json::Value = serde_json::from_reader(file).unwrap();
+        let mut client = CachedGethRPCClient::from_value(cached);
+        test_blocks(&mut client, number);
+    } else {
+        match record {
+            Some(val) => {
+                let mut file = File::create(val).unwrap();
+                let mut client = RecordGethRPCClient::new(address);
+                test_blocks(&mut client, number);
+                serde_json::to_writer(&mut file, &client.to_value());
+            },
+            None => {
+                let mut client = NormalGethRPCClient::new(address);
+                test_blocks(&mut client, number);
+            }
+        }
+    }
 }
