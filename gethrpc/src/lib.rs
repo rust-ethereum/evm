@@ -5,6 +5,10 @@ extern crate hyper;
 #[macro_use]
 extern crate serde_derive;
 
+mod record;
+
+pub use record::RecordGethRPCClient;
+
 use std::process::{Command};
 use std::io::Read;
 use hyper::header::ContentType;
