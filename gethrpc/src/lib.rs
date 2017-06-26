@@ -7,7 +7,7 @@ extern crate serde_derive;
 
 mod record;
 
-pub use record::RecordGethRPCClient;
+pub use record::{RecordGethRPCClient, CachedGethRPCClient};
 
 use std::process::{Command};
 use std::io::Read;

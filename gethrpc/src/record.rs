@@ -62,3 +62,28 @@ impl GethRPCClient for RecordGethRPCClient {
         response.result
     }
 }
+
+pub struct CachedGethRPCClient {
+    records: Vec<Record>,
+}
+
+impl CachedGethRPCClient {
+    pub fn from_value(value: serde_json::Value) -> Self {
+        CachedGethRPCClient { records: serde_json::from_value(value).unwrap() }
+    }
+}
+
+impl GethRPCClient for CachedGethRPCClient {
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(&mut self, method: &str, params: Req) -> Res {
+        let request_value = serde_json::to_value(params).unwrap();
+
+        for record in &self.records {
+            if &record.method == method && record.request == request_value {
+                let response: RPCObjectResponse<Res> = serde_json::from_value(record.response.clone()).unwrap();
+                return response.result;
+            }
+        }
+
+        panic!()
+    }
+}
