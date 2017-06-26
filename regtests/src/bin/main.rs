@@ -17,7 +17,7 @@ use sputnikvm::{Gas, Address};
 use bigint::{U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
-use gethrpc::{regression, GethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
+use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
     BlockHeader {
@@ -62,7 +62,7 @@ fn from_rpc_log(log: &RPCLog) -> Log {
     }
 }
 
-fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block_id: usize) {
+fn handle_fire<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactionVM, last_block_id: usize) {
     let last_block_number = format!("0x{:x}", last_block_id);
     loop {
         match vm.fire() {
@@ -119,7 +119,7 @@ fn handle_fire(client: &mut GethRPCClient, vm: &mut SeqTransactionVM, last_block
     }
 }
 
-fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCClient) -> bool {
+fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: &RPCBlock) -> bool {
     // Give up balance testing if the address is a miner or an uncle.
 
     let miner = Address::from_str(&block.miner).unwrap();
@@ -140,7 +140,7 @@ fn is_miner_or_uncle(address: Address, block: &RPCBlock, client: &mut GethRPCCli
     return false;
 }
 
-fn test_block(client: &mut GethRPCClient, number: usize) {
+fn test_block<T: GethRPCClient>(client: &mut T, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
     println!("block {} ({}), transaction count: {}", number, block.number, block.transactions.len());
     let last_id = number - 1;
@@ -180,7 +180,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref changing_storage,
                     ..
                 } => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),
                                                                   &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
@@ -199,7 +199,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     ref storage,
                     ..
                 } => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),
                                                                   &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
@@ -213,7 +213,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     }
                 },
                 &Account::IncreaseBalance(address, balance) => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);
                         let cur_balance = client.get_balance(&format!("0x{:x}", address),
@@ -224,7 +224,7 @@ fn test_block(client: &mut GethRPCClient, number: usize) {
                     }
                 },
                 &Account::DecreaseBalance(address, balance) => {
-                    if !is_miner_or_uncle(address, &block, client) {
+                    if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);
                         let cur_balance = client.get_balance(&format!("0x{:x}", address),
@@ -250,7 +250,7 @@ fn main() {
 
     let address = matches.value_of("RPC").unwrap();
     let number = matches.value_of("NUMBER").unwrap();
-    let mut client = GethRPCClient::new(address);
+    let mut client = NormalGethRPCClient::new(address);
 
     if number.contains("..") {
         let number: Vec<&str> = number.split("..").collect();
