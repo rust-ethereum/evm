@@ -30,6 +30,10 @@ impl RecordGethRPCClient {
             records: Vec::new(),
         }
     }
+
+    pub fn to_value(&self) -> serde_json::Value {
+        serde_json::to_value(&self.records).unwrap()
+    }
 }
 
 impl GethRPCClient for RecordGethRPCClient {
