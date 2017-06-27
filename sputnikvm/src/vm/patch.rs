@@ -24,6 +24,8 @@ pub struct Patch {
     /// Whether to force code deposit even if it does not have enough
     /// gas.
     pub force_code_deposit: bool,
+    /// Whether the EVM has DELEGATECALL opcode.
+    pub has_delegate_call: bool,
 }
 
 /// Frontier patch.
@@ -38,6 +40,7 @@ pub static FRONTIER_PATCH: Patch = Patch {
     gas_expbyte: 10,
     gas_transaction_create: 0,
     force_code_deposit: true,
+    has_delegate_call: false,
 };
 
 /// Homestead patch.
@@ -52,6 +55,7 @@ pub static HOMESTEAD_PATCH: Patch = Patch {
     gas_expbyte: 10,
     gas_transaction_create: 32000,
     force_code_deposit: false,
+    has_delegate_call: true,
 };
 
 /// Patch specific for the `jsontests` crate.
@@ -66,6 +70,7 @@ pub static VMTEST_PATCH: Patch = Patch {
     gas_expbyte: 10,
     gas_transaction_create: 0,
     force_code_deposit: true,
+    has_delegate_call: false,
 };
 
 /// EIP150 patch.
@@ -80,6 +85,7 @@ pub static EIP150_PATCH: Patch = Patch {
     gas_expbyte: 10,
     gas_transaction_create: 32000,
     force_code_deposit: false,
+    has_delegate_call: true,
 };
 
 /// EIP160 patch.
@@ -94,4 +100,5 @@ pub static EIP160_PATCH: Patch = Patch {
     gas_expbyte: 50,
     gas_transaction_create: 32000,
     force_code_deposit: false,
+    has_delegate_call: true,
 };

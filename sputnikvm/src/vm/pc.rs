@@ -3,6 +3,7 @@
 use utils::bigint::M256;
 use utils::opcode::Opcode;
 use std::cmp::min;
+use super::Patch;
 use super::errors::PCError;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
@@ -30,21 +31,12 @@ pub struct PC {
     position: usize,
     code: Vec<u8>,
     valids: Vec<bool>,
-}
-
-impl Default for PC {
-    fn default() -> PC {
-        PC {
-            position: 0,
-            code: Vec::new(),
-            valids: Vec::new(),
-        }
-    }
+    patch: &'static Patch,
 }
 
 impl PC {
     /// Create a new program counter from the given code.
-    pub fn new(code: &[u8]) -> Self {
+    pub fn new(code: &[u8], patch: &'static Patch) -> Self {
         let code: Vec<u8> = code.into();
         let mut valids: Vec<bool> = Vec::with_capacity(code.len());
         valids.resize(code.len(), false);
@@ -67,8 +59,8 @@ impl PC {
         }
 
         PC {
+            code, patch,
             position: 0,
-            code: code,
             valids: valids,
         }
     }
@@ -217,7 +209,13 @@ impl PC {
             Opcode::CALL => Instruction::CALL,
             Opcode::CALLCODE => Instruction::CALLCODE,
             Opcode::RETURN => Instruction::RETURN,
-            Opcode::DELEGATECALL => Instruction::DELEGATECALL,
+            Opcode::DELEGATECALL => {
+                if self.patch.has_delegate_call {
+                    Instruction::DELEGATECALL
+                } else {
+                    return Err(PCError::InvalidOpcode);
+                }
+            },
 
             Opcode::INVALID => {
                 return Err(PCError::InvalidOpcode);
