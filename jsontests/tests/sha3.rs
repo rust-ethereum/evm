@@ -10,7 +10,7 @@ use jsontests::test_transaction;
 
 lazy_static! {
     static ref TESTS: Value =
-        serde_json::from_str(include_str!("files/vmSha3Test.json")).unwrap();
+        serde_json::from_str(include_str!("../res/files/vmSha3Test.json")).unwrap();
 }
 
 #[test] fn sha3_0() { assert_eq!(test_transaction("sha3_0", &TESTS["sha3_0"], true), true); }

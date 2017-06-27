@@ -10,7 +10,7 @@ use jsontests::test_transaction;
 
 lazy_static! {
     static ref TESTS: Value =
-        serde_json::from_str(include_str!("files/vmBlockInfoTest.json")).unwrap();
+        serde_json::from_str(include_str!("../res/files/vmBlockInfoTest.json")).unwrap();
 }
 
 #[test] fn blockhash257Block() { assert_eq!(test_transaction("blockhash257Block", &TESTS["blockhash257Block"], true), true); }

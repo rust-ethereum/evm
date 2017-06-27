@@ -253,7 +253,9 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
     fire_with_block(&mut machine, &block);
     apply_to_block(&machine, &mut block);
 
-    println!("status: {:?}", machine.status());
+    if debug {
+        println!("status: {:?}", machine.status());
+    }
     let out = v["out"].as_str();
 
     if out.is_some() {

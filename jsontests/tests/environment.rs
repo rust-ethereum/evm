@@ -10,7 +10,7 @@ use jsontests::test_transaction;
 
 lazy_static! {
     static ref TESTS: Value =
-        serde_json::from_str(include_str!("files/vmEnvironmentalInfoTest.json")).unwrap();
+        serde_json::from_str(include_str!("../res/files/vmEnvironmentalInfoTest.json")).unwrap();
 }
 
 #[test] fn extCodeSizeAddressInputTooBigLeftMyAddress() { assert_eq!(test_transaction("ExtCodeSizeAddressInputTooBigLeftMyAddress", &TESTS["ExtCodeSizeAddressInputTooBigLeftMyAddress"], true), true); }
