@@ -10,7 +10,7 @@ use jsontests::test_transaction;
 
 lazy_static! {
     static ref TESTS: Value =
-        serde_json::from_str(include_str!("files/vmSystemOperationsTest.json")).unwrap();
+        serde_json::from_str(include_str!("../res/files/vmSystemOperationsTest.json")).unwrap();
 }
 
 #[test] fn aBAcalls1() { assert_eq!(test_transaction("ABAcalls1", &TESTS["ABAcalls1"], true), true); }

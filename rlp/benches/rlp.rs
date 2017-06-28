@@ -15,7 +15,7 @@
 #![feature(test)]
 
 extern crate test;
-extern crate rlp;
+extern crate sputnikvm_rlp as rlp;
 
 use test::Bencher;
 use rlp::{RlpStream, Rlp};

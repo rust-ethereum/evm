@@ -10,7 +10,7 @@ use jsontests::test_transaction;
 
 lazy_static! {
     static ref TESTS: Value =
-        serde_json::from_str(include_str!("files/vmLogTest.json")).unwrap();
+        serde_json::from_str(include_str!("../res/files/vmLogTest.json")).unwrap();
 }
 
 #[test] fn log0_emptyMem() { assert_eq!(test_transaction("log0_emptyMem", &TESTS["log0_emptyMem"], true), true); }
