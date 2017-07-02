@@ -1,7 +1,7 @@
 //! EVM Program Counter.
 
-use utils::bigint::M256;
-use utils::opcode::Opcode;
+use util::bigint::M256;
+use util::opcode::Opcode;
 use std::cmp::min;
 use super::errors::PCError;
 

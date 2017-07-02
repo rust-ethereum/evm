@@ -1,14 +1,14 @@
 //! System operations instructions
 
-use utils::address::Address;
-use utils::bigint::{U256, M256};
-use utils::gas::Gas;
+use util::address::Address;
+use util::bigint::{U256, M256};
+use util::gas::Gas;
 use vm::{Memory, Log, Context, Transaction};
 use super::State;
 
 use std::cmp::min;
 use tiny_keccak::Keccak;
-use vm::eval::utils::copy_from_memory;
+use vm::eval::util::copy_from_memory;
 
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, address: Address);

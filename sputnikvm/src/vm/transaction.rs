@@ -2,9 +2,9 @@
 
 use std::collections::hash_map;
 use std::cmp::min;
-use utils::gas::Gas;
-use utils::address::Address;
-use utils::bigint::{U256, M256};
+use util::gas::Gas;
+use util::address::Address;
+use util::bigint::{U256, M256};
 use rlp::RlpStream;
 use tiny_keccak::Keccak;
 
@@ -72,7 +72,7 @@ impl Transaction {
                 sha3.update(rlp.out().as_slice());
                 sha3.finalize(&mut address_array);
 
-                Ok(Address::from(M256::from(address_array)))
+                Ok(Address::from(M256::from(address_array.as_ref())))
             },
         }
     }

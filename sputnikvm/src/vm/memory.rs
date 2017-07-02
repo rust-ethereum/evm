@@ -1,6 +1,6 @@
 //! VM memory representation
 
-use utils::bigint::M256;
+use util::bigint::M256;
 
 use super::errors::MemoryError;
 
@@ -68,9 +68,8 @@ impl Memory for SeqMemory {
             return Err(MemoryError::IndexNotSupported);
         }
 
-        let a: [u8; 32] = value.into();
         for i in 0..32 {
-            self.write_raw(index + i.into(), a[i]).unwrap();
+            self.write_raw(index + i.into(), value.byte(i)).unwrap();
         }
         Ok(())
     }
@@ -80,7 +79,7 @@ impl Memory for SeqMemory {
             return Err(MemoryError::IndexNotSupported);
         }
 
-        let index: usize = index.into();
+        let index: usize = index.as_usize();
 
         if self.memory.len() <= index {
             self.memory.resize(index + 1, 0u8);
@@ -96,7 +95,7 @@ impl Memory for SeqMemory {
         for i in 0..32 {
             a[i] = self.read_raw(index + i.into());
         }
-        a.into()
+        a.as_ref().into()
     }
 
     fn read_raw(&self, index: M256) -> u8 {
@@ -104,7 +103,7 @@ impl Memory for SeqMemory {
             return 0u8;
         }
 
-        let index: usize = index.into();
+        let index: usize = index.as_usize();
 
         if self.memory.len() <= index {
             return 0u8;

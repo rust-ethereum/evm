@@ -4,4 +4,4 @@ pub mod address;
 pub mod gas;
 pub mod opcode;
 
-pub use self::bigint::{read_hex, ParseHexError};
+pub use etcommon_util::{read_hex, ParseHexError};

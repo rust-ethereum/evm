@@ -1,8 +1,8 @@
 //! Cost calculation logic
 
-use utils::gas::Gas;
-use utils::address::Address;
-use utils::bigint::{M256, U256};
+use util::gas::Gas;
+use util::address::Address;
+use util::bigint::{M256, U256};
 
 use std::cmp::max;
 use vm::{Memory, Instruction};

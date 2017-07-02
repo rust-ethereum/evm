@@ -1,7 +1,6 @@
 #[macro_use]
 extern crate clap;
 extern crate sputnikvm;
-extern crate sputnikvm_bigint as bigint;
 extern crate serde_json;
 extern crate gethrpc;
 
@@ -13,8 +12,7 @@ use std::io::{BufReader};
 use std::str::FromStr;
 use std::collections::{HashMap, HashSet};
 
-use sputnikvm::{Gas, Address};
-use bigint::{U256, M256, read_hex};
+use sputnikvm::{Gas, Address, U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch, AccountCommitment, Account, FRONTIER_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};

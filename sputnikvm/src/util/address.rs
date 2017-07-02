@@ -2,8 +2,8 @@
 use std::str::FromStr;
 use std::fmt;
 
-use utils::bigint::M256;
-use utils::{read_hex, ParseHexError};
+use util::bigint::M256;
+use util::{read_hex, ParseHexError};
 use rlp::{Encodable, RlpStream};
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]

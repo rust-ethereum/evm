@@ -1,7 +1,7 @@
 //! VM Runtime
-use utils::bigint::M256;
-use utils::gas::Gas;
-use utils::address::Address;
+use util::bigint::M256;
+use util::gas::Gas;
+use util::address::Address;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
@@ -13,7 +13,7 @@ use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
 mod cost;
 mod run;
 mod check;
-mod utils;
+mod util;
 mod lifecycle;
 mod precompiled;
 
@@ -202,7 +202,7 @@ impl<M: Memory + Default> Machine<M> {
             match v {
                 None => Ok(()),
                 Some(ControlCheck::Jump(dest)) => {
-                    if dest <= M256::from(usize::max_value()) && self.pc.is_valid(dest.into()) {
+                    if dest <= M256::from(usize::max_value()) && self.pc.is_valid(dest.as_usize()) {
                         Ok(())
                     } else {
                         Err(EvalError::Machine(MachineError::PC(PCError::BadJumpDest)))
@@ -286,7 +286,7 @@ impl<M: Memory + Default> Machine<M> {
         match result {
             None => Ok(()),
             Some(Control::Jump(dest)) => {
-                self.pc.jump(dest.into()).unwrap();
+                self.pc.jump(dest.as_usize()).unwrap();
                 Ok(())
             },
             Some(Control::InvokeCall(context, (from, len))) => {

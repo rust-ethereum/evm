@@ -33,9 +33,9 @@ pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState}
 pub use self::transaction::{Transaction, TransactionVM};
 
 use std::collections::hash_map;
-use utils::bigint::M256;
-use utils::gas::Gas;
-use utils::address::Address;
+use util::bigint::M256;
+use util::gas::Gas;
+use util::address::Address;
 use self::errors::{RequireError, CommitError, MachineError};
 
 #[derive(Debug, Clone)]

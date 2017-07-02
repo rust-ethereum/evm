@@ -1,7 +1,7 @@
 //! VM errors
 
-use utils::address::Address;
-use utils::bigint::M256;
+use util::address::Address;
+use util::bigint::M256;
 
 #[derive(Debug, Clone)]
 /// Errors returned by an EVM memory.

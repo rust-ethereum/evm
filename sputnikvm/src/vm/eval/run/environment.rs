@@ -8,7 +8,7 @@ pub fn calldataload<M: Memory + Default>(state: &mut State<M>) {
     let index: Option<usize> = if index > usize::max_value().into() {
         None
     } else {
-        Some(index.into())
+        Some(index.as_usize())
     };
     let data = state.context.data.as_slice();
     let mut load: [u8; 32] = [0u8; 32];
@@ -17,5 +17,5 @@ pub fn calldataload<M: Memory + Default>(state: &mut State<M>) {
             load[i] = data[index.unwrap() + i];
         }
     }
-    push!(state, load.into());
+    push!(state, load.as_ref().into());
 }

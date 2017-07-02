@@ -1,6 +1,6 @@
 //! Blockhash commitment management
 use std::collections::hash_map::HashMap;
-use utils::bigint::M256;
+use util::bigint::M256;
 
 use vm::errors::{RequireError, CommitError};
 

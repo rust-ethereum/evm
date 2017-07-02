@@ -2,8 +2,8 @@
 
 use std::collections::hash_set::HashSet;
 use std::collections::hash_map::{self, HashMap};
-use utils::address::Address;
-use utils::bigint::{M256, U256};
+use util::address::Address;
+use util::bigint::{M256, U256};
 
 use vm::Storage;
 use vm::errors::{RequireError, CommitError};

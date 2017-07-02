@@ -1,6 +1,6 @@
 //! Arithmetic instructions
 
-use utils::bigint::{M256, U512};
+use util::bigint::{M256, U512};
 
 use vm::Memory;
 use super::State;
@@ -52,7 +52,7 @@ pub fn signextend<M: Memory + Default>(state: &mut State<M>) {
         push!(state, op2);
     } else {
         let mut ret = M256::zero();
-        let len: usize = op1.into();
+        let len: usize = op1.as_usize();
         let t: usize = 8 * (len + 1) - 1;
         let t_bit_mask = M256::one() << t;
         let t_value = (op2 & t_bit_mask) >> t;
