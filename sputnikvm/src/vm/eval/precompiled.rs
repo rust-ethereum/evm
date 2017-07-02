@@ -1,7 +1,7 @@
 //! Functionality for precompiled accounts.
 
-use utils::address::Address;
-use utils::gas::Gas;
+use util::address::Address;
+use util::gas::Gas;
 
 use vm::errors::MachineError;
 use vm::{Memory, Machine, MachineStatus};

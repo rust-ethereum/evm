@@ -49,13 +49,13 @@ mod flow;
 mod environment;
 mod system;
 
-use utils::gas::Gas;
-use utils::bigint::{M256, MI256};
-use utils::address::Address;
+use util::gas::Gas;
+use util::bigint::{M256, MI256};
+use util::address::Address;
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use vm::{Memory, Instruction};
 use super::{State, Control};
-use super::utils::{copy_from_memory, copy_into_memory};
+use super::util::{copy_from_memory, copy_into_memory};
 
 #[allow(unused_variables)]
 /// Run an instruction.

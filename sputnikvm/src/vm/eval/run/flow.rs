@@ -27,6 +27,5 @@ pub fn mstore<M: Memory + Default>(state: &mut State<M>) {
 
 pub fn mstore8<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, index, value);
-    let value: [u8; 32] = value.into();
-    state.memory.write_raw(index, value[31]).unwrap();
+    state.memory.write_raw(index, (value.0.low_u32() & 0xFF) as u8).unwrap();
 }

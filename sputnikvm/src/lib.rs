@@ -7,18 +7,19 @@
 
 extern crate log;
 extern crate tiny_keccak;
-extern crate sputnikvm_rlp as rlp;
-extern crate sputnikvm_bigint as bigint;
+extern crate etcommon_rlp as rlp;
+extern crate etcommon_bigint as bigint;
+extern crate etcommon_util;
 extern crate ripemd160;
 extern crate sha2;
 extern crate secp256k1;
 extern crate digest;
 
-mod utils;
+mod util;
 pub mod vm;
 
-pub use utils::bigint::{U256, M256, MI256};
-pub use utils::gas::Gas;
-pub use utils::address::Address;
-pub use utils::opcode::Opcode;
-pub use utils::read_hex;
+pub use util::bigint::{U256, M256, MI256};
+pub use util::gas::Gas;
+pub use util::address::Address;
+pub use util::opcode::Opcode;
+pub use util::read_hex;

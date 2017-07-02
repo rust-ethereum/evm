@@ -4,8 +4,8 @@ use std::fmt;
 use std::str::FromStr;
 use std::cmp::Ordering;
 
-use utils::bigint::{M256, U512, U256};
-use utils::ParseHexError;
+use util::bigint::{M256, U512, U256};
+use util::ParseHexError;
 
 #[derive(Eq, PartialEq, Debug, Copy, Clone, Hash)]
 /// Represent an Ethereum gas.

@@ -1,7 +1,7 @@
 //! Eval utilities
 
-use utils::bigint::M256;
-use utils::gas::Gas;
+use util::bigint::M256;
+use util::gas::Gas;
 use vm::Memory;
 use vm::errors::MachineError;
 use std::cmp::min;
@@ -35,7 +35,7 @@ pub fn copy_into_memory<M: Memory>(memory: &mut M, values: &[u8], start: M256, v
     let mut j = value_start;
     while i < start + len {
         if j < value_len {
-            let ju: usize = j.into();
+            let ju: usize = j.as_usize();
             memory.write_raw(i, values[ju]).unwrap();
             j = j + M256::from(1u64);
         } else {

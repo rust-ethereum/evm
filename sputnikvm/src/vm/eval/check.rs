@@ -1,13 +1,13 @@
 //! Check logic for instructions
 
-use utils::bigint::M256;
-use utils::gas::Gas;
+use util::bigint::M256;
+use util::gas::Gas;
 
 use vm::{Memory, Instruction};
 use vm::errors::{MachineError, EvalError};
 
 use vm::eval::{State, ControlCheck};
-use super::utils::check_range;
+use super::util::check_range;
 
 #[allow(unused_variables)]
 pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {

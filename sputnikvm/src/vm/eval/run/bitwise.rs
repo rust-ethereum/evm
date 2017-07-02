@@ -1,6 +1,6 @@
 //! Bitwise instructions
 
-use utils::bigint::M256;
+use util::bigint::M256;
 
 use vm::Memory;
 use super::State;
@@ -27,7 +27,7 @@ pub fn byte<M: Memory + Default>(state: &mut State<M>) {
 
     for i in 0..256 {
         if i < 8 && op1 < 32.into() {
-            let o: usize = op1.into();
+            let o: usize = op1.as_usize();
             let t = 255 - (7 - i + 8 * o);
             let bit_mask = M256::one() << t;
             let value = (op2 & bit_mask) >> t;

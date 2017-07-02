@@ -1,12 +1,12 @@
 //! Runtime lifecycle related functionality.
 
-use utils::bigint::{U256, M256};
-use utils::gas::Gas;
+use util::bigint::{U256, M256};
+use util::gas::Gas;
 use vm::errors::{RequireError, MachineError};
 use vm::commit::AccountState;
 use vm::Memory;
 use super::{Machine, MachineStatus};
-use super::utils::copy_into_memory_apply;
+use super::util::copy_into_memory_apply;
 use super::cost::code_deposit_gas;
 
 /// # Lifecycle of a Machine
