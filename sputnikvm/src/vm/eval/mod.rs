@@ -125,7 +125,7 @@ impl<M: Memory + Default> Machine<M> {
                        depth: usize, account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
         Machine {
-            pc: PC::new(context.code.as_slice()),
+            pc: PC::new(context.code.as_slice(), patch),
             status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
@@ -157,7 +157,7 @@ impl<M: Memory + Default> Machine<M> {
     /// runtime afterwards.
     pub fn derive(&self, context: Context) -> Self {
         Machine {
-            pc: PC::new(context.code.as_slice()),
+            pc: PC::new(context.code.as_slice(), self.state.patch),
             status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
