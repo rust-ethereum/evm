@@ -9,7 +9,7 @@ description = "regtests - performs a regression test of the entire ethereum clas
 name = "regtests"
 
 [dependencies]
-sputnikvm = { path = '../sputnikvm' }
+sputnikvm = { path = '..' }
 gethrpc = { path = '../gethrpc' }
 clap = "2.22"
 serde_json = "0.9"
