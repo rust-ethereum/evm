@@ -6,4 +6,11 @@ authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM CLI"
 repository = "https://github.com/ethereumproject/sputnikvm"
 
+[[bin]]
+name = "sputnikvm"
+
 [dependencies]
+sputnikvm = { path = ".." }
+gethrpc = { path = '../gethrpc' }
+clap = "2.22"
+serde_json = "0.9"

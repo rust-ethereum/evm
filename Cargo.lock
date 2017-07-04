@@ -1,6 +1,12 @@
 [root]
 name = "sputnikvm-cli"
 version = "0.3.0"
+dependencies = [
+ "clap 2.25.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gethrpc 0.3.0",
+ "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sputnikvm 0.3.0",
+]
 
 [[package]]
 name = "ansi_term"
