@@ -1,16 +1,11 @@
 [root]
-name = "sputnikvm"
+name = "sputnikvm-cli"
 version = "0.3.0"
 dependencies = [
- "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "etcommon-bigint 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "etcommon-rlp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "etcommon-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "ripemd160 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "secp256k1 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "sha2 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "tiny-keccak 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "clap 2.25.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "gethrpc 0.3.0",
+ "serde_json 0.9.10 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sputnikvm 0.3.0",
 ]
 
 [[package]]
@@ -481,6 +476,21 @@ dependencies = [
  "digest-buffer 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "fake-simd 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "generic-array 0.7.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "sputnikvm"
+version = "0.3.0"
+dependencies = [
+ "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "etcommon-bigint 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "etcommon-rlp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "etcommon-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ripemd160 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "secp256k1 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha2 0.5.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tiny-keccak 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
