@@ -161,8 +161,6 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
 
         handle_fire(client, &mut vm, last_id);
 
-        println!("expected: {}, actual: 0x{:x}", receipt.gasUsed, vm.real_used_gas());
-        println!("refunded: 0x{:x}", vm.refunded_gas());
         assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
@@ -184,8 +182,6 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                     if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),
                                                                   &cur_number);
-                        println!("address: 0x{:x}, expected balance: {}, actual: 0x{:x}",
-                                 address, expected_balance, balance);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     }
                     let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
@@ -193,8 +189,6 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
                                                                    &cur_number);
-                        println!("address: 0x{:x}, index: 0x{:x}, expected: {}, actual: 0x{:x}",
-                                 address, key, expected_value, value);
                         assert!(M256::from_str(&expected_value).unwrap() == value);
                     }
                 },
