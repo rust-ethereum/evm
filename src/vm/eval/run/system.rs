@@ -51,7 +51,7 @@ macro_rules! try_callstack_limit {
     ( $state:expr, $gas:expr ) => {
         if $state.depth > $state.patch.callstack_limit + 1 {
             push!($state, M256::zero());
-            return Some(Control::UseGas($gas));
+            return None;
         }
     }
 }
@@ -60,7 +60,7 @@ macro_rules! try_balance {
     ( $state:expr, $value:expr, $gas:expr ) => {
         if $state.account_state.balance($state.context.address).unwrap() < $value {
             push!($state, M256::zero());
-            return Some(Control::UseGas($gas));
+            return None;
         }
     }
 }
@@ -91,7 +91,7 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
 pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<Control> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
-    let gas_limit = min(gas + stipend_gas, after_gas);
+    let gas_limit = min(gas, after_gas) + stipend_gas;
 
     try_callstack_limit!(state, gas_limit);
     try_balance!(state, value, gas_limit);

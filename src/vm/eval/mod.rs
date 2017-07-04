@@ -109,7 +109,6 @@ pub enum ControlCheck {
 pub enum Control {
     Stop,
     Jump(M256),
-    UseGas(Gas),
     InvokeCreate(Context),
     InvokeCall(Context, (M256, M256)),
 }
@@ -252,7 +251,7 @@ impl<M: Memory + Default> Machine<M> {
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
 
-        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost - gas_stipend;
+        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost;
         if self.state.context.gas_limit < all_gas_cost {
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
             return Ok(());
@@ -295,10 +294,6 @@ impl<M: Memory + Default> Machine<M> {
             },
             Some(Control::Stop) => {
                 self.status = MachineStatus::ExitedOk;
-                Ok(())
-            },
-            Some(Control::UseGas(gas)) => {
-                self.state.used_gas = self.state.used_gas + gas;
                 Ok(())
             },
         }
