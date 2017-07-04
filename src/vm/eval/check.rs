@@ -12,7 +12,7 @@ use super::util::check_range;
 #[allow(unused_variables)]
 pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
     match instruction {
-        Instruction::CALL | Instruction::CALLCODE => {
+        Instruction::CALL | Instruction::CALLCODE | Instruction::DELEGATECALL => {
             if after_gas < stipend_gas || after_gas - stipend_gas < state.stack.peek(0).unwrap().into() {
                 Err(EvalError::Machine(MachineError::EmptyGas))
             } else {
@@ -192,7 +192,15 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
             check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
             Ok(None)
         },
-        Instruction::DELEGATECALL => unimplemented!(),
+        Instruction::DELEGATECALL => {
+            state.stack.check_pop_push(6, 1)?;
+            check_range(state.stack.peek(2).unwrap(), state.stack.peek(3).unwrap())?;
+            state.memory.check_write_range(
+                state.stack.peek(4).unwrap(), state.stack.peek(5).unwrap())?;
+            state.account_state.require(state.context.address)?;
+            state.account_state.require(state.stack.peek(1).unwrap().into())?;
+            Ok(None)
+        },
         Instruction::SUICIDE => {
             state.stack.check_pop_push(1, 0)?;
             state.account_state.require(state.context.address)?;

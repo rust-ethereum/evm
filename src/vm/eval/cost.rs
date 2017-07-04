@@ -160,7 +160,7 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
     match instruction {
         Instruction::CALL => call_cost(state, false),
         Instruction::CALLCODE => call_cost(state, true),
-        Instruction::DELEGATECALL => unimplemented!(),
+        Instruction::DELEGATECALL => call_cost(state, true),
         Instruction::SUICIDE => suicide_cost(state),
         Instruction::SSTORE => sstore_cost(state),
 
