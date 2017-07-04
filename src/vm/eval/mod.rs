@@ -109,6 +109,7 @@ pub enum ControlCheck {
 pub enum Control {
     Stop,
     Jump(M256),
+    UseGas(Gas),
     InvokeCreate(Context),
     InvokeCall(Context, (M256, M256)),
 }
@@ -294,6 +295,10 @@ impl<M: Memory + Default> Machine<M> {
             },
             Some(Control::Stop) => {
                 self.status = MachineStatus::ExitedOk;
+                Ok(())
+            },
+            Some(Control::UseGas(gas)) => {
+                self.state.used_gas = self.state.used_gas + gas;
                 Ok(())
             },
         }

@@ -87,7 +87,12 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.require(self.state.context.address)?;
 
         match self.status() {
-            MachineStatus::ExitedOk => (),
+            MachineStatus::ExitedOk => {
+                // Requires removed accounts to exist.
+                for address in &self.state.removed {
+                    self.state.account_state.require(*address)?;
+                }
+            },
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
@@ -101,6 +106,10 @@ impl<M: Memory + Default> Machine<M> {
         let gas_dec = real_used_gas * self.state.context.gas_price;
         self.state.account_state.increase_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
+
+        for address in &self.state.removed {
+            self.state.account_state.remove(*address).unwrap();
+        }
 
         match self.status() {
             MachineStatus::ExitedOk => Ok(()),
