@@ -61,7 +61,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     /// Deposit code for a ContractCreation transaction or a CREATE opcode.
-    pub fn code_deposit(&mut self) -> Result<(), RequireError> {
+    pub fn code_deposit(&mut self) {
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
             _ => panic!(),
@@ -79,7 +79,6 @@ impl<M: Memory + Default> Machine<M> {
             self.state.account_state.code_deposit(self.state.context.address,
                                                   self.state.out.as_slice());
         }
-        Ok(())
     }
 
     /// Finalize a transaction. This should not be used when invoked
@@ -130,10 +129,12 @@ impl<M: Memory + Default> Machine<M> {
         }
     }
 
-    fn apply_create(&mut self, sub: Machine<M>) {
+    fn apply_create(&mut self, mut sub: Machine<M>) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }
+
+        sub.code_deposit();
 
         match sub.status() {
             MachineStatus::ExitedOk => {
@@ -145,13 +146,6 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
-                    self.state.used_gas = self.state.used_gas + code_deposit_gas(sub.state.out.len());
-                    self.state.account_state.code_deposit(sub.state.context.address,
-                                                          sub.state.out.as_slice());
-                } else {
-                    self.state.account_state.code_deposit(sub.state.context.address, &[]);
-                }
 
             },
             MachineStatus::ExitedErr(_) => {
