@@ -173,7 +173,8 @@ pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut Sta
         Instruction::RETURN => { pop!(state, start, len);
                                  state.out = copy_from_memory(&mut state.memory, start, len);
                                  Some(Control::Stop) },
-        Instruction::DELEGATECALL => unimplemented!(),
+        Instruction::DELEGATECALL => { system::delegate_call(state, after_gas)
+                                       .and_then(|ret| Some(Control::InvokeCall(ret.0, ret.1))) },
         Instruction::SUICIDE => { system::suicide(state); Some(Control::Stop) },
     }
 }

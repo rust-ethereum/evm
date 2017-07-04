@@ -97,3 +97,28 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
     push!(state, M256::from(1u64));
     Some((context, (out_start, out_len)))
 }
+
+pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+    pop!(state, gas: Gas, to: Address);
+    pop!(state, in_start, in_len, out_start, out_len);
+
+    let input = copy_from_memory(&state.memory, in_start, in_len);
+    let gas_limit = min(gas, after_gas);
+
+    let transaction = Transaction::MessageCall {
+        address: to,
+        caller: state.context.caller,
+        gas_price: state.context.gas_price,
+        gas_limit: gas_limit,
+        value: state.context.value,
+        data: input,
+    };
+
+    let mut context = transaction.into_context(
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true
+    ).unwrap();
+    context.address = state.context.address;
+
+    push!(state, M256::from(1u64));
+    Some((context, (out_start, out_len)))
+}
