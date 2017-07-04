@@ -39,6 +39,8 @@ pub struct Context {
     pub origin: Address,
     /// Value passed for this runtime.
     pub value: U256,
+    /// Apprent value in the execution context.
+    pub apprent_value: U256,
 }
 
 #[derive(Debug, Clone, PartialEq)]
