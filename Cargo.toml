@@ -25,5 +25,6 @@ etcommon-util = "0.1.0"
 members = [
   "./jsontests",
   "./regtests",
-  "./gethrpc"
+  "./gethrpc",
+  "./cli",
 ]
