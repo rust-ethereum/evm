@@ -227,11 +227,6 @@ impl<M: Memory + Default> Machine<M> {
             return Ok(());
         }
 
-        if self.state.depth >= self.state.patch.callstack_limit {
-            self.status = MachineStatus::ExitedErr(MachineError::CallstackOverflow);
-            return Ok(());
-        }
-
         if self.pc.is_end() {
             self.status = MachineStatus::ExitedOk;
             return Ok(());
@@ -263,6 +258,20 @@ impl<M: Memory + Default> Machine<M> {
         }
 
         let after_gas = self.state.context.gas_limit - all_gas_cost;
+        {
+            use vm::Instruction;
+            if instruction == Instruction::CALL || instruction == Instruction::CALLCODE ||
+                instruction == Instruction::CREATE || instruction == Instruction::SUICIDE ||
+                instruction == Instruction::DELEGATECALL
+            // if true
+            {
+                let gas_cost_dis: u64 = (self.state.available_gas() - after_gas).into();
+                let total_gas_dis: u64 = all_gas_cost.into();
+                let after_gas_dis: u64 = after_gas.into();
+                println!("{:?}, cost: {}, total: {}, after: {}", instruction,
+                         gas_cost_dis, total_gas_dis, after_gas_dis);
+            }
+        }
 
         match extra_check_opcode(instruction, &self.state, gas_stipend, after_gas) {
             Ok(()) => (),

@@ -82,8 +82,6 @@ pub enum MachineError {
     /// VM PC error.
     PC(PCError),
 
-    /// Call stack is too large that it exceeds the limit.
-    CallstackOverflow,
     /// For instruction that requires reading a range, it is invalid.
     InvalidRange,
     /// Not enough gas to continue.

@@ -3,8 +3,8 @@
 use util::address::Address;
 use util::bigint::{U256, M256};
 use util::gas::Gas;
-use vm::{Memory, Log, Context, Transaction};
-use super::State;
+use vm::{Memory, Log, Transaction};
+use super::{Control, State};
 
 use std::cmp::min;
 use tiny_keccak::Keccak;
@@ -43,9 +43,19 @@ pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
     push!(state, M256::from(ret.as_ref()));
 }
 
-pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Context> {
+macro_rules! check_callstack_limit {
+    ( $state:expr ) => {
+        if $state.depth > $state.patch.callstack_limit + 1 {
+            push!($state, M256::zero());
+            return None;
+        }
+    }
+}
+
+pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
     pop!(state, value: U256);
     pop!(state, init_start, init_len);
+    check_callstack_limit!(state);
     if state.account_state.balance(state.context.address).unwrap() < value {
         push!(state, M256::zero());
         return None;
@@ -64,12 +74,13 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
     ).unwrap();
 
     push!(state, context.address.into());
-    Some(context)
+    Some(Control::InvokeCreate(context))
 }
 
-pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<(Context, (M256, M256))> {
+pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<Control> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
+    check_callstack_limit!(state);
     if state.account_state.balance(state.context.address).unwrap() < value {
         push!(state, M256::zero());
         return None;
@@ -95,12 +106,13 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
     }
 
     push!(state, M256::from(1u64));
-    Some((context, (out_start, out_len)))
+    Some(Control::InvokeCall(context, (out_start, out_len)))
 }
 
-pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
     pop!(state, gas: Gas, to: Address);
     pop!(state, in_start, in_len, out_start, out_len);
+    check_callstack_limit!(state);
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let gas_limit = min(gas, after_gas);
@@ -121,5 +133,5 @@ pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) 
     context.address = state.context.address;
 
     push!(state, M256::from(1u64));
-    Some((context, (out_start, out_len)))
+    Some(Control::InvokeCall(context, (out_start, out_len)))
 }
