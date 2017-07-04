@@ -117,6 +117,7 @@ pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) 
     let mut context = transaction.into_context(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
+    context.value = U256::zero();
     context.address = state.context.address;
 
     push!(state, M256::from(1u64));

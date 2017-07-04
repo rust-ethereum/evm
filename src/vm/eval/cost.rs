@@ -46,26 +46,26 @@ fn sstore_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     }
 }
 
-fn call_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
-    extra_cost(machine, is_callcode)
+fn call_cost<M: Memory + Default>(machine: &State<M>, instruction: &Instruction) -> Gas {
+    Gas::from(machine.patch.gas_call) + xfer_cost(machine, instruction) + new_cost(machine, instruction)
 }
 
-fn extra_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
-    Gas::from(machine.patch.gas_call) + xfer_cost(machine) + new_cost(machine, is_callcode)
-}
-
-fn xfer_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
-    let val = machine.stack.peek(2).unwrap();
-    if val != M256::zero() {
-        G_CALLVALUE.into()
+fn xfer_cost<M: Memory + Default>(machine: &State<M>, instruction: &Instruction) -> Gas {
+    if instruction == &Instruction::CALL || instruction == &Instruction::CALLCODE {
+        let val = machine.stack.peek(2).unwrap();
+        if val != M256::zero() {
+            G_CALLVALUE.into()
+        } else {
+            Gas::zero()
+        }
     } else {
         Gas::zero()
     }
 }
 
-fn new_cost<M: Memory + Default>(machine: &State<M>, is_callcode: bool) -> Gas {
+fn new_cost<M: Memory + Default>(machine: &State<M>, instruction: &Instruction) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if !machine.account_state.exists(address).unwrap() && !is_callcode {
+    if instruction == &Instruction::CALL && !machine.account_state.exists(address).unwrap() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -158,9 +158,9 @@ pub fn memory_cost<M: Memory + Default>(instruction: Instruction, state: &State<
 /// Calculate the gas cost.
 pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
-        Instruction::CALL => call_cost(state, false),
-        Instruction::CALLCODE => call_cost(state, true),
-        Instruction::DELEGATECALL => call_cost(state, true),
+        Instruction::CALL => call_cost(state, &Instruction::CALL),
+        Instruction::CALLCODE => call_cost(state, &Instruction::CALLCODE),
+        Instruction::DELEGATECALL => call_cost(state, &Instruction::DELEGATECALL),
         Instruction::SUICIDE => suicide_cost(state),
         Instruction::SSTORE => sstore_cost(state),
 

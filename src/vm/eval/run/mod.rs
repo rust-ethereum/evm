@@ -94,7 +94,7 @@ pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut Sta
                                   None },
         Instruction::ORIGIN => { push!(state, state.context.origin.into()); None },
         Instruction::CALLER => { push!(state, state.context.caller.into()); None },
-        Instruction::CALLVALUE => { push!(state, state.context.value.into()); None },
+        Instruction::CALLVALUE => { push!(state, state.context.apprent_value.into()); None },
         Instruction::CALLDATALOAD => { environment::calldataload(state); None },
         Instruction::CALLDATASIZE => { push!(state, state.context.data.len().into()); None },
         Instruction::CALLDATACOPY => { pop!(state, memory_index, data_index, len);

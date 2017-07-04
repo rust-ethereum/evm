@@ -132,6 +132,7 @@ impl Transaction {
                     gas_limit: gas_limit - upfront,
                     code: account_state.code(address).unwrap().into(),
                     origin: origin.unwrap_or(caller),
+                    apprent_value: value,
                 })
             },
             Transaction::ContractCreation {
@@ -148,6 +149,7 @@ impl Transaction {
                     data: Vec::new(),
                     code: init,
                     origin: origin.unwrap_or(caller),
+                    apprent_value: value,
                 })
             }
         }
