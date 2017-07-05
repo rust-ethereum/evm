@@ -49,7 +49,7 @@ pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
 
 macro_rules! try_callstack_limit {
     ( $state:expr, $gas:expr ) => {
-        if $state.depth > $state.patch.callstack_limit + 1 {
+        if $state.depth > $state.patch.callstack_limit {
             push!($state, M256::zero());
             return None;
         }
