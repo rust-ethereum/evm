@@ -103,11 +103,11 @@ dependencies = [
 
 [[package]]
 name = "etcommon-bigint"
-version = "0.1.7"
+version = "0.1.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "etcommon-rlp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "etcommon-rlp 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "etcommon-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "heapsize 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "libc 0.2.24 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -116,7 +116,7 @@ dependencies = [
 
 [[package]]
 name = "etcommon-rlp"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -483,8 +483,8 @@ name = "sputnikvm"
 version = "0.3.0"
 dependencies = [
  "digest 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "etcommon-bigint 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "etcommon-rlp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "etcommon-bigint 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
+ "etcommon-rlp 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "etcommon-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "ripemd160 0.5.2 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -645,8 +645,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum digest-buffer 0.3.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4eb92364e9f6d3da159257250532d448b218406d2acb149f724e8f48e9f5cb9a"
 "checksum dtoa 0.4.1 (registry+https://github.com/rust-lang/crates.io-index)" = "80c8b71fd71146990a9742fc06dcbbde19161a267e0ad4e572c35162f4578c90"
 "checksum elastic-array 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)" = "71a64decd4b8cd06654a4e643c45cb558ad554abbffd82a7e16e34f45f51b605"
-"checksum etcommon-bigint 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)" = "9f5bf285a3bd9a0bd8cf1cdf7cfff8b0f129f6b16deee3aae05b018adce107df"
-"checksum etcommon-rlp 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "b21273f190847ccee88c93d9af63155e13928f2ca54e38c281278045f227dc61"
+"checksum etcommon-bigint 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)" = "d86b9d5bce6af07ae24b82e59bb91a7ecf7e295ad6ef882cfa540633461c508b"
+"checksum etcommon-rlp 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)" = "d8b52e92c28bbd6529c5f5b38c2bad36d7be48f62d59758126ac1532ba3747a7"
 "checksum etcommon-util 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)" = "2e07dd5bcd3a7b9b5a1796e1d969cdebab0afb362ba7e534c6d9af6413af9648"
 "checksum fake-simd 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 "checksum gcc 0.3.51 (registry+https://github.com/rust-lang/crates.io-index)" = "120d07f202dcc3f72859422563522b66fe6463a4c513df062874daad05f85f0a"

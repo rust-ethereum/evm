@@ -69,7 +69,7 @@ impl Memory for SeqMemory {
         }
 
         for i in 0..32 {
-            self.write_raw(index + i.into(), value.byte(i)).unwrap();
+            self.write_raw(index + i.into(), value.index(i)).unwrap();
         }
         Ok(())
     }
