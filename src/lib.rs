@@ -10,7 +10,6 @@ extern crate tiny_keccak;
 extern crate etcommon_rlp as rlp;
 extern crate etcommon_bigint as bigint;
 extern crate etcommon_util;
-extern crate etcommon_block;
 extern crate ripemd160;
 extern crate sha2;
 extern crate secp256k1;

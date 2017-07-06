@@ -1,2 +1,2 @@
 //! Ethereum address
-pub use etcommon_block::Address;
+pub use bigint::Address;
