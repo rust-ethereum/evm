@@ -17,8 +17,8 @@ ripemd160 = "0.5.2"
 sha2 = "0.5.3"
 digest = { version = "0.5", features = ["std"]}
 secp256k1 = "0.6.2"
-etcommon-rlp = "0.1.0"
-etcommon-bigint = "0.1.7"
+etcommon-rlp = "0.1.1"
+etcommon-bigint = "0.1.9"
 etcommon-util = "0.1.0"
 
 [workspace]

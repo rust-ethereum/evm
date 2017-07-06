@@ -61,7 +61,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     /// Deposit code for a ContractCreation transaction or a CREATE opcode.
-    pub fn code_deposit(&mut self) -> Result<(), RequireError> {
+    pub fn code_deposit(&mut self) {
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
             _ => panic!(),
@@ -79,7 +79,6 @@ impl<M: Memory + Default> Machine<M> {
             self.state.account_state.code_deposit(self.state.context.address,
                                                   self.state.out.as_slice());
         }
-        Ok(())
     }
 
     /// Finalize a transaction. This should not be used when invoked
@@ -88,7 +87,12 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.require(self.state.context.address)?;
 
         match self.status() {
-            MachineStatus::ExitedOk => (),
+            MachineStatus::ExitedOk => {
+                // Requires removed accounts to exist.
+                for address in &self.state.removed {
+                    self.state.account_state.require(*address)?;
+                }
+            },
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
@@ -102,6 +106,10 @@ impl<M: Memory + Default> Machine<M> {
         let gas_dec = real_used_gas * self.state.context.gas_price;
         self.state.account_state.increase_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
+
+        for address in &self.state.removed {
+            self.state.account_state.remove(*address).unwrap();
+        }
 
         match self.status() {
             MachineStatus::ExitedOk => Ok(()),
@@ -130,10 +138,12 @@ impl<M: Memory + Default> Machine<M> {
         }
     }
 
-    fn apply_create(&mut self, sub: Machine<M>) {
+    fn apply_create(&mut self, mut sub: Machine<M>) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }
+
+        sub.code_deposit();
 
         match sub.status() {
             MachineStatus::ExitedOk => {
@@ -145,13 +155,6 @@ impl<M: Memory + Default> Machine<M> {
                 self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
                 self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                if self.state.available_gas() >= code_deposit_gas(sub.state.out.len()) {
-                    self.state.used_gas = self.state.used_gas + code_deposit_gas(sub.state.out.len());
-                    self.state.account_state.code_deposit(sub.state.context.address,
-                                                          sub.state.out.as_slice());
-                } else {
-                    self.state.account_state.code_deposit(sub.state.context.address, &[]);
-                }
 
             },
             MachineStatus::ExitedErr(_) => {

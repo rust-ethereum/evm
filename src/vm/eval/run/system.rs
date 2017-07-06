@@ -3,8 +3,8 @@
 use util::address::Address;
 use util::bigint::{U256, M256};
 use util::gas::Gas;
-use vm::{Memory, Log, Context, Transaction};
-use super::State;
+use vm::{Memory, Log, Transaction};
+use super::{Control, State};
 
 use std::cmp::min;
 use tiny_keccak::Keccak;
@@ -13,9 +13,13 @@ use vm::eval::util::copy_from_memory;
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, address: Address);
     let balance = state.account_state.balance(state.context.address).unwrap();
-    state.account_state.remove(state.context.address).unwrap();
-    state.removed.push(state.context.address);
+    if !state.removed.contains(&state.context.address) {
+        state.removed.push(state.context.address);
+    }
     state.account_state.increase_balance(address, balance);
+
+    let balance = state.account_state.balance(state.context.address).unwrap();
+    state.account_state.decrease_balance(state.context.address, balance);
 }
 
 pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
@@ -43,13 +47,30 @@ pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
     push!(state, M256::from(ret.as_ref()));
 }
 
-pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Context> {
+macro_rules! try_callstack_limit {
+    ( $state:expr, $gas:expr ) => {
+        if $state.depth > $state.patch.callstack_limit {
+            push!($state, M256::zero());
+            return None;
+        }
+    }
+}
+
+macro_rules! try_balance {
+    ( $state:expr, $value:expr, $gas:expr ) => {
+        if $state.account_state.balance($state.context.address).unwrap() < $value {
+            push!($state, M256::zero());
+            return None;
+        }
+    }
+}
+
+pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
     pop!(state, value: U256);
     pop!(state, init_start, init_len);
-    if state.account_state.balance(state.context.address).unwrap() < value {
-        push!(state, M256::zero());
-        return None;
-    }
+
+    try_callstack_limit!(state, Gas::zero());
+    try_balance!(state, value, Gas::zero());
 
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let transaction = Transaction::ContractCreation {
@@ -64,20 +85,18 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
     ).unwrap();
 
     push!(state, context.address.into());
-    Some(context)
+    Some(Control::InvokeCreate(context))
 }
 
-pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<(Context, (M256, M256))> {
+pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<Control> {
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
-    if state.account_state.balance(state.context.address).unwrap() < value {
-        push!(state, M256::zero());
-        return None;
-    }
+    let gas_limit = min(gas, after_gas) + stipend_gas;
+
+    try_callstack_limit!(state, gas_limit);
+    try_balance!(state, value, gas_limit);
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
-    let gas_limit = min(gas + stipend_gas, after_gas);
-
     let transaction = Transaction::MessageCall {
         address: to,
         caller: state.context.address,
@@ -95,16 +114,17 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
     }
 
     push!(state, M256::from(1u64));
-    Some((context, (out_start, out_len)))
+    Some(Control::InvokeCall(context, (out_start, out_len)))
 }
 
-pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<(Context, (M256, M256))> {
+pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
     pop!(state, gas: Gas, to: Address);
     pop!(state, in_start, in_len, out_start, out_len);
-
-    let input = copy_from_memory(&state.memory, in_start, in_len);
     let gas_limit = min(gas, after_gas);
 
+    try_callstack_limit!(state, gas_limit);
+
+    let input = copy_from_memory(&state.memory, in_start, in_len);
     let transaction = Transaction::MessageCall {
         address: to,
         caller: state.context.caller,
@@ -121,5 +141,5 @@ pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) 
     context.address = state.context.address;
 
     push!(state, M256::from(1u64));
-    Some((context, (out_start, out_len)))
+    Some(Control::InvokeCall(context, (out_start, out_len)))
 }

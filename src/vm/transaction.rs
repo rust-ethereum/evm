@@ -315,7 +315,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                     },
                     _ => {
                         if *code_deposit {
-                            vm.machines[0].code_deposit()?;
+                            vm.machines[0].code_deposit();
                             *code_deposit = false;
                             return Ok(());
                         }

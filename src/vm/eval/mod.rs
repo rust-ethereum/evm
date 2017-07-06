@@ -227,11 +227,6 @@ impl<M: Memory + Default> Machine<M> {
             return Ok(());
         }
 
-        if self.state.depth >= self.state.patch.callstack_limit {
-            self.status = MachineStatus::ExitedErr(MachineError::CallstackOverflow);
-            return Ok(());
-        }
-
         if self.pc.is_end() {
             self.status = MachineStatus::ExitedOk;
             return Ok(());
@@ -256,7 +251,7 @@ impl<M: Memory + Default> Machine<M> {
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
 
-        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost - gas_stipend;
+        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost;
         if self.state.context.gas_limit < all_gas_cost {
             self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
             return Ok(());
