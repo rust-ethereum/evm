@@ -1,6 +1,6 @@
 //! Check logic for instructions
 
-use util::bigint::{U256, M256};
+use util::bigint::M256;
 use util::gas::Gas;
 
 use vm::{Memory, Instruction};
