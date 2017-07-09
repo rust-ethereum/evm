@@ -16,10 +16,14 @@ pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     if !state.removed.contains(&state.context.address) {
         state.removed.push(state.context.address);
     }
-    state.account_state.increase_balance(address, balance);
 
-    let balance = state.account_state.balance(state.context.address).unwrap();
-    state.account_state.decrease_balance(state.context.address, balance);
+    // If balance is zero, ignoring balance state change.
+    if balance != U256::zero() {
+        state.account_state.increase_balance(address, balance);
+
+        let balance = state.account_state.balance(state.context.address).unwrap();
+        state.account_state.decrease_balance(state.context.address, balance);
+    }
 }
 
 pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
