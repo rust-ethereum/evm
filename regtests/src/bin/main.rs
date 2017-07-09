@@ -14,8 +14,7 @@ use std::collections::{HashMap, HashSet};
 
 use sputnikvm::{Gas, Address, U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
-                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
-                    HOMESTEAD_SUICIDE_PATCH};
+                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
@@ -282,7 +281,6 @@ fn main() {
     let patch = match matches.value_of("PATCH") {
         Some("frontier") => &FRONTIER_PATCH,
         Some("homestead") => &HOMESTEAD_PATCH,
-        Some("homestead_suicide") => &HOMESTEAD_SUICIDE_PATCH,
         Some(_) => panic!("Unknown patch."),
         None => &FRONTIER_PATCH,
     };
