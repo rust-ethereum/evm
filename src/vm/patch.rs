@@ -26,6 +26,8 @@ pub struct Patch {
     pub force_code_deposit: bool,
     /// Whether the EVM has DELEGATECALL opcode.
     pub has_delegate_call: bool,
+    /// Ignore SUICIDE target with zero balance.
+    pub ignore_suicide_zero_balance: bool,
 }
 
 /// Frontier patch.
@@ -41,6 +43,7 @@ pub static FRONTIER_PATCH: Patch = Patch {
     gas_transaction_create: 0,
     force_code_deposit: true,
     has_delegate_call: false,
+    ignore_suicide_zero_balance: false,
 };
 
 /// Homestead patch.
@@ -56,6 +59,23 @@ pub static HOMESTEAD_PATCH: Patch = Patch {
     gas_transaction_create: 32000,
     force_code_deposit: false,
     has_delegate_call: true,
+    ignore_suicide_zero_balance: false,
+};
+
+/// Homestead patch (with SUICIDE performance fix).
+pub static HOMESTEAD_SUICIDE_PATCH: Patch = Patch {
+    callstack_limit: 1024,
+    gas_extcode: 20,
+    gas_balance: 20,
+    gas_sload: 50,
+    gas_suicide: 0,
+    gas_suicide_new_account: 0,
+    gas_call: 40,
+    gas_expbyte: 10,
+    gas_transaction_create: 32000,
+    force_code_deposit: false,
+    has_delegate_call: true,
+    ignore_suicide_zero_balance: true,
 };
 
 /// Patch specific for the `jsontests` crate.
@@ -71,6 +91,7 @@ pub static VMTEST_PATCH: Patch = Patch {
     gas_transaction_create: 0,
     force_code_deposit: true,
     has_delegate_call: false,
+    ignore_suicide_zero_balance: false,
 };
 
 /// EIP150 patch.
@@ -86,6 +107,7 @@ pub static EIP150_PATCH: Patch = Patch {
     gas_transaction_create: 32000,
     force_code_deposit: false,
     has_delegate_call: true,
+    ignore_suicide_zero_balance: false,
 };
 
 /// EIP160 patch.
@@ -101,4 +123,5 @@ pub static EIP160_PATCH: Patch = Patch {
     gas_transaction_create: 32000,
     force_code_deposit: false,
     has_delegate_call: true,
+    ignore_suicide_zero_balance: false,
 };

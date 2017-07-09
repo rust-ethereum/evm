@@ -17,8 +17,11 @@ pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
         state.removed.push(state.context.address);
     }
 
-    // If balance is zero, ignoring balance state change.
-    if balance != U256::zero() {
+    // If balance is zero, ignoring balance state change. Note that
+    // this technically is incorrect, so it uses a different patch.
+    if state.patch.ignore_suicide_zero_balance && balance == U256::zero() {
+        // Do nothing.
+    } else {
         state.account_state.increase_balance(address, balance);
 
         let balance = state.account_state.balance(state.context.address).unwrap();
