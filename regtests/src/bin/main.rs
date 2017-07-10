@@ -316,3 +316,14 @@ fn test_all_previously_failed_frontier_blocks() {
         test_block(&mut client, n, &FRONTIER_PATCH);
     }
 }
+
+#[cfg(test)]
+#[test]
+fn test_all_previously_failed_homestead_blocks() {
+    let cached: serde_json::Value = serde_json::from_str(include_str!("../../res/homestead_records.json")).unwrap();
+    let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/homestead_numbers.json")).unwrap();
+    let mut client = CachedGethRPCClient::from_value(cached);
+    for n in numbers {
+        test_block(&mut client, n, &HOMESTEAD_PATCH);
+    }
+}
