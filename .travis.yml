@@ -1,44 +1,14 @@
-dist: trusty
 language: rust
-cache: cargo
-sudo: true
 rust:
   - stable
   - beta
   - nightly
 os:
   - linux
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
-      - libiberty-dev
-      - g++
-install:
-  - rustc -vV
-  - cargo -vV
-  - mkdir -p ~/.cargo/bin
-  - KCOV_VERSION=33
-  - rm -rf v${KCOV_VERSION}.tar.gz kcov-${KCOV_VERSION}/
-  - wget https://github.com/SimonKagstrom/kcov/archive/v${KCOV_VERSION}.tar.gz
-  - tar xzf v${KCOV_VERSION}.tar.gz
-  - cd kcov-${KCOV_VERSION}
-  - mkdir build
-  - cd build
-  - cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
-  - make
-  - cp src/kcov src/libkcov_sowrapper.so ~/.cargo/bin
-  - export PATH=$HOME/.local/bin:$HOME/.cargo/bin:$HOME/Library/Python/2.7/bin:$PATH
-  - export RUSTFLAGS="-C link-dead-code"
-  - kcov --version
+  - osx
 script:
-  - |
-    export PATH="$PATH":~/.cargo/bin &&
-    export RUST_BACKTRACE=1 &&
-    cargo test --release --all --verbose
+  - cargo build --verbose --all
+  - cargo test --release --all --verbose
 matrix:
   allow_failures:
     - rust: nightly
