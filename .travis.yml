@@ -7,7 +7,7 @@ os:
   - linux
   - osx
 script:
-  - cargo build --verbose --all
+  - cargo build --release --all --verbose
   - cargo test --release --all --verbose
 matrix:
   allow_failures:
