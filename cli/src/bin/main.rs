@@ -6,7 +6,8 @@ extern crate gethrpc;
 
 use sputnikvm::{Gas, Address, U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
-                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH};
+                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
+                    EIP150_PATCH, EIP160_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCBlock};
 use std::str::FromStr;
@@ -107,7 +108,7 @@ fn main() {
         (@arg RPC: --rpc +takes_value "Indicate this EVM should be run on an actual blockchain.")
         (@arg DATA: --data +takes_value "Data associated with this transaction.")
         (@arg BLOCK: --block +takes_value "Block number associated.")
-        (@arg PATCH: --patch +takes_value "Patch to be used.")
+        (@arg PATCH: --patch +takes_value +required "Patch to be used.")
         (@arg GAS_LIMIT: --gas_limit +takes_value "Gas limit.")
         (@arg GAS_PRICE: --gas_price +takes_value "Gas price.")
         (@arg CALLER: --caller +takes_value "Caller of the transaction.")
@@ -124,9 +125,10 @@ fn main() {
     let gas_price = Gas::from_str(matches.value_of("GAS_PRICE").unwrap_or("0x0")).unwrap();
     let is_create = matches.is_present("CREATE");
     let patch = match matches.value_of("PATCH") {
-        None => &FRONTIER_PATCH,
         Some("frontier") => &FRONTIER_PATCH,
         Some("homestead") => &HOMESTEAD_PATCH,
+        Some("eip150") => &EIP150_PATCH,
+        Some("eip160") => &EIP160_PATCH,
         _ => panic!("Unsupported patch."),
     };
     let block_number = matches.value_of("BLOCK").unwrap_or("0x0");
