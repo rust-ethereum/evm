@@ -43,7 +43,7 @@ use self::errors::{RequireError, CommitError, MachineError};
 pub enum VMStatus {
     /// A running VM.
     Running,
-    /// VM is stopped with out errors.
+    /// VM is stopped without errors.
     ExitedOk,
     /// VM is stopped due to an error. The state of the VM is before
     /// the last failing instruction.
