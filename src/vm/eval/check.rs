@@ -13,7 +13,7 @@ use super::util::check_range;
 pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE | Instruction::DELEGATECALL => {
-            if after_gas < state.stack.peek(0).unwrap().into() {
+            if state.patch.err_on_call_with_more_gas && after_gas < state.stack.peek(0).unwrap().into() {
                 Err(EvalError::Machine(MachineError::EmptyGas))
             } else {
                 Ok(())
