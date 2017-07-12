@@ -107,6 +107,9 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.increase_balance(self.state.context.caller, preclaimed_value);
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
 
+        // Apply miner rewards
+        self.state.account_state.increase_balance(self.state.block.coinbase, gas_dec.into());
+
         for address in &self.state.removed {
             self.state.account_state.remove(*address).unwrap();
         }

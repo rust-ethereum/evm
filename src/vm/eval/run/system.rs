@@ -8,7 +8,7 @@ use super::{Control, State};
 
 use std::cmp::min;
 use tiny_keccak::Keccak;
-use vm::eval::util::copy_from_memory;
+use vm::eval::util::{l64, copy_from_memory};
 
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, address: Address);
@@ -48,7 +48,7 @@ pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
 }
 
 macro_rules! try_callstack_limit {
-    ( $state:expr, $gas:expr ) => {
+    ( $state:expr ) => {
         if $state.depth > $state.patch.callstack_limit {
             push!($state, M256::zero());
             return None;
@@ -66,17 +66,19 @@ macro_rules! try_balance {
 }
 
 pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas { l64(after_gas) } else { after_gas };
+
     pop!(state, value: U256);
     pop!(state, init_start, init_len);
 
-    try_callstack_limit!(state, Gas::zero());
+    try_callstack_limit!(state);
     try_balance!(state, value, Gas::zero());
 
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let transaction = Transaction::ContractCreation {
         caller: state.context.address,
         gas_price: state.context.gas_price,
-        gas_limit: after_gas,
+        gas_limit: l64_after_gas,
         value: value,
         init: init,
     };
@@ -89,11 +91,13 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
 }
 
 pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<Control> {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas { l64(after_gas) } else { after_gas };
+
     pop!(state, gas: Gas, to: Address, value: U256);
     pop!(state, in_start, in_len, out_start, out_len);
-    let gas_limit = min(gas, after_gas) + stipend_gas;
+    let gas_limit = min(gas, l64_after_gas) + stipend_gas;
 
-    try_callstack_limit!(state, gas_limit);
+    try_callstack_limit!(state);
     try_balance!(state, value, gas_limit);
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
@@ -118,11 +122,13 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
 }
 
 pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas { l64(after_gas) } else { after_gas };
+
     pop!(state, gas: Gas, to: Address);
     pop!(state, in_start, in_len, out_start, out_len);
-    let gas_limit = min(gas, after_gas);
+    let gas_limit = min(gas, l64_after_gas);
 
-    try_callstack_limit!(state, gas_limit);
+    try_callstack_limit!(state);
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let transaction = Transaction::MessageCall {
