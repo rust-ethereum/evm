@@ -14,7 +14,7 @@ use std::collections::{HashMap, HashSet};
 
 use sputnikvm::{Gas, Address, U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
-                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH};
+                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH, EIP150_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
@@ -272,7 +272,7 @@ fn main() {
         (@arg RPC: -r --rpc +takes_value +required "Domain of Ethereum Classic Geth's RPC endpoint. e.g. `-r http://127.0.0.1:8545`.")
         (@arg NUMBER: -n --number +takes_value +required "Block number to run this test. Radix is 10. e.g. `-n 49439`.")
         (@arg RECORD: --record +takes_value "Record to file path.")
-        (@arg PATCH: -p --patch +takes_value "Patch to be used, homestead or frontier.")
+        (@arg PATCH: -p --patch +takes_value +required "Patch to be used, homestead or frontier.")
     ).get_matches();
 
     let address = matches.value_of("RPC").unwrap();
@@ -281,8 +281,8 @@ fn main() {
     let patch = match matches.value_of("PATCH") {
         Some("frontier") => &FRONTIER_PATCH,
         Some("homestead") => &HOMESTEAD_PATCH,
-        Some(_) => panic!("Unknown patch."),
-        None => &FRONTIER_PATCH,
+        Some("eip150") => &EIP150_PATCH,
+        _ => panic!("Unknown patch."),
     };
 
     if address.contains(".json") {
