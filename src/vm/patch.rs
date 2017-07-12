@@ -32,7 +32,7 @@ pub struct Patch {
     pub err_on_call_with_more_gas: bool,
     /// If true, only consume at maximum l64(after_gas) when
     /// CALL/CALLCODE/DELEGATECALL.
-    pub call_l64_after_gas: bool,
+    pub call_create_l64_after_gas: bool,
 }
 
 /// Frontier patch.
