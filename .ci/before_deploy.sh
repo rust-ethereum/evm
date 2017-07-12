@@ -22,7 +22,12 @@ main() {
     cd $stage
     tar czf $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz *
     sha256sum $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz
-    sha256sum $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz > $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz.sha256
+    if [ "$TRAVIS_OS_NAME" -eq "osx" ]
+    then
+        shasum -a 256 $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz > $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz.sha256
+    else
+        sha256sum $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz > $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz.sha256
+    fi
     cd $src
 
     rm -rf $stage
