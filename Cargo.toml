@@ -2,7 +2,7 @@
 name = "sputnikvm"
 version = "0.4.0"
 license = "Apache-2.0"
-authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
+authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
 repository = "https://github.com/ethereumproject/sputnikvm"
 
