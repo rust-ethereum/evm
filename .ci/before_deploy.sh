@@ -21,8 +21,8 @@ main() {
 
     cd $stage
     tar czf $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz *
-    sha256sum $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz
-    sha256sum $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz > $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz.sha256
+    shasum -a 256 $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz
+    shasum -a 256 $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz > $src/sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.tar.gz.sha256
     cd $src
 
     rm -rf $stage
