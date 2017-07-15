@@ -1,6 +1,7 @@
 extern crate serde;
 extern crate serde_json;
 extern crate hyper;
+extern crate hyper_native_tls;
 
 #[macro_use]
 extern crate serde_derive;
@@ -9,10 +10,12 @@ mod record;
 
 pub use record::{RecordGethRPCClient, CachedGethRPCClient};
 
-use std::process::{Command};
+use std::process::Command;
 use std::io::Read;
 use hyper::header::ContentType;
-use hyper::client::Client;
+use hyper::Client;
+use hyper::net::HttpsConnector;
+use hyper_native_tls::NativeTlsClient;
 use serde_json::Value;
 
 #[derive(Serialize, Deserialize)]
@@ -83,7 +86,7 @@ pub struct RPCBlock {
     pub timestamp: String,
     #[serde(default)]
     pub transactions: Vec<String>,
-    pub uncles: Vec<String>
+    pub uncles: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -94,7 +97,7 @@ pub enum RPCSyncStatus {
         startingBlock: String,
         currentBlock: String,
         highestBlock: String,
-    }
+    },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -130,74 +133,101 @@ pub struct RPCFilter {
 }
 
 pub trait GethRPCClient {
-    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(&mut self, method: &str, params: Req) -> Res;
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(
+        &mut self,
+        method: &str,
+        params: Req,
+    ) -> Res;
 
     fn rpc_request<T: serde::Deserialize>(&mut self, method: &str, params: Vec<String>) -> T {
         self.rpc_object_request::<Vec<String>, T>(method, params)
     }
 
-    fn client_version(&mut self) -> String { self.rpc_request::<String>("web3_clientVersion", vec![]) }
+    fn client_version(&mut self) -> String {
+        self.rpc_request::<String>("web3_clientVersion", vec![])
+    }
     fn net_version(&mut self) -> String {
         self.rpc_request::<String>("net_version", vec![])
     }
     fn net_listening(&mut self) -> bool {
         self.rpc_request::<bool>("net_listening", vec![])
     }
-    fn net_peer_count(&mut self) -> String { self.rpc_request::<String>("net_peerCount", vec![]) }
+    fn net_peer_count(&mut self) -> String {
+        self.rpc_request::<String>("net_peerCount", vec![])
+    }
     fn sha3(&mut self, data: &str) -> String {
         self.rpc_request::<String>("web3_sha3", vec![])
     }
-    fn protocol_version(&mut self) -> String { self.rpc_request::<String>("eth_protocolVersion", vec![]) }
-    fn syncing(&mut self) -> RPCSyncStatus { self.rpc_request::<RPCSyncStatus>("eth_syncing", vec![]) }
+    fn protocol_version(&mut self) -> String {
+        self.rpc_request::<String>("eth_protocolVersion", vec![])
+    }
+    fn syncing(&mut self) -> RPCSyncStatus {
+        self.rpc_request::<RPCSyncStatus>("eth_syncing", vec![])
+    }
     fn coinbase(&mut self) -> String {
         self.rpc_request::<String>("eth_coinbase", vec![])
     }
     fn mining(&mut self) -> bool {
         self.rpc_request::<bool>("eth_mining", vec![])
     }
-    fn hashrate(&mut self) -> String { self.rpc_request::<String>("eth_hashrate", vec![]) }
-    fn gas_price(&mut self) -> String { self.rpc_request::<String>("eth_gasPrice", vec![]) }
-    fn accounts(&mut self) -> Vec<String> { self.rpc_request::<Vec<String>>("eth_accounts", vec![]) }
-    fn block_number(&mut self) -> String { self.rpc_request::<String>("eth_blockNumber", vec![]) }
+    fn hashrate(&mut self) -> String {
+        self.rpc_request::<String>("eth_hashrate", vec![])
+    }
+    fn gas_price(&mut self) -> String {
+        self.rpc_request::<String>("eth_gasPrice", vec![])
+    }
+    fn accounts(&mut self) -> Vec<String> {
+        self.rpc_request::<Vec<String>>("eth_accounts", vec![])
+    }
+    fn block_number(&mut self) -> String {
+        self.rpc_request::<String>("eth_blockNumber", vec![])
+    }
 
     fn account_exist(&mut self, address: &str, number: usize) -> bool {
         self.rpc_object_request::<(String, usize), bool>(
-            "debug_accountExist", (address.to_string(), number))
+            "debug_accountExist",
+            (address.to_string(), number),
+        )
     }
 
     fn get_balance(&mut self, address: &str, number: &str) -> String {
-        self.rpc_request::<String>("eth_getBalance",
-                                   vec![address.to_string(), number.to_string()])
+        self.rpc_request::<String>(
+            "eth_getBalance",
+            vec![address.to_string(), number.to_string()],
+        )
     }
 
     fn get_storage_at(&mut self, address: &str, index: &str, number: &str) -> String {
-        self.rpc_request::<String>("eth_getStorageAt",
-                                   vec![address.to_string(), index.to_string(), number.to_string()])
+        self.rpc_request::<String>(
+            "eth_getStorageAt",
+            vec![address.to_string(), index.to_string(), number.to_string()],
+        )
     }
 
     fn get_transaction_count(&mut self, address: &str, number: &str) -> String {
-        self.rpc_request::<String>("eth_getTransactionCount",
-                                   vec![address.to_string(), number.to_string()])
+        self.rpc_request::<String>(
+            "eth_getTransactionCount",
+            vec![address.to_string(), number.to_string()],
+        )
     }
 
     fn get_block_transaction_count_by_hash(&mut self, hash: &str) -> String {
-        self.rpc_request::<String>("eth_getBlockTransactionCountByHash",
-                                   vec![hash.to_string()])
+        self.rpc_request::<String>("eth_getBlockTransactionCountByHash", vec![hash.to_string()])
     }
 
     fn get_block_transaction_count_by_number(&mut self, number: &str) -> String {
-        self.rpc_request::<String>("eth_getBlockTransactionCountByNumber",
-                                   vec![number.to_string()])
+        self.rpc_request::<String>(
+            "eth_getBlockTransactionCountByNumber",
+            vec![number.to_string()],
+        )
     }
 
     fn get_uncle_count_by_block_hash(&mut self, hash: &str) -> String {
-        self.rpc_request::<String>("eth_getUncleCountByBlockHash",
-                                   vec![hash.to_string()])
+        self.rpc_request::<String>("eth_getUncleCountByBlockHash", vec![hash.to_string()])
     }
 
     fn get_uncle_count_by_block_number(&mut self, number: &str) -> String {
-        self.rpc_request::<String>("eth_getUncleCountByBlockNumber",
-                                   vec![number.to_string()])
+        self.rpc_request::<String>("eth_getUncleCountByBlockNumber", vec![number.to_string()])
     }
 
     fn get_code(&mut self, address: &str, number: &str) -> String {
@@ -209,48 +239,71 @@ pub trait GethRPCClient {
     }
 
     fn call(&mut self, transaction: RPCCall, number: &str) -> String {
-        self.rpc_object_request::<(RPCCall, String), String>("eth_call", (transaction, number.to_string()))
+        self.rpc_object_request::<(RPCCall, String), String>(
+            "eth_call",
+            (transaction, number.to_string()),
+        )
     }
 
     fn get_block_by_hash(&mut self, hash: &str) -> RPCBlock {
-        self.rpc_object_request::<(String, bool), RPCBlock>("eth_getBlockByHash",
-                                                            (hash.to_string(), false))
+        self.rpc_object_request::<(String, bool), RPCBlock>(
+            "eth_getBlockByHash",
+            (hash.to_string(), false),
+        )
     }
 
     fn get_block_by_number(&mut self, number: &str) -> RPCBlock {
-        self.rpc_object_request::<(String, bool), RPCBlock>("eth_getBlockByNumber",
-                                                            (number.to_string(), false))
+        self.rpc_object_request::<(String, bool), RPCBlock>(
+            "eth_getBlockByNumber",
+            (number.to_string(), false),
+        )
     }
 
     fn get_transaction_by_hash(&mut self, hash: &str) -> RPCTransaction {
-        self.rpc_request::<RPCTransaction>("eth_getTransactionByHash",
-                                           vec![hash.to_string()])
+        self.rpc_request::<RPCTransaction>("eth_getTransactionByHash", vec![hash.to_string()])
     }
 
-    fn get_transaction_by_block_hash_and_index(&mut self, hash: &str, index: &str) -> RPCTransaction {
-        self.rpc_request::<RPCTransaction>("eth_getTransactionByBlockHashAndIndex",
-                                           vec![hash.to_string(), index.to_string()])
+    fn get_transaction_by_block_hash_and_index(
+        &mut self,
+        hash: &str,
+        index: &str,
+    ) -> RPCTransaction {
+        self.rpc_request::<RPCTransaction>(
+            "eth_getTransactionByBlockHashAndIndex",
+            vec![hash.to_string(), index.to_string()],
+        )
     }
 
-    fn get_transaction_by_block_number_and_index(&mut self, number: &str, index: &str)
-                                                     -> RPCTransaction {
-        self.rpc_request::<RPCTransaction>("eth_getTransactionByBlockNumberAndIndex",
-                                           vec![number.to_string(), index.to_string()])
+    fn get_transaction_by_block_number_and_index(
+        &mut self,
+        number: &str,
+        index: &str,
+    ) -> RPCTransaction {
+        self.rpc_request::<RPCTransaction>(
+            "eth_getTransactionByBlockNumberAndIndex",
+            vec![number.to_string(), index.to_string()],
+        )
     }
 
     fn get_transaction_receipt(&mut self, hash: &str) -> RPCTransactionReceipt {
-        self.rpc_request::<RPCTransactionReceipt>("eth_getTransactionReceipt",
-                                                  vec![hash.to_string()])
+        self.rpc_request::<RPCTransactionReceipt>(
+            "eth_getTransactionReceipt",
+            vec![hash.to_string()],
+        )
     }
 
     fn get_uncle_by_block_hash_and_index(&mut self, hash: &str, index: &str) -> RPCBlock {
-        self.rpc_request::<RPCBlock>("eth_getUncleByBlockHashAndIndex",
-                                     vec![hash.to_string(), index.to_string()])
+        self.rpc_request::<RPCBlock>(
+            "eth_getUncleByBlockHashAndIndex",
+            vec![hash.to_string(), index.to_string()],
+        )
     }
 
     fn get_uncle_by_block_number_and_index(&mut self, number: &str, index: &str) -> RPCBlock {
-        self.rpc_request::<RPCBlock>("eth_getUncleByBlockNumberAndIndex",
-                                     vec![number.to_string(), index.to_string()])
+        self.rpc_request::<RPCBlock>(
+            "eth_getUncleByBlockNumberAndIndex",
+            vec![number.to_string(), index.to_string()],
+        )
     }
 }
 
@@ -262,16 +315,22 @@ pub struct NormalGethRPCClient {
 
 impl NormalGethRPCClient {
     pub fn new(endpoint: &str) -> Self {
+        let ssl = NativeTlsClient::new().unwrap();
+        let connector = HttpsConnector::new(ssl);
         NormalGethRPCClient {
             endpoint: endpoint.to_string(),
             free_id: 1,
-            http: Client::new(),
+            http: Client::with_connector(connector),
         }
     }
 }
 
 impl GethRPCClient for NormalGethRPCClient {
-    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(&mut self, method: &str, params: Req) -> Res {
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(
+        &mut self,
+        method: &str,
+        params: Req,
+    ) -> Res {
         let request = RPCObjectRequest {
             jsonrpc: "2.0".to_string(),
             method: method.to_string(),
@@ -280,10 +339,12 @@ impl GethRPCClient for NormalGethRPCClient {
         };
         self.free_id = self.free_id + 1;
 
-        let mut response_raw = self.http.post(&self.endpoint)
+        let mut response_raw = self.http
+            .post(&self.endpoint)
             .header(ContentType::json())
             .body(&serde_json::to_string(&request).unwrap())
-            .send().unwrap();
+            .send()
+            .unwrap();
         let mut buffer = String::new();
         response_raw.read_to_string(&mut buffer).unwrap();
 
