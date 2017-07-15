@@ -14,7 +14,8 @@ use std::collections::{HashMap, HashSet};
 
 use sputnikvm::{Gas, Address, U256, M256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
-                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH, EIP150_PATCH};
+                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
+                    EIP150_PATCH, EIP160_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
@@ -282,6 +283,7 @@ fn main() {
         Some("frontier") => &FRONTIER_PATCH,
         Some("homestead") => &HOMESTEAD_PATCH,
         Some("eip150") => &EIP150_PATCH,
+        Some("eip160") => &EIP160_PATCH,
         _ => panic!("Unknown patch."),
     };
 
