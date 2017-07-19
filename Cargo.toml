@@ -26,5 +26,4 @@ members = [
   "./jsontests",
   "./regtests",
   "./gethrpc",
-  "./cli",
 ]
