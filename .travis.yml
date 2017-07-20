@@ -20,17 +20,6 @@ matrix:
 before_deploy:
   - sh .ci/before_deploy.sh
 
-deploy:
-  api_key:
-    secure: llaWNmXHTO5pGlIerLLPl6mO1NlUjb4CH1h2OO26vdhXlns+183V2CLdQ2qaHzChcNOl4sDe/QPPCPElxk7SdxlxaJa00/uzh2oPq67AwltqTGiEYRYsUcRjPXqguO2Xi+Cw8xxCsmvNhvivzIX4TLhyCoBkNLESPmGNNnQPJbi+Cah4Q+u4ww2SOmFJTGt1xDwlJyr2nFlaeys97lxkN/fgF054kaeYrtSP1rDZLY/Ko0BL8fJp6Zwr6Dhqs2X0SxdrerKaSKkm3+Ff6BWtDA1tSNh0dOra0lG2m/tw1T+OoWCRht6waC3XdS6qDg/b7fbo/5HhRgp/aEBs2HpIx4vDlZ9YUeMId43aoH4qC+T9HaJdE+75EI/20f96SiZxvFSrqyheOodN4c9vrNhIbTAE+6sAx/MYnB1IW0dF3ISUFNym/LWVxKL7ZH0Gn7iJo9SSgFy7/LZtawjP9oxK33qs7oJra9i5zP3P+y7urzgxs/cgiKJZzCh1ySQxWVnPh5DiDEIqFZ/8KeYDIBmSiTLDemPkb0WYbslL1YI+011Y/HAz64ZiEvbrvfyVj/sOzA548kvFmfPiQ5MOf074sVT1drgnhqtC6DZj4P3X30fbQ6J8FWH6WEvOrqtk75COXCiQyay9AMuNZswixxClpic3bB2MYx7iW7kELMv8mQI=
-  file_glob: true
-  file: sputnikvm-$TRAVIS_OS_NAME-$TRAVIS_TAG.*
-  on:
-    condition: $TRAVIS_RUST_VERSION = stable
-    tags: true
-  provider: releases
-  skip_cleanup: true
-
 notifications:
   email:
     on_success: never
