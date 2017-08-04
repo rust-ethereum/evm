@@ -43,15 +43,4 @@ pub struct Context {
     pub apprent_value: U256,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-/// Additional logs to be added due to the current VM
-/// execution. SputnikVM defer calculation of log bloom to the client,
-/// because VMs can run concurrently.
-pub struct Log {
-    /// Log appended to address.
-    pub address: Address,
-    /// Log data.
-    pub data: Vec<u8>,
-    /// Log topics.
-    pub topics: Vec<M256>,
-}
+pub use block::Log;

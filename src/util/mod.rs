@@ -4,4 +4,4 @@ pub mod address;
 pub mod gas;
 pub mod opcode;
 
-pub use etcommon_util::{read_hex, ParseHexError};
+pub use hexutil::{read_hex, ParseHexError};

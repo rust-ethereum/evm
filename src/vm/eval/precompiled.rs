@@ -9,11 +9,11 @@ use vm::{Memory, Machine, MachineStatus};
 use std::str::FromStr;
 use std::cmp::min;
 
-use tiny_keccak::Keccak;
 use sha2::Sha256;
+use sha3::Keccak256;
 use ripemd160::Ripemd160;
-use secp256k1::{Secp256k1, RecoverableSignature, Message, RecoveryId, Error};
-use digest::{Input, FixedOutput};
+use secp256k1::{SECP256K1, RecoverableSignature, Message, RecoveryId, Error};
+use digest::{Digest, FixedOutput};
 
 fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
     if a % b == Gas::zero() {
@@ -86,7 +86,7 @@ impl<M: Memory + Default> Machine<M> {
         } else {
             self.state.used_gas = gas;
             let mut ripemd = Ripemd160::default();
-            ripemd.digest(&self.state.context.data);
+            ripemd.input(&self.state.context.data);
             let fixed = ripemd.fixed_result();
             let mut result: [u8; 32] = [0u8; 32];
             for i in 0..20 {
@@ -107,7 +107,7 @@ impl<M: Memory + Default> Machine<M> {
         } else {
             self.state.used_gas = gas;
             let mut sha2 = Sha256::default();
-            sha2.digest(&self.state.context.data);
+            sha2.input(&self.state.context.data);
             let fixed = sha2.fixed_result();
             let mut result: [u8; 32] = [0u8; 32];
             for i in 0..32 {
@@ -144,19 +144,22 @@ impl<M: Memory + Default> Machine<M> {
 }
 
 fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
-    let ecrec = Secp256k1::new();
     let message = Message::from_slice(&data[0..32])?;
     let recid_raw = match data[63] {
         27 | 28 if data[32..63] == [0; 31] => data[63] - 27,
         _ => return Err(Error::InvalidRecoveryId),
     };
     let recid = RecoveryId::from_i32(recid_raw as i32)?;
-    let sig = RecoverableSignature::from_compact(&ecrec, &data[64..128], recid)?;
-    let recovered = ecrec.recover(&message, &sig)?;
-    let key = recovered.serialize_vec(&ecrec, false);
-    let mut kec = Keccak::new_keccak256();
-    kec.update(&key[1..65]);
+    let sig = RecoverableSignature::from_compact(&SECP256K1, &data[64..128], recid)?;
+    let recovered = SECP256K1.recover(&message, &sig)?;
+    let key = recovered.serialize_vec(&SECP256K1, false);
+
+    let ret_generic = Keccak256::digest(&key[1..65]);
     let mut ret = [0u8; 32];
-    kec.finalize(&mut ret);
+
+    for i in 0..32 {
+        ret[i] = ret_generic[i];
+    }
+
     Ok(ret)
 }

@@ -12,14 +12,15 @@ crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 log = "0.3"
-tiny-keccak = "1.2"
-ripemd160 = "0.5.2"
-sha2 = "0.5.3"
-digest = { version = "0.5", features = ["std"]}
-secp256k1 = "0.6.2"
-etcommon-rlp = "0.1.1"
-etcommon-bigint = "0.1.14"
-etcommon-util = "0.1.0"
+ripemd160 = "0.6"
+sha2 = "0.6"
+sha3 = "0.6"
+digest = { version = "0.6", features = ["std"]}
+secp256k1-plus = "0.5.7"
+etcommon-block = "0.2"
+etcommon-rlp = "0.2"
+etcommon-bigint = "0.2"
+etcommon-hexutil = "0.2"
 
 [workspace]
 members = [
