@@ -12,7 +12,7 @@ use std::io::{BufReader};
 use std::str::FromStr;
 use std::collections::{HashMap, HashSet};
 
-use sputnikvm::{Gas, Address, U256, M256, read_hex};
+use sputnikvm::{Gas, Address, U256, M256, H256, read_hex};
 use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
                     AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
                     EIP150_PATCH, EIP160_PATCH};
@@ -51,9 +51,9 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> Transaction {
 }
 
 fn from_rpc_log(log: &RPCLog) -> Log {
-    let mut topics: Vec<M256> = Vec::new();
+    let mut topics: Vec<H256> = Vec::new();
     for topic in &log.topics {
-        topics.push(M256::from_str(&topic).unwrap());
+        topics.push(H256::from_str(&topic).unwrap());
     }
     Log {
         address: Address::from_str(&log.address).unwrap(),

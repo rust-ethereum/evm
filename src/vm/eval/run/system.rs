@@ -1,13 +1,13 @@
 //! System operations instructions
 
 use util::address::Address;
-use util::bigint::{U256, M256};
+use util::bigint::{U256, M256, H256};
 use util::gas::Gas;
 use vm::{Memory, Log, Transaction};
 use super::{Control, State};
 
 use std::cmp::min;
-use tiny_keccak::Keccak;
+use sha3::{Digest, Keccak256};
 use vm::eval::util::{l64, copy_from_memory};
 
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
@@ -27,7 +27,7 @@ pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
     let data = copy_from_memory(&state.memory, index, len);
     let mut topics = Vec::new();
     for _ in 0..topic_len {
-        topics.push(state.stack.pop().unwrap());
+        topics.push(H256::from(state.stack.pop().unwrap()));
     }
 
     state.logs.push(Log {
@@ -40,11 +40,8 @@ pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
 pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, from, len);
     let data = copy_from_memory(&state.memory, from, len);
-    let mut sha3 = Keccak::new_keccak256();
-    sha3.update(data.as_slice());
-    let mut ret = [0u8; 32];
-    sha3.finalize(&mut ret);
-    push!(state, M256::from(ret.as_ref()));
+    let ret = Keccak256::digest(data.as_slice());
+    push!(state, M256::from(ret.as_slice()));
 }
 
 macro_rules! try_callstack_limit {

@@ -6,19 +6,20 @@
         unreachable_code)]
 
 extern crate log;
-extern crate tiny_keccak;
-extern crate etcommon_rlp as rlp;
-extern crate etcommon_bigint as bigint;
-extern crate etcommon_util;
+extern crate rlp;
+extern crate bigint;
+extern crate hexutil;
+extern crate block;
 extern crate ripemd160;
 extern crate sha2;
+extern crate sha3;
 extern crate secp256k1;
 extern crate digest;
 
 mod util;
 pub mod vm;
 
-pub use util::bigint::{U256, M256, MI256};
+pub use util::bigint::{U256, M256, H256, MI256};
 pub use util::gas::Gas;
 pub use util::address::Address;
 pub use util::opcode::Opcode;

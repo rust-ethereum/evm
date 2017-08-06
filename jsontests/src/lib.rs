@@ -7,7 +7,7 @@ pub use self::blockchain::{JSONBlock, create_block, create_context};
 
 use serde_json::Value;
 use std::str::FromStr;
-use sputnikvm::{Gas, M256, U256, Address, read_hex};
+use sputnikvm::{Gas, M256, U256, H256, Address, read_hex};
 use sputnikvm::vm::errors::RequireError;
 use sputnikvm::vm::{VM, SeqContextVM, AccountCommitment, Context, Account, Storage, Patch, VMStatus, VMTEST_PATCH};
 
@@ -221,10 +221,10 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM, block: &JSONBlock, debug:
 
             let address = Address::from_str(log["address"].as_str().unwrap()).unwrap();
             let data = read_hex(log["data"].as_str().unwrap()).unwrap();
-            let mut topics: Vec<M256> = Vec::new();
+            let mut topics: Vec<H256> = Vec::new();
 
             for topic in log["topics"].as_array().unwrap() {
-                topics.push(M256::from_str(topic.as_str().unwrap()).unwrap());
+                topics.push(H256::from_str(topic.as_str().unwrap()).unwrap());
             }
 
             if !block.find_log(address, data.as_slice(), topics.as_slice()) {
