@@ -16,7 +16,7 @@ pub enum AccountCommitment {
     /// accept the result.
     Full {
         /// Nonce of the account.
-        nonce: M256,
+        nonce: U256,
         /// Account address.
         address: Address,
         /// Account balance.
@@ -37,7 +37,7 @@ pub enum AccountCommitment {
         /// Account address.
         address: Address,
         /// Account storage index.
-        index: M256,
+        index: U256,
         /// Value at the given account storage index.
         value: M256,
     },
@@ -72,7 +72,7 @@ pub enum Account {
     /// A full account. The client is expected to replace its own account state with this.
     Full {
         /// Account nonce.
-        nonce: M256,
+        nonce: U256,
         /// Account address.
         address: Address,
         /// Account balance.
@@ -89,7 +89,7 @@ pub enum Account {
     /// Create or delete a (new) account.
     Create {
         /// Account nonce.
-        nonce: M256,
+        nonce: U256,
         /// Account address.
         address: Address,
         /// Account balance.
@@ -173,7 +173,7 @@ impl AccountState {
 
     /// Returns Ok(()) if the storage exists in the VM. Otherwise
     /// raise a `RequireError`.
-    pub fn require_storage(&self, address: Address, index: M256) -> Result<(), RequireError> {
+    pub fn require_storage(&self, address: Address, index: U256) -> Result<(), RequireError> {
         self.storage(address)?.read(index).and_then(|_| Ok(()))
     }
 
@@ -255,7 +255,7 @@ impl AccountState {
                         Account::Create { .. } => return Err(CommitError::AlreadyCommitted),
                         Account::IncreaseBalance(address, topup) => {
                             Account::Create {
-                                nonce: M256::zero(),
+                                nonce: U256::zero(),
                                 address,
                                 balance: topup,
                                 storage: Storage::new(address, false),
@@ -267,7 +267,7 @@ impl AccountState {
                     }
                 } else {
                     Account::Create {
-                        nonce: M256::zero(),
+                        nonce: U256::zero(),
                         address,
                         balance: U256::zero(),
                         storage: Storage::new(address, false),
@@ -332,7 +332,7 @@ impl AccountState {
 
     /// Find nonce by its address in this account state. If the search
     /// failed, returns a `RequireError`.
-    pub fn nonce(&self, address: Address) -> Result<M256, RequireError> {
+    pub fn nonce(&self, address: Address) -> Result<U256, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &Account::Full {
@@ -417,14 +417,14 @@ impl AccountState {
             match self.accounts.remove(&address).unwrap() {
                 Account::Full { balance, .. } => {
                     Account::Create {
-                        address, code: Vec::new(), nonce: M256::zero(),
+                        address, code: Vec::new(), nonce: U256::zero(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
                 },
                 Account::Create { balance, .. } => {
                     Account::Create {
-                        address, code: Vec::new(), nonce: M256::zero(),
+                        address, code: Vec::new(), nonce: U256::zero(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
@@ -569,7 +569,7 @@ impl AccountState {
 
     /// Set nonce of an account. If the account is not already
     /// commited, returns a `RequireError`.
-    pub fn set_nonce(&mut self, address: Address, new_nonce: M256) -> Result<(), RequireError> {
+    pub fn set_nonce(&mut self, address: Address, new_nonce: U256) -> Result<(), RequireError> {
         match self.accounts.get_mut(&address) {
             Some(&mut Account::Full {
                 ref mut nonce,
@@ -605,7 +605,7 @@ impl AccountState {
                 ..
             }) => {
                 Account::Create {
-                    nonce: M256::zero(),
+                    nonce: U256::zero(),
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
@@ -624,7 +624,7 @@ impl AccountState {
                 ..
             }) => {
                 Account::Create {
-                    nonce: M256::zero(),
+                    nonce: U256::zero(),
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),

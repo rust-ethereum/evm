@@ -1,6 +1,6 @@
 //! EVM account storage
 
-use util::bigint::M256;
+use util::bigint::{U256, M256};
 use util::address::Address;
 use std::collections::hash_map::HashMap;
 use super::errors::{CommitError, RequireError};
@@ -11,11 +11,11 @@ use super::errors::{CommitError, RequireError};
 pub struct Storage {
     partial: bool,
     address: Address,
-    storage: HashMap<M256, M256>,
+    storage: HashMap<U256, M256>,
 }
 
-impl Into<HashMap<M256, M256>> for Storage {
-    fn into(self) -> HashMap<M256, M256> {
+impl Into<HashMap<U256, M256>> for Storage {
+    fn into(self) -> HashMap<U256, M256> {
         self.storage
     }
 }
@@ -31,7 +31,7 @@ impl Storage {
     }
 
     /// Commit a value into the storage.
-    pub fn commit(&mut self, index: M256, value: M256) -> Result<(), CommitError> {
+    pub fn commit(&mut self, index: U256, value: M256) -> Result<(), CommitError> {
         if !self.partial {
             return Err(CommitError::InvalidCommitment);
         }
@@ -45,7 +45,7 @@ impl Storage {
     }
 
     /// Read a value from the storage.
-    pub fn read(&self, index: M256) -> Result<M256, RequireError> {
+    pub fn read(&self, index: U256) -> Result<M256, RequireError> {
         match self.storage.get(&index) {
             Some(&v) => Ok(v),
             None => if self.partial {
@@ -57,7 +57,7 @@ impl Storage {
     }
 
     /// Write a value into the storage.
-    pub fn write(&mut self, index: M256, value: M256) -> Result<(), RequireError> {
+    pub fn write(&mut self, index: U256, value: M256) -> Result<(), RequireError> {
         if !self.storage.contains_key(&index) && self.partial {
             return Err(RequireError::AccountStorage(self.address, index));
         }

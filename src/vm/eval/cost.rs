@@ -35,7 +35,7 @@ const G_COPY: usize = 3;
 const G_BLOCKHASH: usize = 20;
 
 fn sstore_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
-    let index = machine.stack.peek(0).unwrap();
+    let index: U256 = machine.stack.peek(0).unwrap().into();
     let value = machine.stack.peek(1).unwrap();
     let address = machine.context.address;
 
@@ -263,7 +263,7 @@ pub fn gas_stipend<M: Memory + Default>(instruction: Instruction, state: &State<
 pub fn gas_refund<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
         Instruction::SSTORE => {
-            let index = state.stack.peek(0).unwrap();
+            let index: U256 = state.stack.peek(0).unwrap().into();
             let value = state.stack.peek(1).unwrap();
             let address = state.context.address;
 
