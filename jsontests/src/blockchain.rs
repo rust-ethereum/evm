@@ -1,7 +1,7 @@
 use sputnikvm::{Gas, M256, U256, Address, read_hex};
 use sputnikvm::vm::{Machine, Log, Context,
                     Account, Storage, AccountCommitment,
-                    BlockHeader};
+                    HeaderParams};
 
 use serde_json::Value;
 use std::collections::HashMap;
@@ -10,13 +10,13 @@ use std::str::FromStr;
 pub struct JSONBlock {
     codes: HashMap<Address, Vec<u8>>,
     balances: HashMap<Address, U256>,
-    storages: HashMap<Address, HashMap<M256, M256>>,
-    nonces: HashMap<Address, M256>,
+    storages: HashMap<Address, HashMap<U256, M256>>,
+    nonces: HashMap<Address, U256>,
 
-    coinbase: Address,
-    timestamp: M256,
-    number: M256,
-    difficulty: M256,
+    beneficiary: Address,
+    timestamp: u64,
+    number: U256,
+    difficulty: U256,
     gas_limit: Gas,
 
     logs: Vec<Log>,
@@ -25,9 +25,9 @@ pub struct JSONBlock {
 static EMPTY: [u8; 0] = [];
 
 impl JSONBlock {
-    pub fn block_header(&self) -> BlockHeader {
-        BlockHeader {
-            coinbase: self.coinbase,
+    pub fn block_header(&self) -> HeaderParams {
+        HeaderParams {
+            beneficiary: self.beneficiary,
             timestamp: self.timestamp,
             number: self.number,
             difficulty: self.difficulty,
@@ -48,7 +48,7 @@ impl JSONBlock {
         }
     }
 
-    pub fn request_account_storage(&self, address: Address, index: M256) -> AccountCommitment {
+    pub fn request_account_storage(&self, address: Address, index: U256) -> AccountCommitment {
         let hashmap_default = HashMap::new();
         let storage = self.storages.get(&address).unwrap_or(&hashmap_default);
         let value = match storage.get(&index) {
@@ -87,7 +87,7 @@ impl JSONBlock {
                 if !self.storages.contains_key(&address) {
                     self.storages.insert(address, HashMap::new());
                 }
-                let changing_storage: HashMap<M256, M256> = changing_storage.into();
+                let changing_storage: HashMap<U256, M256> = changing_storage.into();
                 for (key, value) in changing_storage {
                     self.storages.get_mut(&address).unwrap().insert(key, value);
                 }
@@ -117,18 +117,18 @@ impl JSONBlock {
     }
 
     pub fn coinbase(&self) -> Address {
-        self.coinbase
+        self.beneficiary
     }
 
-    pub fn timestamp(&self) -> M256 {
+    pub fn timestamp(&self) -> u64 {
         self.timestamp
     }
 
-    pub fn number(&self) -> M256 {
+    pub fn number(&self) -> U256 {
         self.number
     }
 
-    pub fn difficulty(&self) -> M256 {
+    pub fn difficulty(&self) -> U256 {
         self.difficulty
     }
 
@@ -136,11 +136,11 @@ impl JSONBlock {
         self.gas_limit
     }
 
-    pub fn account_nonce(&self, address: Address) -> M256 {
-        self.nonces.get(&address).map_or(M256::zero(), |s| (*s).into())
+    pub fn account_nonce(&self, address: Address) -> U256 {
+        self.nonces.get(&address).map_or(U256::zero(), |s| (*s).into())
     }
 
-    pub fn set_account_nonce(&mut self, address: Address, nonce: M256) {
+    pub fn set_account_nonce(&mut self, address: Address, nonce: U256) {
         self.nonces.insert(address, nonce);
     }
 
@@ -160,7 +160,7 @@ impl JSONBlock {
         self.balances.insert(address, balance);
     }
 
-    pub fn account_storage(&self, address: Address, index: M256) -> M256 {
+    pub fn account_storage(&self, address: Address, index: U256) -> M256 {
         match self.storages.get(&address) {
             None => M256::zero(),
             Some(ref ve) => {
@@ -172,7 +172,7 @@ impl JSONBlock {
         }
     }
 
-    pub fn set_account_storage(&mut self, address: Address, index: M256, val: M256) {
+    pub fn set_account_storage(&mut self, address: Address, index: U256, val: M256) {
         if self.storages.get(&address).is_none() {
             self.storages.insert(address, HashMap::new());
         }
@@ -207,11 +207,11 @@ pub fn create_block(v: &Value) -> JSONBlock {
             codes: HashMap::new(),
             nonces: HashMap::new(),
 
-            coinbase: Address::from_str(current_coinbase).unwrap(),
-            difficulty: M256::from_str(current_difficulty).unwrap(),
+            beneficiary: Address::from_str(current_coinbase).unwrap(),
+            difficulty: U256::from_str(current_difficulty).unwrap(),
             gas_limit: Gas::from_str(current_gas_limit).unwrap(),
-            number: M256::from_str(current_number).unwrap(),
-            timestamp: M256::from_str(current_timestamp).unwrap(),
+            number: U256::from_str(current_number).unwrap(),
+            timestamp: U256::from_str(current_timestamp).unwrap().into(),
 
             logs: Vec::new(),
         }
@@ -229,7 +229,7 @@ pub fn create_block(v: &Value) -> JSONBlock {
 
         let storage = data["storage"].as_object().unwrap();
         for (index, value) in storage {
-            let index = M256::from_str(index.as_str()).unwrap();
+            let index = U256::from_str(index.as_str()).unwrap();
             let value = M256::from_str(value.as_str().unwrap()).unwrap();
             block.set_account_storage(address, index, value);
         }

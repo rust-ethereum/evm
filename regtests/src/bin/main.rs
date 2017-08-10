@@ -3,6 +3,7 @@ extern crate clap;
 extern crate sputnikvm;
 extern crate serde_json;
 extern crate gethrpc;
+extern crate block;
 
 use serde_json::{Value};
 use std::process;
@@ -12,41 +13,36 @@ use std::io::{BufReader};
 use std::str::FromStr;
 use std::collections::{HashMap, HashSet};
 
-use sputnikvm::{Gas, Address, U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
+use block::TransactionAction;
+use sputnikvm::{Gas, Address, U256, M256, H256, read_hex};
+use sputnikvm::vm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
                     AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
                     EIP150_PATCH, EIP160_PATCH};
 use sputnikvm::vm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
-fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
-    BlockHeader {
-        coinbase: Address::from_str(&block.miner).unwrap(),
-        timestamp: M256::from_str(&block.timestamp).unwrap(),
-        number: M256::from_str(&block.number).unwrap(),
-        difficulty: M256::from_str(&block.difficulty).unwrap(),
+fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
+    HeaderParams {
+        beneficiary: Address::from_str(&block.miner).unwrap(),
+        timestamp: U256::from_str(&block.timestamp).unwrap().into(),
+        number: U256::from_str(&block.number).unwrap(),
+        difficulty: U256::from_str(&block.difficulty).unwrap(),
         gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
     }
 }
 
-fn from_rpc_transaction(transaction: &RPCTransaction) -> Transaction {
-    if transaction.to.is_empty() {
-        Transaction::ContractCreation {
-            caller: Address::from_str(&transaction.from).unwrap(),
-            value: U256::from_str(&transaction.value).unwrap(),
-            gas_limit: Gas::from_str(&transaction.gas).unwrap(),
-            gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
-            init: read_hex(&transaction.input).unwrap(),
-        }
-    } else {
-        Transaction::MessageCall {
-            caller: Address::from_str(&transaction.from).unwrap(),
-            address: Address::from_str(&transaction.to).unwrap(),
-            value: U256::from_str(&transaction.value).unwrap(),
-            gas_limit: Gas::from_str(&transaction.gas).unwrap(),
-            gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
-            data: read_hex(&transaction.input).unwrap(),
-        }
+fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
+    ValidTransaction {
+        caller: Address::from_str(&transaction.from).unwrap(),
+        action: if transaction.to.is_empty() {
+            TransactionAction::Create
+        } else {
+            TransactionAction::Call(Address::from_str(&transaction.to).unwrap())
+        },
+        value: U256::from_str(&transaction.value).unwrap(),
+        gas_limit: Gas::from_str(&transaction.gas).unwrap(),
+        gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+        input: read_hex(&transaction.input).unwrap(),
     }
 }
 
@@ -72,7 +68,7 @@ fn handle_fire<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactionVM, last
             },
             Err(RequireError::Account(address)) => {
                 println!("Feeding VM account at 0x{:x} ...", address);
-                let nonce = M256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
+                let nonce = U256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
                                                                          &last_block_number)).unwrap();
                 let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
                                                                  &last_block_number)).unwrap();
@@ -111,7 +107,7 @@ fn handle_fire<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactionVM, last
             },
             Err(RequireError::Blockhash(number)) => {
                 println!("Feeding blockhash with number 0x{:x} ...", number);
-                let hash = M256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
+                let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
                                           .hash).unwrap();
                 vm.commit_blockhash(number, hash);
             },
@@ -185,7 +181,7 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                                                                   &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     }
-                    let changing_storage: HashMap<M256, M256> = changing_storage.clone().into();
+                    let changing_storage: HashMap<U256, M256> = changing_storage.clone().into();
                     for (key, value) in changing_storage {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
@@ -204,7 +200,7 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                                                                   &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     }
-                    let storage: HashMap<M256, M256> = storage.clone().into();
+                    let storage: HashMap<U256, M256> = storage.clone().into();
                     for (key, value) in storage {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
