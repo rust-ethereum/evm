@@ -29,15 +29,15 @@ pub fn fire_with_block(machine: &mut SeqContextVM, block: &JSONBlock) {
             Err(RequireError::Blockhash(number)) => {
                 // The test JSON file doesn't expose any block
                 // information. So those numbers are crafted by hand.
-                let hash1 = M256::from_str("0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6").unwrap();
-                let hash2 = M256::from_str("0xad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5").unwrap();
-                let hash256 = M256::from_str("0x6ca54da2c4784ea43fd88b3402de07ae4bced597cbb19f323b7595857a6720ae").unwrap();
+                let hash1 = H256::from_str("0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6").unwrap();
+                let hash2 = H256::from_str("0xad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5").unwrap();
+                let hash256 = H256::from_str("0x6ca54da2c4784ea43fd88b3402de07ae4bced597cbb19f323b7595857a6720ae").unwrap();
 
-                let hash = if number == M256::from(1u64) {
+                let hash = if number == U256::from(1u64) {
                     hash1
-                } else if number == M256::from(2u64) {
+                } else if number == U256::from(2u64) {
                     hash2
-                } else if number == M256::from(256u64) {
+                } else if number == U256::from(256u64) {
                     hash256
                 } else {
                     panic!();
@@ -172,7 +172,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM, block: &JSONBlock, debug:
 
         let storage = data["storage"].as_object().unwrap();
         for (index, value) in storage {
-            let index = M256::from_str(index.as_str()).unwrap();
+            let index = U256::from_str(index.as_str()).unwrap();
             let value = M256::from_str(value.as_str().unwrap()).unwrap();
             if value != block.account_storage(address, index) {
                 if debug {
@@ -195,7 +195,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM, block: &JSONBlock, debug:
 
             let storage = data["storage"].as_object().unwrap();
             for (index, value) in storage {
-                let index = M256::from_str(index.as_str()).unwrap();
+                let index = U256::from_str(index.as_str()).unwrap();
                 let value = M256::from_str(value.as_str().unwrap()).unwrap();
                 if value != block.account_storage(address, index) {
                     if debug {

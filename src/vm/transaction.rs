@@ -4,13 +4,14 @@ use std::collections::hash_map;
 use std::cmp::min;
 use util::gas::Gas;
 use util::address::Address;
-use util::bigint::{U256, M256};
+use util::bigint::{U256, H256, M256};
 use rlp::RlpStream;
 use sha3::{Digest, Keccak256};
 
-use super::errors::{RequireError, CommitError};
-use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, BlockHeader, Memory,
+use super::errors::{RequireError, CommitError, PreExecutionError};
+use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,
             VMStatus, AccountCommitment, Log, Account, MachineStatus};
+use block::{Transaction, TransactionAction};
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
@@ -18,54 +19,66 @@ const G_TRANSACTION: usize = 21000;
 
 #[derive(Debug, Clone)]
 /// Represents an Ethereum transaction.
-pub enum Transaction {
-    /// Message call transaction.
-    MessageCall {
-        /// To address of this transaction.
-        address: Address,
-        /// Caller of this transaction.
-        caller: Address,
-        /// Gas price of this transaction.
-        gas_price: Gas,
-        /// Gas limit of this transaction.
-        gas_limit: Gas,
-        /// Value of this transaction.
-        value: U256,
-        /// Data associated with this transaction.
-        data: Vec<u8>,
-    },
-    /// Contract creation transaction.
-    ContractCreation {
-        /// Caller of this transaction.
-        caller: Address,
-        /// Gas price of this transaction.
-        gas_price: Gas,
-        /// Gas limit of this transaction.
-        gas_limit: Gas,
-        /// Value of this transaction.
-        value: U256,
-        /// Init data that will be used as code.
-        init: Vec<u8>,
-    },
+pub struct ValidTransaction {
+    /// Caller of this transaction.
+    pub caller: Address,
+    /// Gas price of this transaction.
+    pub gas_price: Gas,
+    /// Gas limit of this transaction.
+    pub gas_limit: Gas,
+    /// Transaction action.
+    pub action: TransactionAction,
+    /// Value of this transaction.
+    pub value: U256,
+    /// Data or init associated with this transaction.
+    pub input: Vec<u8>,
 }
 
-impl Transaction {
-    /// Caller address of the transaction.
-    pub fn caller(&self) -> Address {
-        match self {
-            &Transaction::MessageCall { caller, .. } => caller,
-            &Transaction::ContractCreation { caller, .. } => caller,
-        }
-    }
+impl ValidTransaction {
+    pub fn from_transaction(
+        transaction: &Transaction, account_state: &AccountState, patch: &'static Patch
+    ) -> Result<Result<ValidTransaction, PreExecutionError>, RequireError> {
+        let caller = match transaction.caller() {
+            Ok(val) => val,
+            Err(_) => return Ok(Err(PreExecutionError::InvalidCaller)),
+        };
 
+        let nonce = account_state.nonce(caller)?;
+        if nonce != transaction.nonce {
+            return Ok(Err(PreExecutionError::InvalidNonce));
+        }
+
+        let valid = ValidTransaction {
+            caller,
+            gas_price: transaction.gas_price,
+            gas_limit: transaction.gas_limit,
+            action: transaction.action.clone(),
+            value: transaction.value,
+            input: transaction.input.clone(),
+        };
+
+        if valid.gas_limit < valid.intrinsic_gas(patch) {
+            return Ok(Err(PreExecutionError::InsufficientGasLimit));
+        }
+
+        let balance = account_state.balance(caller)?;
+        if balance < valid.preclaimed_value() {
+            return Ok(Err(PreExecutionError::InsufficientBalance));
+        }
+
+        Ok(Ok(valid))
+    }
+}
+
+impl ValidTransaction {
     /// To address of the transaction.
     pub fn address(&self, account_state: &AccountState) -> Result<Address, RequireError> {
-        match self {
-            &Transaction::MessageCall { address, .. } => Ok(address),
-            &Transaction::ContractCreation { caller, .. } => {
-                let nonce = account_state.nonce(caller)?;
+        match self.action.clone() {
+            TransactionAction::Call(address) => Ok(address),
+            TransactionAction::Create => {
+                let nonce = account_state.nonce(self.caller)?;
                 let mut rlp = RlpStream::new_list(2);
-                rlp.append(&caller);
+                rlp.append(&self.caller);
                 rlp.append(&nonce);
 
                 let address = Address::from(M256::from(Keccak256::digest(rlp.out().as_slice()).as_slice()));
@@ -78,29 +91,14 @@ impl Transaction {
     /// execution.
     pub fn intrinsic_gas(&self, patch: &'static Patch) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
-        match self {
-            &Transaction::MessageCall {
-                ref data, ..
-            } => {
-                for d in data {
-                    if *d == 0 {
-                        gas = gas + Gas::from(G_TXDATAZERO);
-                    } else {
-                        gas = gas + Gas::from(G_TXDATANONZERO);
-                    }
-                }
-            },
-            &Transaction::ContractCreation {
-                ref init, ..
-            } => {
-                gas = gas + Gas::from(patch.gas_transaction_create);
-                for d in init {
-                    if *d == 0 {
-                        gas = gas + Gas::from(G_TXDATAZERO);
-                    } else {
-                        gas = gas + Gas::from(G_TXDATANONZERO);
-                    }
-                }
+        if self.action == TransactionAction::Create {
+            gas = gas + Gas::from(patch.gas_transaction_create);
+        }
+        for d in &self.input {
+            if *d == 0 {
+                gas = gas + Gas::from(G_TXDATAZERO);
+            } else {
+                gas = gas + Gas::from(G_TXDATANONZERO);
             }
         }
         return gas;
@@ -112,66 +110,53 @@ impl Transaction {
                         account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
         let address = self.address(account_state)?;
 
-        match self {
-            Transaction::MessageCall {
-                caller, gas_price, gas_limit, value, data, ..
-            } => {
-                account_state.require(caller)?;
+        match self.action {
+            TransactionAction::Call(_) => {
+                account_state.require(self.caller)?;
                 account_state.require_code(address)?;
 
                 if !is_code {
-                    let nonce = account_state.nonce(caller).unwrap();
-                    account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
+                    let nonce = account_state.nonce(self.caller).unwrap();
+                    account_state.set_nonce(self.caller, nonce + U256::from(1u64)).unwrap();
                 }
 
                 Ok(Context {
-                    address, caller, data, gas_price, value,
-                    gas_limit: gas_limit - upfront,
+                    address,
+                    caller: self.caller,
+                    data: self.input,
+                    gas_price: self.gas_price,
+                    value: self.value,
+                    gas_limit: self.gas_limit - upfront,
                     code: account_state.code(address).unwrap().into(),
-                    origin: origin.unwrap_or(caller),
-                    apprent_value: value,
+                    origin: origin.unwrap_or(self.caller),
+                    apprent_value: self.value,
                 })
             },
-            Transaction::ContractCreation {
-                caller, gas_price, gas_limit, value, init,
-            } => {
-                account_state.require(caller)?;
+            TransactionAction::Create => {
+                account_state.require(self.caller)?;
 
-                let nonce = account_state.nonce(caller).unwrap();
-                account_state.set_nonce(caller, nonce + M256::from(1u64)).unwrap();
+                let nonce = account_state.nonce(self.caller).unwrap();
+                account_state.set_nonce(self.caller, nonce + U256::from(1u64)).unwrap();
 
                 Ok(Context {
-                    address, caller, gas_price, value,
-                    gas_limit: gas_limit - upfront,
+                    address,
+                    caller: self.caller,
+                    gas_price: self.gas_price,
+                    value: self.value,
+                    gas_limit: self.gas_limit - upfront,
                     data: Vec::new(),
-                    code: init,
-                    origin: origin.unwrap_or(caller),
-                    apprent_value: value,
+                    code: self.input,
+                    origin: origin.unwrap_or(self.caller),
+                    apprent_value: self.value,
                 })
-            }
-        }
-    }
-
-    /// Gas limit of the transaction.
-    pub fn gas_limit(&self) -> Gas {
-        match self {
-            &Transaction::MessageCall { gas_limit, .. } => gas_limit,
-            &Transaction::ContractCreation { gas_limit, .. } => gas_limit,
-        }
-    }
-
-    /// Gas price of the transaction.
-    pub fn gas_price(&self) -> Gas {
-        match self {
-            &Transaction::MessageCall { gas_price, .. } => gas_price,
-            &Transaction::ContractCreation { gas_price, .. } => gas_price,
+            },
         }
     }
 
     /// When the execution of a transaction begins, this preclaimed
     /// value is deducted from the account.
     pub fn preclaimed_value(&self) -> U256 {
-        (self.gas_limit() * self.gas_price()).into()
+        (self.gas_limit * self.gas_price).into()
     }
 }
 
@@ -185,8 +170,8 @@ enum TransactionVMState<M> {
         fresh_account_state: AccountState,
     },
     Constructing {
-        transaction: Transaction,
-        block: BlockHeader,
+        transaction: ValidTransaction,
+        block: HeaderParams,
         patch: &'static Patch,
 
         account_state: AccountState,
@@ -200,7 +185,7 @@ pub struct TransactionVM<M>(TransactionVMState<M>);
 impl<M: Memory + Default> TransactionVM<M> {
     /// Create a new VM using the given transaction, block header and
     /// patch. This VM runs at the transaction level.
-    pub fn new(transaction: Transaction, block: BlockHeader, patch: &'static Patch) -> Self {
+    pub fn new(transaction: ValidTransaction, block: HeaderParams, patch: &'static Patch) -> Self {
         TransactionVM(TransactionVMState::Constructing {
             transaction: transaction,
             block: block,
@@ -213,7 +198,7 @@ impl<M: Memory + Default> TransactionVM<M> {
 
     /// Create a new VM with the result of the previous VM. This is
     /// usually used by transaction for chaining them.
-    pub fn with_previous(transaction: Transaction, block: BlockHeader, patch: &'static Patch,
+    pub fn with_previous(transaction: ValidTransaction, block: HeaderParams, patch: &'static Patch,
                          vm: &TransactionVM<M>) -> Self {
         TransactionVM(TransactionVMState::Constructing {
             transaction: transaction,
@@ -265,7 +250,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         }
     }
 
-    fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
+    fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
         match self.0 {
             TransactionVMState::Running { ref mut vm, .. } => vm.commit_blockhash(number, hash),
             TransactionVMState::Constructing { ref mut blockhash_state, .. } => blockhash_state.commit(number, hash),
@@ -288,7 +273,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
     fn step(&mut self) -> Result<(), RequireError> {
         let mut cgas: Option<Gas> = None;
         let mut ccontext: Option<Context> = None;
-        let mut cblock: Option<BlockHeader> = None;
+        let mut cblock: Option<HeaderParams> = None;
         let mut cpatch: Option<&'static Patch> = None;
         let mut caccount_state: Option<AccountState> = None;
         let mut cblockhash_state: Option<BlockhashState> = None;
@@ -335,9 +320,9 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 let address = transaction.address(account_state)?;
                 account_state.require(address)?;
 
-                ccode_deposit = Some(match transaction {
-                    &Transaction::MessageCall { .. } => false,
-                    &Transaction::ContractCreation { .. } => true,
+                ccode_deposit = Some(match transaction.action {
+                    TransactionAction::Call(_) => false,
+                    TransactionAction::Create => true,
                 });
                 cgas = Some(transaction.intrinsic_gas(patch));
                 cpreclaimed_value = Some(transaction.preclaimed_value());
@@ -389,7 +374,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
     fn available_gas(&self) -> Gas {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.available_gas(),
-            TransactionVMState::Constructing { ref transaction, .. } => transaction.gas_limit(),
+            TransactionVMState::Constructing { ref transaction, .. } => transaction.gas_limit,
         }
     }
 

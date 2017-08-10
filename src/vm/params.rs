@@ -2,21 +2,34 @@
 
 use util::gas::Gas;
 use util::address::Address;
-use util::bigint::{M256, U256};
+use util::bigint::U256;
+use block::Header;
 
 #[derive(Debug, Clone)]
 /// Block header.
-pub struct BlockHeader {
+pub struct HeaderParams {
     /// Block coinbase, the address that mines the block.
-    pub coinbase: Address,
+    pub beneficiary: Address,
     /// Block timestamp.
-    pub timestamp: M256,
+    pub timestamp: u64,
     /// The current block number.
-    pub number: M256,
+    pub number: U256,
     /// Difficulty of the block.
-    pub difficulty: M256,
+    pub difficulty: U256,
     /// Total block gas limit.
     pub gas_limit: Gas
+}
+
+impl<'a> From<&'a Header> for HeaderParams {
+    fn from(val: &'a Header) -> HeaderParams {
+        HeaderParams {
+            beneficiary: val.beneficiary,
+            timestamp: val.timestamp,
+            number: val.number,
+            difficulty: val.difficulty,
+            gas_limit: val.gas_limit,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -50,7 +50,7 @@ mod environment;
 mod system;
 
 use util::gas::Gas;
-use util::bigint::{M256, MI256};
+use util::bigint::{M256, MI256, U256};
 use util::address::Address;
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use vm::{Memory, Instruction};
@@ -97,13 +97,13 @@ pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut Sta
         Instruction::CALLVALUE => { push!(state, state.context.apprent_value.into()); None },
         Instruction::CALLDATALOAD => { environment::calldataload(state); None },
         Instruction::CALLDATASIZE => { push!(state, state.context.data.len().into()); None },
-        Instruction::CALLDATACOPY => { pop!(state, memory_index, data_index, len);
+        Instruction::CALLDATACOPY => { pop!(state, memory_index: U256, data_index: U256, len: U256);
                                        copy_into_memory(&mut state.memory,
                                                         state.context.data.as_slice(),
                                                         memory_index, data_index, len);
                                        None },
         Instruction::CODESIZE => { push!(state, state.context.code.len().into()); None },
-        Instruction::CODECOPY => { pop!(state, memory_index, code_index, len);
+        Instruction::CODECOPY => { pop!(state, memory_index: U256, code_index: U256, len: U256);
                                    copy_into_memory(&mut state.memory,
                                                     state.context.code.as_slice(),
                                                     memory_index, code_index, len);
@@ -114,24 +114,24 @@ pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut Sta
                                             state.account_state.code(address).unwrap().len().into());
                                       None },
         Instruction::EXTCODECOPY => { pop!(state, address: Address);
-                                      pop!(state, memory_index, code_index, len);
+                                      pop!(state, memory_index: U256, code_index: U256, len: U256);
                                       copy_into_memory(&mut state.memory,
                                                        state.account_state.code(address).unwrap(),
                                                        memory_index, code_index, len);
                                       None },
 
-        Instruction::BLOCKHASH => { pop!(state, number);
+        Instruction::BLOCKHASH => { pop!(state, number: U256);
                                     let current_number = state.block.number;
-                                    if !(number >= current_number || current_number - number > M256::from(256u64)) {
-                                        push!(state, state.blockhash_state.get(number).unwrap());
+                                    if !(number >= current_number || current_number - number > U256::from(256u64)) {
+                                        push!(state, M256::from(state.blockhash_state.get(number).unwrap()));
                                     } else {
                                         push!(state, M256::zero());
                                     }
                                     None },
-        Instruction::COINBASE => { push!(state, state.block.coinbase.into()); None },
-        Instruction::TIMESTAMP => { push!(state, state.block.timestamp); None },
-        Instruction::NUMBER => { push!(state, state.block.number); None },
-        Instruction::DIFFICULTY => { push!(state, state.block.difficulty); None },
+        Instruction::COINBASE => { push!(state, M256::from(state.block.beneficiary)); None },
+        Instruction::TIMESTAMP => { push!(state, M256::from(state.block.timestamp)); None },
+        Instruction::NUMBER => { push!(state, M256::from(state.block.number)); None },
+        Instruction::DIFFICULTY => { push!(state, M256::from(state.block.difficulty)); None },
         Instruction::GASLIMIT => { push!(state, state.block.gas_limit.into()); None },
 
         Instruction::POP => { state.stack.pop().unwrap(); None },
@@ -168,7 +168,7 @@ pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut Sta
         Instruction::CALL => { system::call(state, stipend_gas, after_gas, false) },
         Instruction::CALLCODE => { system::call(state, stipend_gas, after_gas, true) },
         Instruction::DELEGATECALL => { system::delegate_call(state, after_gas) },
-        Instruction::RETURN => { pop!(state, start, len);
+        Instruction::RETURN => { pop!(state, start: U256, len: U256);
                                  state.out = copy_from_memory(&mut state.memory, start, len);
                                  Some(Control::Stop) },
         Instruction::SUICIDE => { system::suicide(state); Some(Control::Stop) },

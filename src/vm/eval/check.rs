@@ -1,6 +1,6 @@
 //! Check logic for instructions
 
-use util::bigint::M256;
+use util::bigint::{U256, M256};
 use util::gas::Gas;
 
 use vm::{Memory, Instruction};
@@ -55,7 +55,7 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
 
         Instruction::SHA3 => {
             state.stack.check_pop_push(2, 1)?;
-            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
 
@@ -73,14 +73,14 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALLDATACOPY => {
             state.stack.check_pop_push(3, 0)?;
             state.memory.check_write_range(
-                state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+                state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             Ok(None)
         },
         Instruction::CODESIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CODECOPY => {
             state.stack.check_pop_push(3, 0)?;
             state.memory.check_write_range(
-                state.stack.peek(0).unwrap(), state.stack.peek(2).unwrap())?;
+                state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             Ok(None)
         },
         Instruction::GASPRICE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
@@ -93,15 +93,15 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
             state.stack.check_pop_push(4, 0)?;
             state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
             state.memory.check_write_range(
-                state.stack.peek(1).unwrap(), state.stack.peek(3).unwrap())?;
+                state.stack.peek(1).unwrap().into(), state.stack.peek(3).unwrap().into())?;
             Ok(None)
         },
 
         Instruction::BLOCKHASH => {
             state.stack.check_pop_push(1, 1)?;
             let current_number = state.block.number;
-            let number = state.stack.peek(0).unwrap();
-            if !(number >= current_number || current_number - number > M256::from(256u64)) {
+            let number: U256 = state.stack.peek(0).unwrap().into();
+            if !(number >= current_number || current_number - number > U256::from(256u64)) {
                 state.blockhash_state.get(number)?;
             }
             Ok(None)
@@ -116,24 +116,24 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::MLOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
         Instruction::MSTORE => {
             state.stack.check_pop_push(2, 0)?;
-            state.memory.check_write(state.stack.peek(0).unwrap())?;
+            state.memory.check_write(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::MSTORE8 => {
             state.stack.check_pop_push(2, 0)?;
-            state.memory.check_write(state.stack.peek(0).unwrap())?;
+            state.memory.check_write(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::SLOAD => {
             state.stack.check_pop_push(1, 1)?;
             state.account_state.require(state.context.address)?;
-            state.account_state.require_storage(state.context.address, state.stack.peek(0).unwrap())?;
+            state.account_state.require_storage(state.context.address, state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::SSTORE => {
             state.stack.check_pop_push(2, 0)?;
             state.account_state.require(state.context.address)?;
-            state.account_state.require_storage(state.context.address, state.stack.peek(0).unwrap())?;
+            state.account_state.require_storage(state.context.address, state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::JUMP => {
@@ -160,43 +160,43 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
 
         Instruction::LOG(v) => {
             state.stack.check_pop_push(v+2, 0)?;
-            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
         Instruction::CREATE => {
             state.stack.check_pop_push(3, 1)?;
-            check_range(state.stack.peek(1).unwrap(), state.stack.peek(2).unwrap())?;
+            check_range(state.stack.peek(1).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             Ok(None)
         },
         Instruction::CALL => {
             state.stack.check_pop_push(7, 1)?;
-            check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
+            check_range(state.stack.peek(3).unwrap().into(), state.stack.peek(4).unwrap().into())?;
             state.memory.check_write_range(
-                state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
+                state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
         Instruction::CALLCODE => {
             state.stack.check_pop_push(7, 1)?;
-            check_range(state.stack.peek(3).unwrap(), state.stack.peek(4).unwrap())?;
+            check_range(state.stack.peek(3).unwrap().into(), state.stack.peek(4).unwrap().into())?;
             state.memory.check_write_range(
-                state.stack.peek(5).unwrap(), state.stack.peek(6).unwrap())?;
+                state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
         Instruction::RETURN => {
             state.stack.check_pop_push(2, 0)?;
-            check_range(state.stack.peek(0).unwrap(), state.stack.peek(1).unwrap())?;
+            check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
         Instruction::DELEGATECALL => {
             state.stack.check_pop_push(6, 1)?;
-            check_range(state.stack.peek(2).unwrap(), state.stack.peek(3).unwrap())?;
+            check_range(state.stack.peek(2).unwrap().into(), state.stack.peek(3).unwrap().into())?;
             state.memory.check_write_range(
-                state.stack.peek(4).unwrap(), state.stack.peek(5).unwrap())?;
+                state.stack.peek(4).unwrap().into(), state.stack.peek(5).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)

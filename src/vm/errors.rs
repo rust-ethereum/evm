@@ -1,7 +1,20 @@
 //! VM errors
 
 use util::address::Address;
-use util::bigint::M256;
+use util::bigint::U256;
+
+#[derive(Debug, Clone)]
+/// Errors when trying to validate the transaction.
+pub enum PreExecutionError {
+    /// The caller is invalid.
+    InvalidCaller,
+    /// Nonce of the caller does not equal.
+    InvalidNonce,
+    /// Balance from the caller is insufficient.
+    InsufficientBalance,
+    /// Gas limit is smaller than the intrinsic gas required.
+    InsufficientGasLimit,
+}
 
 #[derive(Debug, Clone)]
 /// Errors returned by an EVM memory.
@@ -110,10 +123,10 @@ pub enum RequireError {
     /// Requires the current value of the storage for the VM to
     /// continue running, this should usually be dealt by
     /// `vm.commit_account(AccountCommitment::Storage { .. }`.
-    AccountStorage(Address, M256),
+    AccountStorage(Address, U256),
     /// Requires the blockhash for the VM to continue running, this
     /// should usually be dealt by `vm.commit_blockhash(..)`.
-    Blockhash(M256),
+    Blockhash(U256),
 }
 
 impl From<RequireError> for EvalError {
