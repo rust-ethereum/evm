@@ -1,4 +1,4 @@
-use sputnikvm::{Gas, M256, U256, Address, read_hex};
+use sputnikvm::{Gas, M256, U256, H256, Address, read_hex};
 use sputnikvm::vm::{Machine, Log, Context,
                     Account, Storage, AccountCommitment,
                     HeaderParams};
@@ -181,7 +181,7 @@ impl JSONBlock {
         v.insert(index, val);
     }
 
-    pub fn find_log(&self, address: Address, data: &[u8], topics: &[M256]) -> bool {
+    pub fn find_log(&self, address: Address, data: &[u8], topics: &[H256]) -> bool {
         for log in &self.logs {
             if log.address == address && log.data.as_slice() == data && log.topics.as_slice() == topics {
                 return true;

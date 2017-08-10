@@ -47,9 +47,9 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
 }
 
 fn from_rpc_log(log: &RPCLog) -> Log {
-    let mut topics: Vec<M256> = Vec::new();
+    let mut topics: Vec<H256> = Vec::new();
     for topic in &log.topics {
-        topics.push(M256::from_str(&topic).unwrap());
+        topics.push(H256::from_str(&topic).unwrap());
     }
     Log {
         address: Address::from_str(&log.address).unwrap(),
