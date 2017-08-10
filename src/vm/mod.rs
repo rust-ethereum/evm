@@ -30,10 +30,10 @@ pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
-pub use self::transaction::{Transaction, TransactionVM};
+pub use self::transaction::{ValidTransaction, TransactionVM};
 
 use std::collections::hash_map;
-use util::bigint::M256;
+use util::bigint::{U256, H256};
 use util::gas::Gas;
 use util::address::Address;
 use self::errors::{RequireError, CommitError, MachineError};
@@ -58,7 +58,7 @@ pub trait VM {
     fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError>;
     /// Commit a block hash to this VM. This should only be used when
     /// receiving `RequireError`.
-    fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError>;
+    fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError>;
     /// Returns the current status of the VM.
     fn status(&self) -> VMStatus;
     /// Run one instruction and return. If it succeeds, VM status can
@@ -108,7 +108,7 @@ pub struct ContextVM<M> {
 
 impl<M: Memory + Default> ContextVM<M> {
     /// Create a new VM using the given context, block header and patch.
-    pub fn new(context: Context, block: BlockHeader, patch: &'static Patch) -> Self {
+    pub fn new(context: Context, block: HeaderParams, patch: &'static Patch) -> Self {
         let mut machines = Vec::new();
         machines.push(Machine::new(context, block, patch, 1));
         ContextVM {
@@ -118,7 +118,7 @@ impl<M: Memory + Default> ContextVM<M> {
     }
 
     /// Create a new VM with the given account state and blockhash state.
-    pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
+    pub fn with_states(context: Context, block: HeaderParams, patch: &'static Patch,
                        account_state: AccountState, blockhash_state: BlockhashState) -> Self {
         let mut machines = Vec::new();
         machines.push(Machine::with_states(context, block, patch, 1, account_state, blockhash_state));
@@ -130,7 +130,7 @@ impl<M: Memory + Default> ContextVM<M> {
 
     /// Create a new VM with the result of the previous VM. This is
     /// usually used by transaction for chainning them.
-    pub fn with_previous(context: Context, block: BlockHeader, patch: &'static Patch,
+    pub fn with_previous(context: Context, block: HeaderParams, patch: &'static Patch,
                          vm: &ContextVM<M>) -> Self {
         Self::with_states(context, block, patch,
                           vm.machines[0].state().account_state.clone(),
@@ -151,7 +151,7 @@ impl<M: Memory + Default> VM for ContextVM<M> {
         Ok(())
     }
 
-    fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
+    fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
         for machine in &mut self.machines {
             machine.commit_blockhash(number, hash)?;
         }

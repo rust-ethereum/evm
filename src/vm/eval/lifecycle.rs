@@ -108,7 +108,7 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
 
         // Apply miner rewards
-        self.state.account_state.increase_balance(self.state.block.coinbase, gas_dec.into());
+        self.state.account_state.increase_balance(self.state.block.beneficiary, gas_dec.into());
 
         for address in &self.state.removed {
             self.state.account_state.remove(*address).unwrap();
@@ -169,7 +169,7 @@ impl<M: Memory + Default> Machine<M> {
         }
     }
 
-    fn apply_call(&mut self, sub: Machine<M>, out_start: M256, out_len: M256) {
+    fn apply_call(&mut self, sub: Machine<M>, out_start: U256, out_len: U256) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }

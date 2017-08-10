@@ -1,10 +1,10 @@
 //! VM Runtime
-use util::bigint::M256;
+use util::bigint::{H256, M256, U256};
 use util::gas::Gas;
 use util::address::Address;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
-use super::{Stack, Context, BlockHeader, Patch, PC, Memory, AccountCommitment, Log};
+use super::{Stack, Context, HeaderParams, Patch, PC, Memory, AccountCommitment, Log};
 
 use self::check::{check_opcode, extra_check_opcode};
 use self::run::run_opcode;
@@ -27,7 +27,7 @@ pub struct State<M> {
     /// Context.
     pub context: Context,
     /// Block header.
-    pub block: BlockHeader,
+    pub block: HeaderParams,
     /// Patch that is used by this runtime.
     pub patch: &'static Patch,
 
@@ -95,7 +95,7 @@ pub enum MachineStatus {
     InvokeCreate(Context),
     /// This runtime requires execution of a sub runtime, which is a
     /// MessageCall instruction.
-    InvokeCall(Context, (M256, M256)),
+    InvokeCall(Context, (U256, U256)),
 }
 
 #[derive(Debug, Clone)]
@@ -110,18 +110,18 @@ pub enum Control {
     Stop,
     Jump(M256),
     InvokeCreate(Context),
-    InvokeCall(Context, (M256, M256)),
+    InvokeCall(Context, (U256, U256)),
 }
 
 impl<M: Memory + Default> Machine<M> {
     /// Create a new runtime.
-    pub fn new(context: Context, block: BlockHeader, patch: &'static Patch, depth: usize) -> Self {
+    pub fn new(context: Context, block: HeaderParams, patch: &'static Patch, depth: usize) -> Self {
         Self::with_states(context, block, patch, depth,
                           AccountState::default(), BlockhashState::default())
     }
 
     /// Create a new runtime with the given states.
-    pub fn with_states(context: Context, block: BlockHeader, patch: &'static Patch,
+    pub fn with_states(context: Context, block: HeaderParams, patch: &'static Patch,
                        depth: usize, account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
         Machine {
@@ -190,7 +190,7 @@ impl<M: Memory + Default> Machine<M> {
     }
 
     /// Commit a new blockhash into this runtime.
-    pub fn commit_blockhash(&mut self, number: M256, hash: M256) -> Result<(), CommitError> {
+    pub fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
         self.state.blockhash_state.commit(number, hash)
     }
 
