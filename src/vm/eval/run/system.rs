@@ -74,7 +74,7 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
 
     let init = copy_from_memory(&state.memory, init_start, init_len);
     let transaction = ValidTransaction {
-        caller: state.context.address,
+        caller: Some(state.context.address),
         gas_price: state.context.gas_price,
         gas_limit: l64_after_gas,
         value: value,
@@ -101,7 +101,7 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let transaction = ValidTransaction {
-        caller: state.context.address,
+        caller: Some(state.context.address),
         gas_price: state.context.gas_price,
         gas_limit: gas_limit,
         value: value,
@@ -131,7 +131,7 @@ pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) 
 
     let input = copy_from_memory(&state.memory, in_start, in_len);
     let transaction = ValidTransaction {
-        caller: state.context.caller,
+        caller: Some(state.context.caller),
         gas_price: state.context.gas_price,
         gas_limit: gas_limit,
         value: state.context.value,

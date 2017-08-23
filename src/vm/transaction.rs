@@ -2,6 +2,7 @@
 
 use std::collections::hash_map;
 use std::cmp::min;
+use std::str::FromStr;
 use util::gas::Gas;
 use util::address::Address;
 use util::bigint::{U256, H256, M256};
@@ -17,11 +18,28 @@ const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
 const G_TRANSACTION: usize = 21000;
 
+macro_rules! system_address {
+    () => {
+        Address::from_str("0xffffffffffffffffffffffffffffffffffffffff").unwrap()
+    }
+}
+
+/// ## About SYSTEM transaction
+///
+/// SYSTEM transaction in Ethereum is something that cannot be
+/// executed by the user, and is enforced by the blockchain rules. The
+/// SYSTEM transaction does not have a caller. When executed in EVM,
+/// however, the CALLER opcode would return
+/// 0xffffffffffffffffffffffffffffffffffffffff. As a result, when
+/// executing a message call or a contract creation, nonce are not
+/// changed. A SYSTEM transaction must have gas_price set to zero.
+
 #[derive(Debug, Clone)]
 /// Represents an Ethereum transaction.
 pub struct ValidTransaction {
-    /// Caller of this transaction.
-    pub caller: Address,
+    /// Caller of this transaction. If caller is None, then this is a
+    /// SYSTEM transaction.
+    pub caller: Option<Address>,
     /// Gas price of this transaction.
     pub gas_price: Gas,
     /// Gas limit of this transaction.
@@ -35,6 +53,8 @@ pub struct ValidTransaction {
 }
 
 impl ValidTransaction {
+    /// Create a valid transaction from a block transaction. Caller is
+    /// always Some.
     pub fn from_transaction(
         transaction: &Transaction, account_state: &AccountState, patch: &'static Patch
     ) -> Result<Result<ValidTransaction, PreExecutionError>, RequireError> {
@@ -49,7 +69,7 @@ impl ValidTransaction {
         }
 
         let valid = ValidTransaction {
-            caller,
+            caller: Some(caller),
             gas_price: transaction.gas_price,
             gas_limit: transaction.gas_limit,
             action: transaction.action.clone(),
@@ -76,9 +96,14 @@ impl ValidTransaction {
         match self.action.clone() {
             TransactionAction::Call(address) => Ok(address),
             TransactionAction::Create => {
-                let nonce = account_state.nonce(self.caller)?;
+                let caller = self.caller.unwrap_or(system_address!());
+                let nonce = if self.caller.is_some() {
+                    account_state.nonce(self.caller.unwrap())?
+                } else {
+                    U256::zero()
+                };
                 let mut rlp = RlpStream::new_list(2);
-                rlp.append(&self.caller);
+                rlp.append(&caller);
                 rlp.append(&nonce);
 
                 let address = Address::from(M256::from(Keccak256::digest(rlp.out().as_slice()).as_slice()));
@@ -112,41 +137,44 @@ impl ValidTransaction {
 
         match self.action {
             TransactionAction::Call(_) => {
-                account_state.require(self.caller)?;
+                if self.caller.is_some() {
+                    account_state.require(self.caller.unwrap())?;
+                }
                 account_state.require_code(address)?;
 
-                if !is_code {
-                    let nonce = account_state.nonce(self.caller).unwrap();
-                    account_state.set_nonce(self.caller, nonce + U256::from(1u64)).unwrap();
+                if self.caller.is_some() && !is_code {
+                    let nonce = account_state.nonce(self.caller.unwrap()).unwrap();
+                    account_state.set_nonce(self.caller.unwrap(), nonce + U256::from(1u64)).unwrap();
                 }
 
                 Ok(Context {
                     address,
-                    caller: self.caller,
+                    caller: self.caller.unwrap_or(system_address!()),
                     data: self.input,
                     gas_price: self.gas_price,
                     value: self.value,
                     gas_limit: self.gas_limit - upfront,
                     code: account_state.code(address).unwrap().into(),
-                    origin: origin.unwrap_or(self.caller),
+                    origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                 })
             },
             TransactionAction::Create => {
-                account_state.require(self.caller)?;
-
-                let nonce = account_state.nonce(self.caller).unwrap();
-                account_state.set_nonce(self.caller, nonce + U256::from(1u64)).unwrap();
+                if self.caller.is_some() {
+                    account_state.require(self.caller.unwrap())?;
+                    let nonce = account_state.nonce(self.caller.unwrap()).unwrap();
+                    account_state.set_nonce(self.caller.unwrap(), nonce + U256::from(1u64)).unwrap();
+                }
 
                 Ok(Context {
                     address,
-                    caller: self.caller,
+                    caller: self.caller.unwrap_or(system_address!()),
                     gas_price: self.gas_price,
                     value: self.value,
                     gas_limit: self.gas_limit - upfront,
                     data: Vec::new(),
                     code: self.input,
-                    origin: origin.unwrap_or(self.caller),
+                    origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                 })
             },
