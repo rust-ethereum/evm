@@ -157,6 +157,7 @@ impl ValidTransaction {
                     code: account_state.code(address).unwrap().into(),
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
+                    is_system: self.caller.is_none(),
                 })
             },
             TransactionAction::Create => {
@@ -176,6 +177,7 @@ impl ValidTransaction {
                     code: self.input,
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
+                    is_system: self.caller.is_none(),
                 })
             },
         }
@@ -424,6 +426,53 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.removed(),
             TransactionVMState::Constructing { .. } => &[],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use vm::*;
+    use util::bigint::*;
+    use util::address::*;
+    use util::gas::*;
+    use block::TransactionAction;
+    use std::str::FromStr;
+
+    #[test]
+    fn system_transaction() {
+        let transaction = ValidTransaction {
+            caller: None,
+            gas_price: Gas::zero(),
+            gas_limit: Gas::from_str("0xffffffffffffffff").unwrap(),
+            action: TransactionAction::Call(Address::default()),
+            value: U256::from_str("0xffffffffffffffff").unwrap(),
+            input: Vec::new(),
+        };
+        let mut vm = SeqTransactionVM::new(transaction, HeaderParams {
+            beneficiary: Address::default(),
+            timestamp: 0,
+            number: U256::zero(),
+            difficulty: U256::zero(),
+            gas_limit: Gas::zero(),
+        }, &EIP160_PATCH);
+        vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
+        vm.fire().unwrap();
+
+        let mut accounts: Vec<Account> = Vec::new();
+        for account in vm.accounts() {
+            accounts.push(account.clone());
+        }
+        assert_eq!(accounts.len(), 1);
+        match accounts[0] {
+            Account::Create {
+                address, exists, balance, ..
+            } => {
+                assert_eq!(address, Address::default());
+                assert_eq!(exists, true);
+                assert_eq!(balance, U256::from_str("0xffffffffffffffff").unwrap());
+            },
+            _ => panic!()
         }
     }
 }
