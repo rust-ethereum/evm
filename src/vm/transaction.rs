@@ -5,9 +5,7 @@ use std::cmp::min;
 use std::str::FromStr;
 use util::gas::Gas;
 use util::address::Address;
-use util::bigint::{U256, H256, M256};
-use rlp::RlpStream;
-use sha3::{Digest, Keccak256};
+use util::bigint::{U256, H256};
 
 use super::errors::{RequireError, CommitError, PreExecutionError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,
@@ -50,6 +48,8 @@ pub struct ValidTransaction {
     pub value: U256,
     /// Data or init associated with this transaction.
     pub input: Vec<u8>,
+    /// Nonce of the transaction.
+    pub nonce: U256,
 }
 
 impl ValidTransaction {
@@ -75,6 +75,7 @@ impl ValidTransaction {
             action: transaction.action.clone(),
             value: transaction.value,
             input: transaction.input.clone(),
+            nonce: nonce,
         };
 
         if valid.gas_limit < valid.intrinsic_gas(patch) {
@@ -92,24 +93,8 @@ impl ValidTransaction {
 
 impl ValidTransaction {
     /// To address of the transaction.
-    pub fn address(&self, account_state: &AccountState) -> Result<Address, RequireError> {
-        match self.action.clone() {
-            TransactionAction::Call(address) => Ok(address),
-            TransactionAction::Create => {
-                let caller = self.caller.unwrap_or(system_address!());
-                let nonce = if self.caller.is_some() {
-                    account_state.nonce(self.caller.unwrap())?
-                } else {
-                    U256::zero()
-                };
-                let mut rlp = RlpStream::new_list(2);
-                rlp.append(&caller);
-                rlp.append(&nonce);
-
-                let address = Address::from(M256::from(Keccak256::digest(rlp.out().as_slice()).as_slice()));
-                Ok(address)
-            },
-        }
+    pub fn address(&self) -> Address {
+        self.action.address(self.caller.unwrap_or(system_address!()), self.nonce)
     }
 
     /// Intrinsic gas to be paid in prior to this transaction
@@ -133,7 +118,7 @@ impl ValidTransaction {
     /// change the account state.
     pub fn into_context(self, upfront: Gas, origin: Option<Address>,
                         account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
-        let address = self.address(account_state)?;
+        let address = self.address();
 
         match self.action {
             TransactionAction::Call(_) => {
@@ -143,7 +128,7 @@ impl ValidTransaction {
                 account_state.require_code(address)?;
 
                 if self.caller.is_some() && !is_code {
-                    let nonce = account_state.nonce(self.caller.unwrap()).unwrap();
+                    let nonce = self.nonce;
                     account_state.set_nonce(self.caller.unwrap(), nonce + U256::from(1u64)).unwrap();
                 }
 
@@ -163,7 +148,7 @@ impl ValidTransaction {
             TransactionAction::Create => {
                 if self.caller.is_some() {
                     account_state.require(self.caller.unwrap())?;
-                    let nonce = account_state.nonce(self.caller.unwrap()).unwrap();
+                    let nonce = self.nonce;
                     account_state.set_nonce(self.caller.unwrap(), nonce + U256::from(1u64)).unwrap();
                 }
 
@@ -347,7 +332,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 ref transaction, ref block, ref patch,
                 ref mut account_state, ref blockhash_state } => {
 
-                let address = transaction.address(account_state)?;
+                let address = transaction.address();
                 account_state.require(address)?;
 
                 ccode_deposit = Some(match transaction.action {
@@ -448,6 +433,7 @@ mod tests {
             action: TransactionAction::Call(Address::default()),
             value: U256::from_str("0xffffffffffffffff").unwrap(),
             input: Vec::new(),
+            nonce: U256::zero(),
         };
         let mut vm = SeqTransactionVM::new(transaction, HeaderParams {
             beneficiary: Address::default(),

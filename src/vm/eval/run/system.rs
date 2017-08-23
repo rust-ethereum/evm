@@ -80,6 +80,7 @@ pub fn create<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) -> Opti
         value: value,
         input: init,
         action: TransactionAction::Create,
+        nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
     let context = transaction.into_context(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
@@ -107,6 +108,7 @@ pub fn call<M: Memory + Default>(state: &mut State<M>, stipend_gas: Gas, after_g
         value: value,
         input: input,
         action: TransactionAction::Call(to),
+        nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
 
     let mut context = transaction.into_context(
@@ -137,6 +139,7 @@ pub fn delegate_call<M: Memory + Default>(state: &mut State<M>, after_gas: Gas) 
         value: state.context.value,
         input: input,
         action: TransactionAction::Call(to),
+        nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
 
     let mut context = transaction.into_context(
