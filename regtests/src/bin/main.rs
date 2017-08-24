@@ -33,7 +33,7 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
 
 fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
     ValidTransaction {
-        caller: Address::from_str(&transaction.from).unwrap(),
+        caller: Some(Address::from_str(&transaction.from).unwrap()),
         action: if transaction.to.is_empty() {
             TransactionAction::Create
         } else {
@@ -43,6 +43,7 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
         gas_limit: Gas::from_str(&transaction.gas).unwrap(),
         gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
         input: read_hex(&transaction.input).unwrap(),
+        nonce: U256::from_str(&transaction.nonce).unwrap(),
     }
 }
 

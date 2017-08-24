@@ -25,15 +25,21 @@ impl<M: Memory + Default> Machine<M> {
     /// Initialize a MessageCall transaction.
     pub fn initialize_call(&mut self, preclaimed_value: U256) {
         self.state.account_state.premark_exists(self.state.context.address);
-        self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
-        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+
+        if !self.state.context.is_system {
+            self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
+            self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        }
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
     /// Initialize the runtime as a call from a CALL or CALLCODE opcode.
     pub fn invoke_call(&mut self) {
         self.state.account_state.premark_exists(self.state.context.address);
-        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+
+        if !self.state.context.is_system {
+            self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        }
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
 
@@ -42,8 +48,10 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.require(self.state.context.address)?;
 
         self.state.account_state.premark_exists(self.state.context.address);
-        self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
-        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        if !self.state.context.is_system {
+            self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
+            self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        }
         self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
 
         Ok(())
@@ -54,7 +62,9 @@ impl<M: Memory + Default> Machine<M> {
         self.state.account_state.require(self.state.context.address)?;
 
         self.state.account_state.premark_exists(self.state.context.address);
-        self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        if !self.state.context.is_system {
+            self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
+        }
         self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
 
         Ok(())
@@ -96,7 +106,9 @@ impl<M: Memory + Default> Machine<M> {
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
-                self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
+                if !self.state.context.is_system {
+                    self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
+                }
                 self.state.logs = Vec::new();
                 self.state.removed = Vec::new();
             },
@@ -104,8 +116,10 @@ impl<M: Memory + Default> Machine<M> {
         }
 
         let gas_dec = real_used_gas * self.state.context.gas_price;
-        self.state.account_state.increase_balance(self.state.context.caller, preclaimed_value);
-        self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
+        if !self.state.context.is_system {
+            self.state.account_state.increase_balance(self.state.context.caller, preclaimed_value);
+            self.state.account_state.decrease_balance(self.state.context.caller, gas_dec.into());
+        }
 
         // Apply miner rewards
         self.state.account_state.increase_balance(self.state.block.beneficiary, gas_dec.into());

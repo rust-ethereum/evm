@@ -54,6 +54,8 @@ pub struct Context {
     pub value: U256,
     /// Apprent value in the execution context.
     pub apprent_value: U256,
+    /// Whether this represents a system call.
+    pub is_system: bool,
 }
 
 pub use block::Log;
