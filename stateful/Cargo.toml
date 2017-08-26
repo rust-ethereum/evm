@@ -1,0 +1,11 @@
+[package]
+name = "sputnikvm-stateful"
+version = "0.6.0"
+license = "Apache-2.0"
+authors = ["Wei Tang <hi@that.world>"]
+
+[dependencies]
+sputnikvm = { version = "0.6", path = '..' }
+etcommon-trie = "0.3"
+etcommon-block = "0.2"
+sha3 = "0.6"
