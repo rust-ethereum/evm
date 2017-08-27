@@ -227,6 +227,19 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
     pub fn state<'a>(&'a self) -> FixedSecureTrie<<D as Database<'a>>::Guard, Address, Account> {
         self.database.create_fixed_secure_trie::<Address, Account>(self.root())
     }
+
+    pub fn storage_state<'a>(&'a self, address: Address) -> Option<FixedSecureTrie<<D as Database<'a>>::Guard, H256, M256>> {
+        let state = self.state();
+        let account = state.get(&address);
+
+        match account {
+            Some(account) => {
+                let storage_root = account.storage_root;
+                Some(self.database.create_fixed_secure_trie::<H256, M256>(storage_root))
+            },
+            None => None,
+        }
+    }
 }
 
 pub type MemoryStateful = Stateful<HashMap<H256, Vec<u8>>, MemoryDatabase>;
