@@ -11,11 +11,11 @@ extern crate rlp;
 
 use sputnikvm::{H256, U256, M256, Address};
 use sputnikvm::vm::{self, ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
-                    AccountCommitment, Patch, SeqMemory};
-use sputnikvm::vm::errors::RequireError;
+                    AccountCommitment, Patch, SeqMemory, AccountState};
+use sputnikvm::vm::errors::{PreExecutionError, RequireError};
 use sha3::{Keccak256, Digest};
 use trie::{Trie, SecureTrie, FixedSecureTrie, DatabaseGuard, MemoryDatabase, MemoryDatabaseGuard, Database, DatabaseOwned};
-use block::Account;
+use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
 
@@ -218,6 +218,84 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
         }
         self.transit(&accounts);
         vm
+    }
+
+    pub fn to_valid(
+        &self, transaction: Transaction, patch: &'static Patch
+    ) -> Result<ValidTransaction, PreExecutionError> {
+        let state = self.database.create_fixed_secure_trie(self.root);
+        let mut account_state = AccountState::default();
+
+        loop {
+            match ValidTransaction::from_transaction(&transaction, &account_state, patch) {
+                Ok(val) => return val,
+                Err(RequireError::Account(address)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let code = if Self::is_empty_hash(account.code_hash) {
+                                Vec::new()
+                            } else {
+                                self.code_hashes.get(account.code_hash).unwrap()
+                            };
+
+                            account_state.commit(AccountCommitment::Full {
+                                nonce: account.nonce,
+                                address: address,
+                                balance: account.balance,
+                                code: code,
+                            }).unwrap();
+                        },
+                        None => {
+                            account_state.commit(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::AccountCode(address)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let code = if Self::is_empty_hash(account.code_hash) {
+                                Vec::new()
+                            } else {
+                                self.code_hashes.get(account.code_hash).unwrap()
+                            };
+
+                            account_state.commit(AccountCommitment::Code {
+                                address: address,
+                                code: code,
+                            }).unwrap();
+                        },
+                        None => {
+                            account_state.commit(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::AccountStorage(address, index)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let storage = self.database.create_fixed_secure_trie(account.storage_root);
+                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+
+                            account_state.commit(AccountCommitment::Storage {
+                                address: address,
+                                index, value
+                            }).unwrap();
+                        },
+                        None => {
+                            account_state.commit(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::Blockhash(_)) => {
+                    panic!()
+                },
+            }
+        }
     }
 
     pub fn root(&self) -> H256 {
