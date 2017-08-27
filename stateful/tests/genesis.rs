@@ -16,7 +16,7 @@ use sputnikvm::{H256, U256, Address, Gas};
 use sputnikvm::vm::{self, ValidTransaction, Storage, VM, SeqTransactionVM, HeaderParams, EIP160_PATCH, VMStatus};
 use sputnikvm_stateful::MemoryStateful;
 use block::TransactionAction;
-use trie::MemoryDatabase;
+use trie::{Database, MemoryDatabase};
 use std::collections::HashMap;
 use std::str::FromStr;
 use rand::Rng;
