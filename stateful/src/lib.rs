@@ -9,15 +9,13 @@ extern crate sha3;
 extern crate block;
 extern crate rlp;
 
-use trie::{Database, DatabaseOwned, MemoryDatabase};
-
-use sputnikvm::{H256, U256, M256};
+use sputnikvm::{H256, U256, M256, Address};
 use sputnikvm::vm::{self, ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
                     AccountCommitment, Patch, SeqMemory};
 use sputnikvm::vm::errors::RequireError;
-use trie::{Trie, DatabaseGuard};
+use sha3::{Keccak256, Digest};
+use trie::{Trie, SecureTrie, FixedSecureTrie, DatabaseGuard, MemoryDatabase, MemoryDatabaseGuard, Database, DatabaseOwned};
 use block::Account;
-use sha3::{Digest, Keccak256};
 use std::collections::HashMap;
 use std::cmp::min;
 
@@ -60,7 +58,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                 min(block.number, U256::from(256)));
 
         let mut vm = TransactionVM::new(transaction, block.clone(), patch);
-        let state = self.database.create_trie(self.root);
+        let state = self.database.create_fixed_secure_trie(self.root);
 
         loop {
             match vm.fire() {
@@ -114,8 +112,8 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
                     match account {
                         Some(account) => {
-                            let storage = self.database.create_trie(account.storage_root);
-                            let value = storage.get(&index).unwrap_or(M256::zero());
+                            let storage = self.database.create_fixed_secure_trie(account.storage_root);
+                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
 
                             vm.commit_account(AccountCommitment::Storage {
                                 address: address,
@@ -140,7 +138,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
     pub fn transit(
         &mut self, accounts: &[vm::Account]
     ) {
-        let mut state = self.database.create_trie(self.root);
+        let mut state = self.database.create_fixed_secure_trie(self.root);
 
         for account in accounts {
             match account.clone() {
@@ -151,9 +149,9 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
                     let mut account: Account = state.get(&address).unwrap();
 
-                    let mut storage_trie = self.database.create_trie(account.storage_root);
+                    let mut storage_trie = self.database.create_fixed_secure_trie(account.storage_root);
                     for (key, value) in changing_storage {
-                        storage_trie.insert(key, value);
+                        storage_trie.insert(H256::from(key), value);
                     }
 
                     account.balance = balance;
@@ -161,36 +159,33 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                     account.storage_root = storage_trie.root();
                     assert!(account.code_hash == H256::from(Keccak256::digest(&code).as_slice()));
 
-                    state.insert_raw(Keccak256::digest(&address).as_slice().into(),
-                                     rlp::encode(&account).to_vec());
+                    state.insert(address, account);
                 },
                 vm::Account::IncreaseBalance(address, value) => {
                     let mut account: Account = state.get(&address).unwrap();
 
                     account.balance = account.balance + value;
 
-                    state.insert_raw(Keccak256::digest(&address).as_slice().into(),
-                                     rlp::encode(&account).to_vec());
+                    state.insert(address, account);
                 },
                 vm::Account::DecreaseBalance(address, value) => {
                     let mut account: Account = state.get(&address).unwrap();
 
                     account.balance = account.balance - value;
 
-                    state.insert_raw(Keccak256::digest(&address).as_slice().into(),
-                                     rlp::encode(&account).to_vec());
+                    state.insert(address, account);
                 },
                 vm::Account::Create {
                     nonce, address, balance, storage, code, exists
                 } => {
                     if !exists {
-                        state.remove_raw(Keccak256::digest(&address).as_slice());
+                        state.remove(&address);
                     } else {
                         let storage: HashMap<U256, M256> = storage.into();
 
-                        let mut storage_trie = self.database.create_empty();
+                        let mut storage_trie = self.database.create_fixed_secure_empty();
                         for (key, value) in storage {
-                            storage_trie.insert(key, value);
+                            storage_trie.insert(H256::from(key), value);
                         }
 
                         let code_hash = H256::from(Keccak256::digest(&code).as_slice());
@@ -203,8 +198,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                             code_hash
                         };
 
-                        state.insert_raw(Keccak256::digest(&address).as_slice().into(),
-                                         rlp::encode(&account).to_vec());
+                        state.insert(address, account);
                     }
                 },
             }
@@ -228,6 +222,10 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
     pub fn root(&self) -> H256 {
         self.root
+    }
+
+    pub fn state<'a>(&'a self) -> FixedSecureTrie<<D as Database<'a>>::Guard, Address, Account> {
+        self.database.create_fixed_secure_trie::<Address, Account>(self.root())
     }
 }
 
