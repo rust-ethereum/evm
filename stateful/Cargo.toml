@@ -1,0 +1,20 @@
+[package]
+name = "sputnikvm-stateful"
+version = "0.6.2"
+license = "Apache-2.0"
+description = "Stateful SputnikVM wrapped with tries."
+authors = ["Wei Tang <hi@that.world>"]
+
+[dependencies]
+sputnikvm = { version = "0.6", path = '..' }
+etcommon-trie = "0.3"
+etcommon-block = "0.2"
+etcommon-rlp = "0.2"
+sha3 = "0.6"
+rand = "0.3"
+
+[dev-dependencies]
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+lazy_static = "0.2"

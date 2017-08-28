@@ -27,4 +27,5 @@ members = [
   "./jsontests",
   "./regtests",
   "./gethrpc",
+  "./stateful",
 ]
