@@ -151,7 +151,11 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
                     let mut storage_trie = self.database.create_fixed_secure_trie(account.storage_root);
                     for (key, value) in changing_storage {
-                        storage_trie.insert(H256::from(key), value);
+                        if value == M256::zero() {
+                            storage_trie.remove(&H256::from(key));
+                        } else {
+                            storage_trie.insert(H256::from(key), value);
+                        }
                     }
 
                     account.balance = balance;
@@ -185,7 +189,11 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
                         let mut storage_trie = self.database.create_fixed_secure_empty();
                         for (key, value) in storage {
-                            storage_trie.insert(H256::from(key), value);
+                            if value == M256::zero() {
+                                storage_trie.remove(&H256::from(key));
+                            } else {
+                                storage_trie.insert(H256::from(key), value);
+                            }
                         }
 
                         let code_hash = H256::from(Keccak256::digest(&code).as_slice());
