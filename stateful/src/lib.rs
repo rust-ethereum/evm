@@ -310,8 +310,16 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
         self.root
     }
 
+    pub fn state_of<'a>(&'a self, root: H256) -> FixedSecureTrie<<D as Database<'a>>::Guard, Address, Account> {
+        self.database.create_fixed_secure_trie::<Address, Account>(root)
+    }
+
     pub fn state<'a>(&'a self) -> FixedSecureTrie<<D as Database<'a>>::Guard, Address, Account> {
-        self.database.create_fixed_secure_trie::<Address, Account>(self.root())
+        self.state_of(self.root())
+    }
+
+    pub fn storage_state_of<'a>(&'a self, root: H256) -> FixedSecureTrie<<D as Database<'a>>::Guard, H256, M256> {
+        self.database.create_fixed_secure_trie::<H256, M256>(root)
     }
 
     pub fn storage_state<'a>(&'a self, address: Address) -> Option<FixedSecureTrie<<D as Database<'a>>::Guard, H256, M256>> {
@@ -320,8 +328,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
         match account {
             Some(account) => {
-                let storage_root = account.storage_root;
-                Some(self.database.create_fixed_secure_trie::<H256, M256>(storage_root))
+                Some(self.storage_state_of(account.storage_root))
             },
             None => None,
         }
