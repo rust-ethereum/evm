@@ -47,6 +47,16 @@ impl<D: DatabaseOwned> Stateful<D> {
         hash == H256::from(Keccak256::digest(&[]).as_slice())
     }
 
+    pub fn code(&self, hash: H256) -> Vec<u8> {
+        let code_hashes = self.database.create_guard();
+
+        if Self::is_empty_hash(hash) {
+            Vec::new()
+        } else {
+            code_hashes.get(hash).unwrap()
+        }
+    }
+
     pub fn call<M: Memory + Default>(
         &self, transaction: ValidTransaction, block: HeaderParams,
         patch: &'static Patch, most_recent_block_hashes: &[H256]
