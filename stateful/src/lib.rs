@@ -19,35 +19,42 @@ use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
 
-pub struct Stateful<G, D> {
+pub struct Stateful<D> {
     database: D,
-    code_hashes: G,
     root: H256,
 }
 
-impl<G, D> Stateful<G, D> {
-    pub fn new(database: D, code_hashes: G, root: H256) -> Self {
+impl<D> Stateful<D> {
+    pub fn new(database: D, root: H256) -> Self {
         Self {
             database,
-            code_hashes,
             root
         }
     }
 }
 
-impl<G: Default, D: Default> Default for Stateful<G, D> {
+impl<D: Default> Default for Stateful<D> {
     fn default() -> Self {
         Self {
             database: D::default(),
-            code_hashes: G::default(),
             root: MemoryDatabase::new().create_empty().root(),
         }
     }
 }
 
-impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
+impl<D: DatabaseOwned> Stateful<D> {
     fn is_empty_hash(hash: H256) -> bool {
         hash == H256::from(Keccak256::digest(&[]).as_slice())
+    }
+
+    pub fn code(&self, hash: H256) -> Option<Vec<u8>> {
+        let code_hashes = self.database.create_guard();
+
+        if Self::is_empty_hash(hash) {
+            Some(Vec::new())
+        } else {
+            code_hashes.get(hash)
+        }
     }
 
     pub fn call<M: Memory + Default>(
@@ -59,6 +66,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
 
         let mut vm = TransactionVM::new(transaction, block.clone(), patch);
         let state = self.database.create_fixed_secure_trie(self.root);
+        let code_hashes = self.database.create_guard();
 
         loop {
             match vm.fire() {
@@ -71,7 +79,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                             let code = if Self::is_empty_hash(account.code_hash) {
                                 Vec::new()
                             } else {
-                                self.code_hashes.get(account.code_hash).unwrap()
+                                code_hashes.get(account.code_hash).unwrap()
                             };
 
                             vm.commit_account(AccountCommitment::Full {
@@ -94,7 +102,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                             let code = if Self::is_empty_hash(account.code_hash) {
                                 Vec::new()
                             } else {
-                                self.code_hashes.get(account.code_hash).unwrap()
+                                code_hashes.get(account.code_hash).unwrap()
                             };
 
                             vm.commit_account(AccountCommitment::Code {
@@ -139,6 +147,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
         &mut self, accounts: &[vm::Account]
     ) {
         let mut state = self.database.create_fixed_secure_trie(self.root);
+        let mut code_hashes = self.database.create_guard();
 
         for account in accounts {
             match account.clone() {
@@ -166,11 +175,21 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                     state.insert(address, account);
                 },
                 vm::Account::IncreaseBalance(address, value) => {
-                    let mut account: Account = state.get(&address).unwrap();
-
-                    account.balance = account.balance + value;
-
-                    state.insert(address, account);
+                    match state.get(&address) {
+                        Some(mut account) => {
+                            account.balance = account.balance + value;
+                            state.insert(address, account);
+                        },
+                        None => {
+                            let account = Account {
+                                nonce: U256::zero(),
+                                balance: value,
+                                storage_root: self.database.create_empty().root(),
+                                code_hash: H256::from(Keccak256::digest(&[]).as_slice())
+                            };
+                            state.insert(address, account);
+                        }
+                    }
                 },
                 vm::Account::DecreaseBalance(address, value) => {
                     let mut account: Account = state.get(&address).unwrap();
@@ -197,7 +216,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                         }
 
                         let code_hash = H256::from(Keccak256::digest(&code).as_slice());
-                        self.code_hashes.set(code_hash, code);
+                        code_hashes.set(code_hash, code);
 
                         let account = Account {
                             nonce: nonce,
@@ -232,6 +251,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
         &self, transaction: Transaction, patch: &'static Patch
     ) -> Result<ValidTransaction, PreExecutionError> {
         let state = self.database.create_fixed_secure_trie(self.root);
+        let code_hashes = self.database.create_guard();
         let mut account_state = AccountState::default();
 
         loop {
@@ -245,7 +265,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                             let code = if Self::is_empty_hash(account.code_hash) {
                                 Vec::new()
                             } else {
-                                self.code_hashes.get(account.code_hash).unwrap()
+                                code_hashes.get(account.code_hash).unwrap()
                             };
 
                             account_state.commit(AccountCommitment::Full {
@@ -268,7 +288,7 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
                             let code = if Self::is_empty_hash(account.code_hash) {
                                 Vec::new()
                             } else {
-                                self.code_hashes.get(account.code_hash).unwrap()
+                                code_hashes.get(account.code_hash).unwrap()
                             };
 
                             account_state.commit(AccountCommitment::Code {
@@ -335,4 +355,4 @@ impl<G: DatabaseGuard, D: DatabaseOwned> Stateful<G, D> {
     }
 }
 
-pub type MemoryStateful = Stateful<HashMap<H256, Vec<u8>>, MemoryDatabase>;
+pub type MemoryStateful = Stateful<MemoryDatabase>;
