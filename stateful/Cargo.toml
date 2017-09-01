@@ -1,6 +1,6 @@
 [package]
 name = "sputnikvm-stateful"
-version = "0.6.7"
+version = "0.6.8"
 license = "Apache-2.0"
 description = "Stateful SputnikVM wrapped with tries."
 authors = ["Wei Tang <hi@that.world>"]
