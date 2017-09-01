@@ -175,11 +175,21 @@ impl<D: DatabaseOwned> Stateful<D> {
                     state.insert(address, account);
                 },
                 vm::Account::IncreaseBalance(address, value) => {
-                    let mut account: Account = state.get(&address).unwrap();
-
-                    account.balance = account.balance + value;
-
-                    state.insert(address, account);
+                    match state.get(&address) {
+                        Some(mut account) => {
+                            account.balance = account.balance + value;
+                            state.insert(address, account);
+                        },
+                        None => {
+                            let account = Account {
+                                nonce: U256::zero(),
+                                balance: value,
+                                storage_root: self.database.create_empty().root(),
+                                code_hash: H256::from(Keccak256::digest(&[]).as_slice())
+                            };
+                            state.insert(address, account);
+                        }
+                    }
                 },
                 vm::Account::DecreaseBalance(address, value) => {
                     let mut account: Account = state.get(&address).unwrap();
