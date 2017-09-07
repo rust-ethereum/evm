@@ -30,6 +30,11 @@ impl Storage {
         }
     }
 
+    /// Create a full storage.
+    pub fn full(address: Address) -> Self {
+        Self::new(address, false)
+    }
+
     /// Commit a value into the storage.
     pub fn commit(&mut self, index: U256, value: M256) -> Result<(), CommitError> {
         if !self.partial {
