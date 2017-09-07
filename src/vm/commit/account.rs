@@ -142,6 +142,18 @@ impl Default for AccountState {
 }
 
 impl AccountState {
+    /// Returns all fetched or modified addresses.
+    pub fn used_addresses(&self) -> HashSet<Address> {
+        let mut set = HashSet::new();
+        for account in self.accounts() {
+            set.insert(account.address());
+        }
+        for (address, _) in &self.codes {
+            set.insert(*address);
+        }
+        set
+    }
+
     /// Returns all accounts right now in this account state.
     pub fn accounts(&self) -> hash_map::Values<Address, Account> {
         self.accounts.values()

@@ -10,10 +10,11 @@ use sputnikvm::{Address, U256, Gas};
 use sputnikvm::vm::{self, HeaderParams, SeqTransactionVM, VM, Storage, EIP160_PATCH, ValidTransaction};
 use sputnikvm_stateful::MemoryStateful;
 use std::thread;
+use std::collections::HashSet;
 use std::sync::Arc;
 use std::str::FromStr;
 
-fn is_modified(modified_addresses: &[Address], accounts: &[vm::Account]) -> bool {
+fn is_modified(modified_addresses: &HashSet<Address>, accounts: &[vm::Account]) -> bool {
     for account in accounts {
         if modified_addresses.contains(&account.address()) {
             return true;
@@ -46,7 +47,7 @@ pub fn parallel_execute(
             let vm: SeqTransactionVM = stateful.call(
                 transaction, header, &EIP160_PATCH, &[]);
             let accounts: Vec<vm::Account> = vm.accounts().map(|v| v.clone()).collect();
-            accounts
+            (accounts, vm.used_addresses())
         }));
     }
 
@@ -63,26 +64,23 @@ pub fn parallel_execute(
         Ok(val) => val,
         Err(_) => panic!(),
     };
-    let mut modified_addresses = Vec::new();
+    let mut modified_addresses = HashSet::new();
 
-    for (index, accounts) in thread_accounts.into_iter().enumerate() {
-        let accounts = if is_modified(&modified_addresses, &accounts) {
+    for (index, (accounts, used_addresses)) in thread_accounts.into_iter().enumerate() {
+        let (accounts, used_addresses) = if is_modified(&modified_addresses, &accounts) {
             // Re-execute the transaction if conflict is detected.
             println!("Transaction index {}: conflict detected, re-execute.", index);
             let vm: SeqTransactionVM = stateful.call(
                 transactions[index].clone(), header.clone(), &EIP160_PATCH, &[]);
             let accounts: Vec<vm::Account> = vm.accounts().map(|v| v.clone()).collect();
-            accounts
+            (accounts, vm.used_addresses())
         } else {
             println!("Transaction index {}: parallel execution successful.", index);
-            accounts
+            (accounts, used_addresses)
         };
 
         stateful.transit(&accounts);
-
-        for account in accounts {
-            modified_addresses.push(account.address());
-        }
+        modified_addresses.extend(used_addresses.into_iter());
     }
 
     stateful
