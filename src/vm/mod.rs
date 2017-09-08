@@ -32,7 +32,7 @@ pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
 pub use self::transaction::{ValidTransaction, TransactionVM};
 
-use std::collections::hash_map;
+use std::collections::{HashSet, hash_map};
 use util::bigint::{U256, H256};
 use util::gas::Gas;
 use util::address::Address;
@@ -80,6 +80,8 @@ pub trait VM {
     /// Returns the changed or committed accounts information up to
     /// current execution status.
     fn accounts(&self) -> hash_map::Values<Address, Account>;
+    /// Returns all fetched or modified addresses.
+    fn used_addresses(&self) -> HashSet<Address>;
     /// Returns the out value, if any.
     fn out(&self) -> &[u8];
     /// Returns the available gas of this VM.
@@ -208,6 +210,10 @@ impl<M: Memory + Default> VM for ContextVM<M> {
 
     fn accounts(&self) -> hash_map::Values<Address, Account> {
         self.machines[0].state().account_state.accounts()
+    }
+
+    fn used_addresses(&self) -> HashSet<Address> {
+        self.machines[0].state().account_state.used_addresses()
     }
 
     fn out(&self) -> &[u8] {

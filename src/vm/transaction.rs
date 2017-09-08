@@ -1,6 +1,6 @@
 //! Transaction related functionality.
 
-use std::collections::hash_map;
+use std::collections::{HashSet, hash_map};
 use std::cmp::min;
 use std::str::FromStr;
 use util::gas::Gas;
@@ -376,6 +376,13 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.accounts(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.accounts(),
+        }
+    }
+
+    fn used_addresses(&self) -> HashSet<Address> {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => vm.used_addresses(),
+            TransactionVMState::Constructing { ref account_state, .. } => account_state.used_addresses(),
         }
     }
 
