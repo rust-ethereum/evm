@@ -1,14 +1,10 @@
 [package]
-name = "sputnikvm"
+name = "evm"
 version = "0.6.2"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
 repository = "https://github.com/ethereumproject/sputnikvm"
-
-[lib]
-name = "sputnikvm"
-crate-type = ["rlib", "cdylib"]
 
 [dependencies]
 log = "0.3"
