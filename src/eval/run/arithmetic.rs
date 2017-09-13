@@ -1,8 +1,8 @@
 //! Arithmetic instructions
 
-use util::bigint::{M256, U512};
+use bigint::{M256, U512};
 
-use vm::Memory;
+use ::Memory;
 use super::State;
 
 pub fn addmod<M: Memory + Default>(state: &mut State<M>) {

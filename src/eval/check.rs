@@ -1,12 +1,11 @@
 //! Check logic for instructions
 
-use util::bigint::{U256, M256};
-use util::gas::Gas;
+use bigint::{U256, M256, Gas};
 
-use vm::{Memory, Instruction};
-use vm::errors::{MachineError, EvalError};
+use ::{Memory, Instruction};
+use errors::{MachineError, EvalError};
+use eval::{State, ControlCheck};
 
-use vm::eval::{State, ControlCheck};
 use super::util::check_range;
 
 #[allow(unused_variables)]

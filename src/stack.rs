@@ -1,6 +1,6 @@
 //! EVM stack
 
-use util::bigint::M256;
+use bigint::M256;
 use super::errors::StackError;
 
 /// Represents an EVM stack.

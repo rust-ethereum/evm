@@ -1,6 +1,6 @@
 //! VM memory representation
 
-use util::bigint::{U256, M256};
+use bigint::{U256, M256};
 
 use super::errors::MemoryError;
 

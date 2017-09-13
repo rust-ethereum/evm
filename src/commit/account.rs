@@ -2,11 +2,10 @@
 
 use std::collections::hash_set::HashSet;
 use std::collections::hash_map::{self, HashMap};
-use util::address::Address;
-use util::bigint::{M256, U256};
+use bigint::{M256, U256, Address};
 
-use vm::Storage;
-use vm::errors::{RequireError, CommitError};
+use ::Storage;
+use errors::{RequireError, CommitError};
 
 #[derive(Debug, Clone)]
 /// A single account commitment.

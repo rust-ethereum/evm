@@ -3,9 +3,7 @@
 use std::collections::{HashSet, hash_map};
 use std::cmp::min;
 use std::str::FromStr;
-use util::gas::Gas;
-use util::address::Address;
-use util::bigint::{U256, H256};
+use bigint::{U256, H256, Address, Gas};
 
 use super::errors::{RequireError, CommitError, PreExecutionError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,

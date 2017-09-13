@@ -1,6 +1,6 @@
 //! Environment instructions
 
-use vm::Memory;
+use ::Memory;
 use super::State;
 
 pub fn calldataload<M: Memory + Default>(state: &mut State<M>) {

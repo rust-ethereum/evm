@@ -1,10 +1,9 @@
 //! Functionality for precompiled accounts.
 
-use util::address::Address;
-use util::gas::Gas;
+use bigint::{Address, Gas};
 
-use vm::errors::MachineError;
-use vm::{Memory, Machine, MachineStatus};
+use errors::MachineError;
+use ::{Memory, Machine, MachineStatus};
 
 use std::str::FromStr;
 use std::cmp::min;
