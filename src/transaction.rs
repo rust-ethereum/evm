@@ -284,14 +284,14 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
     }
 
     fn step(&mut self) -> Result<(), RequireError> {
-        let mut cgas: Option<Gas> = None;
-        let mut ccontext: Option<Context> = None;
-        let mut cblock: Option<HeaderParams> = None;
-        let mut cpatch: Option<&'static Patch> = None;
-        let mut caccount_state: Option<AccountState> = None;
-        let mut cblockhash_state: Option<BlockhashState> = None;
-        let mut ccode_deposit: Option<bool> = None;
-        let mut cpreclaimed_value: Option<U256> = None;
+        let cgas: Gas;
+        let ccontext: Context;
+        let cblock: HeaderParams;
+        let cpatch: &'static Patch;
+        let caccount_state: AccountState;
+        let cblockhash_state: BlockhashState;
+        let ccode_deposit: bool;
+        let cpreclaimed_value: U256;
 
         let real_used_gas = self.real_used_gas();
 
@@ -333,38 +333,38 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 let address = transaction.address();
                 account_state.require(address)?;
 
-                ccode_deposit = Some(match transaction.action {
+                ccode_deposit = match transaction.action {
                     TransactionAction::Call(_) => false,
                     TransactionAction::Create => true,
-                });
-                cgas = Some(transaction.intrinsic_gas(patch));
-                cpreclaimed_value = Some(transaction.preclaimed_value());
-                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state, false)?);
-                cblock = Some(block.clone());
-                cpatch = Some(patch);
-                caccount_state = Some(account_state.clone());
-                cblockhash_state = Some(blockhash_state.clone());
+                };
+                cgas = transaction.intrinsic_gas(patch);
+                cpreclaimed_value = transaction.preclaimed_value();
+                ccontext = transaction.clone().into_context(cgas, None, account_state, false)?;
+                cblock = block.clone();
+                cpatch = patch;
+                caccount_state = account_state.clone();
+                cblockhash_state = blockhash_state.clone();
             }
         }
 
-        let account_state = caccount_state.unwrap();
-        let mut vm = ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
+        let account_state = caccount_state;
+        let mut vm = ContextVM::with_states(ccontext, cblock, cpatch,
                                             account_state.clone(),
-                                            cblockhash_state.unwrap());
+                                            cblockhash_state);
 
-        if ccode_deposit.unwrap() {
-            vm.machines[0].initialize_create(cpreclaimed_value.unwrap()).unwrap();
+        if ccode_deposit {
+            vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
         } else {
-            vm.machines[0].initialize_call(cpreclaimed_value.unwrap());
+            vm.machines[0].initialize_call(cpreclaimed_value);
         }
 
         self.0 = TransactionVMState::Running {
             fresh_account_state: account_state,
             vm,
-            intrinsic_gas: cgas.unwrap(),
+            intrinsic_gas: cgas,
             finalized: false,
-            code_deposit: ccode_deposit.unwrap(),
-            preclaimed_value: cpreclaimed_value.unwrap(),
+            code_deposit: ccode_deposit,
+            preclaimed_value: cpreclaimed_value,
         };
 
         Ok(())
