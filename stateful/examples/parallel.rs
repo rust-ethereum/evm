@@ -2,14 +2,14 @@ extern crate trie;
 extern crate block;
 extern crate hexutil;
 extern crate bigint;
-extern crate sputnikvm;
-extern crate sputnikvm_stateful;
+extern crate evm;
+extern crate evm_stateful;
 
 use hexutil::*;
 use block::TransactionAction;
 use bigint::{Address, U256, Gas};
-use sputnikvm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, EIP160_PATCH, ValidTransaction};
-use sputnikvm_stateful::MemoryStateful;
+use evm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, EIP160_PATCH, ValidTransaction};
+use evm_stateful::MemoryStateful;
 use std::thread;
 use std::collections::HashSet;
 use std::sync::Arc;

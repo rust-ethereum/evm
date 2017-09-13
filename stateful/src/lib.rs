@@ -4,16 +4,16 @@
         unreachable_code)]
 
 extern crate trie;
-extern crate sputnikvm;
+extern crate evm;
 extern crate sha3;
 extern crate block;
 extern crate rlp;
 extern crate bigint;
 
 use bigint::{H256, U256, M256, Address};
-use sputnikvm::{ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
-                AccountCommitment, Patch, AccountState, AccountChange};
-use sputnikvm::errors::{PreExecutionError, RequireError};
+use evm::{ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
+          AccountCommitment, Patch, AccountState, AccountChange};
+use evm::errors::{PreExecutionError, RequireError};
 use sha3::{Keccak256, Digest};
 use trie::{FixedSecureTrie, DatabaseGuard, MemoryDatabase, Database, DatabaseOwned};
 use block::{Account, Transaction};

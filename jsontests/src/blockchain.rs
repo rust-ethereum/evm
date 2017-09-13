@@ -1,8 +1,8 @@
 use bigint::{Gas, M256, U256, H256, Address};
 use hexutil::*;
-use sputnikvm::{Machine, Log, Context,
-                AccountChange, Storage, AccountCommitment,
-                HeaderParams};
+use evm::{Machine, Log, Context,
+          AccountChange, Storage, AccountCommitment,
+          HeaderParams};
 
 use serde_json::Value;
 use std::collections::HashMap;

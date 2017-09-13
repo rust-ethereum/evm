@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate clap;
-extern crate sputnikvm;
+extern crate evm;
 extern crate serde_json;
 extern crate gethrpc;
 extern crate block;
@@ -18,10 +18,10 @@ use std::collections::{HashMap, HashSet};
 use block::TransactionAction;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::*;
-use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
+use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
                 AccountCommitment, AccountChange, FRONTIER_PATCH, HOMESTEAD_PATCH,
                 EIP150_PATCH, EIP160_PATCH};
-use sputnikvm::errors::RequireError;
+use evm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> HeaderParams {

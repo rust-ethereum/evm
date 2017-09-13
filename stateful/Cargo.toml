@@ -1,12 +1,13 @@
 [package]
-name = "sputnikvm-stateful"
-version = "0.6.8"
+name = "evm-stateful"
+version = "0.7.0"
 license = "Apache-2.0"
-description = "Stateful SputnikVM wrapped with tries."
+description = "Stateful evm-rs wrapped with tries."
 authors = ["Wei Tang <hi@that.world>"]
+repository = "https://git.that.world/evm-rs.git"
 
 [dependencies]
-sputnikvm = { version = "0.6", path = '..' }
+evm = { version = "0.7", path = '..' }
 etcommon-bigint = "0.2"
 etcommon-trie = "0.3"
 etcommon-block = "0.2"

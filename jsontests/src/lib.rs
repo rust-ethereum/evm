@@ -1,4 +1,4 @@
-extern crate sputnikvm;
+extern crate evm;
 extern crate serde_json;
 extern crate hexutil;
 extern crate bigint;
@@ -11,8 +11,8 @@ use serde_json::Value;
 use std::str::FromStr;
 use bigint::{Gas, M256, U256, H256, Address};
 use hexutil::*;
-use sputnikvm::errors::RequireError;
-use sputnikvm::{VM, SeqContextVM, AccountCommitment, Context, AccountChange, Storage, Patch, VMStatus, VMTEST_PATCH};
+use evm::errors::RequireError;
+use evm::{VM, SeqContextVM, AccountCommitment, Context, AccountChange, Storage, Patch, VMStatus, VMTEST_PATCH};
 
 pub fn fire_with_block(machine: &mut SeqContextVM, block: &JSONBlock) {
     loop {

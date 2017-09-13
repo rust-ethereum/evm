@@ -4,8 +4,8 @@ extern crate serde_json;
 extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
-extern crate sputnikvm;
-extern crate sputnikvm_stateful;
+extern crate evm;
+extern crate evm_stateful;
 extern crate block;
 extern crate trie;
 extern crate rand;
@@ -14,8 +14,8 @@ extern crate bigint;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
-use sputnikvm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160_PATCH, VMStatus};
-use sputnikvm_stateful::MemoryStateful;
+use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160_PATCH, VMStatus};
+use evm_stateful::MemoryStateful;
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
 use std::collections::HashMap;

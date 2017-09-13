@@ -1,10 +1,10 @@
 [package]
 name = "evm"
-version = "0.6.2"
+version = "0.7.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
-description = "SputnikVM - a Portable Blockchain Virtual Machine"
-repository = "https://github.com/ethereumproject/sputnikvm"
+description = "Ethereum Virtual Machine implementation in Rust. Alias of SputnikVM."
+repository = "https://git.that.world/evm-rs.git"
 
 [dependencies]
 log = "0.3"
