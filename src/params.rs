@@ -1,8 +1,6 @@
 //! Parameters used by the VM.
 
-use util::gas::Gas;
-use util::address::Address;
-use util::bigint::U256;
+use bigint::{U256, Address, Gas};
 use block::Header;
 
 #[derive(Debug, Clone)]

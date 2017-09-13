@@ -1,20 +1,21 @@
 extern crate trie;
 extern crate block;
 extern crate hexutil;
+extern crate bigint;
 extern crate sputnikvm;
 extern crate sputnikvm_stateful;
 
 use hexutil::*;
 use block::TransactionAction;
-use sputnikvm::{Address, U256, Gas};
-use sputnikvm::vm::{self, HeaderParams, SeqTransactionVM, VM, Storage, EIP160_PATCH, ValidTransaction};
+use bigint::{Address, U256, Gas};
+use sputnikvm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, EIP160_PATCH, ValidTransaction};
 use sputnikvm_stateful::MemoryStateful;
 use std::thread;
 use std::collections::HashSet;
 use std::sync::Arc;
 use std::str::FromStr;
 
-fn is_modified(modified_addresses: &HashSet<Address>, accounts: &[vm::Account]) -> bool {
+fn is_modified(modified_addresses: &HashSet<Address>, accounts: &[AccountChange]) -> bool {
     for account in accounts {
         if modified_addresses.contains(&account.address()) {
             return true;
@@ -46,7 +47,7 @@ pub fn parallel_execute(
         threads.push(thread::spawn(move || {
             let vm: SeqTransactionVM = stateful.call(
                 transaction, header, &EIP160_PATCH, &[]);
-            let accounts: Vec<vm::Account> = vm.accounts().map(|v| v.clone()).collect();
+            let accounts: Vec<AccountChange> = vm.accounts().map(|v| v.clone()).collect();
             (accounts, vm.used_addresses())
         }));
     }
@@ -72,7 +73,7 @@ pub fn parallel_execute(
             println!("Transaction index {}: conflict detected, re-execute.", index);
             let vm: SeqTransactionVM = stateful.call(
                 transactions[index].clone(), header.clone(), &EIP160_PATCH, &[]);
-            let accounts: Vec<vm::Account> = vm.accounts().map(|v| v.clone()).collect();
+            let accounts: Vec<AccountChange> = vm.accounts().map(|v| v.clone()).collect();
             (accounts, vm.used_addresses())
         } else {
             println!("Transaction index {}: parallel execution successful.", index);
@@ -95,7 +96,7 @@ fn main() {
 
     // Input some initial accounts.
     stateful.transit(&[
-        vm::Account::Create {
+        AccountChange::Create {
             nonce: U256::zero(),
             address: addr1,
             balance: U256::from_str("0x1000000000000000000").unwrap(),
@@ -103,7 +104,7 @@ fn main() {
             code: read_hex("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055").unwrap(),
             exists: true,
         },
-        vm::Account::Create {
+        AccountChange::Create {
             nonce: U256::zero(),
             address: addr2,
             balance: U256::from_str("0x1000000000000000000").unwrap(),
@@ -111,7 +112,7 @@ fn main() {
             code: read_hex("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055").unwrap(),
             exists: true,
         },
-        vm::Account::Create {
+        AccountChange::Create {
             nonce: U256::zero(),
             address: addr3,
             balance: U256::from_str("0x1000000000000000000").unwrap(),

@@ -1,7 +1,6 @@
 //! EVM account storage
 
-use util::bigint::{U256, M256};
-use util::address::Address;
+use bigint::{U256, M256, Address};
 use std::collections::hash_map::HashMap;
 use super::errors::{CommitError, RequireError};
 

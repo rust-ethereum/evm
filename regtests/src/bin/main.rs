@@ -4,6 +4,8 @@ extern crate sputnikvm;
 extern crate serde_json;
 extern crate gethrpc;
 extern crate block;
+extern crate bigint;
+extern crate hexutil;
 
 use serde_json::{Value};
 use std::process;
@@ -14,11 +16,12 @@ use std::str::FromStr;
 use std::collections::{HashMap, HashSet};
 
 use block::TransactionAction;
-use sputnikvm::{Gas, Address, U256, M256, H256, read_hex};
-use sputnikvm::vm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
-                    EIP150_PATCH, EIP160_PATCH};
-use sputnikvm::vm::errors::RequireError;
+use bigint::{Gas, Address, U256, M256, H256};
+use hexutil::*;
+use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
+                AccountCommitment, AccountChange, FRONTIER_PATCH, HOMESTEAD_PATCH,
+                EIP150_PATCH, EIP160_PATCH};
+use sputnikvm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
@@ -171,7 +174,7 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
     if last_vm.is_some() {
         for account in last_vm.as_ref().unwrap().accounts() {
             match account {
-                &Account::Full {
+                &AccountChange::Full {
                     address,
                     balance,
                     ref changing_storage,
@@ -190,7 +193,7 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                         assert!(M256::from_str(&expected_value).unwrap() == value);
                     }
                 },
-                &Account::Create {
+                &AccountChange::Create {
                     address,
                     balance,
                     ref storage,
@@ -209,7 +212,7 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                         assert!(M256::from_str(&expected_value).unwrap() == value);
                     }
                 },
-                &Account::IncreaseBalance(address, balance) => {
+                &AccountChange::IncreaseBalance(address, balance) => {
                     if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);
@@ -220,7 +223,7 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
                                 U256::from_str(&cur_balance).unwrap());
                     }
                 },
-                &Account::DecreaseBalance(address, balance) => {
+                &AccountChange::DecreaseBalance(address, balance) => {
                     if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);

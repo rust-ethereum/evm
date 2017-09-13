@@ -1,15 +1,13 @@
 //! System operations instructions
 
-use util::address::Address;
-use util::bigint::{U256, M256, H256};
-use util::gas::Gas;
-use vm::{Memory, Log, ValidTransaction};
+use bigint::{U256, M256, H256, Address, Gas};
+use ::{Memory, Log, ValidTransaction};
+use eval::util::{l64, copy_from_memory};
 use block::TransactionAction;
 use super::{Control, State};
 
 use std::cmp::min;
 use sha3::{Digest, Keccak256};
-use vm::eval::util::{l64, copy_from_memory};
 
 pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     pop!(state, address: Address);

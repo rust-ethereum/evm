@@ -1,10 +1,9 @@
 //! Functionality for precompiled accounts.
 
-use util::address::Address;
-use util::gas::Gas;
+use bigint::{Address, Gas};
 
-use vm::errors::MachineError;
-use vm::{Memory, Machine, MachineStatus};
+use errors::MachineError;
+use ::{Memory, Machine, MachineStatus};
 
 use std::str::FromStr;
 use std::cmp::min;
@@ -21,18 +20,6 @@ fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
     } else {
         a / b + Gas::from(1u64)
     }
-}
-
-pub fn is_precompiled(address: Address) -> bool {
-    let ecrec_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
-    let sha256_address = Address::from_str("0x0000000000000000000000000000000000000002").unwrap();
-    let rip160_address = Address::from_str("0x0000000000000000000000000000000000000003").unwrap();
-    let id_address = Address::from_str("0x0000000000000000000000000000000000000004").unwrap();
-
-    address == ecrec_address ||
-        address == sha256_address ||
-        address == rip160_address ||
-        address == id_address
 }
 
 impl<M: Memory + Default> Machine<M> {

@@ -3,13 +3,11 @@
 use std::collections::{HashSet, hash_map};
 use std::cmp::min;
 use std::str::FromStr;
-use util::gas::Gas;
-use util::address::Address;
-use util::bigint::{U256, H256};
+use bigint::{U256, H256, Address, Gas};
 
 use super::errors::{RequireError, CommitError, PreExecutionError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,
-            VMStatus, AccountCommitment, Log, Account, MachineStatus};
+            VMStatus, AccountCommitment, Log, AccountChange, MachineStatus};
 use block::{Transaction, TransactionAction};
 
 const G_TXDATAZERO: usize = 4;
@@ -286,14 +284,14 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
     }
 
     fn step(&mut self) -> Result<(), RequireError> {
-        let mut cgas: Option<Gas> = None;
-        let mut ccontext: Option<Context> = None;
-        let mut cblock: Option<HeaderParams> = None;
-        let mut cpatch: Option<&'static Patch> = None;
-        let mut caccount_state: Option<AccountState> = None;
-        let mut cblockhash_state: Option<BlockhashState> = None;
-        let mut ccode_deposit: Option<bool> = None;
-        let mut cpreclaimed_value: Option<U256> = None;
+        let cgas: Gas;
+        let ccontext: Context;
+        let cblock: HeaderParams;
+        let cpatch: &'static Patch;
+        let caccount_state: AccountState;
+        let cblockhash_state: BlockhashState;
+        let ccode_deposit: bool;
+        let cpreclaimed_value: U256;
 
         let real_used_gas = self.real_used_gas();
 
@@ -335,44 +333,44 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
                 let address = transaction.address();
                 account_state.require(address)?;
 
-                ccode_deposit = Some(match transaction.action {
+                ccode_deposit = match transaction.action {
                     TransactionAction::Call(_) => false,
                     TransactionAction::Create => true,
-                });
-                cgas = Some(transaction.intrinsic_gas(patch));
-                cpreclaimed_value = Some(transaction.preclaimed_value());
-                ccontext = Some(transaction.clone().into_context(cgas.unwrap(), None, account_state, false)?);
-                cblock = Some(block.clone());
-                cpatch = Some(patch);
-                caccount_state = Some(account_state.clone());
-                cblockhash_state = Some(blockhash_state.clone());
+                };
+                cgas = transaction.intrinsic_gas(patch);
+                cpreclaimed_value = transaction.preclaimed_value();
+                ccontext = transaction.clone().into_context(cgas, None, account_state, false)?;
+                cblock = block.clone();
+                cpatch = patch;
+                caccount_state = account_state.clone();
+                cblockhash_state = blockhash_state.clone();
             }
         }
 
-        let account_state = caccount_state.unwrap();
-        let mut vm = ContextVM::with_states(ccontext.unwrap(), cblock.unwrap(), cpatch.unwrap(),
+        let account_state = caccount_state;
+        let mut vm = ContextVM::with_states(ccontext, cblock, cpatch,
                                             account_state.clone(),
-                                            cblockhash_state.unwrap());
+                                            cblockhash_state);
 
-        if ccode_deposit.unwrap() {
-            vm.machines[0].initialize_create(cpreclaimed_value.unwrap()).unwrap();
+        if ccode_deposit {
+            vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
         } else {
-            vm.machines[0].initialize_call(cpreclaimed_value.unwrap());
+            vm.machines[0].initialize_call(cpreclaimed_value);
         }
 
         self.0 = TransactionVMState::Running {
             fresh_account_state: account_state,
             vm,
-            intrinsic_gas: cgas.unwrap(),
+            intrinsic_gas: cgas,
             finalized: false,
-            code_deposit: ccode_deposit.unwrap(),
-            preclaimed_value: cpreclaimed_value.unwrap(),
+            code_deposit: ccode_deposit,
+            preclaimed_value: cpreclaimed_value,
         };
 
         Ok(())
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, Account> {
+    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.accounts(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.accounts(),
@@ -424,10 +422,8 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
 
 #[cfg(test)]
 mod tests {
-    use vm::*;
-    use util::bigint::*;
-    use util::address::*;
-    use util::gas::*;
+    use ::*;
+    use bigint::*;
     use block::TransactionAction;
     use std::str::FromStr;
 
@@ -452,13 +448,13 @@ mod tests {
         vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
         vm.fire().unwrap();
 
-        let mut accounts: Vec<Account> = Vec::new();
+        let mut accounts: Vec<AccountChange> = Vec::new();
         for account in vm.accounts() {
             accounts.push(account.clone());
         }
         assert_eq!(accounts.len(), 1);
         match accounts[0] {
-            Account::Create {
+            AccountChange::Create {
                 address, exists, balance, ..
             } => {
                 assert_eq!(address, Address::default());

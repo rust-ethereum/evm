@@ -1,6 +1,6 @@
 //! EVM Program Counter.
 
-use util::bigint::M256;
+use bigint::M256;
 use util::opcode::Opcode;
 use std::cmp::min;
 use super::Patch;

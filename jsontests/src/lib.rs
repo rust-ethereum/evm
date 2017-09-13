@@ -1,5 +1,7 @@
 extern crate sputnikvm;
 extern crate serde_json;
+extern crate hexutil;
+extern crate bigint;
 
 mod blockchain;
 
@@ -7,9 +9,10 @@ pub use self::blockchain::{JSONBlock, create_block, create_context};
 
 use serde_json::Value;
 use std::str::FromStr;
-use sputnikvm::{Gas, M256, U256, H256, Address, read_hex};
-use sputnikvm::vm::errors::RequireError;
-use sputnikvm::vm::{VM, SeqContextVM, AccountCommitment, Context, Account, Storage, Patch, VMStatus, VMTEST_PATCH};
+use bigint::{Gas, M256, U256, H256, Address};
+use hexutil::*;
+use sputnikvm::errors::RequireError;
+use sputnikvm::{VM, SeqContextVM, AccountCommitment, Context, AccountChange, Storage, Patch, VMStatus, VMTEST_PATCH};
 
 pub fn fire_with_block(machine: &mut SeqContextVM, block: &JSONBlock) {
     loop {
