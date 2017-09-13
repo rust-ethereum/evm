@@ -1,4 +1,4 @@
-#![deny(unused_import_braces,
+#![deny(unused_import_braces, unused_imports,
         unused_comparisons, unused_must_use,
         unused_variables, non_shorthand_field_patterns,
         unreachable_code)]
@@ -8,13 +8,14 @@ extern crate sputnikvm;
 extern crate sha3;
 extern crate block;
 extern crate rlp;
+extern crate bigint;
 
-use sputnikvm::{H256, U256, M256, Address};
-use sputnikvm::vm::{self, ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
-                    AccountCommitment, Patch, SeqMemory, AccountState};
-use sputnikvm::vm::errors::{PreExecutionError, RequireError};
+use bigint::{H256, U256, M256, Address};
+use sputnikvm::{ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
+                AccountCommitment, Patch, AccountState, AccountChange};
+use sputnikvm::errors::{PreExecutionError, RequireError};
 use sha3::{Keccak256, Digest};
-use trie::{Trie, SecureTrie, FixedSecureTrie, DatabaseGuard, MemoryDatabase, MemoryDatabaseGuard, Database, DatabaseOwned};
+use trie::{FixedSecureTrie, DatabaseGuard, MemoryDatabase, Database, DatabaseOwned};
 use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
@@ -144,14 +145,14 @@ impl<D: DatabaseOwned> Stateful<D> {
     }
 
     pub fn transit(
-        &mut self, accounts: &[vm::Account]
+        &mut self, accounts: &[AccountChange]
     ) {
         let mut state = self.database.create_fixed_secure_trie(self.root);
         let mut code_hashes = self.database.create_guard();
 
         for account in accounts {
             match account.clone() {
-                vm::Account::Full {
+                AccountChange::Full {
                     nonce, address, balance, changing_storage, code
                 } => {
                     let changing_storage: HashMap<U256, M256> = changing_storage.into();
@@ -174,7 +175,7 @@ impl<D: DatabaseOwned> Stateful<D> {
 
                     state.insert(address, account);
                 },
-                vm::Account::IncreaseBalance(address, value) => {
+                AccountChange::IncreaseBalance(address, value) => {
                     match state.get(&address) {
                         Some(mut account) => {
                             account.balance = account.balance + value;
@@ -191,14 +192,14 @@ impl<D: DatabaseOwned> Stateful<D> {
                         }
                     }
                 },
-                vm::Account::DecreaseBalance(address, value) => {
+                AccountChange::DecreaseBalance(address, value) => {
                     let mut account: Account = state.get(&address).unwrap();
 
                     account.balance = account.balance - value;
 
                     state.insert(address, account);
                 },
-                vm::Account::Create {
+                AccountChange::Create {
                     nonce, address, balance, storage, code, exists
                 } => {
                     if !exists {

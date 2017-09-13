@@ -46,7 +46,7 @@ pub use self::storage::Storage;
 pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
-pub use self::commit::{AccountCommitment, Account, AccountState, BlockhashState};
+pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState};
 pub use self::transaction::{ValidTransaction, TransactionVM};
 
 use std::collections::{HashSet, hash_map};
@@ -94,7 +94,7 @@ pub trait VM {
     }
     /// Returns the changed or committed accounts information up to
     /// current execution status.
-    fn accounts(&self) -> hash_map::Values<Address, Account>;
+    fn accounts(&self) -> hash_map::Values<Address, AccountChange>;
     /// Returns all fetched or modified addresses.
     fn used_addresses(&self) -> HashSet<Address>;
     /// Returns the out value, if any.
@@ -223,7 +223,7 @@ impl<M: Memory + Default> VM for ContextVM<M> {
         }
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, Account> {
+    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
         self.machines[0].state().account_state.accounts()
     }
 

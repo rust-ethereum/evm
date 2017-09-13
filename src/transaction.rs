@@ -7,7 +7,7 @@ use bigint::{U256, H256, Address, Gas};
 
 use super::errors::{RequireError, CommitError, PreExecutionError};
 use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,
-            VMStatus, AccountCommitment, Log, Account, MachineStatus};
+            VMStatus, AccountCommitment, Log, AccountChange, MachineStatus};
 use block::{Transaction, TransactionAction};
 
 const G_TXDATAZERO: usize = 4;
@@ -370,7 +370,7 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
         Ok(())
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, Account> {
+    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.accounts(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.accounts(),
@@ -422,10 +422,8 @@ impl<M: Memory + Default> VM for TransactionVM<M> {
 
 #[cfg(test)]
 mod tests {
-    use vm::*;
-    use util::bigint::*;
-    use util::address::*;
-    use util::gas::*;
+    use ::*;
+    use bigint::*;
     use block::TransactionAction;
     use std::str::FromStr;
 
@@ -450,13 +448,13 @@ mod tests {
         vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
         vm.fire().unwrap();
 
-        let mut accounts: Vec<Account> = Vec::new();
+        let mut accounts: Vec<AccountChange> = Vec::new();
         for account in vm.accounts() {
             accounts.push(account.clone());
         }
         assert_eq!(accounts.len(), 1);
         match accounts[0] {
-            Account::Create {
+            AccountChange::Create {
                 address, exists, balance, ..
             } => {
                 assert_eq!(address, Address::default());

@@ -1,7 +1,8 @@
-use sputnikvm::{Gas, M256, U256, H256, Address, read_hex};
-use sputnikvm::vm::{Machine, Log, Context,
-                    Account, Storage, AccountCommitment,
-                    HeaderParams};
+use bigint::{Gas, M256, U256, H256, Address};
+use hexutil::*;
+use sputnikvm::{Machine, Log, Context,
+                AccountChange, Storage, AccountCommitment,
+                HeaderParams};
 
 use serde_json::Value;
 use std::collections::HashMap;
@@ -73,9 +74,9 @@ impl JSONBlock {
         }
     }
 
-    pub fn apply_account(&mut self, account: Account) {
+    pub fn apply_account(&mut self, account: AccountChange) {
         match account {
-            Account::Full {
+            AccountChange::Full {
                 address: address,
                 balance: balance,
                 changing_storage: changing_storage,
@@ -93,7 +94,7 @@ impl JSONBlock {
                 }
                 self.set_account_nonce(address, nonce);
             },
-            Account::Create {
+            AccountChange::Create {
                 address, balance, storage, code, nonce, ..
             } => {
                 self.set_balance(address, balance);
@@ -101,11 +102,11 @@ impl JSONBlock {
                 self.storages.insert(address, storage.into());
                 self.set_account_nonce(address, nonce);
             },
-            Account::IncreaseBalance(address, topup) => {
+            AccountChange::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);
                 self.set_balance(address, balance + topup);
             },
-            Account::DecreaseBalance(address, withdraw) => {
+            AccountChange::DecreaseBalance(address, withdraw) => {
                 let balance = self.balance(address);
                 self.set_balance(address, balance - withdraw);
             },
