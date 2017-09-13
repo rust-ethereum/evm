@@ -22,18 +22,6 @@ fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
     }
 }
 
-pub fn is_precompiled(address: Address) -> bool {
-    let ecrec_address = Address::from_str("0x0000000000000000000000000000000000000001").unwrap();
-    let sha256_address = Address::from_str("0x0000000000000000000000000000000000000002").unwrap();
-    let rip160_address = Address::from_str("0x0000000000000000000000000000000000000003").unwrap();
-    let id_address = Address::from_str("0x0000000000000000000000000000000000000004").unwrap();
-
-    address == ecrec_address ||
-        address == sha256_address ||
-        address == rip160_address ||
-        address == id_address
-}
-
 impl<M: Memory + Default> Machine<M> {
     /// Step a precompiled runtime. This function returns true if the
     /// runtime is indeed a precompiled address. Otherwise return
