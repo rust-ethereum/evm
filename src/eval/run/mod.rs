@@ -49,11 +49,9 @@ mod flow;
 mod environment;
 mod system;
 
-use util::gas::Gas;
-use util::bigint::{M256, MI256, U256};
-use util::address::Address;
+use bigint::{M256, MI256, U256, Address, Gas};
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
-use vm::{Memory, Instruction};
+use ::{Memory, Instruction};
 use super::{State, Control};
 use super::util::{copy_from_memory, copy_into_memory};
 

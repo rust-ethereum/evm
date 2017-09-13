@@ -1,9 +1,8 @@
 //! Eval utilities
 
-use util::bigint::{U256, M256};
-use util::gas::Gas;
-use vm::Memory;
-use vm::errors::MachineError;
+use bigint::{U256, M256, Gas};
+use ::Memory;
+use errors::MachineError;
 use std::cmp::min;
 
 pub fn l64(gas: Gas) -> Gas {

@@ -1,8 +1,8 @@
 //! Blockhash commitment management
 use std::collections::hash_map::HashMap;
-use util::bigint::{U256, H256};
+use bigint::{U256, H256};
 
-use vm::errors::{RequireError, CommitError};
+use errors::{RequireError, CommitError};
 
 #[derive(Debug, Clone)]
 /// A struct that manages the current blockhash state for one EVM.

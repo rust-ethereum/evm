@@ -1,7 +1,7 @@
 //! Flow control instructions.
 
-use vm::Memory;
-use util::bigint::{U256, M256};
+use ::Memory;
+use bigint::{U256, M256};
 use super::State;
 
 pub fn sload<M: Memory + Default>(state: &mut State<M>) {

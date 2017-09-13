@@ -1,7 +1,6 @@
 //! VM errors
 
-use util::address::Address;
-use util::bigint::U256;
+use bigint::{Address, U256};
 
 #[derive(Debug, Clone)]
 /// Errors when trying to validate the transaction.

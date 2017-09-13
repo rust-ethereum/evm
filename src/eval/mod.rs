@@ -1,7 +1,5 @@
 //! VM Runtime
-use util::bigint::{H256, M256, U256};
-use util::gas::Gas;
-use util::address::Address;
+use bigint::{H256, M256, U256, Gas, Address};
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
 use super::{Stack, Context, HeaderParams, Patch, PC, Memory, AccountCommitment, Log};
