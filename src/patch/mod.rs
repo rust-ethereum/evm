@@ -3,7 +3,7 @@
 
 mod precompiled;
 
-use self::precompiled::*;
+pub use self::precompiled::*;
 
 use std::ops::Deref;
 use std::str::FromStr;
