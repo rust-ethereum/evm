@@ -156,10 +156,10 @@ pub fn memory_cost<M: Memory + Default>(instruction: Instruction, state: &State<
 /// Calculate the gas cost.
 pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
-        Instruction::CALL => call_cost(state, &Instruction::CALL),
-        Instruction::CALLCODE => call_cost(state, &Instruction::CALLCODE),
-        Instruction::DELEGATECALL => call_cost(state, &Instruction::DELEGATECALL),
-        Instruction::SUICIDE => suicide_cost(state),
+        Instruction::CALL => call_cost::<M, P>(state, &Instruction::CALL),
+        Instruction::CALLCODE => call_cost::<M, P>(state, &Instruction::CALLCODE),
+        Instruction::DELEGATECALL => call_cost::<M, P>(state, &Instruction::DELEGATECALL),
+        Instruction::SUICIDE => suicide_cost::<M, P>(state),
         Instruction::SSTORE => sstore_cost(state),
 
         Instruction::SHA3 => {

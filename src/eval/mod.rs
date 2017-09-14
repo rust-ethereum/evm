@@ -152,7 +152,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// runtime afterwards.
     pub fn derive(&self, context: Context) -> Self {
         Machine {
-            pc: PC::new(context.code.as_slice(), self.state.patch),
+            pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
@@ -160,7 +160,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
                 context: context,
                 block: self.state.block.clone(),
-                patch: self.state.patch.clone(),
 
                 out: Vec::new(),
 
@@ -242,7 +241,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         let position = self.pc.position();
         let memory_cost = memory_cost(instruction, &self.state);
         let memory_gas = memory_gas(memory_cost);
-        let gas_cost = gas_cost(instruction, &self.state);
+        let gas_cost = gas_cost::<M, P>(instruction, &self.state);
         let gas_stipend = gas_stipend(instruction, &self.state);
         let gas_refund = gas_refund(instruction, &self.state);
 
@@ -254,7 +253,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
         let after_gas = self.state.context.gas_limit - all_gas_cost;
 
-        match extra_check_opcode(instruction, &self.state, gas_stipend, after_gas) {
+        match extra_check_opcode::<M, P>(instruction, &self.state, gas_stipend, after_gas) {
             Ok(()) => (),
             Err(EvalError::Machine(error)) => {
                 self.status = MachineStatus::ExitedErr(error);
@@ -266,8 +265,8 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
 
         let instruction = self.pc.read().unwrap();
-        let result = run_opcode((instruction, position),
-                                &mut self.state, gas_stipend, after_gas);
+        let result = run_opcode::<M, P>((instruction, position),
+                                        &mut self.state, gas_stipend, after_gas);
 
         self.state.used_gas = self.state.used_gas + gas_cost - gas_stipend;
         self.state.memory_cost = memory_cost;
