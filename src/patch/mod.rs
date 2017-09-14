@@ -1,7 +1,13 @@
 //! Patch of a VM, indicating different hard-fork of the Ethereum
 //! block range.
 
-use bigint::Gas;
+mod precompiled;
+
+use self::precompiled::*;
+
+use std::ops::Deref;
+use std::str::FromStr;
+use bigint::{Address, Gas};
 
 /// Represents different block range context.
 pub trait Patch {
@@ -35,6 +41,26 @@ pub trait Patch {
     /// If true, only consume at maximum l64(after_gas) when
     /// CALL/CALLCODE/DELEGATECALL.
     fn call_create_l64_after_gas() -> bool;
+    /// Precompiled contracts at given address, with required code,
+    /// and its definition.
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)];
+}
+
+lazy_static! {
+    static ref ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, Box<Precompiled>); 4] = [
+        (Address::from_str("0x0000000000000000000000000000000000000001").unwrap(),
+         None,
+         Box::new(ECRECPrecompiled)),
+        (Address::from_str("0x0000000000000000000000000000000000000002").unwrap(),
+         None,
+         Box::new(SHA256Precompiled)),
+        (Address::from_str("0x0000000000000000000000000000000000000003").unwrap(),
+         None,
+         Box::new(RIP160Precompiled)),
+        (Address::from_str("0x0000000000000000000000000000000000000004").unwrap(),
+         None,
+         Box::new(IDPrecompiled)),
+    ];
 }
 
 /// Frontier patch.
@@ -53,6 +79,8 @@ impl Patch for FrontierPatch {
     fn has_delegate_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+        ETC_PRECOMPILEDS.deref() }
 }
 
 /// Homestead patch.
@@ -71,6 +99,8 @@ impl Patch for HomesteadPatch {
     fn has_delegate_call() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+        ETC_PRECOMPILEDS.deref() }
 }
 
 /// Patch sepcific for the `jsontests` crate.
@@ -89,6 +119,8 @@ impl Patch for VMTestPatch {
     fn has_delegate_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+        ETC_PRECOMPILEDS.deref() }
 }
 
 /// EIP150 patch.
@@ -107,6 +139,8 @@ impl Patch for EIP150Patch {
     fn has_delegate_call() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+        ETC_PRECOMPILEDS.deref() }
 }
 
 /// EIP160 patch.
@@ -125,4 +159,6 @@ impl Patch for EIP160Patch {
     fn has_delegate_call() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+        ETC_PRECOMPILEDS.deref() }
 }

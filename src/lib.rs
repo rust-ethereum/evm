@@ -26,6 +26,8 @@ extern crate sha2;
 extern crate sha3;
 extern crate secp256k1;
 extern crate digest;
+#[macro_use]
+extern crate lazy_static;
 
 mod util;
 mod memory;

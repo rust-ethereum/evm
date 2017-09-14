@@ -16,6 +16,7 @@ ripemd160 = "0.6"
 sha2 = "0.6"
 sha3 = "0.6"
 digest = { version = "0.6", features = ["std"]}
+lazy_static = "0.2"
 secp256k1-plus = "0.5.7"
 etcommon-block = "0.2"
 etcommon-rlp = "0.2"
