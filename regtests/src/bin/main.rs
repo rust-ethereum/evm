@@ -319,7 +319,7 @@ fn test_all_previously_failed_frontier_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/frontier_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block(&mut client, n, &FRONTIER_PATCH);
+        test_block::<_, FrontierPatch>(&mut client, n);
     }
 }
 
@@ -330,7 +330,7 @@ fn test_all_previously_failed_homestead_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/homestead_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block(&mut client, n, &HOMESTEAD_PATCH);
+        test_block::<_, HomesteadPatch>(&mut client, n);
     }
 }
 
@@ -341,6 +341,6 @@ fn test_all_previously_failed_eip150_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/eip150_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block(&mut client, n, &EIP150_PATCH);
+        test_block::<_, EIP150Patch>(&mut client, n);
     }
 }

@@ -434,13 +434,13 @@ mod tests {
             input: Vec::new(),
             nonce: U256::zero(),
         };
-        let mut vm = SeqTransactionVM::new(transaction, HeaderParams {
+        let mut vm = SeqTransactionVM::<EIP160Patch>::new(transaction, HeaderParams {
             beneficiary: Address::default(),
             timestamp: 0,
             number: U256::zero(),
             difficulty: U256::zero(),
             gas_limit: Gas::zero(),
-        }, &EIP160_PATCH);
+        });
         vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
         vm.fire().unwrap();
 
