@@ -2,17 +2,17 @@
 
 use bigint::{U256, M256, Gas};
 
-use ::{Memory, Instruction};
+use ::{Memory, Instruction, Patch};
 use errors::{MachineError, EvalError};
 use eval::{State, ControlCheck};
 
 use super::util::check_range;
 
 #[allow(unused_variables)]
-pub fn extra_check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
+pub fn extra_check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE | Instruction::DELEGATECALL => {
-            if state.patch.err_on_call_with_more_gas && after_gas < state.stack.peek(0).unwrap().into() {
+            if P::err_on_call_with_more_gas() && after_gas < state.stack.peek(0).unwrap().into() {
                 Err(EvalError::Machine(MachineError::EmptyGas))
             } else {
                 Ok(())

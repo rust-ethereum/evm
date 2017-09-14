@@ -26,8 +26,6 @@ pub struct State<M> {
     pub context: Context,
     /// Block header.
     pub block: HeaderParams,
-    /// Patch that is used by this runtime.
-    pub patch: &'static Patch,
 
     /// The current out value.
     pub out: Vec<u8>,
@@ -71,9 +69,9 @@ impl<M> State<M> {
 }
 
 /// A VM state with PC.
-pub struct Machine<M> {
+pub struct Machine<M, P: Patch> {
     state: State<M>,
-    pc: PC,
+    pc: PC<P>,
     status: MachineStatus,
 }
 
@@ -111,19 +109,19 @@ pub enum Control {
     InvokeCall(Context, (U256, U256)),
 }
 
-impl<M: Memory + Default> Machine<M> {
+impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Create a new runtime.
-    pub fn new(context: Context, block: HeaderParams, patch: &'static Patch, depth: usize) -> Self {
-        Self::with_states(context, block, patch, depth,
+    pub fn new(context: Context, block: HeaderParams, depth: usize) -> Self {
+        Self::with_states(context, block, depth,
                           AccountState::default(), BlockhashState::default())
     }
 
     /// Create a new runtime with the given states.
-    pub fn with_states(context: Context, block: HeaderParams, patch: &'static Patch,
+    pub fn with_states(context: Context, block: HeaderParams,
                        depth: usize, account_state: AccountState,
                        blockhash_state: BlockhashState) -> Self {
         Machine {
-            pc: PC::new(context.code.as_slice(), patch),
+            pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
@@ -131,7 +129,6 @@ impl<M: Memory + Default> Machine<M> {
 
                 context,
                 block,
-                patch,
 
                 out: Vec::new(),
 

@@ -3,7 +3,7 @@
 use bigint::{Address, Gas};
 
 use errors::MachineError;
-use ::{Memory, Machine, MachineStatus};
+use ::{Memory, Machine, MachineStatus, Patch};
 
 use std::str::FromStr;
 use std::cmp::min;
@@ -22,7 +22,7 @@ fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
     }
 }
 
-impl<M: Memory + Default> Machine<M> {
+impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Step a precompiled runtime. This function returns true if the
     /// runtime is indeed a precompiled address. Otherwise return
     /// false with state unchanged.

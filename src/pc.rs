@@ -3,6 +3,7 @@
 use bigint::M256;
 use util::opcode::Opcode;
 use std::cmp::min;
+use std::marker::PhantomData;
 use super::Patch;
 use super::errors::PCError;
 
@@ -27,16 +28,16 @@ pub enum Instruction {
 }
 
 /// Represents a program counter in EVM.
-pub struct PC {
+pub struct PC<P: Patch> {
     position: usize,
     code: Vec<u8>,
     valids: Vec<bool>,
-    patch: &'static Patch,
+    _patch: PhantomData<P>,
 }
 
-impl PC {
+impl<P: Patch> PC<P> {
     /// Create a new program counter from the given code.
-    pub fn new(code: &[u8], patch: &'static Patch) -> Self {
+    pub fn new(code: &[u8]) -> Self {
         let code: Vec<u8> = code.into();
         let mut valids: Vec<bool> = Vec::with_capacity(code.len());
         valids.resize(code.len(), false);
@@ -59,9 +60,10 @@ impl PC {
         }
 
         PC {
-            code, patch,
+            code,
             position: 0,
             valids: valids,
+            _patch: PhantomData,
         }
     }
 
@@ -210,7 +212,7 @@ impl PC {
             Opcode::CALLCODE => Instruction::CALLCODE,
             Opcode::RETURN => Instruction::RETURN,
             Opcode::DELEGATECALL => {
-                if self.patch.has_delegate_call {
+                if P::has_delegate_call() {
                     Instruction::DELEGATECALL
                 } else {
                     return Err(PCError::InvalidOpcode);
