@@ -214,14 +214,17 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 (precompiled.1.is_none() || precompiled.1.unwrap() == self.pc.code())
             {
                 let data = &self.state.context.data;
-                let gas = precompiled.2.gas(data);
-                if gas > self.state.context.gas_limit {
-                    self.state.used_gas = self.state.context.gas_limit;
-                    self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
-                } else {
-                    self.state.used_gas = gas;
-                    self.state.out = precompiled.2.step(data);
-                    self.status = MachineStatus::ExitedOk;
+                match precompiled.2.gas_and_step(data, self.state.context.gas_limit) {
+                    Err(err) => {
+                        self.state.used_gas = self.state.context.gas_limit;
+                        self.status = MachineStatus::ExitedErr(err);
+                    },
+                    Ok((gas, ret)) => {
+                        assert!(gas <= self.state.context.gas_limit);
+                        self.state.used_gas = gas;
+                        self.state.out = ret;
+                        self.status = MachineStatus::ExitedOk;
+                    }
                 }
                 return true;
             }

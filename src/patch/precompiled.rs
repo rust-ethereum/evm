@@ -1,6 +1,7 @@
 use bigint::Gas;
 use std::cmp::min;
 
+use errors::MachineError;
 use sha2::Sha256;
 use sha3::Keccak256;
 use ripemd160::Ripemd160;
@@ -10,9 +11,22 @@ use digest::{Digest, FixedOutput};
 /// Represent a precompiled contract.
 pub trait Precompiled: Sync {
     /// Step a precompiled contract based on the gas required.
-    fn step(&self, data: &[u8]) -> Vec<u8>;
+    fn step(&self, _: &[u8]) -> Vec<u8> {
+        unimplemented!()
+    }
     /// Gas needed for a given computation.
-    fn gas(&self, data: &[u8]) -> Gas;
+    fn gas(&self, _: &[u8]) -> Gas {
+        unimplemented!()
+    }
+    /// Combine step and gas together, given the gas limit.
+    fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Vec<u8>), MachineError> {
+        let gas = self.gas(data);
+        if gas > gas_limit {
+            Err(MachineError::EmptyGas)
+        } else {
+            Ok((gas, self.step(data)))
+        }
+    }
 }
 
 /// ID precompiled contract.
