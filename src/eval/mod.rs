@@ -13,7 +13,6 @@ mod run;
 mod check;
 mod util;
 mod lifecycle;
-mod precompiled;
 
 /// A VM state without PC.
 pub struct State<M> {
@@ -204,6 +203,30 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 }
             }
         })
+    }
+
+    /// Step a precompiled runtime. This function returns true if the
+    /// runtime is indeed a precompiled address. Otherwise return
+    /// false with state unchanged.
+    pub fn step_precompiled(&mut self) -> bool {
+        for precompiled in P::precompileds() {
+            if self.state.context.address == precompiled.0 &&
+                (precompiled.1.is_none() || precompiled.1.unwrap() == self.pc.code())
+            {
+                let data = &self.state.context.data;
+                let gas = precompiled.2.gas(data);
+                if gas > self.state.context.gas_limit {
+                    self.state.used_gas = self.state.context.gas_limit;
+                    self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+                } else {
+                    self.state.used_gas = gas;
+                    self.state.out = precompiled.2.step(data);
+                    self.status = MachineStatus::ExitedOk;
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     /// Step an instruction in the PC. The eval result is refected by

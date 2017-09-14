@@ -79,6 +79,11 @@ impl<P: Patch> PC<P> {
         Ok(M256::from(&self.code[position..max]))
     }
 
+    /// Get the code bytearray.
+    pub fn code(&self) -> &[u8] {
+        &self.code
+    }
+
     /// Jump to a position in the code. The destination must be valid
     /// to jump.
     pub fn jump(&mut self, position: usize) -> Result<(), PCError> {
