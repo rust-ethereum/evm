@@ -3,7 +3,7 @@
 use bigint::{M256, U256, Gas, Address};
 
 use std::cmp::max;
-use ::{Memory, Instruction};
+use ::{Memory, Instruction, Patch};
 use super::State;
 
 const G_ZERO: usize = 0;
@@ -44,8 +44,8 @@ fn sstore_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
     }
 }
 
-fn call_cost<M: Memory + Default>(machine: &State<M>, instruction: &Instruction) -> Gas {
-    Gas::from(machine.patch.gas_call) + xfer_cost(machine, instruction) + new_cost(machine, instruction)
+fn call_cost<M: Memory + Default, P: Patch>(machine: &State<M>, instruction: &Instruction) -> Gas {
+    Gas::from(P::gas_call()) + xfer_cost(machine, instruction) + new_cost(machine, instruction)
 }
 
 fn xfer_cost<M: Memory + Default>(machine: &State<M>, instruction: &Instruction) -> Gas {
@@ -70,10 +70,10 @@ fn new_cost<M: Memory + Default>(machine: &State<M>, instruction: &Instruction) 
     }
 }
 
-fn suicide_cost<M: Memory + Default>(machine: &State<M>) -> Gas {
+fn suicide_cost<M: Memory + Default, P: Patch>(machine: &State<M>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
-    Gas::from(machine.patch.gas_suicide) + if !machine.account_state.exists(address).unwrap() {
-        Gas::from(machine.patch.gas_suicide_new_account)
+    Gas::from(P::gas_suicide()) + if !machine.account_state.exists(address).unwrap() {
+        Gas::from(P::gas_suicide_new_account())
     } else {
         Gas::zero()
     }
@@ -154,12 +154,12 @@ pub fn memory_cost<M: Memory + Default>(instruction: Instruction, state: &State<
 }
 
 /// Calculate the gas cost.
-pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Gas {
+pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M>) -> Gas {
     match instruction {
-        Instruction::CALL => call_cost(state, &Instruction::CALL),
-        Instruction::CALLCODE => call_cost(state, &Instruction::CALLCODE),
-        Instruction::DELEGATECALL => call_cost(state, &Instruction::DELEGATECALL),
-        Instruction::SUICIDE => suicide_cost(state),
+        Instruction::CALL => call_cost::<M, P>(state, &Instruction::CALL),
+        Instruction::CALLCODE => call_cost::<M, P>(state, &Instruction::CALLCODE),
+        Instruction::DELEGATECALL => call_cost::<M, P>(state, &Instruction::DELEGATECALL),
+        Instruction::SUICIDE => suicide_cost::<M, P>(state),
         Instruction::SSTORE => sstore_cost(state),
 
         Instruction::SHA3 => {
@@ -178,7 +178,7 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
             let len = state.stack.peek(3).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(state.patch.gas_extcode) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            (Gas::from(P::gas_extcode()) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
         Instruction::CALLDATACOPY | Instruction::CODECOPY => {
@@ -192,13 +192,13 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
             if state.stack.peek(1).unwrap() == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(state.patch.gas_expbyte) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + Gas::from(P::gas_expbyte()) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
             }
         }
 
         Instruction::CREATE => G_CREATE.into(),
         Instruction::JUMPDEST => G_JUMPDEST.into(),
-        Instruction::SLOAD => state.patch.gas_sload.into(),
+        Instruction::SLOAD => P::gas_sload(),
 
         // W_zero
         Instruction::STOP | Instruction::RETURN
@@ -235,8 +235,8 @@ pub fn gas_cost<M: Memory + Default>(instruction: Instruction, state: &State<M>)
         Instruction::JUMPI => G_HIGH.into(),
 
         // W_extcode
-        Instruction::EXTCODESIZE => state.patch.gas_extcode.into(),
-        Instruction::BALANCE => state.patch.gas_balance.into(),
+        Instruction::EXTCODESIZE => P::gas_extcode(),
+        Instruction::BALANCE => P::gas_balance(),
         Instruction::BLOCKHASH => G_BLOCKHASH.into(),
     }
 }

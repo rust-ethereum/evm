@@ -3,7 +3,7 @@
 use bigint::{U256, M256, Gas};
 use errors::{RequireError, MachineError};
 use commit::AccountState;
-use ::Memory;
+use ::{Memory, Patch};
 use super::{Machine, MachineStatus};
 use super::util::copy_into_memory_apply;
 use super::cost::code_deposit_gas;
@@ -20,7 +20,7 @@ use super::cost::code_deposit_gas;
 /// should first call `code_deposit` if it is a contract creation
 /// transaction. After that, it should call `finalize`.
 
-impl<M: Memory + Default> Machine<M> {
+impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Initialize a MessageCall transaction.
     pub fn initialize_call(&mut self, preclaimed_value: U256) {
         self.state.account_state.premark_exists(self.state.context.address);
@@ -78,7 +78,7 @@ impl<M: Memory + Default> Machine<M> {
 
         let deposit_cost = code_deposit_gas(self.state.out.len());
         if deposit_cost > self.state.available_gas() {
-            if !self.state.patch.force_code_deposit {
+            if !P::force_code_deposit() {
                 self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
             } else {
                 self.state.account_state.code_deposit(self.state.context.address, &[]);
@@ -139,7 +139,7 @@ impl<M: Memory + Default> Machine<M> {
     /// function. Depending whether the current runtime is invoking a
     /// ContractCreation or MessageCall instruction, it will apply
     /// various states back.
-    pub fn apply_sub(&mut self, sub: Machine<M>) {
+    pub fn apply_sub(&mut self, sub: Machine<M, P>) {
         use std::mem::swap;
         let mut status = MachineStatus::Running;
         swap(&mut status, &mut self.status);
@@ -154,7 +154,7 @@ impl<M: Memory + Default> Machine<M> {
         }
     }
 
-    fn apply_create(&mut self, mut sub: Machine<M>) {
+    fn apply_create(&mut self, mut sub: Machine<M, P>) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }
@@ -182,7 +182,7 @@ impl<M: Memory + Default> Machine<M> {
         }
     }
 
-    fn apply_call(&mut self, sub: Machine<M>, out_start: U256, out_len: U256) {
+    fn apply_call(&mut self, sub: Machine<M, P>, out_start: U256, out_len: U256) {
         if self.state.available_gas() < sub.state.used_gas {
             panic!();
         }

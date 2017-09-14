@@ -26,6 +26,8 @@ extern crate sha2;
 extern crate sha3;
 extern crate secp256k1;
 extern crate digest;
+#[macro_use]
+extern crate lazy_static;
 
 mod util;
 mod memory;
@@ -112,22 +114,22 @@ pub trait VM {
 
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
-pub type SeqContextVM = ContextVM<SeqMemory>;
+pub type SeqContextVM<P> = ContextVM<SeqMemory, P>;
 /// A sequencial transaction VM. This is same as `SeqContextVM` except
 /// it runs at transaction level.
-pub type SeqTransactionVM = TransactionVM<SeqMemory>;
+pub type SeqTransactionVM<P> = TransactionVM<SeqMemory, P>;
 
 /// A VM that executes using a context and block information.
-pub struct ContextVM<M> {
-    machines: Vec<Machine<M>>,
+pub struct ContextVM<M, P: Patch> {
+    machines: Vec<Machine<M, P>>,
     history: Vec<Context>
 }
 
-impl<M: Memory + Default> ContextVM<M> {
+impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     /// Create a new VM using the given context, block header and patch.
-    pub fn new(context: Context, block: HeaderParams, patch: &'static Patch) -> Self {
+    pub fn new(context: Context, block: HeaderParams) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::new(context, block, patch, 1));
+        machines.push(Machine::new(context, block, 1));
         ContextVM {
             machines,
             history: Vec::new()
@@ -135,10 +137,10 @@ impl<M: Memory + Default> ContextVM<M> {
     }
 
     /// Create a new VM with the given account state and blockhash state.
-    pub fn with_states(context: Context, block: HeaderParams, patch: &'static Patch,
+    pub fn with_states(context: Context, block: HeaderParams,
                        account_state: AccountState, blockhash_state: BlockhashState) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::with_states(context, block, patch, 1, account_state, blockhash_state));
+        machines.push(Machine::with_states(context, block, 1, account_state, blockhash_state));
         ContextVM {
             machines,
             history: Vec::new()
@@ -147,9 +149,8 @@ impl<M: Memory + Default> ContextVM<M> {
 
     /// Create a new VM with the result of the previous VM. This is
     /// usually used by transaction for chainning them.
-    pub fn with_previous(context: Context, block: HeaderParams, patch: &'static Patch,
-                         vm: &ContextVM<M>) -> Self {
-        Self::with_states(context, block, patch,
+    pub fn with_previous(context: Context, block: HeaderParams, vm: &ContextVM<M, P>) -> Self {
+        Self::with_states(context, block,
                           vm.machines[0].state().account_state.clone(),
                           vm.machines[0].state().blockhash_state.clone())
     }
@@ -160,7 +161,7 @@ impl<M: Memory + Default> ContextVM<M> {
     }
 }
 
-impl<M: Memory + Default> VM for ContextVM<M> {
+impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         for machine in &mut self.machines {
             machine.commit_account(commitment.clone())?;

@@ -19,8 +19,8 @@ use block::TransactionAction;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::*;
 use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                AccountCommitment, AccountChange, FRONTIER_PATCH, HOMESTEAD_PATCH,
-                EIP150_PATCH, EIP160_PATCH};
+                AccountCommitment, AccountChange, FrontierPatch, HomesteadPatch,
+                EIP150Patch, EIP160Patch};
 use sputnikvm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
@@ -62,7 +62,7 @@ fn from_rpc_log(log: &RPCLog) -> Log {
     }
 }
 
-fn handle_fire<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactionVM, last_block_id: usize) {
+fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransactionVM<P>, last_block_id: usize) {
     let last_block_number = format!("0x{:x}", last_block_id);
     loop {
         match vm.fire() {
@@ -140,7 +140,7 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
     return false;
 }
 
-fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static Patch) {
+fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
     println!("block {} ({}), transaction count: {}", number, block.number, block.transactions.len());
     let last_id = number - 1;
@@ -148,16 +148,16 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
     let cur_number = block.number.to_string();
     let block_header = from_rpc_block(&block);
 
-    let mut last_vm: Option<SeqTransactionVM> = None;
+    let mut last_vm: Option<SeqTransactionVM<P>> = None;
     for transaction_hash in &block.transactions {
         println!("\nworking on transaction {}", transaction_hash);
         let transaction = from_rpc_transaction(&client.get_transaction_by_hash(&transaction_hash));
         let receipt = client.get_transaction_receipt(&transaction_hash);
 
         let mut vm = if last_vm.is_none() {
-            SeqTransactionVM::new(transaction, block_header.clone(), patch)
+            SeqTransactionVM::new(transaction, block_header.clone())
         } else {
-            SeqTransactionVM::with_previous(transaction, block_header.clone(), patch, last_vm.as_ref().unwrap())
+            SeqTransactionVM::with_previous(transaction, block_header.clone(), last_vm.as_ref().unwrap())
         };
 
         handle_fire(client, &mut vm, last_id);
@@ -239,29 +239,39 @@ fn test_block<T: GethRPCClient>(client: &mut T, number: usize, patch: &'static P
     }
 }
 
-fn test_blocks<T: GethRPCClient>(client: &mut T, number: &str, patch: &'static Patch) {
+fn test_blocks_patch<T: GethRPCClient>(client: &mut T, number: &str, patch: Option<&str>) {
+    match patch {
+        Some("frontier") => test_blocks::<_, FrontierPatch>(client, number),
+        Some("homestead") => test_blocks::<_, HomesteadPatch>(client, number),
+        Some("eip150") => test_blocks::<_, EIP150Patch>(client, number),
+        Some("eip160") => test_blocks::<_, EIP160Patch>(client, number),
+        _ => panic!("Unknown patch."),
+    }
+}
+
+fn test_blocks<T: GethRPCClient, P: Patch>(client: &mut T, number: &str) {
     if number.contains(".json") {
         let file = File::open(number).unwrap();
         let numbers: Vec<usize> = serde_json::from_reader(file).unwrap();
         for n in numbers {
-            test_block(client, n, patch);
+            test_block::<_, P>(client, n);
         }
     } else if number.contains("..") {
         let number: Vec<&str> = number.split("..").collect();
         let from = usize::from_str_radix(&number[0], 10).unwrap();
         let to = usize::from_str_radix(&number[1], 10).unwrap();
         for n in from..to {
-            test_block(client, n, patch);
+            test_block::<_, P>(client, n);
         }
     } else if number.contains(",") {
         let numbers: Vec<&str> = number.split("..").collect();
         for number in numbers {
             let n = usize::from_str_radix(number, 10).unwrap();
-            test_block(client, n, patch);
+            test_block::<_, P>(client, n);
         }
     } else {
         let number = usize::from_str_radix(&number, 10).unwrap();
-        test_block(client, number, patch);
+        test_block::<_, P>(client, number);
     }
 }
 
@@ -279,30 +289,24 @@ fn main() {
     let address = matches.value_of("RPC").unwrap();
     let number = matches.value_of("NUMBER").unwrap();
     let record = matches.value_of("RECORD");
-    let patch = match matches.value_of("PATCH") {
-        Some("frontier") => &FRONTIER_PATCH,
-        Some("homestead") => &HOMESTEAD_PATCH,
-        Some("eip150") => &EIP150_PATCH,
-        Some("eip160") => &EIP160_PATCH,
-        _ => panic!("Unknown patch."),
-    };
+    let patch = matches.value_of("PATCH");
 
     if address.contains(".json") {
         let file = File::open(address).unwrap();
         let cached: serde_json::Value = serde_json::from_reader(file).unwrap();
         let mut client = CachedGethRPCClient::from_value(cached);
-        test_blocks(&mut client, number, patch);
+        test_blocks_patch(&mut client, number, patch);
     } else {
         match record {
             Some(val) => {
                 let mut file = File::create(val).unwrap();
                 let mut client = RecordGethRPCClient::new(address);
-                test_blocks(&mut client, number, patch);
+                test_blocks_patch(&mut client, number, patch);
                 serde_json::to_writer(&mut file, &client.to_value());
             },
             None => {
                 let mut client = NormalGethRPCClient::new(address);
-                test_blocks(&mut client, number, patch);
+                test_blocks_patch(&mut client, number, patch);
             }
         }
     }
@@ -315,7 +319,7 @@ fn test_all_previously_failed_frontier_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/frontier_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block(&mut client, n, &FRONTIER_PATCH);
+        test_block::<_, FrontierPatch>(&mut client, n);
     }
 }
 
@@ -326,7 +330,7 @@ fn test_all_previously_failed_homestead_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/homestead_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block(&mut client, n, &HOMESTEAD_PATCH);
+        test_block::<_, HomesteadPatch>(&mut client, n);
     }
 }
 
@@ -337,6 +341,6 @@ fn test_all_previously_failed_eip150_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/eip150_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block(&mut client, n, &EIP150_PATCH);
+        test_block::<_, EIP150Patch>(&mut client, n);
     }
 }
