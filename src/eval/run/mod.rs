@@ -51,13 +51,13 @@ mod system;
 
 use bigint::{M256, MI256, U256, Address, Gas};
 use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
-use ::{Memory, Instruction};
+use ::{Memory, Instruction, Patch};
 use super::{State, Control};
 use super::util::{copy_from_memory, copy_into_memory};
 
 #[allow(unused_variables)]
 /// Run an instruction.
-pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
     match pc.0 {
         Instruction::STOP => { Some(Control::Stop) },
         Instruction::ADD => { op2!(state, add); None },
@@ -162,10 +162,10 @@ pub fn run_opcode<M: Memory + Default>(pc: (Instruction, usize), state: &mut Sta
                                   None },
         Instruction::LOG(v) => { system::log(state, v); None },
 
-        Instruction::CREATE => { system::create(state, after_gas) },
-        Instruction::CALL => { system::call(state, stipend_gas, after_gas, false) },
-        Instruction::CALLCODE => { system::call(state, stipend_gas, after_gas, true) },
-        Instruction::DELEGATECALL => { system::delegate_call(state, after_gas) },
+        Instruction::CREATE => { system::create::<M, P>(state, after_gas) },
+        Instruction::CALL => { system::call::<M, P>(state, stipend_gas, after_gas, false) },
+        Instruction::CALLCODE => { system::call::<M, P>(state, stipend_gas, after_gas, true) },
+        Instruction::DELEGATECALL => { system::delegate_call::<M, P>(state, after_gas) },
         Instruction::RETURN => { pop!(state, start: U256, len: U256);
                                  state.out = copy_from_memory(&mut state.memory, start, len);
                                  Some(Control::Stop) },

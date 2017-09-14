@@ -14,7 +14,7 @@ extern crate bigint;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
-use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160_PATCH, VMStatus};
+use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160Patch, VMStatus};
 use evm_stateful::MemoryStateful;
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
@@ -91,7 +91,7 @@ fn genesis_state_root() {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        let vm: SeqTransactionVM = stateful.execute(ValidTransaction {
+        let vm: SeqTransactionVM<EIP160Patch> = stateful.execute(ValidTransaction {
             caller: None,
             gas_price: Gas::zero(),
             gas_limit: Gas::from(100000u64),
@@ -105,7 +105,7 @@ fn genesis_state_root() {
             number: U256::zero(),
             difficulty: U256::zero(),
             gas_limit: Gas::max_value()
-        }, &EIP160_PATCH, &[]);
+        }, &[]);
         match vm.status() {
             VMStatus::ExitedOk => (),
             _ => panic!(),
