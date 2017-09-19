@@ -159,6 +159,16 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     pub fn history(&self) -> &[Context] {
         self.history.as_slice()
     }
+
+    /// Returns the current state of the VM.
+    pub fn current_state(&self) -> &State<M> {
+        self.current_machine().state()
+    }
+
+    /// Returns the current runtime machine.
+    pub fn current_machine(&self) -> &Machine<M, P> {
+        self.machines.last().unwrap()
+    }
 }
 
 impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
@@ -190,7 +200,9 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                 self.machines.last_mut().unwrap().step()
             },
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
-                if self.machines.len() <= 1 {
+                if self.machines.len() == 0 {
+                    panic!()
+                } else if self.machines.len() == 1 {
                     Ok(())
                 } else {
                     let finished = self.machines.pop().unwrap();
