@@ -53,6 +53,88 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
         }
     }
 
+    pub fn step<V: VM>(
+        &self, vm: &mut V, block_number: U256, most_recent_block_hashes: &[H256]
+    ) {
+        assert!(U256::from(most_recent_block_hashes.len()) >=
+                min(block_number, U256::from(256)));
+
+        let state = self.database.create_fixed_secure_trie(self.root);
+        let code_hashes = self.database.create_guard();
+
+        loop {
+            match vm.step() {
+                Ok(()) => break,
+                Err(RequireError::Account(address)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let code = if Self::is_empty_hash(account.code_hash) {
+                                Vec::new()
+                            } else {
+                                code_hashes.get(account.code_hash).unwrap()
+                            };
+
+                            vm.commit_account(AccountCommitment::Full {
+                                nonce: account.nonce,
+                                address: address,
+                                balance: account.balance,
+                                code: code,
+                            }).unwrap();
+                        },
+                        None => {
+                            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::AccountCode(address)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let code = if Self::is_empty_hash(account.code_hash) {
+                                Vec::new()
+                            } else {
+                                code_hashes.get(account.code_hash).unwrap()
+                            };
+
+                            vm.commit_account(AccountCommitment::Code {
+                                address: address,
+                                code: code,
+                            }).unwrap();
+                        },
+                        None => {
+                            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::AccountStorage(address, index)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let storage = self.database.create_fixed_secure_trie(account.storage_root);
+                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+
+                            vm.commit_account(AccountCommitment::Storage {
+                                address: address,
+                                index, value
+                            }).unwrap();
+                        },
+                        None => {
+                            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::Blockhash(number)) => {
+                    let index = (block_number - number).as_usize();
+                    vm.commit_blockhash(number, most_recent_block_hashes[index]).unwrap();
+                },
+            }
+        }
+    }
+
     pub fn call<M: Memory + Default, P: Patch>(
         &self, transaction: ValidTransaction, block: HeaderParams,
         most_recent_block_hashes: &[H256]
