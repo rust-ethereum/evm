@@ -6,8 +6,9 @@ use std::str::FromStr;
 use bigint::{U256, H256, Address, Gas};
 
 use super::errors::{RequireError, CommitError, PreExecutionError};
-use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,
-            VMStatus, AccountCommitment, Log, AccountChange, MachineStatus};
+use super::{State, Machine, Context, ContextVM, VM, AccountState,
+            BlockhashState, Patch, HeaderParams, Memory, VMStatus,
+            AccountCommitment, Log, AccountChange, MachineStatus};
 use block::{Transaction, TransactionAction};
 
 const G_TXDATAZERO: usize = 4;
@@ -249,6 +250,21 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
                 }
             }
             TransactionVMState::Constructing { .. } => Gas::zero(),
+        }
+    }
+
+    /// Returns the current state of the VM.
+    pub fn current_state(&self) -> Option<&State<M>> {
+        self.current_machine().map(|m| m.state())
+    }
+
+    /// Returns the current runtime machine.
+    pub fn current_machine(&self) -> Option<&Machine<M, P>> {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => {
+                Some(vm.current_machine())
+            }
+            TransactionVMState::Constructing { .. } => None,
         }
     }
 }

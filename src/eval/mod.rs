@@ -176,7 +176,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
     }
 
-
     /// Commit a new account into this runtime.
     pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         self.state.account_state.commit(commitment)
@@ -322,6 +321,11 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Get the runtime state.
     pub fn state(&self) -> &State<M> {
         &self.state
+    }
+
+    /// Get the runtime PC.
+    pub fn pc(&self) -> &PC<P> {
+        &self.pc
     }
 
     /// Get the current runtime status.
