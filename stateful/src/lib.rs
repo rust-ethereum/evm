@@ -20,30 +20,25 @@ use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
 
-pub struct Stateful<D> {
-    database: D,
+pub struct Stateful<'a, D: 'a> {
+    database: &'a D,
     root: H256,
 }
 
-impl<D> Stateful<D> {
-    pub fn new(database: D, root: H256) -> Self {
+impl<'a, D> Stateful<'a, D> {
+    pub fn new(database: &'a D, root: H256) -> Self {
         Self {
             database,
             root
         }
     }
-}
 
-impl<D: Default> Default for Stateful<D> {
-    fn default() -> Self {
-        Self {
-            database: D::default(),
-            root: MemoryDatabase::new().create_empty().root(),
-        }
+    pub fn empty(database: &'a D) -> Self {
+        Self::new(database, MemoryDatabase::new().create_empty().root())
     }
 }
 
-impl<D: DatabaseOwned> Stateful<D> {
+impl<'b, D: DatabaseOwned> Stateful<'b, D> {
     fn is_empty_hash(hash: H256) -> bool {
         hash == H256::from(Keccak256::digest(&[]).as_slice())
     }
@@ -356,4 +351,4 @@ impl<D: DatabaseOwned> Stateful<D> {
     }
 }
 
-pub type MemoryStateful = Stateful<MemoryDatabase>;
+pub type MemoryStateful<'a> = Stateful<'a, MemoryDatabase>;
