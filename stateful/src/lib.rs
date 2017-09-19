@@ -20,6 +20,7 @@ use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
 
+#[derive(Clone, Debug)]
 pub struct Stateful<'a, D: 'a> {
     database: &'a D,
     root: H256,
