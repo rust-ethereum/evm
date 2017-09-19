@@ -20,10 +20,19 @@ use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Stateful<'a, D: 'a> {
     database: &'a D,
     root: H256,
+}
+
+impl<'a, D: 'a> Clone for Stateful<'a, D> {
+    fn clone(&self) -> Self {
+        Self {
+            database: self.database.clone(),
+            root: self.root.clone(),
+        }
+    }
 }
 
 impl<'a, D> Stateful<'a, D> {
