@@ -4,11 +4,13 @@ extern crate hexutil;
 extern crate bigint;
 extern crate sputnikvm;
 extern crate sputnikvm_stateful;
+#[macro_use] extern crate lazy_static;
 
 use hexutil::*;
 use block::TransactionAction;
 use bigint::{Address, U256, Gas};
 use sputnikvm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, EIP160Patch, ValidTransaction};
+use trie::MemoryDatabase;
 use sputnikvm_stateful::MemoryStateful;
 use std::thread;
 use std::collections::HashSet;
@@ -25,8 +27,8 @@ fn is_modified(modified_addresses: &HashSet<Address>, accounts: &[AccountChange]
 }
 
 pub fn parallel_execute(
-    stateful: MemoryStateful, transactions: &[ValidTransaction]
-) -> MemoryStateful {
+    stateful: MemoryStateful<'static>, transactions: &[ValidTransaction]
+) -> MemoryStateful<'static> {
     let header = HeaderParams {
         beneficiary: Address::zero(),
         timestamp: 0,
@@ -87,8 +89,12 @@ pub fn parallel_execute(
     stateful
 }
 
+lazy_static! {
+    static ref DATABASE: MemoryDatabase = MemoryDatabase::default();
+}
+
 fn main() {
-    let mut stateful = MemoryStateful::default();
+    let mut stateful = MemoryStateful::empty(&DATABASE);
 
     let addr1 = Address::from_str("0x0000000000000000000000000000000000001000").unwrap();
     let addr2 = Address::from_str("0x0000000000000000000000000000000000001001").unwrap();

@@ -54,7 +54,8 @@ fn secure_trie() {
 
 #[test]
 fn morden_state_root() {
-    let mut stateful = MemoryStateful::default();
+    let database = MemoryDatabase::default();
+    let mut stateful = MemoryStateful::empty(&database);
     let mut rng = rand::thread_rng();
 
     let mut accounts: Vec<(&String, &JSONAccount)> = MORDEN_ACCOUNTS.iter().collect();
@@ -81,7 +82,8 @@ fn morden_state_root() {
 
 #[test]
 fn genesis_state_root() {
-    let mut stateful = MemoryStateful::default();
+    let database = MemoryDatabase::default();
+    let mut stateful = MemoryStateful::empty(&database);
     let mut rng = rand::thread_rng();
 
     let mut accounts: Vec<(&String, &JSONAccount)> = GENESIS_ACCOUNTS.iter().collect();
