@@ -238,7 +238,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             return Ok(());
         }
 
-        let instruction = match self.pc.read() {
+        let instruction = match self.pc.peek() {
             Ok(val) => val,
             Err(RuntimeError::OnChain(err)) => {
                 self.status = MachineStatus::ExitedErr(err);
