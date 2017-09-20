@@ -321,6 +321,9 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                     VMStatus::Running => {
                         return vm.step();
                     },
+                    VMStatus::ExitedNotSupported(_) => {
+                        return Ok(());
+                    },
                     _ => {
                         if *code_deposit {
                             vm.machines[0].code_deposit();

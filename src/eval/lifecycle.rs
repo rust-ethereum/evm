@@ -1,7 +1,7 @@
 //! Runtime lifecycle related functionality.
 
 use bigint::{U256, M256, Gas};
-use errors::{RequireError, MachineError};
+use errors::{RequireError, OnChainError};
 use commit::AccountState;
 use ::{Memory, Patch};
 use super::{Machine, MachineStatus};
@@ -79,7 +79,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         let deposit_cost = code_deposit_gas(self.state.out.len());
         if deposit_cost > self.state.available_gas() {
             if !P::force_code_deposit() {
-                self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+                self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
             } else {
                 self.state.account_state.code_deposit(self.state.context.address, &[]);
             }

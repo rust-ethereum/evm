@@ -50,10 +50,10 @@ pub use self::patch::*;
 pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState};
 pub use self::transaction::{ValidTransaction, TransactionVM};
+pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
 
 use std::collections::{HashSet, hash_map};
 use bigint::{U256, H256, Gas, Address};
-use self::errors::{RequireError, CommitError, MachineError};
 
 #[derive(Debug, Clone)]
 /// VM Status
@@ -64,7 +64,8 @@ pub enum VMStatus {
     ExitedOk,
     /// VM is stopped due to an error. The state of the VM is before
     /// the last failing instruction.
-    ExitedErr(MachineError),
+    ExitedErr(OnChainError),
+    ExitedNotSupported(NotSupportedError),
 }
 
 /// Represents an EVM. This is usually the main interface for clients
@@ -90,7 +91,8 @@ pub trait VM {
         loop {
             match self.status() {
                 VMStatus::Running => self.step()?,
-                VMStatus::ExitedOk | VMStatus::ExitedErr(_) => return Ok(()),
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
+                VMStatus::ExitedNotSupported(_) => return Ok(()),
             }
         }
     }
@@ -187,10 +189,16 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     }
 
     fn status(&self) -> VMStatus {
+        match self.machines.last().unwrap().status().clone() {
+            MachineStatus::ExitedNotSupported(err) => return VMStatus::ExitedNotSupported(err),
+            _ => (),
+        }
+
         match self.machines[0].status() {
             MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
             MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err.into()),
+            MachineStatus::ExitedNotSupported(err) => VMStatus::ExitedNotSupported(err),
         }
     }
 
@@ -209,6 +217,9 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                     self.machines.last_mut().unwrap().apply_sub(finished);
                     Ok(())
                 }
+            },
+            MachineStatus::ExitedNotSupported(_) => {
+                Ok(())
             },
             MachineStatus::InvokeCall(context, _) => {
                 self.history.push(context.clone());
@@ -231,7 +242,8 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         loop {
             match self.status() {
                 VMStatus::Running => self.step()?,
-                VMStatus::ExitedOk | VMStatus::ExitedErr(_) => return Ok(()),
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
+                VMStatus::ExitedNotSupported(_) => return Ok(()),
             }
         }
     }
