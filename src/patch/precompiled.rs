@@ -1,7 +1,7 @@
 use bigint::Gas;
 use std::cmp::min;
 
-use errors::MachineError;
+use errors::{RuntimeError, OnChainError};
 use sha2::Sha256;
 use sha3::Keccak256;
 use ripemd160::Ripemd160;
@@ -19,10 +19,10 @@ pub trait Precompiled: Sync {
         unimplemented!()
     }
     /// Combine step and gas together, given the gas limit.
-    fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Vec<u8>), MachineError> {
+    fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Vec<u8>), RuntimeError> {
         let gas = self.gas(data);
         if gas > gas_limit {
-            Err(MachineError::EmptyGas)
+            Err(RuntimeError::OnChain(OnChainError::EmptyGas))
         } else {
             Ok((gas, self.step(data)))
         }

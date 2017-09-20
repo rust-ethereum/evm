@@ -1,10 +1,11 @@
 //! VM Runtime
 use bigint::{H256, M256, U256, Gas, Address};
 use super::commit::{AccountState, BlockhashState};
-use super::errors::{RequireError, MachineError, CommitError, EvalError, PCError};
+use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
+                    OnChainError, NotSupportedError};
 use super::{Stack, Context, HeaderParams, Patch, PC, Memory, AccountCommitment, Log};
 
-use self::check::{check_opcode, extra_check_opcode};
+use self::check::{check_opcode, check_support, extra_check_opcode};
 use self::run::run_opcode;
 use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
 
@@ -84,7 +85,8 @@ pub enum MachineStatus {
     ExitedOk,
     /// This runtime has exited with errors. Calling `step` on this
     /// runtime again would panic.
-    ExitedErr(MachineError),
+    ExitedErr(OnChainError),
+    ExitedNotSupported(NotSupportedError),
     /// This runtime requires execution of a sub runtime, which is a
     /// ContractCreation instruction.
     InvokeCreate(Context),
@@ -186,24 +188,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         self.state.blockhash_state.commit(number, hash)
     }
 
-    /// Check the next instruction about whether it will return
-    /// errors.
-    pub fn check(&self) -> Result<(), EvalError> {
-        let instruction = self.pc.peek()?;
-        check_opcode(instruction, &self.state).and_then(|v| {
-            match v {
-                None => Ok(()),
-                Some(ControlCheck::Jump(dest)) => {
-                    if dest <= M256::from(usize::max_value()) && self.pc.is_valid(dest.as_usize()) {
-                        Ok(())
-                    } else {
-                        Err(EvalError::Machine(MachineError::PC(PCError::BadJumpDest)))
-                    }
-                }
-            }
-        })
-    }
-
     /// Step a precompiled runtime. This function returns true if the
     /// runtime is indeed a precompiled address. Otherwise return
     /// false with state unchanged.
@@ -214,9 +198,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             {
                 let data = &self.state.context.data;
                 match precompiled.2.gas_and_step(data, self.state.context.gas_limit) {
-                    Err(err) => {
+                    Err(RuntimeError::OnChain(err)) => {
                         self.state.used_gas = self.state.context.gas_limit;
                         self.status = MachineStatus::ExitedErr(err);
+                    },
+                    Err(RuntimeError::NotSupported(err)) => {
+                        self.status = MachineStatus::ExitedNotSupported(err);
                     },
                     Ok((gas, ret)) => {
                         assert!(gas <= self.state.context.gas_limit);
@@ -251,18 +238,40 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             return Ok(());
         }
 
-        match self.check() {
-            Ok(()) => (),
-            Err(EvalError::Machine(error)) => {
-                self.status = MachineStatus::ExitedErr(error);
-                return Ok(());
+        let instruction = match self.pc.read() {
+            Ok(val) => val,
+            Err(RuntimeError::OnChain(err)) => {
+                self.status = MachineStatus::ExitedErr(err);
+                return Ok(())
             },
-            Err(EvalError::Require(error)) => {
-                return Err(error);
+            Err(RuntimeError::NotSupported(err)) => {
+                self.status = MachineStatus::ExitedNotSupported(err);
+                return Ok(())
             },
         };
 
-        let instruction = self.pc.peek().unwrap();
+        match check_opcode(instruction, &self.state).and_then(|v| {
+            match v {
+                None => Ok(()),
+                Some(ControlCheck::Jump(dest)) => {
+                    if dest <= M256::from(usize::max_value()) && self.pc.is_valid(dest.as_usize()) {
+                        Ok(())
+                    } else {
+                        Err(OnChainError::BadJumpDest.into())
+                    }
+                }
+            }
+        }) {
+            Ok(()) => (),
+            Err(EvalOnChainError::OnChain(error)) => {
+                self.status = MachineStatus::ExitedErr(error);
+                return Ok(());
+            },
+            Err(EvalOnChainError::Require(error)) => {
+                return Err(error);
+            },
+        }
+
         let position = self.pc.position();
         let memory_cost = memory_cost(instruction, &self.state);
         let memory_gas = memory_gas(memory_cost);
@@ -272,20 +281,25 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
         let all_gas_cost = memory_gas + self.state.used_gas + gas_cost;
         if self.state.context.gas_limit < all_gas_cost {
-            self.status = MachineStatus::ExitedErr(MachineError::EmptyGas);
+            self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
             return Ok(());
         }
+
+        match check_support(instruction, &self.state) {
+            Ok(()) => (),
+            Err(err) => {
+                self.status = MachineStatus::ExitedNotSupported(err);
+                return Ok(());
+            },
+        };
 
         let after_gas = self.state.context.gas_limit - all_gas_cost;
 
         match extra_check_opcode::<M, P>(instruction, &self.state, gas_stipend, after_gas) {
             Ok(()) => (),
-            Err(EvalError::Machine(error)) => {
-                self.status = MachineStatus::ExitedErr(error);
+            Err(err) => {
+                self.status = MachineStatus::ExitedErr(err);
                 return Ok(());
-            },
-            Err(EvalError::Require(error)) => {
-                return Err(error);
             },
         }
 

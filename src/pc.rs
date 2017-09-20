@@ -5,7 +5,7 @@ use util::opcode::Opcode;
 use std::cmp::min;
 use std::marker::PhantomData;
 use super::Patch;
-use super::errors::PCError;
+use super::errors::{OnChainError, NotSupportedError, RuntimeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[allow(missing_docs)]
@@ -67,13 +67,13 @@ impl<P: Patch> PC<P> {
         }
     }
 
-    fn read_bytes(&self, from_position: usize, byte_count: usize) -> Result<M256, PCError> {
+    fn read_bytes(&self, from_position: usize, byte_count: usize) -> Result<M256, RuntimeError> {
         if from_position > self.code.len() {
-            return Err(PCError::Overflow);
+            return Err(RuntimeError::OnChain(OnChainError::PCOverflow));
         }
         let position = from_position;
         if position.checked_add(byte_count).is_none() {
-            return Err(PCError::IndexNotSupported);
+            return Err(RuntimeError::NotSupported(NotSupportedError::PCIndexNotSupported));
         }
         let max = min(position + byte_count, self.code.len());
         Ok(M256::from(&self.code[position..max]))
@@ -86,13 +86,13 @@ impl<P: Patch> PC<P> {
 
     /// Jump to a position in the code. The destination must be valid
     /// to jump.
-    pub fn jump(&mut self, position: usize) -> Result<(), PCError> {
+    pub fn jump(&mut self, position: usize) -> Result<(), OnChainError> {
         if position >= self.code.len() {
-            return Err(PCError::Overflow);
+            return Err(OnChainError::PCOverflow);
         }
 
         if !self.valids[position] {
-            return Err(PCError::BadJumpDest);
+            return Err(OnChainError::BadJumpDest);
         }
 
         self.position = position;
@@ -102,16 +102,6 @@ impl<P: Patch> PC<P> {
     /// Get the current program counter position.
     pub fn position(&self) -> usize {
         self.position
-    }
-
-    /// Check whether the position is a valid jump destination. If
-    /// not, returns `PCError`.
-    pub fn check_valid(&self, position: usize) -> Result<(), PCError> {
-        if self.is_valid(position) {
-            Ok(())
-        } else {
-            Err(PCError::BadJumpDest)
-        }
     }
 
     /// Returns `true` if the position is a valid jump destination. If
@@ -135,10 +125,10 @@ impl<P: Patch> PC<P> {
     }
 
     /// Peek the next instruction.
-    pub fn peek(&self) -> Result<Instruction, PCError> {
+    pub fn peek(&self) -> Result<Instruction, RuntimeError> {
         let position = self.position;
         if position >= self.code.len() {
-            return Err(PCError::Overflow);
+            return Err(OnChainError::PCOverflow.into());
         }
         let opcode: Opcode = self.code[position].into();
         Ok(match opcode {
@@ -220,19 +210,19 @@ impl<P: Patch> PC<P> {
                 if P::has_delegate_call() {
                     Instruction::DELEGATECALL
                 } else {
-                    return Err(PCError::InvalidOpcode);
+                    return Err(OnChainError::InvalidOpcode.into());
                 }
             },
 
             Opcode::INVALID => {
-                return Err(PCError::InvalidOpcode);
+                return Err(OnChainError::InvalidOpcode.into());
             },
             Opcode::SUICIDE => Instruction::SUICIDE,
         })
     }
 
     /// Read the next instruction and step the program counter.
-    pub fn read(&mut self) -> Result<Instruction, PCError> {
+    pub fn read(&mut self) -> Result<Instruction, RuntimeError> {
         let result = self.peek()?;
         let opcode: Opcode = self.code[self.position].into();
         match opcode {
