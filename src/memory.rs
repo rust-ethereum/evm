@@ -42,15 +42,6 @@ impl Default for SeqMemory {
 
 impl SeqMemory {
     pub fn len(&self) -> usize {
-        let len = self.memory.len();
-        if len % 32 == 0 {
-            len / 32
-        } else {
-            len / 32 + 1
-        }
-    }
-
-    pub fn raw_len(&self) -> usize {
         self.memory.len()
     }
 }
