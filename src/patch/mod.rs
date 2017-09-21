@@ -41,6 +41,8 @@ pub trait Patch {
     /// If true, only consume at maximum l64(after_gas) when
     /// CALL/CALLCODE/DELEGATECALL.
     fn call_create_l64_after_gas() -> bool;
+    /// Maximum size of the memory, in bytes.
+    fn memory_limit() -> usize;
     /// Precompiled contracts at given address, with required code,
     /// and its definition.
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)];
@@ -79,6 +81,7 @@ impl Patch for FrontierPatch {
     fn has_delegate_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
+    fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
         ETC_PRECOMPILEDS.deref() }
 }
@@ -99,6 +102,7 @@ impl Patch for HomesteadPatch {
     fn has_delegate_call() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
+    fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
         ETC_PRECOMPILEDS.deref() }
 }
@@ -119,6 +123,7 @@ impl Patch for VMTestPatch {
     fn has_delegate_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
+    fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
         ETC_PRECOMPILEDS.deref() }
 }
@@ -139,6 +144,7 @@ impl Patch for EIP150Patch {
     fn has_delegate_call() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
+    fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
         ETC_PRECOMPILEDS.deref() }
 }
@@ -159,6 +165,7 @@ impl Patch for EIP160Patch {
     fn has_delegate_call() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
+    fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
         ETC_PRECOMPILEDS.deref() }
 }

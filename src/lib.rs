@@ -116,10 +116,10 @@ pub trait VM {
 
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
-pub type SeqContextVM<P> = ContextVM<SeqMemory, P>;
+pub type SeqContextVM<P> = ContextVM<SeqMemory<P>, P>;
 /// A sequencial transaction VM. This is same as `SeqContextVM` except
 /// it runs at transaction level.
-pub type SeqTransactionVM<P> = TransactionVM<SeqMemory, P>;
+pub type SeqTransactionVM<P> = TransactionVM<SeqMemory<P>, P>;
 
 /// A VM that executes using a context and block information.
 pub struct ContextVM<M, P: Patch> {

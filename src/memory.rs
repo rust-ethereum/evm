@@ -3,6 +3,8 @@
 use bigint::{U256, M256};
 
 use super::errors::NotSupportedError;
+use super::Patch;
+use std::marker::PhantomData;
 
 /// Represent a memory in EVM. Read should always succeed. Write can
 /// fall.
@@ -28,28 +30,30 @@ pub trait Memory {
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
-pub struct SeqMemory {
+pub struct SeqMemory<P: Patch> {
     memory: Vec<u8>,
+    _marker: PhantomData<P>,
 }
 
-impl Default for SeqMemory {
-    fn default() -> SeqMemory {
+impl<P: Patch> Default for SeqMemory<P> {
+    fn default() -> SeqMemory<P> {
         SeqMemory {
             memory: Vec::new(),
+            _marker: PhantomData,
         }
     }
 }
 
-impl SeqMemory {
+impl<P: Patch> SeqMemory<P> {
     pub fn len(&self) -> usize {
         self.memory.len()
     }
 }
 
-impl Memory for SeqMemory {
+impl<P: Patch> Memory for SeqMemory<P> {
     fn check_write(&self, index: U256) -> Result<(), NotSupportedError> {
         let end = index + 32.into();
-        if end > U256::from(usize::max_value()) {
+        if end > U256::from(P::memory_limit()) {
             Err(NotSupportedError::MemoryIndexNotSupported)
         } else {
             Ok(())
@@ -61,7 +65,7 @@ impl Memory for SeqMemory {
             return Ok(());
         }
 
-        if M256::from(start) + M256::from(len) < M256::from(start) {
+        if start.saturating_add(len) > U256::from(P::memory_limit()) {
             Err(NotSupportedError::MemoryIndexNotSupported)
         } else {
             self.check_write(start + len - U256::from(1u64))
@@ -70,7 +74,7 @@ impl Memory for SeqMemory {
 
     fn write(&mut self, index: U256, value: M256) -> Result<(), NotSupportedError> {
         let end = M256::from(index) + 32.into();
-        if end > M256::from(usize::max_value()) {
+        if end > M256::from(P::memory_limit()) {
             return Err(NotSupportedError::MemoryIndexNotSupported);
         }
 
@@ -81,7 +85,7 @@ impl Memory for SeqMemory {
     }
 
     fn write_raw(&mut self, index: U256, value: u8) -> Result<(), NotSupportedError> {
-        if index > U256::from(usize::max_value()) {
+        if index > U256::from(P::memory_limit()) {
             return Err(NotSupportedError::MemoryIndexNotSupported);
         }
 
