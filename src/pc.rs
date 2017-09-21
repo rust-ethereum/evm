@@ -5,7 +5,7 @@ use util::opcode::Opcode;
 use std::cmp::min;
 use std::marker::PhantomData;
 use super::Patch;
-use super::errors::{OnChainError, NotSupportedError, RuntimeError};
+use super::errors::{OnChainError, RuntimeError};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[allow(missing_docs)]
@@ -72,10 +72,7 @@ impl<P: Patch> PC<P> {
             return Err(RuntimeError::OnChain(OnChainError::PCOverflow));
         }
         let position = from_position;
-        if position.checked_add(byte_count).is_none() {
-            return Err(RuntimeError::NotSupported(NotSupportedError::PCIndexNotSupported));
-        }
-        let max = min(position + byte_count, self.code.len());
+        let max = min(position.saturating_add(byte_count), self.code.len());
         Ok(M256::from(&self.code[position..max]))
     }
 
