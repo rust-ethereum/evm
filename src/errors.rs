@@ -58,9 +58,6 @@ impl From<OnChainError> for EvalError {
 
 #[derive(Debug, Clone)]
 pub enum NotSupportedError {
-    /// The PC index is too large for the implementation of the VM to
-    /// handle.
-    PCIndexNotSupported,
     /// The memory index is too large for the implementation of the VM to
     /// handle.
     MemoryIndexNotSupported,
