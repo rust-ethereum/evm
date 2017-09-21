@@ -240,12 +240,8 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
         let instruction = match self.pc.peek() {
             Ok(val) => val,
-            Err(RuntimeError::OnChain(err)) => {
+            Err(err) => {
                 self.status = MachineStatus::ExitedErr(err);
-                return Ok(())
-            },
-            Err(RuntimeError::NotSupported(err)) => {
-                self.status = MachineStatus::ExitedNotSupported(err);
                 return Ok(())
             },
         };

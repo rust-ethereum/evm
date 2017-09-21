@@ -5,7 +5,7 @@ use util::opcode::Opcode;
 use std::cmp::min;
 use std::marker::PhantomData;
 use super::Patch;
-use super::errors::{OnChainError, RuntimeError};
+use super::errors::OnChainError;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[allow(missing_docs)]
@@ -67,9 +67,9 @@ impl<P: Patch> PC<P> {
         }
     }
 
-    fn read_bytes(&self, from_position: usize, byte_count: usize) -> Result<M256, RuntimeError> {
+    fn read_bytes(&self, from_position: usize, byte_count: usize) -> Result<M256, OnChainError> {
         if from_position > self.code.len() {
-            return Err(RuntimeError::OnChain(OnChainError::PCOverflow));
+            return Err(OnChainError::PCOverflow);
         }
         let position = from_position;
         let max = min(position.saturating_add(byte_count), self.code.len());
@@ -122,10 +122,10 @@ impl<P: Patch> PC<P> {
     }
 
     /// Peek the next instruction.
-    pub fn peek(&self) -> Result<Instruction, RuntimeError> {
+    pub fn peek(&self) -> Result<Instruction, OnChainError> {
         let position = self.position;
         if position >= self.code.len() {
-            return Err(OnChainError::PCOverflow.into());
+            return Err(OnChainError::PCOverflow);
         }
         let opcode: Opcode = self.code[position].into();
         Ok(match opcode {
@@ -207,19 +207,19 @@ impl<P: Patch> PC<P> {
                 if P::has_delegate_call() {
                     Instruction::DELEGATECALL
                 } else {
-                    return Err(OnChainError::InvalidOpcode.into());
+                    return Err(OnChainError::InvalidOpcode);
                 }
             },
 
             Opcode::INVALID => {
-                return Err(OnChainError::InvalidOpcode.into());
+                return Err(OnChainError::InvalidOpcode);
             },
             Opcode::SUICIDE => Instruction::SUICIDE,
         })
     }
 
     /// Read the next instruction and step the program counter.
-    pub fn read(&mut self) -> Result<Instruction, RuntimeError> {
+    pub fn read(&mut self) -> Result<Instruction, OnChainError> {
         let result = self.peek()?;
         let opcode: Opcode = self.code[self.position].into();
         match opcode {
