@@ -1,6 +1,6 @@
 [package]
 name = "sputnikvm"
-version = "0.7.4"
+version = "0.7.5"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -18,7 +18,7 @@ sha3 = "0.6"
 digest = { version = "0.6", features = ["std"]}
 lazy_static = "0.2"
 secp256k1-plus = "0.5.7"
-etcommon-block = "0.2"
+etcommon-block = "0.3"
 etcommon-rlp = "0.2"
 etcommon-bigint = "0.2"
 etcommon-hexutil = "0.2"
