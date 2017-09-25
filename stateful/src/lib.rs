@@ -53,6 +53,10 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
         hash == H256::from(Keccak256::digest(&[]).as_slice())
     }
 
+    pub fn database(&self) -> &'b D {
+        self.database
+    }
+
     pub fn code(&self, hash: H256) -> Option<Vec<u8>> {
         let code_hashes = self.database.create_guard();
 
