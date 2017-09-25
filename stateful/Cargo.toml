@@ -9,7 +9,7 @@ authors = ["Wei Tang <hi@that.world>"]
 sputnikvm = { version = "0.7", path = '..' }
 etcommon-bigint = "0.2"
 etcommon-trie = "0.3"
-etcommon-block = "0.2"
+etcommon-block = "0.3"
 etcommon-rlp = "0.2"
 sha3 = "0.6"
 rand = "0.3"
