@@ -82,7 +82,7 @@ impl ValidTransaction {
         }
 
         let balance = account_state.balance(caller)?;
-        if balance < valid.preclaimed_value() {
+        if balance < valid.preclaimed_value() + valid.value {
             return Ok(Err(PreExecutionError::InsufficientBalance));
         }
 
