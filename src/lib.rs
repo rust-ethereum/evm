@@ -51,6 +51,7 @@ pub use self::eval::{State, Machine, MachineStatus};
 pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState};
 pub use self::transaction::{ValidTransaction, TransactionVM};
 pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
+pub use self::util::opcode::Opcode;
 
 use std::collections::{HashSet, hash_map};
 use bigint::{U256, H256, Gas, Address};
