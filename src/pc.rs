@@ -101,6 +101,25 @@ impl<P: Patch> PC<P> {
         self.position
     }
 
+    /// Get the current opcode position. Should only be used when debugging.
+    pub fn opcode_position(&self) -> usize {
+        let mut o = 0;
+        let mut i = 0;
+        while i <= self.position {
+            let opcode: Opcode = self.code[i].into();
+            match opcode {
+                Opcode::PUSH(v) => {
+                    i = i + v + 1;
+                },
+                _ => {
+                    i = i + 1;
+                }
+            }
+            o = o + 1;
+        }
+        o
+    }
+
     /// Returns `true` if the position is a valid jump destination. If
     /// not, returns `false`.
     pub fn is_valid(&self, position: usize) -> bool {
