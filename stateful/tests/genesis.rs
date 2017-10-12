@@ -15,7 +15,7 @@ extern crate bigint;
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
 use sputnikvm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160Patch, VMStatus};
-use sputnikvm_stateful::MemoryStateful;
+use sputnikvm_stateful::{MemoryStateful, LiteralAccount};
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
 use std::collections::HashMap;
@@ -65,15 +65,13 @@ fn morden_state_root() {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        stateful.transit(
-            &[AccountChange::Create {
-                address,
+        stateful.sets(
+            &[(address, LiteralAccount {
                 balance,
-                storage: Storage::new(address, false),
+                storage: HashMap::new(),
                 code: Vec::new(),
                 nonce: U256::from(2u64.pow(20)),
-                exists: true,
-            }]
+            })]
         );
     }
 

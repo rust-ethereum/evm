@@ -11,9 +11,9 @@ use block::TransactionAction;
 use bigint::{Address, U256, Gas};
 use sputnikvm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, EIP160Patch, ValidTransaction};
 use trie::MemoryDatabase;
-use sputnikvm_stateful::MemoryStateful;
+use sputnikvm_stateful::{MemoryStateful, LiteralAccount};
 use std::thread;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::str::FromStr;
 
@@ -101,31 +101,25 @@ fn main() {
     let addr3 = Address::from_str("0x0000000000000000000000000000000000001002").unwrap();
 
     // Input some initial accounts.
-    stateful.transit(&[
-        AccountChange::Create {
+    stateful.sets(&[
+        (addr1, LiteralAccount {
             nonce: U256::zero(),
-            address: addr1,
             balance: U256::from_str("0x1000000000000000000").unwrap(),
-            storage: Storage::full(addr1),
+            storage: HashMap::new(),
             code: read_hex("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055").unwrap(),
-            exists: true,
-        },
-        AccountChange::Create {
+        }),
+        (addr2, LiteralAccount {
             nonce: U256::zero(),
-            address: addr2,
             balance: U256::from_str("0x1000000000000000000").unwrap(),
-            storage: Storage::full(addr2),
+            storage: HashMap::new(),
             code: read_hex("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055").unwrap(),
-            exists: true,
-        },
-        AccountChange::Create {
+        }),
+        (addr3, LiteralAccount {
             nonce: U256::zero(),
-            address: addr3,
             balance: U256::from_str("0x1000000000000000000").unwrap(),
-            storage: Storage::full(addr3),
+            storage: HashMap::new(),
             code: read_hex("0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff01600055").unwrap(),
-            exists: true,
-        },
+        }),
     ]);
 
     // Execute several crafted transactions.

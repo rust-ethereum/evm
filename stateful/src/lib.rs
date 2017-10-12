@@ -20,6 +20,13 @@ use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
 
+pub struct LiteralAccount {
+    pub nonce: U256,
+    pub balance: U256,
+    pub storage: HashMap<U256, M256>,
+    pub code: Vec<u8>,
+}
+
 #[derive(Debug)]
 pub struct Stateful<'a, D: 'a> {
     database: &'a D,
@@ -233,6 +240,38 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
         }
 
         vm
+    }
+
+    pub fn sets(
+        &mut self, accounts: &[(Address, LiteralAccount)]
+    ) {
+        let mut state = self.database.create_fixed_secure_trie(self.root);
+        let mut code_hashes = self.database.create_guard();
+
+        for &(address, ref account) in accounts {
+            let mut storage_trie = self.database.create_fixed_secure_empty();
+            for (key, value) in &account.storage {
+                if *value == M256::zero() {
+                    storage_trie.remove(&H256::from(*key));
+                } else {
+                    storage_trie.insert(H256::from(*key), *value);
+                }
+            }
+
+            let code_hash = H256::from(Keccak256::digest(&account.code).as_slice());
+            code_hashes.set(code_hash, account.code.clone());
+
+            let account = Account {
+                nonce: account.nonce,
+                balance: account.balance,
+                storage_root: storage_trie.root(),
+                code_hash
+            };
+
+            state.insert(address, account);
+        }
+
+        self.root = state.root();
     }
 
     pub fn transit(
