@@ -92,7 +92,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Finalize a transaction. This should not be used when invoked
     /// by an opcode.
-    pub fn finalize(&mut self, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState) -> Result<(), RequireError> {
+    pub fn finalize(&mut self, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
         match self.status() {

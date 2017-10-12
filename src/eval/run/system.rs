@@ -9,7 +9,7 @@ use super::{Control, State};
 use std::cmp::min;
 use sha3::{Digest, Keccak256};
 
-pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
+pub fn suicide<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, address: Address);
     let balance = state.account_state.balance(state.context.address).unwrap();
     if !state.removed.contains(&state.context.address) {
@@ -21,7 +21,7 @@ pub fn suicide<M: Memory + Default>(state: &mut State<M>) {
     state.account_state.decrease_balance(state.context.address, balance);
 }
 
-pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
+pub fn log<M: Memory + Default, P: Patch>(state: &mut State<M, P>, topic_len: usize) {
     pop!(state, index: U256, len: U256);
     let data = copy_from_memory(&state.memory, index, len);
     let mut topics = Vec::new();
@@ -36,7 +36,7 @@ pub fn log<M: Memory + Default>(state: &mut State<M>, topic_len: usize) {
     });
 }
 
-pub fn sha3<M: Memory + Default>(state: &mut State<M>) {
+pub fn sha3<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, from: U256, len: U256);
     let data = copy_from_memory(&state.memory, from, len);
     let ret = Keccak256::digest(data.as_slice());
@@ -61,7 +61,7 @@ macro_rules! try_balance {
     }
 }
 
-pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
+pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas) -> Option<Control> {
     let l64_after_gas = if P::call_create_l64_after_gas() { l64(after_gas) } else { after_gas };
 
     pop!(state, value: U256);
@@ -80,7 +80,7 @@ pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M>, after_gas: Ga
         action: TransactionAction::Create,
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
-    let context = transaction.into_context(
+    let context = transaction.into_context::<P>(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
 
@@ -88,7 +88,7 @@ pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M>, after_gas: Ga
     Some(Control::InvokeCreate(context))
 }
 
-pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<Control> {
+pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipend_gas: Gas, after_gas: Gas, as_self: bool) -> Option<Control> {
     let l64_after_gas = if P::call_create_l64_after_gas() { l64(after_gas) } else { after_gas };
 
     pop!(state, gas: Gas, to: Address, value: U256);
@@ -109,7 +109,7 @@ pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M>, stipend_gas: Ga
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
 
-    let mut context = transaction.into_context(
+    let mut context = transaction.into_context::<P>(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
     if as_self {
@@ -120,7 +120,7 @@ pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M>, stipend_gas: Ga
     Some(Control::InvokeCall(context, (out_start, out_len)))
 }
 
-pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M>, after_gas: Gas) -> Option<Control> {
+pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas) -> Option<Control> {
     let l64_after_gas = if P::call_create_l64_after_gas() { l64(after_gas) } else { after_gas };
 
     pop!(state, gas: Gas, to: Address);
@@ -140,7 +140,7 @@ pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M>, after_
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
 
-    let mut context = transaction.into_context(
+    let mut context = transaction.into_context::<P>(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true
     ).unwrap();
     context.value = U256::zero();

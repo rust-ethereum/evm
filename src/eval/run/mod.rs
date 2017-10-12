@@ -57,7 +57,7 @@ use super::util::{copy_from_memory, copy_into_memory};
 
 #[allow(unused_variables)]
 /// Run an instruction.
-pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state: &mut State<M, P>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
     match pc.0 {
         Instruction::STOP => { Some(Control::Stop) },
         Instruction::ADD => { op2!(state, add); None },

@@ -139,7 +139,7 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
 
     /// Create a new VM with the given account state and blockhash state.
     pub fn with_states(context: Context, block: HeaderParams,
-                       account_state: AccountState, blockhash_state: BlockhashState) -> Self {
+                       account_state: AccountState<P::Account>, blockhash_state: BlockhashState) -> Self {
         let mut machines = Vec::new();
         machines.push(Machine::with_states(context, block, 1, account_state, blockhash_state));
         ContextVM {
@@ -162,7 +162,7 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     }
 
     /// Returns the current state of the VM.
-    pub fn current_state(&self) -> &State<M> {
+    pub fn current_state(&self) -> &State<M, P> {
         self.current_machine().state()
     }
 

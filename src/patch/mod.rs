@@ -7,10 +7,26 @@ pub use self::precompiled::*;
 
 use std::ops::Deref;
 use std::str::FromStr;
-use bigint::{Address, Gas};
+use std::marker::PhantomData;
+use bigint::{Address, Gas, U256};
+
+/// Account patch for account related variables.
+pub trait AccountPatch {
+    /// Initial nonce for accounts.
+    fn initial_nonce() -> U256;
+}
+
+/// Mainnet account patch
+pub struct MainnetAccountPatch;
+impl AccountPatch for MainnetAccountPatch {
+    fn initial_nonce() -> U256 { U256::zero() }
+}
 
 /// Represents different block range context.
 pub trait Patch {
+    /// Account patch
+    type Account: AccountPatch;
+
     /// Limit of the call stack.
     fn callstack_limit() -> usize;
     /// Gas paid for extcode.
@@ -66,8 +82,11 @@ lazy_static! {
 }
 
 /// Frontier patch.
-pub struct FrontierPatch;
-impl Patch for FrontierPatch {
+pub struct FrontierPatch<A: AccountPatch>(PhantomData<A>);
+pub type MainnetFrontierPatch = FrontierPatch<MainnetAccountPatch>;
+impl<A: AccountPatch> Patch for FrontierPatch<A> {
+    type Account = A;
+
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(20usize) }
     fn gas_balance() -> Gas { Gas::from(20usize) }
@@ -87,8 +106,11 @@ impl Patch for FrontierPatch {
 }
 
 /// Homestead patch.
-pub struct HomesteadPatch;
-impl Patch for HomesteadPatch {
+pub struct HomesteadPatch<A: AccountPatch>(PhantomData<A>);
+pub type MainnetHomesteadPatch = HomesteadPatch<MainnetAccountPatch>;
+impl<A: AccountPatch> Patch for HomesteadPatch<A> {
+    type Account = A;
+
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(20usize) }
     fn gas_balance() -> Gas { Gas::from(20usize) }
@@ -110,6 +132,8 @@ impl Patch for HomesteadPatch {
 /// Patch sepcific for the `jsontests` crate.
 pub struct VMTestPatch;
 impl Patch for VMTestPatch {
+    type Account = MainnetAccountPatch;
+
     fn callstack_limit() -> usize { 2 }
     fn gas_extcode() -> Gas { Gas::from(20usize) }
     fn gas_balance() -> Gas { Gas::from(20usize) }
@@ -129,8 +153,11 @@ impl Patch for VMTestPatch {
 }
 
 /// EIP150 patch.
-pub struct EIP150Patch;
-impl Patch for EIP150Patch {
+pub struct EIP150Patch<A: AccountPatch>(PhantomData<A>);
+pub type MainnetEIP150Patch = EIP150Patch<MainnetAccountPatch>;
+impl<A: AccountPatch> Patch for EIP150Patch<A> {
+    type Account = A;
+
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(700usize) }
     fn gas_balance() -> Gas { Gas::from(400usize) }
@@ -150,8 +177,11 @@ impl Patch for EIP150Patch {
 }
 
 /// EIP160 patch.
-pub struct EIP160Patch;
-impl Patch for EIP160Patch {
+pub struct EIP160Patch<A: AccountPatch>(PhantomData<A>);
+pub type MainnetEIP160Patch = EIP160Patch<MainnetAccountPatch>;
+impl<A: AccountPatch> Patch for EIP160Patch<A> {
+    type Account = A;
+
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(700usize) }
     fn gas_balance() -> Gas { Gas::from(400usize) }

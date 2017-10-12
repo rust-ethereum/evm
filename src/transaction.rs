@@ -55,7 +55,7 @@ impl ValidTransaction {
     /// Create a valid transaction from a block transaction. Caller is
     /// always Some.
     pub fn from_transaction<P: Patch>(
-        transaction: &Transaction, account_state: &AccountState
+        transaction: &Transaction, account_state: &AccountState<P::Account>
     ) -> Result<Result<ValidTransaction, PreExecutionError>, RequireError> {
         let caller = match transaction.caller() {
             Ok(val) => val,
@@ -115,8 +115,9 @@ impl ValidTransaction {
 
     /// Convert this transaction into a context. Note that this will
     /// change the account state.
-    pub fn into_context(self, upfront: Gas, origin: Option<Address>,
-                        account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
+    pub fn into_context<P: Patch>(
+        self, upfront: Gas, origin: Option<Address>,
+        account_state: &mut AccountState<P::Account>, is_code: bool) -> Result<Context, RequireError> {
         let address = self.address();
 
         match self.action {
@@ -181,13 +182,13 @@ enum TransactionVMState<M, P: Patch> {
         preclaimed_value: U256,
         finalized: bool,
         code_deposit: bool,
-        fresh_account_state: AccountState,
+        fresh_account_state: AccountState<P::Account>,
     },
     Constructing {
         transaction: ValidTransaction,
         block: HeaderParams,
 
-        account_state: AccountState,
+        account_state: AccountState<P::Account>,
         blockhash_state: BlockhashState,
     },
 }
@@ -254,7 +255,7 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
     }
 
     /// Returns the current state of the VM.
-    pub fn current_state(&self) -> Option<&State<M>> {
+    pub fn current_state(&self) -> Option<&State<M, P>> {
         self.current_machine().map(|m| m.state())
     }
 
@@ -301,7 +302,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         let cgas: Gas;
         let ccontext: Context;
         let cblock: HeaderParams;
-        let caccount_state: AccountState;
+        let caccount_state: AccountState<P::Account>;
         let cblockhash_state: BlockhashState;
         let ccode_deposit: bool;
         let cpreclaimed_value: U256;
@@ -355,7 +356,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 };
                 cgas = transaction.intrinsic_gas::<P>();
                 cpreclaimed_value = transaction.preclaimed_value();
-                ccontext = transaction.clone().into_context(cgas, None, account_state, false)?;
+                ccontext = transaction.clone().into_context::<P>(cgas, None, account_state, false)?;
                 cblock = block.clone();
                 caccount_state = account_state.clone();
                 cblockhash_state = blockhash_state.clone();

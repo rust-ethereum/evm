@@ -16,7 +16,7 @@ mod util;
 mod lifecycle;
 
 /// A VM state without PC.
-pub struct State<M> {
+pub struct State<M, P: Patch> {
     /// Memory of this runtime.
     pub memory: M,
     /// Stack of this runtime.
@@ -39,7 +39,7 @@ pub struct State<M> {
     pub refunded_gas: Gas,
 
     /// The current account commitment states.
-    pub account_state: AccountState,
+    pub account_state: AccountState<P::Account>,
     /// The current blockhash commitment states.
     pub blockhash_state: BlockhashState,
     /// Logs appended.
@@ -51,7 +51,7 @@ pub struct State<M> {
     pub depth: usize,
 }
 
-impl<M> State<M> {
+impl<M, P: Patch> State<M, P> {
     /// Memory gas, part of total used gas.
     pub fn memory_gas(&self) -> Gas {
         memory_gas(self.memory_cost)
@@ -70,7 +70,7 @@ impl<M> State<M> {
 
 /// A VM state with PC.
 pub struct Machine<M, P: Patch> {
-    state: State<M>,
+    state: State<M, P>,
     pc: PC<P>,
     status: MachineStatus,
 }
@@ -119,7 +119,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Create a new runtime with the given states.
     pub fn with_states(context: Context, block: HeaderParams,
-                       depth: usize, account_state: AccountState,
+                       depth: usize, account_state: AccountState<P::Account>,
                        blockhash_state: BlockhashState) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
@@ -329,7 +329,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Get the runtime state.
-    pub fn state(&self) -> &State<M> {
+    pub fn state(&self) -> &State<M, P> {
         &self.state
     }
 

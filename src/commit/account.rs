@@ -2,7 +2,9 @@
 
 use std::collections::hash_set::HashSet;
 use std::collections::hash_map::{self, HashMap};
+use std::marker::PhantomData;
 use bigint::{M256, U256, Address};
+use patch::AccountPatch;
 
 use errors::{RequireError, CommitError};
 
@@ -187,25 +189,38 @@ impl AccountChange {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 /// A struct that manages the current account state for one EVM.
-pub struct AccountState {
+pub struct AccountState<A: AccountPatch> {
     accounts: HashMap<Address, AccountChange>,
     codes: HashMap<Address, Vec<u8>>,
     premarked_exists: HashSet<Address>,
+    _marker: PhantomData<A>,
 }
 
-impl Default for AccountState {
+impl<A: AccountPatch> Default for AccountState<A> {
     fn default() -> Self {
         Self {
             accounts: HashMap::new(),
             codes: HashMap::new(),
             premarked_exists: HashSet::new(),
+            _marker: PhantomData,
         }
     }
 }
 
-impl AccountState {
+impl<A: AccountPatch> Clone for AccountState<A> {
+    fn clone(&self) -> Self {
+        Self {
+            accounts: self.accounts.clone(),
+            codes: self.codes.clone(),
+            premarked_exists: self.premarked_exists.clone(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<A: AccountPatch> AccountState<A> {
     /// Returns all fetched or modified addresses.
     pub fn used_addresses(&self) -> HashSet<Address> {
         let mut set = HashSet::new();
@@ -331,7 +346,7 @@ impl AccountState {
                         AccountChange::Create { .. } => return Err(CommitError::AlreadyCommitted),
                         AccountChange::IncreaseBalance(address, topup) => {
                             AccountChange::Create {
-                                nonce: U256::zero(),
+                                nonce: A::initial_nonce(),
                                 address,
                                 balance: topup,
                                 storage: Storage::new(address, false),
@@ -343,7 +358,7 @@ impl AccountState {
                     }
                 } else {
                     AccountChange::Create {
-                        nonce: U256::zero(),
+                        nonce: A::initial_nonce(),
                         address,
                         balance: U256::zero(),
                         storage: Storage::new(address, false),
@@ -493,14 +508,14 @@ impl AccountState {
             match self.accounts.remove(&address).unwrap() {
                 AccountChange::Full { balance, .. } => {
                     AccountChange::Create {
-                        address, code: Vec::new(), nonce: U256::zero(),
+                        address, code: Vec::new(), nonce: A::initial_nonce(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
                 },
                 AccountChange::Create { balance, .. } => {
                     AccountChange::Create {
-                        address, code: Vec::new(), nonce: U256::zero(),
+                        address, code: Vec::new(), nonce: A::initial_nonce(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
@@ -681,7 +696,7 @@ impl AccountState {
                 ..
             }) => {
                 AccountChange::Create {
-                    nonce: U256::zero(),
+                    nonce: A::initial_nonce(),
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
@@ -700,7 +715,7 @@ impl AccountState {
                 ..
             }) => {
                 AccountChange::Create {
-                    nonce: U256::zero(),
+                    nonce: A::initial_nonce(),
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
