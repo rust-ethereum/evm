@@ -14,7 +14,7 @@ extern crate bigint;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
-use sputnikvm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160Patch, VMStatus};
+use sputnikvm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, MainnetEIP160Patch, EIP160Patch, VMStatus, AccountPatch};
 use sputnikvm_stateful::{MemoryStateful, LiteralAccount};
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
@@ -62,17 +62,33 @@ fn morden_state_root() {
     rng.shuffle(&mut accounts);
 
     for (key, value) in accounts {
+        struct MordenAccountPatch;
+        impl AccountPatch for MordenAccountPatch {
+            fn initial_nonce() -> U256 { U256::from(2u64.pow(20)) }
+        }
+
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        stateful.sets(
-            &[(address, LiteralAccount {
-                balance,
-                storage: HashMap::new(),
-                code: Vec::new(),
-                nonce: U256::from(2u64.pow(20)),
-            })]
-        );
+        let vm: SeqTransactionVM<EIP160Patch<MordenAccountPatch>> = stateful.execute(ValidTransaction {
+            caller: None,
+            gas_price: Gas::zero(),
+            gas_limit: Gas::from(100000u64),
+            action: TransactionAction::Call(address),
+            value: balance,
+            input: Vec::new(),
+            nonce: U256::zero(),
+        }, HeaderParams {
+            beneficiary: Address::default(),
+            timestamp: 0,
+            number: U256::zero(),
+            difficulty: U256::zero(),
+            gas_limit: Gas::max_value()
+        }, &[]);
+        match vm.status() {
+            VMStatus::ExitedOk => (),
+            _ => panic!(),
+        }
     }
 
     assert_eq!(stateful.root(), H256::from("0xf3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9"));
@@ -91,7 +107,7 @@ fn genesis_state_root() {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        let vm: SeqTransactionVM<EIP160Patch> = stateful.execute(ValidTransaction {
+        let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.execute(ValidTransaction {
             caller: None,
             gas_price: Gas::zero(),
             gas_limit: Gas::from(100000u64),
