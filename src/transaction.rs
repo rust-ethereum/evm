@@ -454,7 +454,7 @@ mod tests {
             input: Vec::new(),
             nonce: U256::zero(),
         };
-        let mut vm = SeqTransactionVM::<EIP160Patch>::new(transaction, HeaderParams {
+        let mut vm = SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, HeaderParams {
             beneficiary: Address::default(),
             timestamp: 0,
             number: U256::zero(),
