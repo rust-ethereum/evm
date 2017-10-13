@@ -19,8 +19,8 @@ use block::TransactionAction;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::*;
 use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                AccountCommitment, AccountChange, FrontierPatch, HomesteadPatch,
-                EIP150Patch, EIP160Patch};
+                AccountCommitment, AccountChange, MainnetFrontierPatch, MainnetHomesteadPatch,
+                MainnetEIP150Patch, MainnetEIP160Patch};
 use sputnikvm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
@@ -241,10 +241,10 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
 fn test_blocks_patch<T: GethRPCClient>(client: &mut T, number: &str, patch: Option<&str>) {
     match patch {
-        Some("frontier") => test_blocks::<_, FrontierPatch>(client, number),
-        Some("homestead") => test_blocks::<_, HomesteadPatch>(client, number),
-        Some("eip150") => test_blocks::<_, EIP150Patch>(client, number),
-        Some("eip160") => test_blocks::<_, EIP160Patch>(client, number),
+        Some("frontier") => test_blocks::<_, MainnetFrontierPatch>(client, number),
+        Some("homestead") => test_blocks::<_, MainnetHomesteadPatch>(client, number),
+        Some("eip150") => test_blocks::<_, MainnetEIP150Patch>(client, number),
+        Some("eip160") => test_blocks::<_, MainnetEIP160Patch>(client, number),
         _ => panic!("Unknown patch."),
     }
 }
@@ -319,7 +319,7 @@ fn test_all_previously_failed_frontier_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/frontier_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block::<_, FrontierPatch>(&mut client, n);
+        test_block::<_, MainnetFrontierPatch>(&mut client, n);
     }
 }
 
@@ -330,7 +330,7 @@ fn test_all_previously_failed_homestead_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/homestead_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block::<_, HomesteadPatch>(&mut client, n);
+        test_block::<_, MainnetHomesteadPatch>(&mut client, n);
     }
 }
 
@@ -341,6 +341,6 @@ fn test_all_previously_failed_eip150_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/eip150_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block::<_, EIP150Patch>(&mut client, n);
+        test_block::<_, MainnetEIP150Patch>(&mut client, n);
     }
 }

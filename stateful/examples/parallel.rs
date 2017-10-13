@@ -9,7 +9,7 @@ extern crate sputnikvm_stateful;
 use hexutil::*;
 use block::TransactionAction;
 use bigint::{Address, U256, Gas};
-use sputnikvm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, EIP160Patch, ValidTransaction};
+use sputnikvm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, MainnetEIP160Patch, ValidTransaction};
 use trie::MemoryDatabase;
 use sputnikvm_stateful::{MemoryStateful, LiteralAccount};
 use std::thread;
@@ -47,7 +47,7 @@ pub fn parallel_execute(
         let stateful = stateful.clone();
 
         threads.push(thread::spawn(move || {
-            let vm: SeqTransactionVM<EIP160Patch> = stateful.call(
+            let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.call(
                 transaction, header, &[]);
             let accounts: Vec<AccountChange> = vm.accounts().map(|v| v.clone()).collect();
             (accounts, vm.used_addresses())
@@ -73,7 +73,7 @@ pub fn parallel_execute(
         let (accounts, used_addresses) = if is_modified(&modified_addresses, &accounts) {
             // Re-execute the transaction if conflict is detected.
             println!("Transaction index {}: conflict detected, re-execute.", index);
-            let vm: SeqTransactionVM<EIP160Patch> = stateful.call(
+            let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.call(
                 transactions[index].clone(), header.clone(), &[]);
             let accounts: Vec<AccountChange> = vm.accounts().map(|v| v.clone()).collect();
             (accounts, vm.used_addresses())

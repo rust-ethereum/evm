@@ -4,8 +4,9 @@ use bigint::M256;
 
 use ::Memory;
 use super::State;
+use patch::Patch;
 
-pub fn iszero<M: Memory + Default>(state: &mut State<M>) {
+pub fn iszero<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1);
 
     if op1 == M256::zero() {
@@ -15,12 +16,12 @@ pub fn iszero<M: Memory + Default>(state: &mut State<M>) {
     }
 }
 
-pub fn not<M: Memory + Default>(state: &mut State<M>) {
+pub fn not<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1);
     push!(state, !op1);
 }
 
-pub fn byte<M: Memory + Default>(state: &mut State<M>) {
+pub fn byte<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1, op2);
 
     let mut ret = M256::zero();
