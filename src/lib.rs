@@ -16,16 +16,26 @@
         unused_variables, non_shorthand_field_patterns,
         unreachable_code)]
 
-extern crate log;
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(alloc))]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 extern crate rlp;
 extern crate bigint;
 extern crate hexutil;
-extern crate block;
-extern crate ripemd160;
-extern crate sha2;
+extern crate block_core;
 extern crate sha3;
-extern crate secp256k1;
 extern crate digest;
+
+#[cfg(feature = "std")]
+extern crate ripemd160;
+#[cfg(feature = "std")]
+extern crate sha2;
+#[cfg(feature = "std")]
+extern crate secp256k1;
+#[cfg(feature = "std")]
 #[macro_use]
 extern crate lazy_static;
 
@@ -51,7 +61,11 @@ pub use self::transaction::{ValidTransaction, TransactionVM};
 pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
 pub use self::util::opcode::Opcode;
 
-use std::collections::{HashSet, hash_map};
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
+#[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
+#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
 use bigint::{U256, H256, Gas, Address};
 
 #[derive(Debug, Clone)]
@@ -97,9 +111,9 @@ pub trait VM {
     }
     /// Returns the changed or committed accounts information up to
     /// current execution status.
-    fn accounts(&self) -> hash_map::Values<Address, AccountChange>;
+    fn accounts(&self) -> map::Values<Address, AccountChange>;
     /// Returns all fetched or modified addresses.
-    fn used_addresses(&self) -> HashSet<Address>;
+    fn used_addresses(&self) -> Set<Address>;
     /// Returns the out value, if any.
     fn out(&self) -> &[u8];
     /// Returns the available gas of this VM.
@@ -247,11 +261,11 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         }
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
+    fn accounts(&self) -> map::Values<Address, AccountChange> {
         self.machines[0].state().account_state.accounts()
     }
 
-    fn used_addresses(&self) -> HashSet<Address> {
+    fn used_addresses(&self) -> Set<Address> {
         self.machines[0].state().account_state.used_addresses()
     }
 

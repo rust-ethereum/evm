@@ -1,10 +1,15 @@
 //! VM memory representation
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::{U256, M256};
 
 use super::errors::NotSupportedError;
 use super::Patch;
-use std::marker::PhantomData;
+
+#[cfg(feature = "std")] use std::marker::PhantomData;
+#[cfg(not(feature = "std"))] use core::marker::PhantomData;
 
 /// Represent a memory in EVM. Read should always succeed. Write can
 /// fall.

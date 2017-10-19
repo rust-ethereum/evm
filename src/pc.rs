@@ -1,9 +1,15 @@
 //! EVM Program Counter.
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::M256;
 use util::opcode::Opcode;
-use std::cmp::min;
-use std::marker::PhantomData;
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(feature = "std")] use std::marker::PhantomData;
+#[cfg(not(feature = "std"))] use core::cmp::min;
+#[cfg(not(feature = "std"))] use core::marker::PhantomData;
+
 use super::Patch;
 use super::errors::OnChainError;
 

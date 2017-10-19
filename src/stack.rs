@@ -1,5 +1,8 @@
 //! EVM stack
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::M256;
 use super::errors::OnChainError;
 

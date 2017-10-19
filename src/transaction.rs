@@ -1,15 +1,26 @@
 //! Transaction related functionality.
 
-use std::collections::{HashSet, hash_map};
-use std::cmp::min;
-use std::str::FromStr;
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
+#[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(feature = "std")] use std::str::FromStr;
+#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
+#[cfg(not(feature = "std"))] use core::cmp::min;
+#[cfg(not(feature = "std"))] use core::str::FromStr;
 use bigint::{U256, H256, Address, Gas};
 
-use super::errors::{RequireError, CommitError, PreExecutionError};
+use super::errors::{RequireError, CommitError};
+#[cfg(feature = "std")]
+use super::errors::PreExecutionError;
 use super::{State, Machine, Context, ContextVM, VM, AccountState,
             BlockhashState, Patch, HeaderParams, Memory, VMStatus,
             AccountCommitment, Log, AccountChange, MachineStatus};
-use block::{Transaction, TransactionAction};
+
+use block_core::TransactionAction;
+#[cfg(feature = "std")]
+use block::Transaction;
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
@@ -51,6 +62,7 @@ pub struct ValidTransaction {
     pub nonce: U256,
 }
 
+#[cfg(feature = "std")]
 impl ValidTransaction {
     /// Create a valid transaction from a block transaction. Caller is
     /// always Some.
@@ -386,14 +398,14 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         Ok(())
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
+    fn accounts(&self) -> map::Values<Address, AccountChange> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.accounts(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.accounts(),
         }
     }
 
-    fn used_addresses(&self) -> HashSet<Address> {
+    fn used_addresses(&self) -> Set<Address> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.used_addresses(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.used_addresses(),
