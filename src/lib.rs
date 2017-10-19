@@ -30,6 +30,8 @@ extern crate sha3;
 extern crate digest;
 
 #[cfg(feature = "std")]
+extern crate block;
+#[cfg(feature = "std")]
 extern crate ripemd160;
 #[cfg(feature = "std")]
 extern crate sha2;

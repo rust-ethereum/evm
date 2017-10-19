@@ -12,6 +12,7 @@ os:
 script:
   - cargo build --release --all --verbose
   - cargo test --release --all --verbose
+  - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; cargo build --no-default-features; fi
 
 matrix:
   allow_failures:
