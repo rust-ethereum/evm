@@ -65,24 +65,24 @@ pub trait Patch {
     fn memory_limit() -> usize;
     /// Precompiled contracts at given address, with required code,
     /// and its definition.
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)];
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)];
 }
 
 #[cfg(feature = "std")]
 lazy_static! {
-    static ref ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, Box<Precompiled>); 4] = [
+    static ref ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
         (Address::from_str("0x0000000000000000000000000000000000000001").unwrap(),
          None,
-         Box::new(ECRECPrecompiled)),
+         &ECREC_PRECOMPILED),
         (Address::from_str("0x0000000000000000000000000000000000000002").unwrap(),
          None,
-         Box::new(SHA256Precompiled)),
+         &SHA256_PRECOMPILED),
         (Address::from_str("0x0000000000000000000000000000000000000003").unwrap(),
          None,
-         Box::new(RIP160Precompiled)),
+         &RIP160_PRECOMPILED),
         (Address::from_str("0x0000000000000000000000000000000000000004").unwrap(),
          None,
-         Box::new(IDPrecompiled)),
+         &ID_PRECOMPILED),
     ];
 }
 
@@ -109,7 +109,7 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         ETC_PRECOMPILEDS.deref() }
 }
 
@@ -136,7 +136,7 @@ impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         ETC_PRECOMPILEDS.deref() }
 }
 
@@ -161,7 +161,7 @@ impl Patch for VMTestPatch {
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         ETC_PRECOMPILEDS.deref() }
 }
 
@@ -188,7 +188,7 @@ impl<A: AccountPatch> Patch for EIP150Patch<A> {
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         ETC_PRECOMPILEDS.deref() }
 }
 
@@ -215,11 +215,11 @@ impl<A: AccountPatch> Patch for EIP160Patch<A> {
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         ETC_PRECOMPILEDS.deref() }
 }
 
-static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, Box<Precompiled>); 0] = [];
+static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 0] = [];
 
 /// EIP160 patch.
 pub struct EmbeddedPatch<A: AccountPatch>(PhantomData<A>);
@@ -241,6 +241,6 @@ impl<A: AccountPatch> Patch for EmbeddedPatch<A> {
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, Box<Precompiled>)] {
+    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         &EMBEDDED_PRECOMPILEDS }
 }

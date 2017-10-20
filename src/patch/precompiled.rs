@@ -51,6 +51,7 @@ impl Precompiled for IDPrecompiled {
         data.into()
     }
 }
+pub static ID_PRECOMPILED: IDPrecompiled = IDPrecompiled;
 
 #[cfg(feature = "std")]
 /// RIP160 precompiled contract.
@@ -73,6 +74,7 @@ impl Precompiled for RIP160Precompiled {
         result.as_ref().into()
     }
 }
+pub static RIP160_PRECOMPILED: RIP160Precompiled = RIP160Precompiled;
 
 #[cfg(feature = "std")]
 /// SHA256 precompiled contract.
@@ -96,6 +98,7 @@ impl Precompiled for SHA256Precompiled {
         result.as_ref().into()
     }
 }
+pub static SHA256_PRECOMPILED: SHA256Precompiled = SHA256Precompiled;
 
 #[cfg(feature = "std")]
 /// ECREC precompiled contract.
@@ -122,6 +125,7 @@ impl Precompiled for ECRECPrecompiled {
         }
     }
 }
+pub static ECREC_PRECOMPILED: ECRECPrecompiled = ECRECPrecompiled;
 
 fn gas_div_ceil(a: Gas, b: Gas) -> Gas {
     if a % b == Gas::zero() {
