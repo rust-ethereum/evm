@@ -1,27 +1,32 @@
 [package]
 name = "sputnikvm"
-version = "0.7.7"
+version = "0.7.8"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
 repository = "https://github.com/ethereumproject/sputnikvm"
+keywords = ["no_std"]
 
 [lib]
 name = "sputnikvm"
-crate-type = ["rlib", "cdylib"]
 
 [dependencies]
-log = "0.3"
-ripemd160 = "0.6"
-sha2 = "0.6"
 sha3 = "0.6"
-digest = { version = "0.6", features = ["std"]}
-lazy_static = "0.2"
-secp256k1-plus = "0.5.7"
-etcommon-block = "0.3"
-etcommon-rlp = "0.2"
-etcommon-bigint = "0.2"
-etcommon-hexutil = "0.2"
+digest = "0.6"
+etcommon-block-core = { version = "0.1", default-features = false }
+etcommon-rlp = { version = "0.2", default-features = false }
+etcommon-bigint = { version = "0.2", default-features = false }
+etcommon-hexutil = { version = "0.2", default-features = false }
+
+etcommon-block = { version = "0.3", optional = true }
+secp256k1-plus = { version = "0.5.7", optional = true }
+sha2 = { version = "0.6", optional = true }
+ripemd160 = { version = "0.6", optional = true }
+lazy_static = { version = "0.2", optional = true }
+
+[features]
+default = ["std"]
+std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-hexutil/std", "etcommon-block", "secp256k1-plus", "sha2", "ripemd160", "lazy_static"]
 
 [workspace]
 members = [

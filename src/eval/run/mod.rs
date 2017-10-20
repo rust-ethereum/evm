@@ -50,7 +50,8 @@ mod environment;
 mod system;
 
 use bigint::{M256, MI256, U256, Address, Gas};
-use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
+#[cfg(feature = "std")] use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
+#[cfg(not(feature = "std"))] use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use ::{Memory, Instruction, Patch};
 use super::{State, Control};
 use super::util::{copy_from_memory, copy_into_memory};

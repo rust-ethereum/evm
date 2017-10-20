@@ -2,7 +2,9 @@
 
 use bigint::{M256, U256, Gas, Address};
 
-use std::cmp::max;
+#[cfg(feature = "std")] use std::cmp::max;
+#[cfg(not(feature = "std"))] use core::cmp::max;
+
 use ::{Memory, Instruction, Patch};
 use super::State;
 

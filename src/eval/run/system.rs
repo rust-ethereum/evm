@@ -1,12 +1,17 @@
 //! System operations instructions
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::{U256, M256, H256, Address, Gas};
 use ::{Memory, Log, ValidTransaction, Patch};
 use eval::util::{l64, copy_from_memory};
-use block::TransactionAction;
+use block_core::TransactionAction;
 use super::{Control, State};
 
-use std::cmp::min;
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(not(feature = "std"))] use core::cmp::min;
+
 use sha3::{Digest, Keccak256};
 
 pub fn suicide<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {

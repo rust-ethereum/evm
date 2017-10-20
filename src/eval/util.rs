@@ -1,9 +1,14 @@
 //! Eval utilities
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::{U256, M256, Gas};
 use ::Memory;
 use errors::OnChainError;
-use std::cmp::min;
+
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(not(feature = "std"))] use core::cmp::min;
 
 pub fn l64(gas: Gas) -> Gas {
     gas - gas / Gas::from(64u64)

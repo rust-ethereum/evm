@@ -1,16 +1,18 @@
 //! Blockhash commitment management
-use std::collections::hash_map::HashMap;
+
+#[cfg(feature = "std")] use std::collections::HashMap as Map;
+#[cfg(not(feature = "std"))] use alloc::BTreeMap as Map;
 use bigint::{U256, H256};
 
 use errors::{RequireError, CommitError};
 
 #[derive(Debug, Clone)]
 /// A struct that manages the current blockhash state for one EVM.
-pub struct BlockhashState(HashMap<U256, H256>);
+pub struct BlockhashState(Map<U256, H256>);
 
 impl Default for BlockhashState {
     fn default() -> BlockhashState {
-        BlockhashState(HashMap::new())
+        BlockhashState(Map::new())
     }
 }
 

@@ -1,8 +1,12 @@
 //! Account commitment managment
 
-use std::collections::hash_set::HashSet;
-use std::collections::hash_map::{self, HashMap};
-use std::marker::PhantomData;
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
+#[cfg(feature = "std")] use std::collections::{HashSet as Set, HashMap as Map, hash_map as map};
+#[cfg(feature = "std")] use std::marker::PhantomData;
+#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, BTreeMap as Map, btree_map as map};
+#[cfg(not(feature = "std"))] use core::marker::PhantomData;
 use bigint::{M256, U256, Address};
 use patch::AccountPatch;
 
@@ -14,11 +18,11 @@ use errors::{RequireError, CommitError};
 pub struct Storage {
     partial: bool,
     address: Address,
-    storage: HashMap<U256, M256>,
+    storage: Map<U256, M256>,
 }
 
-impl Into<HashMap<U256, M256>> for Storage {
-    fn into(self) -> HashMap<U256, M256> {
+impl Into<Map<U256, M256>> for Storage {
+    fn into(self) -> Map<U256, M256> {
         self.storage
     }
 }
@@ -29,7 +33,7 @@ impl Storage {
         Storage {
             partial: partial,
             address: address,
-            storage: HashMap::new(),
+            storage: Map::new(),
         }
     }
 
@@ -192,18 +196,18 @@ impl AccountChange {
 #[derive(Debug)]
 /// A struct that manages the current account state for one EVM.
 pub struct AccountState<A: AccountPatch> {
-    accounts: HashMap<Address, AccountChange>,
-    codes: HashMap<Address, Vec<u8>>,
-    premarked_exists: HashSet<Address>,
+    accounts: Map<Address, AccountChange>,
+    codes: Map<Address, Vec<u8>>,
+    premarked_exists: Set<Address>,
     _marker: PhantomData<A>,
 }
 
 impl<A: AccountPatch> Default for AccountState<A> {
     fn default() -> Self {
         Self {
-            accounts: HashMap::new(),
-            codes: HashMap::new(),
-            premarked_exists: HashSet::new(),
+            accounts: Map::new(),
+            codes: Map::new(),
+            premarked_exists: Set::new(),
             _marker: PhantomData,
         }
     }
@@ -222,8 +226,8 @@ impl<A: AccountPatch> Clone for AccountState<A> {
 
 impl<A: AccountPatch> AccountState<A> {
     /// Returns all fetched or modified addresses.
-    pub fn used_addresses(&self) -> HashSet<Address> {
-        let mut set = HashSet::new();
+    pub fn used_addresses(&self) -> Set<Address> {
+        let mut set = Set::new();
         for account in self.accounts() {
             set.insert(account.address());
         }
@@ -234,7 +238,7 @@ impl<A: AccountPatch> AccountState<A> {
     }
 
     /// Returns all accounts right now in this account state.
-    pub fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
+    pub fn accounts(&self) -> map::Values<Address, AccountChange> {
         self.accounts.values()
     }
 

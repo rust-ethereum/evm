@@ -1,4 +1,8 @@
 //! VM Runtime
+
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::{H256, M256, U256, Gas, Address};
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,

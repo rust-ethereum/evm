@@ -1,5 +1,8 @@
 //! Runtime lifecycle related functionality.
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::{U256, M256, Gas};
 use errors::{RequireError, OnChainError};
 use commit::AccountState;
@@ -140,7 +143,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// ContractCreation or MessageCall instruction, it will apply
     /// various states back.
     pub fn apply_sub(&mut self, sub: Machine<M, P>) {
+        #[cfg(feature = "std")]
         use std::mem::swap;
+
+        #[cfg(not(feature = "std"))]
+        use core::mem::swap;
+
         let mut status = MachineStatus::Running;
         swap(&mut status, &mut self.status);
         match status {
