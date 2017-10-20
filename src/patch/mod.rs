@@ -1,18 +1,14 @@
 //! Patch of a VM, indicating different hard-fork of the Ethereum
 //! block range.
 
-#[cfg(not(feature = "std"))]
-use alloc::boxed::Box;
-
 mod precompiled;
 
 pub use self::precompiled::*;
 
-#[cfg(feature = "std")] use std::ops::Deref;
-#[cfg(feature = "std")] use std::str::FromStr;
 #[cfg(feature = "std")] use std::marker::PhantomData;
 #[cfg(not(feature = "std"))] use core::marker::PhantomData;
 use bigint::{Address, Gas, U256};
+#[cfg(feature = "std")] use bigint::H160;
 
 /// Account patch for account related variables.
 pub trait AccountPatch {
@@ -69,22 +65,20 @@ pub trait Patch {
 }
 
 #[cfg(feature = "std")]
-lazy_static! {
-    static ref ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
-        (Address::from_str("0x0000000000000000000000000000000000000001").unwrap(),
-         None,
-         &ECREC_PRECOMPILED),
-        (Address::from_str("0x0000000000000000000000000000000000000002").unwrap(),
-         None,
-         &SHA256_PRECOMPILED),
-        (Address::from_str("0x0000000000000000000000000000000000000003").unwrap(),
-         None,
-         &RIP160_PRECOMPILED),
-        (Address::from_str("0x0000000000000000000000000000000000000004").unwrap(),
-         None,
-         &ID_PRECOMPILED),
-    ];
-}
+pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
+    (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
+     None,
+     &ECREC_PRECOMPILED),
+    (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x02]),
+     None,
+     &SHA256_PRECOMPILED),
+    (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x03]),
+     None,
+     &RIP160_PRECOMPILED),
+    (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x04]),
+     None,
+     &ID_PRECOMPILED),
+];
 
 #[cfg(feature = "std")]
 /// Frontier patch.
@@ -110,7 +104,7 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        ETC_PRECOMPILEDS.deref() }
+        &ETC_PRECOMPILEDS }
 }
 
 #[cfg(feature = "std")]
@@ -137,7 +131,7 @@ impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        ETC_PRECOMPILEDS.deref() }
+        &ETC_PRECOMPILEDS }
 }
 
 #[cfg(feature = "std")]
@@ -162,7 +156,7 @@ impl Patch for VMTestPatch {
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        ETC_PRECOMPILEDS.deref() }
+        &ETC_PRECOMPILEDS }
 }
 
 #[cfg(feature = "std")]
@@ -189,7 +183,7 @@ impl<A: AccountPatch> Patch for EIP150Patch<A> {
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        ETC_PRECOMPILEDS.deref() }
+        &ETC_PRECOMPILEDS }
 }
 
 #[cfg(feature = "std")]
@@ -216,10 +210,10 @@ impl<A: AccountPatch> Patch for EIP160Patch<A> {
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        ETC_PRECOMPILEDS.deref() }
+        &ETC_PRECOMPILEDS }
 }
 
-static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 0] = [];
+pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 0] = [];
 
 /// EIP160 patch.
 pub struct EmbeddedPatch<A: AccountPatch>(PhantomData<A>);

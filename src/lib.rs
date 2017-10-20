@@ -37,9 +37,6 @@ extern crate ripemd160;
 extern crate sha2;
 #[cfg(feature = "std")]
 extern crate secp256k1;
-#[cfg(feature = "std")]
-#[macro_use]
-extern crate lazy_static;
 
 mod util;
 mod memory;
