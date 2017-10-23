@@ -3,7 +3,7 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
-use bigint::{H256, M256, U256, Gas, Address};
+use bigint::{M256, U256, Gas, Address};
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
                     OnChainError, NotSupportedError};
@@ -28,8 +28,6 @@ pub struct State<M, P: Patch> {
 
     /// Context.
     pub context: Context,
-    /// Block header.
-    pub block: HeaderParams,
 
     /// The current out value.
     pub out: Vec<u8>,
@@ -44,8 +42,6 @@ pub struct State<M, P: Patch> {
 
     /// The current account commitment states.
     pub account_state: AccountState<P::Account>,
-    /// The current blockhash commitment states.
-    pub blockhash_state: BlockhashState,
     /// Logs appended.
     pub logs: Vec<Log>,
     /// Removed accounts using the SUICIDE opcode.
@@ -69,6 +65,26 @@ impl<M, P: Patch> State<M, P> {
     /// Total used gas including the memory gas.
     pub fn total_used_gas(&self) -> Gas {
         self.memory_gas() + self.used_gas
+    }
+}
+
+/// A VM runtime. Only available in eval.
+pub struct Runtime {
+    /// The current blockhash commitment states.
+    pub blockhash_state: BlockhashState,
+    /// Block header.
+    pub block: HeaderParams,
+}
+
+impl Runtime {
+    pub fn new(block: HeaderParams) -> Self {
+        Self::with_states(block, BlockhashState::default())
+    }
+
+    pub fn with_states(block: HeaderParams, blockhash_state: BlockhashState) -> Self {
+        Runtime {
+            block, blockhash_state
+        }
     }
 }
 
@@ -116,15 +132,14 @@ pub enum Control {
 
 impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Create a new runtime.
-    pub fn new(context: Context, block: HeaderParams, depth: usize) -> Self {
-        Self::with_states(context, block, depth,
-                          AccountState::default(), BlockhashState::default())
+    pub fn new(context: Context, depth: usize) -> Self {
+        Self::with_states(context, depth,
+                          AccountState::default())
     }
 
     /// Create a new runtime with the given states.
-    pub fn with_states(context: Context, block: HeaderParams,
-                       depth: usize, account_state: AccountState<P::Account>,
-                       blockhash_state: BlockhashState) -> Self {
+    pub fn with_states(context: Context,
+                       depth: usize, account_state: AccountState<P::Account>) -> Self {
         Machine {
             pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
@@ -133,7 +148,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 stack: Stack::default(),
 
                 context,
-                block,
 
                 out: Vec::new(),
 
@@ -142,7 +156,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 refunded_gas: Gas::zero(),
 
                 account_state,
-                blockhash_state,
                 logs: Vec::new(),
                 removed: Vec::new(),
 
@@ -164,7 +177,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 stack: Stack::default(),
 
                 context: context,
-                block: self.state.block.clone(),
 
                 out: Vec::new(),
 
@@ -173,7 +185,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 refunded_gas: Gas::zero(),
 
                 account_state: self.state.account_state.clone(),
-                blockhash_state: self.state.blockhash_state.clone(),
                 logs: self.state.logs.clone(),
                 removed: self.state.removed.clone(),
 
@@ -185,11 +196,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Commit a new account into this runtime.
     pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         self.state.account_state.commit(commitment)
-    }
-
-    /// Commit a new blockhash into this runtime.
-    pub fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
-        self.state.blockhash_state.commit(number, hash)
     }
 
     /// Step a precompiled runtime. This function returns true if the
@@ -227,7 +233,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// there're accounts or blockhashes to be committed to this
     /// runtime for it to run. In that case, the state of the current
     /// runtime will not be affected.
-    pub fn step(&mut self) -> Result<(), RequireError> {
+    pub fn step(&mut self, runtime: &Runtime) -> Result<(), RequireError> {
         match &self.status {
             &MachineStatus::Running => (),
             _ => panic!(),
@@ -250,7 +256,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             },
         };
 
-        match check_opcode(instruction, &self.state).and_then(|v| {
+        match check_opcode(instruction, &self.state, runtime).and_then(|v| {
             match v {
                 None => Ok(()),
                 Some(ControlCheck::Jump(dest)) => {
@@ -305,7 +311,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
         let instruction = self.pc.read().unwrap();
         let result = run_opcode::<M, P>((instruction, position),
-                                        &mut self.state, gas_stipend, after_gas);
+                                        &mut self.state, runtime, gas_stipend, after_gas);
 
         self.state.used_gas = self.state.used_gas + gas_cost - gas_stipend;
         self.state.memory_cost = memory_cost;
