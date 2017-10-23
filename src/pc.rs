@@ -73,6 +73,13 @@ impl<P: Patch> PC<P> {
         }
     }
 
+    /// Create a new program counter at given position.
+    pub(crate) fn with_position(code: &[u8], position: usize) -> Self {
+        let mut pc = Self::new(code);
+        pc.position = position;
+        pc
+    }
+
     fn read_bytes(&self, from_position: usize, byte_count: usize) -> Result<M256, OnChainError> {
         if from_position > self.code.len() {
             return Err(OnChainError::PCOverflow);
