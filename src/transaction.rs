@@ -240,7 +240,7 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
                 TransactionVMState::Constructing { ref blockhash_state, .. } =>
                     blockhash_state.clone(),
                 TransactionVMState::Running { ref vm, .. } =>
-                    vm.machines[0].state().blockhash_state.clone(),
+                    vm.runtime.blockhash_state.clone(),
             },
         })
     }
@@ -345,7 +345,8 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                         }
 
                         if !*finalized {
-                            vm.machines[0].finalize(real_used_gas, preclaimed_value,
+                            vm.machines[0].finalize(vm.runtime.block.beneficiary,
+                                                    real_used_gas, preclaimed_value,
                                                     fresh_account_state)?;
                             *finalized = true;
                             return Ok(());

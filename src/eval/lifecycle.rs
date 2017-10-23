@@ -3,7 +3,7 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
-use bigint::{U256, M256, Gas};
+use bigint::{U256, M256, Gas, Address};
 use errors::{RequireError, OnChainError};
 use commit::AccountState;
 use ::{Memory, Patch};
@@ -95,7 +95,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Finalize a transaction. This should not be used when invoked
     /// by an opcode.
-    pub fn finalize(&mut self, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
+    pub fn finalize(&mut self, beneficiary: Address, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
         match self.status() {
@@ -124,7 +124,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
 
         // Apply miner rewards
-        self.state.account_state.increase_balance(self.state.block.beneficiary, gas_dec.into());
+        self.state.account_state.increase_balance(beneficiary, gas_dec.into());
 
         for address in &self.state.removed {
             self.state.account_state.remove(*address).unwrap();
@@ -174,7 +174,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 let sub_total_used_gas = sub.state.total_used_gas();
 
                 self.state.account_state = sub.state.account_state;
-                self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
                 self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;
@@ -200,7 +199,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 let sub_total_used_gas = sub.state.total_used_gas();
 
                 self.state.account_state = sub.state.account_state;
-                self.state.blockhash_state = sub.state.blockhash_state;
                 self.state.logs = sub.state.logs;
                 self.state.removed = sub.state.removed;
                 self.state.used_gas = self.state.used_gas + sub_total_used_gas;

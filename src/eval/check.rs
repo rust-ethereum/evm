@@ -4,7 +4,7 @@ use bigint::{U256, M256, Gas};
 
 use ::{Memory, Instruction, Patch};
 use errors::{OnChainError, NotSupportedError, EvalOnChainError};
-use eval::{State, ControlCheck};
+use eval::{State, Runtime, ControlCheck};
 
 use super::util::check_range;
 
@@ -69,7 +69,7 @@ pub fn check_support<M: Memory + Default, P: Patch>(instruction: Instruction, st
 #[allow(unused_variables)]
 /// Check whether `run_opcode` would fail without mutating any of the
 /// machine state.
-pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>) -> Result<Option<ControlCheck>, EvalOnChainError> {
+pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>, runtime: &Runtime) -> Result<Option<ControlCheck>, EvalOnChainError> {
     match instruction {
         Instruction::STOP => Ok(None),
         Instruction::ADD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
@@ -139,10 +139,10 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
 
         Instruction::BLOCKHASH => {
             state.stack.check_pop_push(1, 1)?;
-            let current_number = state.block.number;
+            let current_number = runtime.block.number;
             let number: U256 = state.stack.peek(0).unwrap().into();
             if !(number >= current_number || current_number - number > U256::from(256u64)) {
-                state.blockhash_state.get(number)?;
+                runtime.blockhash_state.get(number)?;
             }
             Ok(None)
         },

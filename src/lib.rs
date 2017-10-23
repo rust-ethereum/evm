@@ -54,7 +54,7 @@ pub use self::stack::Stack;
 pub use self::pc::{PC, Instruction};
 pub use self::params::*;
 pub use self::patch::*;
-pub use self::eval::{State, Machine, MachineStatus};
+pub use self::eval::{State, Machine, Runtime, MachineStatus};
 pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState, Storage};
 pub use self::transaction::{ValidTransaction, TransactionVM};
 pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
@@ -135,6 +135,7 @@ pub type SeqTransactionVM<P> = TransactionVM<SeqMemory<P>, P>;
 
 /// A VM that executes using a context and block information.
 pub struct ContextVM<M, P: Patch> {
+    runtime: Runtime,
     machines: Vec<Machine<M, P>>,
     history: Vec<Context>
 }
@@ -143,9 +144,10 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     /// Create a new VM using the given context, block header and patch.
     pub fn new(context: Context, block: HeaderParams) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::new(context, block, 1));
+        machines.push(Machine::new(context, 1));
         ContextVM {
             machines,
+            runtime: Runtime::new(block),
             history: Vec::new()
         }
     }
@@ -154,9 +156,10 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     pub fn with_states(context: Context, block: HeaderParams,
                        account_state: AccountState<P::Account>, blockhash_state: BlockhashState) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::with_states(context, block, 1, account_state, blockhash_state));
+        machines.push(Machine::with_states(context, 1, account_state));
         ContextVM {
             machines,
+            runtime: Runtime::with_states(block, blockhash_state),
             history: Vec::new()
         }
     }
@@ -166,7 +169,7 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     pub fn with_previous(context: Context, block: HeaderParams, vm: &ContextVM<M, P>) -> Self {
         Self::with_states(context, block,
                           vm.machines[0].state().account_state.clone(),
-                          vm.machines[0].state().blockhash_state.clone())
+                          vm.runtime.blockhash_state.clone())
     }
 
     /// Returns the call create history. Only used in testing.
@@ -194,10 +197,7 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     }
 
     fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
-        for machine in &mut self.machines {
-            machine.commit_blockhash(number, hash)?;
-        }
-        Ok(())
+        self.runtime.blockhash_state.commit(number, hash)
     }
 
     fn status(&self) -> VMStatus {
@@ -217,7 +217,7 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     fn step(&mut self) -> Result<(), RequireError> {
         match self.machines.last().unwrap().status().clone() {
             MachineStatus::Running => {
-                self.machines.last_mut().unwrap().step()
+                self.machines.last_mut().unwrap().step(&self.runtime)
             },
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
                 if self.machines.len() == 0 {
