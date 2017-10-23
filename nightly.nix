@@ -5,8 +5,8 @@ let pkgs = (
     rustOverlay = (pkgs_.fetchFromGitHub {
       owner = "mozilla";
       repo = "nixpkgs-mozilla";
-      rev = "e2a920faec5a9ebd6ff34abf072aacb4e0ed6f70";
-      sha256 = "1lq7zg388y4wrbl165wraji9dmlb8rkjaiam9bq28n3ynsp4b6fz";
+      rev = "6179dd876578ca2931f864627598ede16ba6cdef";
+      sha256 = "1lim10a674621zayz90nhwiynlakxry8fyz1x209g9bdm38zy3av";
     });
   in (nixpkgs {
     overlays = [

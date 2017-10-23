@@ -22,11 +22,10 @@ etcommon-block = { version = "0.3", optional = true }
 secp256k1-plus = { version = "0.5.7", optional = true }
 sha2 = { version = "0.6", optional = true }
 ripemd160 = { version = "0.6", optional = true }
-lazy_static = { version = "0.2", optional = true }
 
 [features]
 default = ["std"]
-std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-hexutil/std", "etcommon-block", "secp256k1-plus", "sha2", "ripemd160", "lazy_static"]
+std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-hexutil/std", "etcommon-block", "secp256k1-plus", "sha2", "ripemd160"]
 
 [workspace]
 members = [
