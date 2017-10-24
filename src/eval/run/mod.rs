@@ -49,6 +49,9 @@ mod flow;
 mod environment;
 mod system;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::{M256, MI256, U256, Address, Gas};
 #[cfg(feature = "std")] use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 #[cfg(not(feature = "std"))] use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
@@ -115,7 +118,7 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::EXTCODECOPY => { pop!(state, address: Address);
                                       pop!(state, memory_index: U256, code_index: U256, len: U256);
                                       copy_into_memory(&mut state.memory,
-                                                       state.account_state.code(address).unwrap(),
+                                                       &state.account_state.code(address).unwrap(),
                                                        memory_index, code_index, len);
                                       None },
 
@@ -168,7 +171,7 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::CALLCODE => { system::call::<M, P>(state, stipend_gas, after_gas, true) },
         Instruction::DELEGATECALL => { system::delegate_call::<M, P>(state, after_gas) },
         Instruction::RETURN => { pop!(state, start: U256, len: U256);
-                                 state.out = copy_from_memory(&mut state.memory, start, len);
+                                 state.out = Rc::new(copy_from_memory(&mut state.memory, start, len));
                                  Some(Control::Stop) },
         Instruction::SUICIDE => { system::suicide(state); Some(Control::Stop) },
     }

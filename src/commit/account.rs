@@ -10,6 +10,9 @@ use alloc::Vec;
 use bigint::{M256, U256, Address};
 use patch::AccountPatch;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use errors::{RequireError, CommitError};
 
 /// Internal representation of an account storage. It will return a
@@ -92,7 +95,7 @@ pub enum AccountCommitment {
         /// Account balance.
         balance: U256,
         /// Code associated with this account.
-        code: Vec<u8>,
+        code: Rc<Vec<u8>>,
     },
     /// Commit only code of the account. The client can keep changing
     /// it in other EVMs if the code remains unchanged.
@@ -100,7 +103,7 @@ pub enum AccountCommitment {
         /// Account address.
         address: Address,
         /// Code associated with this account.
-        code: Vec<u8>,
+        code: Rc<Vec<u8>>,
     },
     /// Commit a storage. Must be used given a full account.
     Storage {
@@ -150,7 +153,7 @@ pub enum AccountChange {
         /// Change storage with given indexes and values.
         changing_storage: Storage,
         /// Code associated with this account.
-        code: Vec<u8>,
+        code: Rc<Vec<u8>>,
     },
     /// Only balance is changed, and it is increasing for this address.
     IncreaseBalance(Address, U256),
@@ -167,7 +170,7 @@ pub enum AccountChange {
         /// All storage values of this account, with given indexes and values.
         storage: Storage,
         /// Code associated with this account.
-        code: Vec<u8>,
+        code: Rc<Vec<u8>>,
         /// Whether, at this point, the account is considered
         /// existing. The client should delete this address if this is
         /// set to `false`.
@@ -197,7 +200,7 @@ impl AccountChange {
 /// A struct that manages the current account state for one EVM.
 pub struct AccountState<A: AccountPatch> {
     accounts: Map<Address, AccountChange>,
-    codes: Map<Address, Vec<u8>>,
+    codes: Map<Address, Rc<Vec<u8>>>,
     premarked_exists: Set<Address>,
     _marker: PhantomData<A>,
 }
@@ -354,7 +357,7 @@ impl<A: AccountPatch> AccountState<A> {
                                 address,
                                 balance: topup,
                                 storage: Storage::new(address, false),
-                                code: Vec::new(),
+                                code: Rc::new(Vec::new()),
                                 exists: true,
                             }
                         },
@@ -366,7 +369,7 @@ impl<A: AccountPatch> AccountState<A> {
                         address,
                         balance: U256::zero(),
                         storage: Storage::new(address, false),
-                        code: Vec::new(),
+                        code: Rc::new(Vec::new()),
                         exists: self.premarked_exists.contains(&address),
                     }
                 };
@@ -402,9 +405,9 @@ impl<A: AccountPatch> AccountState<A> {
 
     /// Find code by its address in this account state. If the search
     /// failed, returns a `RequireError`.
-    pub fn code(&self, address: Address) -> Result<&[u8], RequireError> {
+    pub fn code(&self, address: Address) -> Result<Rc<Vec<u8>>, RequireError> {
         if self.codes.contains_key(&address) {
-            return Ok(self.codes.get(&address).unwrap().as_slice());
+            return Ok(self.codes.get(&address).unwrap().clone());
         }
 
         if self.accounts.contains_key(&address) {
@@ -412,11 +415,11 @@ impl<A: AccountPatch> AccountState<A> {
                 &AccountChange::Full {
                     ref code,
                     ..
-                } => return Ok(code.as_slice()),
+                } => return Ok(code.clone()),
                 &AccountChange::Create {
                     ref code,
                     ..
-                } => return Ok(code.as_slice()),
+                } => return Ok(code.clone()),
                 &AccountChange::IncreaseBalance(address, _) => return Err(RequireError::Account(address)),
                 &AccountChange::DecreaseBalance(address, _) => return Err(RequireError::Account(address)),
             }
@@ -512,14 +515,14 @@ impl<A: AccountPatch> AccountState<A> {
             match self.accounts.remove(&address).unwrap() {
                 AccountChange::Full { balance, .. } => {
                     AccountChange::Create {
-                        address, code: Vec::new(), nonce: A::initial_nonce(),
+                        address, code: Rc::new(Vec::new()), nonce: A::initial_nonce(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
                 },
                 AccountChange::Create { balance, .. } => {
                     AccountChange::Create {
-                        address, code: Vec::new(), nonce: A::initial_nonce(),
+                        address, code: Rc::new(Vec::new()), nonce: A::initial_nonce(),
                         balance: balance + topup, storage: Storage::new(address, false),
                         exists: true,
                     }
@@ -538,11 +541,11 @@ impl<A: AccountPatch> AccountState<A> {
     }
 
     /// Deposit code in to a created account.
-    pub fn code_deposit(&mut self, address: Address, new_code: &[u8]) {
+    pub fn code_deposit(&mut self, address: Address, new_code: Rc<Vec<u8>>) {
         match self.accounts.get_mut(&address).unwrap() {
             &mut AccountChange::Create { ref mut code, ref mut exists, .. } => {
                 *exists = true;
-                *code = new_code.into();
+                *code = new_code;
             },
             _ => panic!(),
         }
@@ -704,7 +707,7 @@ impl<A: AccountPatch> AccountState<A> {
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
-                    code: Vec::new(),
+                    code: Rc::new(Vec::new()),
                     exists: false,
                 }
             },
@@ -723,7 +726,7 @@ impl<A: AccountPatch> AccountState<A> {
                     address,
                     balance: U256::zero(),
                     storage: Storage::new(address, false),
-                    code: Vec::new(),
+                    code: Rc::new(Vec::new()),
                     exists: false,
                 }
             },

@@ -1,6 +1,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::Gas;
 #[cfg(feature = "std")] use std::cmp::min;
 
@@ -19,7 +22,7 @@ use digest::{Digest, FixedOutput};
 /// Represent a precompiled contract.
 pub trait Precompiled: Sync {
     /// Step a precompiled contract based on the gas required.
-    fn step(&self, _: &[u8]) -> Vec<u8> {
+    fn step(&self, _: &[u8]) -> Rc<Vec<u8>> {
         unimplemented!()
     }
     /// Gas needed for a given computation.
@@ -27,7 +30,7 @@ pub trait Precompiled: Sync {
         unimplemented!()
     }
     /// Combine step and gas together, given the gas limit.
-    fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Vec<u8>), RuntimeError> {
+    fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
         let gas = self.gas(data);
         if gas > gas_limit {
             Err(RuntimeError::OnChain(OnChainError::EmptyGas))
@@ -47,8 +50,8 @@ impl Precompiled for IDPrecompiled {
             Gas::from(3u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
     }
 
-    fn step(&self, data: &[u8]) -> Vec<u8> {
-        data.into()
+    fn step(&self, data: &[u8]) -> Rc<Vec<u8>> {
+        Rc::new(data.into())
     }
 }
 #[cfg(feature = "std")]
@@ -64,7 +67,7 @@ impl Precompiled for RIP160Precompiled {
             Gas::from(120u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
     }
 
-    fn step(&self, data: &[u8]) -> Vec<u8> {
+    fn step(&self, data: &[u8]) -> Rc<Vec<u8>> {
         let mut ripemd = Ripemd160::default();
         ripemd.input(data);
         let fixed = ripemd.fixed_result();
@@ -72,7 +75,7 @@ impl Precompiled for RIP160Precompiled {
         for i in 0..20 {
             result[i + 12] = fixed[i];
         }
-        result.as_ref().into()
+        Rc::new(result.as_ref().into())
     }
 }
 #[cfg(feature = "std")]
@@ -89,7 +92,7 @@ impl Precompiled for SHA256Precompiled {
                                             Gas::from(32u64))
     }
 
-    fn step(&self, data: &[u8]) -> Vec<u8> {
+    fn step(&self, data: &[u8]) -> Rc<Vec<u8>> {
         let mut sha2 = Sha256::default();
         sha2.input(data);
         let fixed = sha2.fixed_result();
@@ -97,7 +100,7 @@ impl Precompiled for SHA256Precompiled {
         for i in 0..32 {
             result[i] = fixed[i];
         }
-        result.as_ref().into()
+        Rc::new(result.as_ref().into())
     }
 }
 #[cfg(feature = "std")]
@@ -112,7 +115,7 @@ impl Precompiled for ECRECPrecompiled {
         Gas::from(3000u64)
     }
 
-    fn step(&self, datao: &[u8]) -> Vec<u8> {
+    fn step(&self, datao: &[u8]) -> Rc<Vec<u8>> {
         let mut data = [0u8; 128];
         for i in 0..min(datao.len(), 128) {
             data[i] = datao[i];
@@ -122,9 +125,9 @@ impl Precompiled for ECRECPrecompiled {
                 for i in 0..12 {
                     ret[i] = 0u8;
                 }
-                ret.as_ref().into()
+                Rc::new(ret.as_ref().into())
             },
-            Err(_) => Vec::new(),
+            Err(_) => Rc::new(Vec::new()),
         }
     }
 }
