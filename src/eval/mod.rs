@@ -7,7 +7,7 @@ use bigint::{M256, U256, Gas, Address};
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
                     OnChainError, NotSupportedError};
-use super::{Stack, Context, HeaderParams, Patch, PC, Memory, AccountCommitment, Log};
+use super::{Stack, Context, HeaderParams, Patch, PC, PCMut, Valids, Memory, AccountCommitment, Log};
 
 use self::check::{check_opcode, check_support, extra_check_opcode};
 use self::run::run_opcode;
@@ -49,6 +49,11 @@ pub struct State<M, P: Patch> {
 
     /// Depth of this runtime.
     pub depth: usize,
+
+    /// Code valid maps.
+    pub valids: Valids,
+    /// PC position.
+    pub position: usize,
 }
 
 impl<M, P: Patch> State<M, P> {
@@ -91,7 +96,6 @@ impl Runtime {
 /// A VM state with PC.
 pub struct Machine<M, P: Patch> {
     state: State<M, P>,
-    pc: PC<P>,
     status: MachineStatus,
 }
 
@@ -141,13 +145,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     pub fn with_states(context: Context,
                        depth: usize, account_state: AccountState<P::Account>) -> Self {
         Machine {
-            pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
                 stack: Stack::default(),
-
-                context,
 
                 out: Vec::new(),
 
@@ -160,6 +161,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 removed: Vec::new(),
 
                 depth,
+                position: 0,
+                valids: Valids::new(context.code.as_slice()),
+
+                context,
             },
         }
     }
@@ -170,13 +175,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// runtime afterwards.
     pub fn derive(&self, context: Context) -> Self {
         Machine {
-            pc: PC::new(context.code.as_slice()),
             status: MachineStatus::Running,
             state: State {
                 memory: M::default(),
                 stack: Stack::default(),
-
-                context: context,
 
                 out: Vec::new(),
 
@@ -189,6 +191,11 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 removed: self.state.removed.clone(),
 
                 depth: self.state.depth + 1,
+
+                position: 0,
+                valids: Valids::new(context.code.as_slice()),
+
+                context,
             },
         }
     }
@@ -204,7 +211,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     pub fn step_precompiled(&mut self) -> bool {
         for precompiled in P::precompileds() {
             if self.state.context.address == precompiled.0 &&
-                (precompiled.1.is_none() || precompiled.1.unwrap() == self.pc.code())
+                (precompiled.1.is_none() || precompiled.1.unwrap() == self.state.context.code.as_slice())
             {
                 let data = &self.state.context.data;
                 match precompiled.2.gas_and_step(data, self.state.context.gas_limit) {
@@ -234,6 +241,16 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// runtime for it to run. In that case, the state of the current
     /// runtime will not be affected.
     pub fn step(&mut self, runtime: &Runtime) -> Result<(), RequireError> {
+        struct Precheck {
+            position: usize,
+            memory_cost: Gas,
+            memory_gas: Gas,
+            gas_cost: Gas,
+            gas_stipend: Gas,
+            gas_refund: Gas,
+            after_gas: Gas,
+        }
+
         match &self.status {
             &MachineStatus::Running => (),
             _ => panic!(),
@@ -243,73 +260,88 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             return Ok(());
         }
 
-        if self.pc.is_end() {
-            self.status = MachineStatus::ExitedOk;
-            return Ok(());
-        }
+        let Precheck {
+            position, memory_cost, memory_gas,
+            gas_cost, gas_stipend, gas_refund, after_gas
+        } = {
+            let pc = PC::<P>::new(&self.state.context.code,
+                                  &self.state.valids, &self.state.position);
 
-        let instruction = match self.pc.peek() {
-            Ok(val) => val,
-            Err(err) => {
-                self.status = MachineStatus::ExitedErr(err);
-                return Ok(())
-            },
-        };
+            if pc.is_end() {
+                self.status = MachineStatus::ExitedOk;
+                return Ok(());
+            }
 
-        match check_opcode(instruction, &self.state, runtime).and_then(|v| {
-            match v {
-                None => Ok(()),
-                Some(ControlCheck::Jump(dest)) => {
-                    if dest <= M256::from(usize::max_value()) && self.pc.is_valid(dest.as_usize()) {
-                        Ok(())
-                    } else {
-                        Err(OnChainError::BadJumpDest.into())
+            let instruction = match pc.peek() {
+                Ok(val) => val,
+                Err(err) => {
+                    self.status = MachineStatus::ExitedErr(err);
+                    return Ok(())
+                },
+            };
+
+            match check_opcode(instruction, &self.state, runtime).and_then(|v| {
+                match v {
+                    None => Ok(()),
+                    Some(ControlCheck::Jump(dest)) => {
+                        if dest <= M256::from(usize::max_value()) && pc.is_valid(dest.as_usize()) {
+                            Ok(())
+                        } else {
+                            Err(OnChainError::BadJumpDest.into())
+                        }
                     }
                 }
+            }) {
+                Ok(()) => (),
+                Err(EvalOnChainError::OnChain(error)) => {
+                    self.status = MachineStatus::ExitedErr(error);
+                    return Ok(());
+                },
+                Err(EvalOnChainError::Require(error)) => {
+                    return Err(error);
+                },
             }
-        }) {
-            Ok(()) => (),
-            Err(EvalOnChainError::OnChain(error)) => {
-                self.status = MachineStatus::ExitedErr(error);
+
+            let position = pc.position();
+            let memory_cost = memory_cost(instruction, &self.state);
+            let memory_gas = memory_gas(memory_cost);
+            let gas_cost = gas_cost::<M, P>(instruction, &self.state);
+            let gas_stipend = gas_stipend(instruction, &self.state);
+            let gas_refund = gas_refund(instruction, &self.state);
+
+            let all_gas_cost = memory_gas + self.state.used_gas + gas_cost;
+            if self.state.context.gas_limit < all_gas_cost {
+                self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
                 return Ok(());
-            },
-            Err(EvalOnChainError::Require(error)) => {
-                return Err(error);
-            },
-        }
+            }
 
-        let position = self.pc.position();
-        let memory_cost = memory_cost(instruction, &self.state);
-        let memory_gas = memory_gas(memory_cost);
-        let gas_cost = gas_cost::<M, P>(instruction, &self.state);
-        let gas_stipend = gas_stipend(instruction, &self.state);
-        let gas_refund = gas_refund(instruction, &self.state);
+            match check_support(instruction, &self.state) {
+                Ok(()) => (),
+                Err(err) => {
+                    self.status = MachineStatus::ExitedNotSupported(err);
+                    return Ok(());
+                },
+            };
 
-        let all_gas_cost = memory_gas + self.state.used_gas + gas_cost;
-        if self.state.context.gas_limit < all_gas_cost {
-            self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
-            return Ok(());
-        }
+            let after_gas = self.state.context.gas_limit - all_gas_cost;
 
-        match check_support(instruction, &self.state) {
-            Ok(()) => (),
-            Err(err) => {
-                self.status = MachineStatus::ExitedNotSupported(err);
-                return Ok(());
-            },
+            match extra_check_opcode::<M, P>(instruction, &self.state, gas_stipend, after_gas) {
+                Ok(()) => (),
+                Err(err) => {
+                    self.status = MachineStatus::ExitedErr(err);
+                    return Ok(());
+                },
+            }
+
+            Precheck {
+                position, memory_cost, memory_gas,
+                gas_cost, gas_stipend, gas_refund, after_gas
+            }
         };
 
-        let after_gas = self.state.context.gas_limit - all_gas_cost;
-
-        match extra_check_opcode::<M, P>(instruction, &self.state, gas_stipend, after_gas) {
-            Ok(()) => (),
-            Err(err) => {
-                self.status = MachineStatus::ExitedErr(err);
-                return Ok(());
-            },
-        }
-
-        let instruction = self.pc.read().unwrap();
+        let instruction = PCMut::<P>::new(&self.state.context.code,
+                                          &self.state.valids, &mut self.state.position)
+            .read().unwrap();
         let result = run_opcode::<M, P>((instruction, position),
                                         &mut self.state, runtime, gas_stipend, after_gas);
 
@@ -320,7 +352,9 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         match result {
             None => Ok(()),
             Some(Control::Jump(dest)) => {
-                self.pc.jump(dest.as_usize()).unwrap();
+                PCMut::<P>::new(&self.state.context.code,
+                                &self.state.valids, &mut self.state.position)
+                    .jump(dest.as_usize()).unwrap();
                 Ok(())
             },
             Some(Control::InvokeCall(context, (from, len))) => {
@@ -344,8 +378,8 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Get the runtime PC.
-    pub fn pc(&self) -> &PC<P> {
-        &self.pc
+    pub fn pc(&self) -> PC<P> {
+        PC::new(&self.state.context.code, &self.state.valids, &self.state.position)
     }
 
     /// Get the current runtime status.
