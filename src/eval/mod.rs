@@ -244,7 +244,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         struct Precheck {
             position: usize,
             memory_cost: Gas,
-            memory_gas: Gas,
             gas_cost: Gas,
             gas_stipend: Gas,
             gas_refund: Gas,
@@ -261,7 +260,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
 
         let Precheck {
-            position, memory_cost, memory_gas,
+            position, memory_cost,
             gas_cost, gas_stipend, gas_refund, after_gas
         } = {
             let pc = PC::<P>::new(&self.state.context.code,
@@ -334,7 +333,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             }
 
             Precheck {
-                position, memory_cost, memory_gas,
+                position, memory_cost,
                 gas_cost, gas_stipend, gas_refund, after_gas
             }
         };
