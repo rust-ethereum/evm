@@ -20,6 +20,7 @@ use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::rc::Rc;
 use rand::Rng;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -69,6 +70,7 @@ fn morden_state_root() {
 
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
+        let empty_input = Rc::new(Vec::new());
 
         let vm: SeqTransactionVM<EIP160Patch<MordenAccountPatch>> = stateful.execute(ValidTransaction {
             caller: None,
@@ -76,7 +78,7 @@ fn morden_state_root() {
             gas_limit: Gas::from(100000u64),
             action: TransactionAction::Call(address),
             value: balance,
-            input: Vec::new(),
+            input: empty_input.clone(),
             nonce: U256::zero(),
         }, HeaderParams {
             beneficiary: Address::default(),
@@ -102,6 +104,7 @@ fn genesis_state_root() {
 
     let mut accounts: Vec<(&String, &JSONAccount)> = GENESIS_ACCOUNTS.iter().collect();
     rng.shuffle(&mut accounts);
+    let empty_input = Rc::new(Vec::new());
 
     for (key, value) in accounts {
         let address = Address::from_str(key).unwrap();
@@ -113,7 +116,7 @@ fn genesis_state_root() {
             gas_limit: Gas::from(100000u64),
             action: TransactionAction::Call(address),
             value: balance,
-            input: Vec::new(),
+            input: empty_input.clone(),
             nonce: U256::zero(),
         }, HeaderParams {
             beneficiary: Address::default(),

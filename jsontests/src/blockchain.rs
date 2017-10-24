@@ -7,6 +7,7 @@ use sputnikvm::{Machine, Log, Context,
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::rc::Rc;
 
 pub struct JSONBlock {
     codes: HashMap<Address, Vec<u8>>,
@@ -44,7 +45,7 @@ impl JSONBlock {
         AccountCommitment::Full {
             address: address,
             balance: balance,
-            code: code.into(),
+            code: Rc::new(code.into()),
             nonce: nonce
         }
     }
@@ -70,7 +71,7 @@ impl JSONBlock {
 
         AccountCommitment::Code {
             address: address,
-            code: code.clone(),
+            code: Rc::new(code.clone()),
         }
     }
 
@@ -252,8 +253,8 @@ pub fn create_context(v: &Value) -> Context {
     Context {
         address: address,
         caller: caller,
-        code: code,
-        data: data,
+        code: Rc::new(code),
+        data: Rc::new(data),
         gas_limit: gas,
         gas_price: gas_price,
         origin: origin,

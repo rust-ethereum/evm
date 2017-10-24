@@ -3,6 +3,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::{U256, M256, H256, Address, Gas};
 use ::{Memory, Log, ValidTransaction, Patch};
 use eval::util::{l64, copy_from_memory};
@@ -75,7 +78,7 @@ pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas:
     try_callstack_limit!(state, P);
     try_balance!(state, value, Gas::zero());
 
-    let init = copy_from_memory(&state.memory, init_start, init_len);
+    let init = Rc::new(copy_from_memory(&state.memory, init_start, init_len));
     let transaction = ValidTransaction {
         caller: Some(state.context.address),
         gas_price: state.context.gas_price,
@@ -103,7 +106,7 @@ pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipend_gas:
     try_callstack_limit!(state, P);
     try_balance!(state, value, gas_limit);
 
-    let input = copy_from_memory(&state.memory, in_start, in_len);
+    let input = Rc::new(copy_from_memory(&state.memory, in_start, in_len));
     let transaction = ValidTransaction {
         caller: Some(state.context.address),
         gas_price: state.context.gas_price,
@@ -134,7 +137,7 @@ pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, aft
 
     try_callstack_limit!(state, P);
 
-    let input = copy_from_memory(&state.memory, in_start, in_len);
+    let input = Rc::new(copy_from_memory(&state.memory, in_start, in_len));
     let transaction = ValidTransaction {
         caller: Some(state.context.caller),
         gas_price: state.context.gas_price,

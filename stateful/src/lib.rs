@@ -19,6 +19,8 @@ use trie::{FixedSecureTrie, DatabaseGuard, MemoryDatabase, Database, DatabaseOwn
 use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
+use std::rc::Rc;
+use std::ops::Deref;
 
 pub struct LiteralAccount {
     pub nonce: U256,
@@ -101,7 +103,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                                 nonce: account.nonce,
                                 address: address,
                                 balance: account.balance,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -122,7 +124,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                             vm.commit_account(AccountCommitment::Code {
                                 address: address,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -185,7 +187,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                                 nonce: account.nonce,
                                 address: address,
                                 balance: account.balance,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -206,7 +208,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                             vm.commit_account(AccountCommitment::Code {
                                 address: address,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -347,7 +349,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                         }
 
                         let code_hash = H256::from(Keccak256::digest(&code).as_slice());
-                        code_hashes.set(code_hash, code);
+                        code_hashes.set(code_hash, code.deref().clone());
 
                         let account = Account {
                             nonce: nonce,
@@ -403,7 +405,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                                 nonce: account.nonce,
                                 address: address,
                                 balance: account.balance,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -424,7 +426,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                             account_state.commit(AccountCommitment::Code {
                                 address: address,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {

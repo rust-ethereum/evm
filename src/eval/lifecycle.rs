@@ -3,6 +3,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::{U256, M256, Gas, Address};
 use errors::{RequireError, OnChainError};
 use commit::AccountState;
@@ -84,12 +87,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             if !P::force_code_deposit() {
                 self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
             } else {
-                self.state.account_state.code_deposit(self.state.context.address, &[]);
+                self.state.account_state.code_deposit(self.state.context.address, Rc::new(Vec::new()));
             }
         } else {
             self.state.used_gas = self.state.used_gas + deposit_cost;
             self.state.account_state.code_deposit(self.state.context.address,
-                                                  self.state.out.as_slice());
+                                                  self.state.out.clone());
         }
     }
 

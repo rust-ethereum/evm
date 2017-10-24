@@ -15,9 +15,150 @@ use sputnikvm_stateful::{MemoryStateful, LiteralAccount};
 use std::thread;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
+use std::rc::Rc;
+use std::ops::Deref;
 use std::str::FromStr;
 
-fn is_modified(modified_addresses: &HashSet<Address>, accounts: &[AccountChange]) -> bool {
+#[derive(Debug, Clone)]
+/// Represents an account. This is usually returned by the EVM.
+pub enum SendableAccountChange {
+    /// A full account. The client is expected to replace its own account state with this.
+    Full {
+        /// Account nonce.
+        nonce: U256,
+        /// Account address.
+        address: Address,
+        /// Account balance.
+        balance: U256,
+        /// Change storage with given indexes and values.
+        changing_storage: Storage,
+        /// Code associated with this account.
+        code: Vec<u8>,
+    },
+    /// Only balance is changed, and it is increasing for this address.
+    IncreaseBalance(Address, U256),
+    /// Only balance is changed, and it is decreasing for this address.
+    DecreaseBalance(Address, U256),
+    /// Create or delete a (new) account.
+    Create {
+        /// Account nonce.
+        nonce: U256,
+        /// Account address.
+        address: Address,
+        /// Account balance.
+        balance: U256,
+        /// All storage values of this account, with given indexes and values.
+        storage: Storage,
+        /// Code associated with this account.
+        code: Vec<u8>,
+        /// Whether, at this point, the account is considered
+        /// existing. The client should delete this address if this is
+        /// set to `false`.
+        exists: bool,
+    },
+}
+
+impl SendableAccountChange {
+    /// Address of this account.
+    pub fn address(&self) -> Address {
+        match self {
+            &SendableAccountChange::Full {
+                address,
+                ..
+            } => address,
+            &SendableAccountChange::IncreaseBalance(address, _) => address,
+            &SendableAccountChange::DecreaseBalance(address, _) => address,
+            &SendableAccountChange::Create {
+                address,
+                ..
+            } => address,
+        }
+    }
+}
+
+impl From<AccountChange> for SendableAccountChange {
+    fn from(change: AccountChange) -> Self {
+        match change {
+            AccountChange::Full { nonce, address, balance, changing_storage, code } => {
+                SendableAccountChange::Full {
+                    nonce, address, balance, changing_storage,
+                    code: code.deref().clone()
+                }
+            },
+            AccountChange::IncreaseBalance(address, balance) =>
+                SendableAccountChange::IncreaseBalance(address, balance),
+            AccountChange::DecreaseBalance(address, balance) =>
+                SendableAccountChange::DecreaseBalance(address, balance),
+            AccountChange::Create { nonce, address, balance, storage, code, exists } => {
+                SendableAccountChange::Create {
+                    nonce, address, balance, storage, exists,
+                    code: code.deref().clone()
+                }
+            },
+        }
+    }
+}
+
+impl Into<AccountChange> for SendableAccountChange {
+    fn into(self) -> AccountChange {
+        match self {
+            SendableAccountChange::Full { nonce, address, balance, changing_storage, code } => {
+                AccountChange::Full {
+                    nonce, address, balance, changing_storage,
+                    code: Rc::new(code),
+                }
+            },
+            SendableAccountChange::IncreaseBalance(address, balance) =>
+                AccountChange::IncreaseBalance(address, balance),
+            SendableAccountChange::DecreaseBalance(address, balance) =>
+                AccountChange::DecreaseBalance(address, balance),
+            SendableAccountChange::Create { nonce, address, balance, storage, code, exists } => {
+                AccountChange::Create {
+                    nonce, address, balance, storage, exists,
+                    code: Rc::new(code),
+                }
+            },
+        }
+    }
+}
+
+pub struct SendableValidTransaction {
+    pub caller: Option<Address>,
+    pub gas_price: Gas,
+    pub gas_limit: Gas,
+    pub action: TransactionAction,
+    pub value: U256,
+    pub input: Vec<u8>,
+    pub nonce: U256,
+}
+
+impl From<ValidTransaction> for SendableValidTransaction {
+    fn from(transaction: ValidTransaction) -> SendableValidTransaction {
+        match transaction {
+            ValidTransaction { caller, gas_price, gas_limit, action, value, input, nonce } => {
+                SendableValidTransaction {
+                    caller, gas_price, gas_limit, action, value, nonce,
+                    input: input.deref().clone(),
+                }
+            }
+        }
+    }
+}
+
+impl Into<ValidTransaction> for SendableValidTransaction {
+    fn into(self) -> ValidTransaction {
+        match self {
+            SendableValidTransaction { caller, gas_price, gas_limit, action, value, input, nonce } => {
+                ValidTransaction {
+                    caller, gas_price, gas_limit, action, value, nonce,
+                    input: Rc::new(input),
+                }
+            }
+        }
+    }
+}
+
+fn is_modified(modified_addresses: &HashSet<Address>, accounts: &[SendableAccountChange]) -> bool {
     for account in accounts {
         if modified_addresses.contains(&account.address()) {
             return true;
@@ -42,14 +183,14 @@ pub fn parallel_execute(
 
     // Execute all transactions in parallel.
     for transaction in transactions {
-        let transaction = transaction.clone();
+        let transaction: SendableValidTransaction = transaction.clone().into();
         let header = header.clone();
         let stateful = stateful.clone();
 
         threads.push(thread::spawn(move || {
             let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.call(
-                transaction, header, &[]);
-            let accounts: Vec<AccountChange> = vm.accounts().map(|v| v.clone()).collect();
+                transaction.into(), header, &[]);
+            let accounts: Vec<SendableAccountChange> = vm.accounts().map(|v| SendableAccountChange::from(v.clone())).collect();
             (accounts, vm.used_addresses())
         }));
     }
@@ -79,6 +220,7 @@ pub fn parallel_execute(
             (accounts, vm.used_addresses())
         } else {
             println!("Transaction index {}: parallel execution successful.", index);
+            let accounts: Vec<AccountChange> = accounts.iter().map(|v| v.clone().into()).collect();
             (accounts, used_addresses)
         };
 
@@ -130,7 +272,7 @@ fn main() {
             gas_price: Gas::zero(),
             gas_limit: Gas::max_value(),
             value: U256::from_str("0x1000").unwrap(),
-            input: Vec::new(),
+            input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         },
         ValidTransaction {
@@ -139,7 +281,7 @@ fn main() {
             gas_price: Gas::zero(),
             gas_limit: Gas::max_value(),
             value: U256::from_str("0x1000").unwrap(),
-            input: Vec::new(),
+            input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         },
         ValidTransaction {
@@ -148,7 +290,7 @@ fn main() {
             gas_price: Gas::zero(),
             gas_limit: Gas::max_value(),
             value: U256::from_str("0x1000").unwrap(),
-            input: Vec::new(),
+            input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         },
     ]);

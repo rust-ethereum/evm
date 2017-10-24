@@ -3,12 +3,17 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 #[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
 #[cfg(feature = "std")] use std::cmp::min;
 #[cfg(feature = "std")] use std::str::FromStr;
+#[cfg(feature = "std")] use std::ops::Deref;
 #[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
 #[cfg(not(feature = "std"))] use core::cmp::min;
 #[cfg(not(feature = "std"))] use core::str::FromStr;
+#[cfg(not(feature = "std"))] use core::ops::Deref;
 use bigint::{U256, H256, Address, Gas};
 
 use super::errors::{RequireError, CommitError};
@@ -57,7 +62,7 @@ pub struct ValidTransaction {
     /// Value of this transaction.
     pub value: U256,
     /// Data or init associated with this transaction.
-    pub input: Vec<u8>,
+    pub input: Rc<Vec<u8>>,
     /// Nonce of the transaction.
     pub nonce: U256,
 }
@@ -85,7 +90,7 @@ impl ValidTransaction {
             gas_limit: transaction.gas_limit,
             action: transaction.action.clone(),
             value: transaction.value,
-            input: transaction.input.clone(),
+            input: Rc::new(transaction.input.clone()),
             nonce: nonce,
         };
 
@@ -115,7 +120,7 @@ impl ValidTransaction {
         if self.action == TransactionAction::Create {
             gas = gas + Gas::from(P::gas_transaction_create());
         }
-        for d in &self.input {
+        for d in self.input.deref() {
             if *d == 0 {
                 gas = gas + Gas::from(G_TXDATAZERO);
             } else {
@@ -151,7 +156,7 @@ impl ValidTransaction {
                     gas_price: self.gas_price,
                     value: self.value,
                     gas_limit: self.gas_limit - upfront,
-                    code: account_state.code(address).unwrap().into(),
+                    code: account_state.code(address).unwrap(),
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                     is_system: self.caller.is_none(),
@@ -170,7 +175,7 @@ impl ValidTransaction {
                     gas_price: self.gas_price,
                     value: self.value,
                     gas_limit: self.gas_limit - upfront,
-                    data: Vec::new(),
+                    data: Rc::new(Vec::new()),
                     code: self.input,
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
@@ -455,6 +460,7 @@ mod tests {
     use bigint::*;
     use block::TransactionAction;
     use std::str::FromStr;
+    use std::rc::Rc;
 
     #[test]
     fn system_transaction() {
@@ -464,7 +470,7 @@ mod tests {
             gas_limit: Gas::from_str("0xffffffffffffffff").unwrap(),
             action: TransactionAction::Call(Address::default()),
             value: U256::from_str("0xffffffffffffffff").unwrap(),
-            input: Vec::new(),
+            input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         };
         let mut vm = SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, HeaderParams {

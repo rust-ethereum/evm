@@ -13,6 +13,7 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
 use std::str::FromStr;
+use std::rc::Rc;
 use std::collections::{HashMap, HashSet};
 
 use block::TransactionAction;
@@ -45,7 +46,7 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
         value: U256::from_str(&transaction.value).unwrap(),
         gas_limit: Gas::from_str(&transaction.gas).unwrap(),
         gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
-        input: read_hex(&transaction.input).unwrap(),
+        input: Rc::new(read_hex(&transaction.input).unwrap()),
         nonce: U256::from_str(&transaction.nonce).unwrap(),
     }
 }
@@ -85,7 +86,7 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                         nonce: nonce,
                         address: address,
                         balance: balance,
-                        code: code,
+                        code: Rc::new(code),
                     }).unwrap();
                 }
             },
@@ -106,7 +107,7 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                                                      &last_block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
                     address: address,
-                    code: code,
+                    code: Rc::new(code),
                 }).unwrap();
             },
             Err(RequireError::Blockhash(number)) => {

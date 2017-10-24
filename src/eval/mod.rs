@@ -3,6 +3,9 @@
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::{M256, U256, Gas, Address};
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
@@ -30,7 +33,7 @@ pub struct State<M, P: Patch> {
     pub context: Context,
 
     /// The current out value.
-    pub out: Vec<u8>,
+    pub out: Rc<Vec<u8>>,
 
     /// The current memory cost. Note that this is different from
     /// memory gas.
@@ -150,7 +153,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 memory: M::default(),
                 stack: Stack::default(),
 
-                out: Vec::new(),
+                out: Rc::new(Vec::new()),
 
                 memory_cost: Gas::zero(),
                 used_gas: Gas::zero(),
@@ -180,7 +183,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 memory: M::default(),
                 stack: Stack::default(),
 
-                out: Vec::new(),
+                out: Rc::new(Vec::new()),
 
                 memory_cost: Gas::zero(),
                 used_gas: Gas::zero(),
