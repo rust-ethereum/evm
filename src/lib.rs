@@ -51,7 +51,7 @@ pub mod errors;
 
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
-pub use self::pc::{PC, Instruction};
+pub use self::pc::{PC, PCMut, Instruction, Valids};
 pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, Runtime, MachineStatus};
