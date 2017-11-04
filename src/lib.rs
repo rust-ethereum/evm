@@ -27,14 +27,12 @@ extern crate bigint;
 extern crate hexutil;
 extern crate block_core;
 extern crate sha3;
+extern crate ripemd160;
+extern crate sha2;
 extern crate digest;
 
 #[cfg(feature = "std")]
 extern crate block;
-#[cfg(feature = "std")]
-extern crate ripemd160;
-#[cfg(feature = "std")]
-extern crate sha2;
 #[cfg(feature = "std")]
 extern crate secp256k1;
 

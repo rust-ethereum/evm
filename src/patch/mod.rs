@@ -7,8 +7,7 @@ pub use self::precompiled::*;
 
 #[cfg(feature = "std")] use std::marker::PhantomData;
 #[cfg(not(feature = "std"))] use core::marker::PhantomData;
-use bigint::{Address, Gas, U256};
-#[cfg(feature = "std")] use bigint::H160;
+use bigint::{Address, Gas, U256, H160};
 
 /// Account patch for account related variables.
 pub trait AccountPatch {
@@ -64,7 +63,6 @@ pub trait Patch {
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)];
 }
 
-#[cfg(feature = "std")]
 pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -80,12 +78,9 @@ pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompi
      &ID_PRECOMPILED),
 ];
 
-#[cfg(feature = "std")]
 /// Frontier patch.
 pub struct FrontierPatch<A: AccountPatch>(PhantomData<A>);
-#[cfg(feature = "std")]
 pub type MainnetFrontierPatch = FrontierPatch<MainnetAccountPatch>;
-#[cfg(feature = "std")]
 impl<A: AccountPatch> Patch for FrontierPatch<A> {
     type Account = A;
 
@@ -107,12 +102,9 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
         &ETC_PRECOMPILEDS }
 }
 
-#[cfg(feature = "std")]
 /// Homestead patch.
 pub struct HomesteadPatch<A: AccountPatch>(PhantomData<A>);
-#[cfg(feature = "std")]
 pub type MainnetHomesteadPatch = HomesteadPatch<MainnetAccountPatch>;
-#[cfg(feature = "std")]
 impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     type Account = A;
 
@@ -134,10 +126,8 @@ impl<A: AccountPatch> Patch for HomesteadPatch<A> {
         &ETC_PRECOMPILEDS }
 }
 
-#[cfg(feature = "std")]
 /// Patch sepcific for the `jsontests` crate.
 pub struct VMTestPatch;
-#[cfg(feature = "std")]
 impl Patch for VMTestPatch {
     type Account = MainnetAccountPatch;
 
@@ -159,12 +149,9 @@ impl Patch for VMTestPatch {
         &ETC_PRECOMPILEDS }
 }
 
-#[cfg(feature = "std")]
 /// EIP150 patch.
 pub struct EIP150Patch<A: AccountPatch>(PhantomData<A>);
-#[cfg(feature = "std")]
 pub type MainnetEIP150Patch = EIP150Patch<MainnetAccountPatch>;
-#[cfg(feature = "std")]
 impl<A: AccountPatch> Patch for EIP150Patch<A> {
     type Account = A;
 
@@ -186,12 +173,9 @@ impl<A: AccountPatch> Patch for EIP150Patch<A> {
         &ETC_PRECOMPILEDS }
 }
 
-#[cfg(feature = "std")]
 /// EIP160 patch.
 pub struct EIP160Patch<A: AccountPatch>(PhantomData<A>);
-#[cfg(feature = "std")]
 pub type MainnetEIP160Patch = EIP160Patch<MainnetAccountPatch>;
-#[cfg(feature = "std")]
 impl<A: AccountPatch> Patch for EIP160Patch<A> {
     type Account = A;
 
@@ -215,7 +199,7 @@ impl<A: AccountPatch> Patch for EIP160Patch<A> {
 
 pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 0] = [];
 
-/// EIP160 patch.
+/// Embedded patch.
 pub struct EmbeddedPatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetEmbeddedPatch = EmbeddedPatch<MainnetAccountPatch>;
 impl<A: AccountPatch> Patch for EmbeddedPatch<A> {
