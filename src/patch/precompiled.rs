@@ -8,16 +8,13 @@ use bigint::Gas;
 #[cfg(feature = "std")] use std::cmp::min;
 
 use errors::{RuntimeError, OnChainError};
-#[cfg(feature = "std")]
 use sha2::Sha256;
-#[cfg(feature = "std")]
-use sha3::Keccak256;
-#[cfg(feature = "std")]
+#[cfg(feature = "std")] use sha3::Keccak256;
 use ripemd160::Ripemd160;
+use digest::{Digest, FixedOutput};
+
 #[cfg(feature = "std")]
 use secp256k1::{SECP256K1, RecoverableSignature, Message, RecoveryId, Error};
-#[cfg(feature = "std")]
-use digest::{Digest, FixedOutput};
 
 /// Represent a precompiled contract.
 pub trait Precompiled: Sync {
@@ -40,10 +37,8 @@ pub trait Precompiled: Sync {
     }
 }
 
-#[cfg(feature = "std")]
 /// ID precompiled contract.
 pub struct IDPrecompiled;
-#[cfg(feature = "std")]
 impl Precompiled for IDPrecompiled {
     fn gas(&self, data: &[u8]) -> Gas {
         Gas::from(15u64) +
@@ -54,13 +49,10 @@ impl Precompiled for IDPrecompiled {
         Rc::new(data.into())
     }
 }
-#[cfg(feature = "std")]
 pub static ID_PRECOMPILED: IDPrecompiled = IDPrecompiled;
 
-#[cfg(feature = "std")]
 /// RIP160 precompiled contract.
 pub struct RIP160Precompiled;
-#[cfg(feature = "std")]
 impl Precompiled for RIP160Precompiled {
     fn gas(&self, data: &[u8]) -> Gas {
         Gas::from(600u64) +
@@ -78,13 +70,10 @@ impl Precompiled for RIP160Precompiled {
         Rc::new(result.as_ref().into())
     }
 }
-#[cfg(feature = "std")]
 pub static RIP160_PRECOMPILED: RIP160Precompiled = RIP160Precompiled;
 
-#[cfg(feature = "std")]
 /// SHA256 precompiled contract.
 pub struct SHA256Precompiled;
-#[cfg(feature = "std")]
 impl Precompiled for SHA256Precompiled {
     fn gas(&self, data: &[u8]) -> Gas {
         Gas::from(60u64) +
@@ -103,10 +92,8 @@ impl Precompiled for SHA256Precompiled {
         Rc::new(result.as_ref().into())
     }
 }
-#[cfg(feature = "std")]
 pub static SHA256_PRECOMPILED: SHA256Precompiled = SHA256Precompiled;
 
-#[cfg(feature = "std")]
 /// ECREC precompiled contract.
 pub struct ECRECPrecompiled;
 #[cfg(feature = "std")]
@@ -131,7 +118,14 @@ impl Precompiled for ECRECPrecompiled {
         }
     }
 }
-#[cfg(feature = "std")]
+#[cfg(not(feature = "std"))]
+impl Precompiled for ECRECPrecompiled {
+    fn gas_and_step(&self, _: &[u8], _: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
+        use errors::NotSupportedError;
+
+        Err(RuntimeError::NotSupported(NotSupportedError::PrecompiledNotSupported))
+    }
+}
 pub static ECREC_PRECOMPILED: ECRECPrecompiled = ECRECPrecompiled;
 
 fn gas_div_ceil(a: Gas, b: Gas) -> Gas {

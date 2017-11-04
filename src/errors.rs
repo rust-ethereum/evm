@@ -61,6 +61,8 @@ pub enum NotSupportedError {
     /// The memory index is too large for the implementation of the VM to
     /// handle.
     MemoryIndexNotSupported,
+    /// A particular precompiled contract is not supported.
+    PrecompiledNotSupported,
 }
 
 impl From<NotSupportedError> for RuntimeError {
