@@ -1,6 +1,6 @@
 [package]
 name = "sputnikvm"
-version = "0.8.0"
+version = "0.8.1"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -17,15 +17,17 @@ ripemd160 = "0.6"
 digest = "0.6"
 etcommon-block-core = { version = "0.1", default-features = false }
 etcommon-rlp = { version = "0.2", default-features = false }
-etcommon-bigint = { version = "0.2", default-features = false }
-etcommon-hexutil = { version = "0.2", default-features = false }
+etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 
 etcommon-block = { version = "0.3", optional = true }
 secp256k1-plus = { version = "0.5.7", optional = true }
 
+[dev-dependencies]
+etcommon-hexutil = "0.2"
+
 [features]
 default = ["std"]
-std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-hexutil/std", "etcommon-block", "secp256k1-plus"]
+std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-block", "secp256k1-plus"]
 
 [workspace]
 members = [

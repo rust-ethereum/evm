@@ -24,7 +24,6 @@ extern crate alloc;
 
 extern crate rlp;
 extern crate bigint;
-extern crate hexutil;
 extern crate block_core;
 extern crate sha3;
 extern crate ripemd160;

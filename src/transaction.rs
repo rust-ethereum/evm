@@ -8,11 +8,9 @@ use alloc::Vec;
 
 #[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
 #[cfg(feature = "std")] use std::cmp::min;
-#[cfg(feature = "std")] use std::str::FromStr;
 #[cfg(feature = "std")] use std::ops::Deref;
 #[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
 #[cfg(not(feature = "std"))] use core::cmp::min;
-#[cfg(not(feature = "std"))] use core::str::FromStr;
 #[cfg(not(feature = "std"))] use core::ops::Deref;
 use bigint::{U256, H256, Address, Gas};
 
@@ -31,9 +29,13 @@ const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
 const G_TRANSACTION: usize = 21000;
 
+static SYSTEM_ADDRESS: [u8; 20] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                   0xff, 0xff, 0xff, 0xff];
+
 macro_rules! system_address {
     () => {
-        Address::from_str("0xffffffffffffffffffffffffffffffffffffffff").unwrap()
+        Address::from(SYSTEM_ADDRESS.as_ref())
     }
 }
 
