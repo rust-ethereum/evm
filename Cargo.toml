@@ -17,15 +17,17 @@ ripemd160 = "0.6"
 digest = "0.6"
 etcommon-block-core = { version = "0.1", default-features = false }
 etcommon-rlp = { version = "0.2", default-features = false }
-etcommon-bigint = { version = "0.2", default-features = false }
-etcommon-hexutil = { version = "0.2", default-features = false }
+etcommon-bigint = { version = "0.2", default-features = false, features = ["rlp"] }
 
 etcommon-block = { version = "0.3", optional = true }
 secp256k1-plus = { version = "0.5.7", optional = true }
 
+[dev-dependencies]
+etcommon-hexutil = "0.2"
+
 [features]
 default = ["std"]
-std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-hexutil/std", "etcommon-block", "secp256k1-plus"]
+std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-block", "secp256k1-plus"]
 
 [workspace]
 members = [
