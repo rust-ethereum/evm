@@ -63,3 +63,19 @@ see the
 [getting started guide](https://doc.rust-lang.org/book/getting-started.html).
 
 * [Building and Testing](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)
+
+## Testing
+
+We currently use two ways to test SputnikVM and ensure its execution
+aligns with other Ethereum Virtual Machine implementations:
+
+* [jsontests](/jsontests): This uses part of the Ethereum
+  [tests](https://github.com/ethereumproject/tests). Those tests
+  currently does not have good coverage for system operation
+  opcodes. Besides, some tests are incorrect so they are disabled.
+* [regtests](/regtests): A complete regression tests is done on the
+  Ethereum Classic mainnet from genesis block to block 4 million. Some
+  of the previously failed tests are also integrated into Rust's test
+  system. See
+  [wiki](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)
+  for how to reproduce the regression tests.
