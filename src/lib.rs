@@ -30,10 +30,14 @@ extern crate ripemd160;
 extern crate sha2;
 extern crate digest;
 
+#[cfg(feature = "c-secp256k1")]
+extern crate secp256k1;
+
+#[cfg(feature = "rust-secp256k1")]
+extern crate secp256k1;
+
 #[cfg(feature = "std")]
 extern crate block;
-#[cfg(feature = "std")]
-extern crate secp256k1;
 
 mod util;
 mod memory;
