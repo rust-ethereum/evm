@@ -1,6 +1,6 @@
 [package]
 name = "sputnikvm"
-version = "0.8.1"
+version = "0.8.2"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -27,7 +27,7 @@ libsecp256k1 = { version = "0.1", optional = true }
 etcommon-hexutil = "0.2"
 
 [features]
-default = ["std", "c-secp256k1"]
+default = ["std", "rust-secp256k1"]
 c-secp256k1 = ["secp256k1-plus"]
 rust-secp256k1 = ["libsecp256k1"]
 std = ["etcommon-block-core/std", "etcommon-rlp/std", "etcommon-bigint/std", "etcommon-block"]
