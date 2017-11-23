@@ -163,7 +163,7 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
         handle_fire(client, &mut vm, last_id);
 
-        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
+        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
             assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
