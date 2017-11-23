@@ -67,6 +67,8 @@ use alloc::Vec;
 
 #[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
 #[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(not(feature = "std"))] use core::cmp::min;
 use bigint::{U256, H256, Gas, Address};
 
 #[derive(Debug, Clone)]
@@ -126,6 +128,10 @@ pub trait VM {
     fn logs(&self) -> &[Log];
     /// Returns all removed account addresses as for current VM execution.
     fn removed(&self) -> &[Address];
+    /// Returns the real used gas by the transaction or the VM
+    /// context. Only available when the status of the VM is
+    /// exited. Otherwise returns zero.
+    fn used_gas(&self) -> Gas;
 }
 
 /// A sequencial VM. It uses sequencial memory representation and hash
@@ -288,5 +294,19 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
 
     fn removed(&self) -> &[Address] {
         self.machines[0].state().removed.as_slice()
+    }
+
+    fn used_gas(&self) -> Gas {
+        match self.machines[0].status() {
+            MachineStatus::ExitedErr(_) =>
+                self.machines[0].state().context.gas_limit,
+            MachineStatus::ExitedOk => {
+                let total_used = self.machines[0].state().memory_gas() + self.machines[0].state().used_gas;
+                let refund_cap = total_used / Gas::from(2u64);
+                let refunded = min(refund_cap, self.machines[0].state().refunded_gas);
+                total_used - refunded
+            }
+            _ => Gas::zero(),
+        }
     }
 }

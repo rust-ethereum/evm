@@ -252,27 +252,6 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
         })
     }
 
-    /// Returns the real used gas by the transaction. This is what is
-    /// recorded in the transaction receipt.
-    pub fn real_used_gas(&self) -> Gas {
-        match self.0 {
-            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
-                match vm.machines[0].status() {
-                    MachineStatus::ExitedErr(_) =>
-                        vm.machines[0].state().context.gas_limit + intrinsic_gas,
-                    MachineStatus::ExitedOk => {
-                        let total_used = vm.machines[0].state().memory_gas() + vm.machines[0].state().used_gas + intrinsic_gas;
-                        let refund_cap = total_used / Gas::from(2u64);
-                        let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
-                        total_used - refunded
-                    }
-                    _ => Gas::zero(),
-                }
-            }
-            TransactionVMState::Constructing { .. } => Gas::zero(),
-        }
-    }
-
     /// Returns the current state of the VM.
     pub fn current_state(&self) -> Option<&State<M, P>> {
         self.current_machine().map(|m| m.state())
@@ -326,7 +305,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         let ccode_deposit: bool;
         let cpreclaimed_value: U256;
 
-        let real_used_gas = self.real_used_gas();
+        let real_used_gas = self.used_gas();
 
         match self.0 {
             TransactionVMState::Running {
@@ -452,6 +431,25 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.removed(),
             TransactionVMState::Constructing { .. } => &[],
+        }
+    }
+
+    fn used_gas(&self) -> Gas {
+        match self.0 {
+            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
+                match vm.machines[0].status() {
+                    MachineStatus::ExitedErr(_) =>
+                        vm.machines[0].state().context.gas_limit + intrinsic_gas,
+                    MachineStatus::ExitedOk => {
+                        let total_used = vm.machines[0].state().memory_gas() + vm.machines[0].state().used_gas + intrinsic_gas;
+                        let refund_cap = total_used / Gas::from(2u64);
+                        let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
+                        total_used - refunded
+                    }
+                    _ => Gas::zero(),
+                }
+            }
+            TransactionVMState::Constructing { .. } => Gas::zero(),
         }
     }
 }
