@@ -60,6 +60,7 @@ pub use self::commit::{AccountCommitment, AccountChange, AccountState, Blockhash
 pub use self::transaction::{ValidTransaction, TransactionVM};
 pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
 pub use self::util::opcode::Opcode;
+pub use block_core::TransactionAction;
 
 #[cfg(not(feature = "std"))]
 use alloc::Vec;
