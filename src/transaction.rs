@@ -490,10 +490,9 @@ mod tests {
         assert_eq!(accounts.len(), 1);
         match accounts[0] {
             AccountChange::Create {
-                address, exists, balance, ..
+                address, balance, ..
             } => {
                 assert_eq!(address, Address::default());
-                assert_eq!(exists, true);
                 assert_eq!(balance, U256::from_str("0xffffffffffffffff").unwrap());
             },
             _ => panic!()

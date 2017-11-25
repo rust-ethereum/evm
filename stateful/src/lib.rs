@@ -332,35 +332,34 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                     state.insert(address, account);
                 },
                 AccountChange::Create {
-                    nonce, address, balance, storage, code, exists
+                    nonce, address, balance, storage, code
                 } => {
-                    if !exists {
-                        state.remove(&address);
-                    } else {
-                        let storage: HashMap<U256, M256> = storage.into();
+                    let storage: HashMap<U256, M256> = storage.into();
 
-                        let mut storage_trie = self.database.create_fixed_secure_empty();
-                        for (key, value) in storage {
-                            if value == M256::zero() {
-                                storage_trie.remove(&H256::from(key));
-                            } else {
-                                storage_trie.insert(H256::from(key), value);
-                            }
+                    let mut storage_trie = self.database.create_fixed_secure_empty();
+                    for (key, value) in storage {
+                        if value == M256::zero() {
+                            storage_trie.remove(&H256::from(key));
+                        } else {
+                            storage_trie.insert(H256::from(key), value);
                         }
-
-                        let code_hash = H256::from(Keccak256::digest(&code).as_slice());
-                        code_hashes.set(code_hash, code.deref().clone());
-
-                        let account = Account {
-                            nonce: nonce,
-                            balance: balance,
-                            storage_root: storage_trie.root(),
-                            code_hash
-                        };
-
-                        state.insert(address, account);
                     }
+
+                    let code_hash = H256::from(Keccak256::digest(&code).as_slice());
+                    code_hashes.set(code_hash, code.deref().clone());
+
+                    let account = Account {
+                        nonce: nonce,
+                        balance: balance,
+                        storage_root: storage_trie.root(),
+                        code_hash
+                    };
+
+                    state.insert(address, account);
                 },
+                AccountChange::Nonexist(address) => {
+                    state.remove(&address);
+                }
             }
         }
 

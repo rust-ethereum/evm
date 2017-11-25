@@ -103,6 +103,12 @@ impl JSONBlock {
                 self.storages.insert(address, storage.into());
                 self.set_account_nonce(address, nonce);
             },
+            AccountChange::Nonexist(address) => {
+                self.set_balance(address, U256::zero());
+                self.set_account_code(address, &[]);
+                self.storages.insert(address, HashMap::new());
+                self.set_account_nonce(address, U256::zero());
+            },
             AccountChange::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);
                 self.set_balance(address, balance + topup);
