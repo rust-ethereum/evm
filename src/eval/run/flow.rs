@@ -7,13 +7,13 @@ use patch::Patch;
 
 pub fn sload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index: U256);
-    let value = state.account_state.storage(state.context.address).unwrap().read(index).unwrap();
+    let value = state.account_state.storage_read(state.context.address, index).unwrap();
     push!(state, value);
 }
 
 pub fn sstore<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index: U256, value: M256);
-    state.account_state.storage_mut(state.context.address).unwrap().write(index, value).unwrap();
+    state.account_state.storage_write(state.context.address, index, value).unwrap();
 }
 
 pub fn mload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {

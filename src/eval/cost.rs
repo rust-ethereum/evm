@@ -39,7 +39,7 @@ fn sstore_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>) -> Gas {
     let value = machine.stack.peek(1).unwrap();
     let address = machine.context.address;
 
-    if value != M256::zero() && machine.account_state.storage(address).unwrap().read(index).unwrap() == M256::zero() {
+    if value != M256::zero() && machine.account_state.storage_read(address, index).unwrap() == M256::zero() {
         G_SSET.into()
     } else {
         G_SRESET.into()
@@ -267,7 +267,7 @@ pub fn gas_refund<M: Memory + Default, P: Patch>(instruction: Instruction, state
             let value = state.stack.peek(1).unwrap();
             let address = state.context.address;
 
-            if value == M256::zero() && state.account_state.storage(address).unwrap().read(index).unwrap() != M256::zero() {
+            if value == M256::zero() && state.account_state.storage_read(address, index).unwrap() != M256::zero() {
                 Gas::from(R_SCLEAR)
             } else {
                 Gas::zero()

@@ -254,6 +254,7 @@ impl<A: AccountPatch> AccountState<A> {
         match self.accounts.get(&address) {
             Some(&AccountChange::Full { .. }) => return Ok(()),
             Some(&AccountChange::Create { .. }) => return Ok(()),
+            Some(&AccountChange::Nonexist(_)) => return Ok(()),
             _ => return Err(RequireError::Account(address)),
         }
     }
@@ -268,6 +269,7 @@ impl<A: AccountPatch> AccountState<A> {
         match self.accounts.get(&address) {
             Some(&AccountChange::Full { .. }) => return Ok(()),
             Some(&AccountChange::Create { .. }) => return Ok(()),
+            Some(&AccountChange::Nonexist(_)) => return Ok(()),
             _ => return Err(RequireError::AccountCode(address)),
         }
     }
@@ -275,7 +277,7 @@ impl<A: AccountPatch> AccountState<A> {
     /// Returns Ok(()) if the storage exists in the VM. Otherwise
     /// raise a `RequireError`.
     pub fn require_storage(&self, address: Address, index: U256) -> Result<(), RequireError> {
-        self.storage(address)?.read(index).and_then(|_| Ok(()))
+        self.storage_read(address, index).and_then(|_| Ok(()))
     }
 
     /// Commit an account commitment into this account state.
@@ -470,6 +472,9 @@ impl<A: AccountPatch> AccountState<A> {
                     nonce,
                     ..
                 } => return Ok(nonce),
+                &AccountChange::Nonexist(_) => {
+                    return Ok(A::initial_nonce());
+                },
                 _ => (),
             }
         }
@@ -490,6 +495,9 @@ impl<A: AccountPatch> AccountState<A> {
                     balance,
                     ..
                 } => return Ok(balance),
+                &AccountChange::Nonexist(_) => {
+                    return Ok(U256::zero());
+                },
                 _ => (),
             }
         }
@@ -497,19 +505,18 @@ impl<A: AccountPatch> AccountState<A> {
         return Err(RequireError::Account(address));
     }
 
-    /// Returns the storage of an account. If the account is not yet
-    /// committed, returns a `RequireError`.
-    pub fn storage(&self, address: Address) -> Result<&Storage, RequireError> {
+    pub fn storage_read(&self, address: Address, index: U256) -> Result<M256, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
                 &AccountChange::Full {
                     ref changing_storage,
                     ..
-                } => return Ok(changing_storage),
+                } => return changing_storage.read(index),
                 &AccountChange::Create {
                     ref storage,
                     ..
-                } => return Ok(storage),
+                } => return storage.read(index),
+                &AccountChange::Nonexist(_) => return Ok(M256::zero()),
                 _ => (),
             }
         }
@@ -517,19 +524,36 @@ impl<A: AccountPatch> AccountState<A> {
         return Err(RequireError::Account(address));
     }
 
-    /// Returns the mutable storage of an account. If the account is
-    /// not yet committed. returns a `RequireError`.
-    pub fn storage_mut(&mut self, address: Address) -> Result<&mut Storage, RequireError> {
+    pub fn storage_write(&mut self, address: Address, index: U256, value: M256) -> Result<(), RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get_mut(&address).unwrap() {
                 &mut AccountChange::Full {
                     ref mut changing_storage,
                     ..
-                } => return Ok(changing_storage),
+                } => return changing_storage.write(index, value),
                 &mut AccountChange::Create {
                     ref mut storage,
                     ..
-                } => return Ok(storage),
+                } => return storage.write(index, value),
+                val => {
+                    let is_nonexist;
+                    match val {
+                        &mut AccountChange::Nonexist(_) => { is_nonexist = true; }
+                        _ => { is_nonexist = false; }
+                    }
+                    if is_nonexist {
+                        let mut storage = Storage::new(address, false);
+                        let ret = storage.write(index, value);
+                        *val = AccountChange::Create {
+                            nonce: A::initial_nonce(),
+                            address,
+                            balance: U256::zero(),
+                            storage,
+                            code: Rc::new(Vec::new())
+                        };
+                        return ret;
+                    }
+                }
                 _ => (),
             }
         }
