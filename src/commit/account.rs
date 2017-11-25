@@ -79,6 +79,11 @@ impl Storage {
         self.storage.insert(index, value);
         Ok(())
     }
+
+    /// Return the number of changed/full items in storage.
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
 }
 
 #[derive(Debug, Clone)]
