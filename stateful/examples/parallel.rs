@@ -51,11 +51,8 @@ pub enum SendableAccountChange {
         storage: Storage,
         /// Code associated with this account.
         code: Vec<u8>,
-        /// Whether, at this point, the account is considered
-        /// existing. The client should delete this address if this is
-        /// set to `false`.
-        exists: bool,
     },
+    Nonexist(Address),
 }
 
 impl SendableAccountChange {
@@ -72,6 +69,7 @@ impl SendableAccountChange {
                 address,
                 ..
             } => address,
+            &SendableAccountChange::Nonexist(address) => address,
         }
     }
 }
@@ -89,12 +87,13 @@ impl From<AccountChange> for SendableAccountChange {
                 SendableAccountChange::IncreaseBalance(address, balance),
             AccountChange::DecreaseBalance(address, balance) =>
                 SendableAccountChange::DecreaseBalance(address, balance),
-            AccountChange::Create { nonce, address, balance, storage, code, exists } => {
+            AccountChange::Create { nonce, address, balance, storage, code } => {
                 SendableAccountChange::Create {
-                    nonce, address, balance, storage, exists,
+                    nonce, address, balance, storage,
                     code: code.deref().clone()
                 }
             },
+            AccountChange::Nonexist(address) => SendableAccountChange::Nonexist(address),
         }
     }
 }
@@ -112,12 +111,13 @@ impl Into<AccountChange> for SendableAccountChange {
                 AccountChange::IncreaseBalance(address, balance),
             SendableAccountChange::DecreaseBalance(address, balance) =>
                 AccountChange::DecreaseBalance(address, balance),
-            SendableAccountChange::Create { nonce, address, balance, storage, code, exists } => {
+            SendableAccountChange::Create { nonce, address, balance, storage, code } => {
                 AccountChange::Create {
-                    nonce, address, balance, storage, exists,
+                    nonce, address, balance, storage,
                     code: Rc::new(code),
                 }
             },
+            SendableAccountChange::Nonexist(address) => AccountChange::Nonexist(address),
         }
     }
 }
