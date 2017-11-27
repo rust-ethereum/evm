@@ -552,7 +552,6 @@ impl<A: AccountPatch> AccountState<A> {
                         return ret;
                     }
                 }
-                _ => (),
             }
         }
 
