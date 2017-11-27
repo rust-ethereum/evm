@@ -119,7 +119,8 @@ pub enum AccountCommitment {
         /// Value at the given account storage index.
         value: M256,
     },
-    /// Indicate that an account does not exist.
+    /// Indicate that an account does not exist, or is a suicided
+    /// account.
     Nonexist(Address),
 }
 
