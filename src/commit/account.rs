@@ -325,6 +325,7 @@ impl<A: AccountPatch> AccountState<A> {
                 };
 
                 self.accounts.insert(address, account);
+                self.codes.remove(&address);
                 self.premarked_exists.remove(&address);
             },
             AccountCommitment::Code {
@@ -387,6 +388,7 @@ impl<A: AccountPatch> AccountState<A> {
                 };
 
                 self.accounts.insert(address, account);
+                self.codes.remove(&address);
                 self.premarked_exists.remove(&address);
             }
         }
@@ -601,6 +603,8 @@ impl<A: AccountPatch> AccountState<A> {
             return Err(RequireError::Account(address));
         };
 
+        self.codes.remove(&address);
+        self.premarked_exists.remove(&address);
         self.accounts.insert(address, account);
 
         Ok(())
