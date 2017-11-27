@@ -506,6 +506,7 @@ impl<A: AccountPatch> AccountState<A> {
         return Err(RequireError::Account(address));
     }
 
+    /// Read a value from an account storage.
     pub fn storage_read(&self, address: Address, index: U256) -> Result<M256, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
@@ -525,6 +526,8 @@ impl<A: AccountPatch> AccountState<A> {
         return Err(RequireError::Account(address));
     }
 
+    /// Write a value from an account storage. The account will be
+    /// created if it is nonexist.
     pub fn storage_write(&mut self, address: Address, index: U256, value: M256) -> Result<(), RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get_mut(&address).unwrap() {
