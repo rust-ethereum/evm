@@ -437,29 +437,21 @@ impl<A: AccountPatch> AccountState<A> {
     /// Find code by its address in this account state. If the search
     /// failed, returns a `RequireError`.
     pub fn code(&self, address: Address) -> Result<Rc<Vec<u8>>, RequireError> {
-        if self.codes.contains_key(&address) {
-            return Ok(self.codes.get(&address).unwrap().clone());
-        }
-
         if self.accounts.contains_key(&address) {
             match self.accounts.get(&address).unwrap() {
-                &AccountChange::Full {
-                    ref code,
-                    ..
-                } => return Ok(code.clone()),
-                &AccountChange::Create {
-                    ref code,
-                    ..
-                } => return Ok(code.clone()),
-                &AccountChange::Nonexist(_) => {
-                    return Ok(Rc::new(Vec::new()));
-                },
-                &AccountChange::IncreaseBalance(address, _) => return Err(RequireError::Account(address)),
-                &AccountChange::DecreaseBalance(address, _) => return Err(RequireError::Account(address)),
+                &AccountChange::Full { ref code, .. } => return Ok(code.clone()),
+                &AccountChange::Create { ref code, .. } => return Ok(code.clone()),
+                &AccountChange::Nonexist(_) => return Ok(Rc::new(Vec::new())),
+                &AccountChange::IncreaseBalance(_, _) => (),
+                &AccountChange::DecreaseBalance(_, _) => (),
             }
         }
 
-        return Err(RequireError::AccountCode(address));
+        if self.codes.contains_key(&address) {
+            return Ok(self.codes.get(&address).unwrap().clone());
+        } else {
+            return Err(RequireError::AccountCode(address));
+        }
     }
 
     /// Find nonce by its address in this account state. If the search
