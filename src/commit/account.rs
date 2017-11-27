@@ -423,7 +423,7 @@ impl<A: AccountPatch> AccountState<A> {
                     &mut AccountChange::Nonexist(_) => (),
                     // The above matches all cases in enum. FIXME when
                     // there're more AccountChange variants added.
-                    _ => panic!(),
+                    _ => unreachable!(),
                 }
                 *val = AccountChange::Create {
                     nonce: A::initial_nonce(),
