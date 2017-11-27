@@ -371,6 +371,9 @@ impl<A: AccountPatch> AccountState<A> {
                                 code: Rc::new(Vec::new())
                             }
                         },
+                        // If balance is decreased with a negative
+                        // value, there's no way it is a nonexist
+                        // account.
                         AccountChange::DecreaseBalance(_, _) => panic!(),
                     }
                 } else {
@@ -418,6 +421,8 @@ impl<A: AccountPatch> AccountState<A> {
             Some(val) => {
                 match val {
                     &mut AccountChange::Nonexist(_) => (),
+                    // The above matches all cases in enum. FIXME when
+                    // there're more AccountChange variants added.
                     _ => panic!(),
                 }
                 *val = AccountChange::Create {
@@ -724,6 +729,8 @@ impl<A: AccountPatch> AccountState<A> {
                     nonce,
                 })
             },
+            // We cannot decrease balance of a nonexist account (with
+            // balance zero).
             Some(AccountChange::Nonexist(_)) => panic!(),
             None => {
                 Some(AccountChange::DecreaseBalance(address, withdraw))
