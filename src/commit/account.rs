@@ -589,6 +589,11 @@ impl<A: AccountPatch> AccountState<A> {
                     }
                 },
                 _ => {
+                    // Although creation will clean up storage and
+                    // code, the balance will be added if it was
+                    // existing in prior. So if it is IncreaseBalance
+                    // or DecreaseBalance, we need to ask for the
+                    // account first.
                     return Err(RequireError::Account(address));
                 },
             }
