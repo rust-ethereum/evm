@@ -606,7 +606,8 @@ impl<A: AccountPatch> AccountState<A> {
         Ok(())
     }
 
-    /// Deposit code in to a created account.
+    /// Deposit code in to a created account. Only usable in a newly
+    /// created account.
     pub fn code_deposit(&mut self, address: Address, new_code: Rc<Vec<u8>>) {
         match self.accounts.get_mut(&address).unwrap() {
             &mut AccountChange::Create { ref mut code, .. } => {
@@ -616,7 +617,8 @@ impl<A: AccountPatch> AccountState<A> {
         }
     }
 
-    /// Increase the balance of an account.
+    /// Increase the balance of an account. The account will be
+    /// created if it is nonexist in the beginning.
     pub fn increase_balance(&mut self, address: Address, topup: U256) {
         if topup == U256::zero() { return; }
         let account = match self.accounts.remove(&address) {
@@ -680,7 +682,8 @@ impl<A: AccountPatch> AccountState<A> {
         }
     }
 
-    /// Decrease the balance of an account.
+    /// Decrease the balance of an account. The account will be
+    /// created if it is nonexist in the beginning.
     pub fn decrease_balance(&mut self, address: Address, withdraw: U256) {
         if withdraw == U256::zero() { return; }
         let account = match self.accounts.remove(&address) {
@@ -737,7 +740,8 @@ impl<A: AccountPatch> AccountState<A> {
     }
 
     /// Set nonce of an account. If the account is not already
-    /// commited, returns a `RequireError`.
+    /// commited, returns a `RequireError`. The account will be
+    /// created if it is nonexist in the beginning.
     pub fn set_nonce(&mut self, address: Address, new_nonce: U256) -> Result<(), RequireError> {
         match self.accounts.get_mut(&address) {
             Some(&mut AccountChange::Full {
@@ -780,8 +784,7 @@ impl<A: AccountPatch> AccountState<A> {
     }
 
     /// Delete an account from this account state. The account is set
-    /// to null. If the account is not already commited, returns a
-    /// `RequireError`.
+    /// to null.
     pub fn remove(&mut self, address: Address) -> Result<(), RequireError> {
         self.codes.remove(&address);
         self.premarked_exists.remove(&address);
