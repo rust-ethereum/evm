@@ -33,6 +33,7 @@ pub enum Instruction {
     LOG(usize),
 }
 
+/// Mapping of valid jump destination from code.
 pub struct Valids(Vec<bool>);
 
 impl Valids {

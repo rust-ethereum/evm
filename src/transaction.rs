@@ -39,6 +39,8 @@ macro_rules! system_address {
     }
 }
 
+/// Represents an Ethereum transaction.
+///
 /// ## About SYSTEM transaction
 ///
 /// SYSTEM transaction in Ethereum is something that cannot be
@@ -50,7 +52,6 @@ macro_rules! system_address {
 /// changed. A SYSTEM transaction must have gas_price set to zero.
 
 #[derive(Debug, Clone)]
-/// Represents an Ethereum transaction.
 pub struct ValidTransaction {
     /// Caller of this transaction. If caller is None, then this is a
     /// SYSTEM transaction.
