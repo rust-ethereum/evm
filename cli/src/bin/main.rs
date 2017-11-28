@@ -1,28 +1,32 @@
 #[macro_use]
 extern crate clap;
+extern crate bigint;
+extern crate hexutil;
 extern crate sputnikvm;
 extern crate serde_json;
 extern crate gethrpc;
 
-use sputnikvm::{Gas, Address, U256, M256, read_hex};
-use sputnikvm::vm::{BlockHeader, Context, SeqTransactionVM, Transaction, VM, Log, Patch,
-                    AccountCommitment, Account, FRONTIER_PATCH, HOMESTEAD_PATCH,
-                    EIP150_PATCH, EIP160_PATCH};
-use sputnikvm::vm::errors::RequireError;
+use bigint::{Gas, Address, U256, M256, H256};
+use hexutil::read_hex;
+use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
+                AccountCommitment, AccountChange, RequireError, TransactionAction,
+                MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch};
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCBlock};
 use std::str::FromStr;
+use std::ops::DerefMut;
+use std::rc::Rc;
 
-fn from_rpc_block(block: &RPCBlock) -> BlockHeader {
-    BlockHeader {
-        coinbase: Address::from_str(&block.miner).unwrap(),
-        timestamp: M256::from_str(&block.timestamp).unwrap(),
-        number: M256::from_str(&block.number).unwrap(),
-        difficulty: M256::from_str(&block.difficulty).unwrap(),
+fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
+    HeaderParams {
+        beneficiary: Address::from_str(&block.miner).unwrap(),
+        timestamp: U256::from_str(&block.timestamp).unwrap().as_u64(),
+        number: U256::from_str(&block.number).unwrap(),
+        difficulty: U256::from_str(&block.difficulty).unwrap(),
         gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
     }
 }
 
-fn handle_fire_without_rpc(vm: &mut SeqTransactionVM) {
+fn handle_fire_without_rpc(vm: &mut VM) {
     loop {
         match vm.fire() {
             Ok(()) => break,
@@ -37,24 +41,21 @@ fn handle_fire_without_rpc(vm: &mut SeqTransactionVM) {
                 }).unwrap();
             },
             Err(RequireError::AccountCode(address)) => {
-                vm.commit_account(AccountCommitment::Code {
-                    address: address,
-                    code: Vec::new(),
-                }).unwrap();
+                vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
             },
             Err(RequireError::Blockhash(number)) => {
-                vm.commit_blockhash(number, M256::zero());
+                vm.commit_blockhash(number, H256::default()).unwrap();
             },
         }
     }
 }
 
-fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactionVM, block_number: &str) {
+fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_number: &str) {
     loop {
         match vm.fire() {
             Ok(()) => break,
             Err(RequireError::Account(address)) => {
-                let nonce = M256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
+                let nonce = U256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
                                                                          &block_number)).unwrap();
                 let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
                                                                  &block_number)).unwrap();
@@ -67,7 +68,7 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactio
                         nonce: nonce,
                         address: address,
                         balance: balance,
-                        code: code,
+                        code: Rc::new(code),
                     }).unwrap();
                 }
             },
@@ -86,13 +87,13 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut SeqTransactio
                                                      &block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
                     address: address,
-                    code: code,
+                    code: Rc::new(code),
                 }).unwrap();
             },
             Err(RequireError::Blockhash(number)) => {
-                let hash = M256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
+                let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
                     .hash).unwrap();
-                vm.commit_blockhash(number, hash);
+                vm.commit_blockhash(number, hash).unwrap();
             },
         }
     }
@@ -124,45 +125,59 @@ fn main() {
     let gas_limit = Gas::from_str(matches.value_of("GAS_LIMIT").unwrap_or("0x2540be400")).unwrap();
     let gas_price = Gas::from_str(matches.value_of("GAS_PRICE").unwrap_or("0x0")).unwrap();
     let is_create = matches.is_present("CREATE");
-    let patch = match matches.value_of("PATCH") {
-        Some("frontier") => &FRONTIER_PATCH,
-        Some("homestead") => &HOMESTEAD_PATCH,
-        Some("eip150") => &EIP150_PATCH,
-        Some("eip160") => &EIP160_PATCH,
-        _ => panic!("Unsupported patch."),
-    };
     let block_number = matches.value_of("BLOCK").unwrap_or("0x0");
 
     let block = if matches.is_present("RPC") {
         let mut client = NormalGethRPCClient::new(matches.value_of("RPC").unwrap());
         from_rpc_block(&client.get_block_by_number(block_number))
     } else {
-        BlockHeader {
-            coinbase: Address::default(),
-            timestamp: M256::zero(),
-            number: M256::from_str(block_number).unwrap(),
-            difficulty: M256::zero(),
+        HeaderParams {
+            beneficiary: Address::default(),
+            timestamp: 0,
+            number: U256::from_str(block_number).unwrap(),
+            difficulty: U256::zero(),
             gas_limit: Gas::zero(),
         }
     };
 
-    let transaction = if is_create {
-        Transaction::ContractCreation {
-            caller, value, gas_limit, gas_price,
-            init: data,
-        }
+    let mut client = if matches.is_present("RPC") {
+        Some(NormalGethRPCClient::new(matches.value_of("RPC").unwrap()))
     } else {
-        Transaction::MessageCall {
-            caller, address, value, gas_limit, gas_price, data
-        }
+        None
     };
 
-    let mut vm = SeqTransactionVM::new(transaction, block, patch);
-    if matches.is_present("RPC") {
-        let mut client = NormalGethRPCClient::new(matches.value_of("RPC").unwrap());
-        handle_fire_with_rpc(&mut client, &mut vm, block_number);
-    } else {
-        handle_fire_without_rpc(&mut vm);
+    let transaction = ValidTransaction {
+        caller: Some(caller),
+        value, gas_limit, gas_price,
+        input: Rc::new(data),
+        nonce: match client {
+            Some(ref mut client) => {
+                U256::from_str(&client.get_transaction_count(&format!("0x{:x}", caller),
+                                                             &block_number)).unwrap()
+            },
+            None => U256::zero(),
+        },
+        action: if is_create {
+            TransactionAction::Create
+        } else {
+            TransactionAction::Call(address)
+        },
+    };
+
+    let mut vm: Box<VM> = match matches.value_of("PATCH") {
+        Some("frontier") => Box::new(SeqTransactionVM::<MainnetFrontierPatch>::new(transaction, block)),
+        Some("homestead") => Box::new(SeqTransactionVM::<MainnetHomesteadPatch>::new(transaction, block)),
+        Some("eip150") => Box::new(SeqTransactionVM::<MainnetEIP150Patch>::new(transaction, block)),
+        Some("eip160") => Box::new(SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, block)),
+        _ => panic!("Unsupported patch."),
+    };
+    match client {
+        Some(ref mut client) => {
+            handle_fire_with_rpc(client, vm.deref_mut(), block_number);
+        },
+        None => {
+            handle_fire_without_rpc(vm.deref_mut());
+        },
     }
 
     println!("VM returned: {:?}", vm.status());

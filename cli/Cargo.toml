@@ -10,7 +10,9 @@ repository = "https://github.com/ethereumproject/sputnikvm"
 name = "sputnikvm"
 
 [dependencies]
-sputnikvm = { path = ".." }
+etcommon-bigint = "0.2"
+etcommon-hexutil = "0.2"
+sputnikvm = { version = "0.9", path = ".." }
 gethrpc = { path = '../gethrpc' }
 clap = "2.22"
 serde_json = "0.9"
