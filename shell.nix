@@ -29,6 +29,6 @@ in with pkgs;
 stdenv.mkDerivation {
   name = "sputnikvm-env";
   buildInputs = [
-    rustc cargo gdb openssl pkgconfig
+    rustc cargo gdb openssl pkgconfig valgrind
   ];
 }
