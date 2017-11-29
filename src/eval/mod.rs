@@ -7,6 +7,7 @@ use alloc::Vec;
 #[cfg(feature = "std")] use std::rc::Rc;
 
 use bigint::{M256, U256, Gas, Address};
+use super::pc::Instruction;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
                     OnChainError, NotSupportedError};
@@ -236,6 +237,15 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             }
         }
         return false;
+    }
+
+    pub fn peek(&self) -> Option<Instruction> {
+        let pc = PC::<P>::new(&self.state.context.code,
+                              &self.state.valids, &self.state.position);
+        match pc.peek() {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        }
     }
 
     /// Step an instruction in the PC. The eval result is refected by

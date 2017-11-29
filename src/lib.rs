@@ -95,6 +95,8 @@ pub trait VM {
     fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError>;
     /// Returns the current status of the VM.
     fn status(&self) -> VMStatus;
+    /// Read the next instruction to be executed.
+    fn peek(&self) -> Option<Instruction>;
     /// Run one instruction and return. If it succeeds, VM status can
     /// still be `Running`. If the call stack has more than one items,
     /// this will only executes the last items' one single
@@ -219,6 +221,15 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
             MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err.into()),
             MachineStatus::ExitedNotSupported(err) => VMStatus::ExitedNotSupported(err),
+        }
+    }
+
+    fn peek(&self) -> Option<Instruction> {
+        match self.machines.last().unwrap().status().clone() {
+            MachineStatus::Running => {
+                self.machines.last().unwrap().peek()
+            },
+            _ => None,
         }
     }
 

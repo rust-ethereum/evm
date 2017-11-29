@@ -19,7 +19,8 @@ use super::errors::{RequireError, CommitError};
 use super::errors::PreExecutionError;
 use super::{State, Machine, Context, ContextVM, VM, AccountState,
             BlockhashState, Patch, HeaderParams, Memory, VMStatus,
-            AccountCommitment, Log, AccountChange, MachineStatus};
+            AccountCommitment, Log, AccountChange, MachineStatus,
+            Instruction};
 
 use block_core::TransactionAction;
 #[cfg(feature = "std")]
@@ -294,6 +295,13 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 }
             },
             TransactionVMState::Constructing { .. } => VMStatus::Running,
+        }
+    }
+
+    fn peek(&self) -> Option<Instruction> {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => vm.peek(),
+            TransactionVMState::Constructing { .. } => None,
         }
     }
 
