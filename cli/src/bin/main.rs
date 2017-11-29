@@ -5,12 +5,16 @@ extern crate hexutil;
 extern crate sputnikvm;
 extern crate serde_json;
 extern crate gethrpc;
+extern crate flame;
+
+use std::fs::File;
 
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::read_hex;
 use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                AccountCommitment, AccountChange, RequireError, TransactionAction,
-                MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch};
+                AccountCommitment, AccountChange, RequireError, TransactionAction, VMStatus,
+                MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch,
+                SeqContextVM};
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCBlock};
 use std::str::FromStr;
 use std::ops::DerefMut;
@@ -23,6 +27,43 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
         number: U256::from_str(&block.number).unwrap(),
         difficulty: U256::from_str(&block.difficulty).unwrap(),
         gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
+    }
+}
+
+fn handle_step_without_rpc(vm: &mut VM) {
+    match vm.step() {
+        Ok(()) => {},
+        Err(RequireError::Account(address)) => {
+            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+        },
+        Err(RequireError::AccountStorage(address, index)) => {
+            vm.commit_account(AccountCommitment::Storage {
+                address: address,
+                index: index,
+                value: M256::zero(),
+            }).unwrap();
+        },
+        Err(RequireError::AccountCode(address)) => {
+            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+        },
+        Err(RequireError::Blockhash(number)) => {
+            vm.commit_blockhash(number, H256::default()).unwrap();
+        },
+    }
+}
+
+fn profile_fire_without_rpc(vm: &mut VM) {
+    loop {
+        match vm.status() {
+            VMStatus::Running => {
+                let instruction = vm.peek();
+                flame::span_of(format!("{:?}", instruction), || {
+                    handle_step_without_rpc(vm)
+                });
+            },
+            VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
+            VMStatus::ExitedNotSupported(_) => return,
+        }
     }
 }
 
@@ -105,6 +146,7 @@ fn main() {
         (author: "Ethereum Classic Contributors")
         (about: "CLI tool for SputnikVM.")
         (@arg CREATE: --create "Execute a CreateContract transaction instead of message call.")
+        (@arg PROFILE: --profile "Whether to output a profiling result for the execution.")
         (@arg CODE: --code +takes_value +required "Code to be executed.")
         (@arg RPC: --rpc +takes_value "Indicate this EVM should be run on an actual blockchain.")
         (@arg DATA: --data +takes_value "Data associated with this transaction.")
@@ -146,40 +188,67 @@ fn main() {
         None
     };
 
-    let transaction = ValidTransaction {
-        caller: Some(caller),
-        value, gas_limit, gas_price,
-        input: Rc::new(data),
-        nonce: match client {
-            Some(ref mut client) => {
-                U256::from_str(&client.get_transaction_count(&format!("0x{:x}", caller),
-                                                             &block_number)).unwrap()
-            },
-            None => U256::zero(),
-        },
-        action: if is_create {
-            TransactionAction::Create
-        } else {
-            TransactionAction::Call(address)
-        },
-    };
+    let mut vm: Box<VM> = if matches.is_present("CODE") {
+        let context = Context {
+            address, caller, gas_limit, gas_price, value,
+            code: Rc::new(code),
+            data: Rc::new(data),
+            origin: caller,
+            apprent_value: value,
+            is_system: false,
+        };
 
-    let mut vm: Box<VM> = match matches.value_of("PATCH") {
-        Some("frontier") => Box::new(SeqTransactionVM::<MainnetFrontierPatch>::new(transaction, block)),
-        Some("homestead") => Box::new(SeqTransactionVM::<MainnetHomesteadPatch>::new(transaction, block)),
-        Some("eip150") => Box::new(SeqTransactionVM::<MainnetEIP150Patch>::new(transaction, block)),
-        Some("eip160") => Box::new(SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, block)),
-        _ => panic!("Unsupported patch."),
+        match matches.value_of("PATCH") {
+            Some("frontier") => Box::new(SeqContextVM::<MainnetFrontierPatch>::new(context, block)),
+            Some("homestead") => Box::new(SeqContextVM::<MainnetHomesteadPatch>::new(context, block)),
+            Some("eip150") => Box::new(SeqContextVM::<MainnetEIP150Patch>::new(context, block)),
+            Some("eip160") => Box::new(SeqContextVM::<MainnetEIP160Patch>::new(context, block)),
+            _ => panic!("Unsupported patch."),
+        }
+    } else {
+        let transaction = ValidTransaction {
+            caller: Some(caller),
+            value, gas_limit, gas_price,
+            input: Rc::new(data),
+            nonce: match client {
+                Some(ref mut client) => {
+                    U256::from_str(&client.get_transaction_count(&format!("0x{:x}", caller),
+                                                                 &block_number)).unwrap()
+                },
+                None => U256::zero(),
+            },
+            action: if is_create {
+                TransactionAction::Create
+            } else {
+                TransactionAction::Call(address)
+            },
+        };
+
+        match matches.value_of("PATCH") {
+            Some("frontier") => Box::new(SeqTransactionVM::<MainnetFrontierPatch>::new(transaction, block)),
+            Some("homestead") => Box::new(SeqTransactionVM::<MainnetHomesteadPatch>::new(transaction, block)),
+            Some("eip150") => Box::new(SeqTransactionVM::<MainnetEIP150Patch>::new(transaction, block)),
+            Some("eip160") => Box::new(SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, block)),
+            _ => panic!("Unsupported patch."),
+        }
     };
     match client {
         Some(ref mut client) => {
             handle_fire_with_rpc(client, vm.deref_mut(), block_number);
         },
         None => {
-            handle_fire_without_rpc(vm.deref_mut());
+            if matches.is_present("PROFILE") {
+                profile_fire_without_rpc(vm.deref_mut());
+                flame::dump_html(&mut File::create("profile.html").unwrap()).unwrap();
+            } else {
+                handle_fire_without_rpc(vm.deref_mut());
+            }
         },
     }
 
     println!("VM returned: {:?}", vm.status());
     println!("VM out: {:?}", vm.out());
+    for account in vm.accounts() {
+        println!("{:?}", account);
+    }
 }
