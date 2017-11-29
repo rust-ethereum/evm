@@ -7,7 +7,7 @@ description = "SputnikVM CLI"
 repository = "https://github.com/ethereumproject/sputnikvm"
 
 [[bin]]
-name = "sputnikvm"
+name = "sputnikvm-cli"
 
 [dependencies]
 etcommon-bigint = "0.2"
