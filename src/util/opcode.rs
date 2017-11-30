@@ -1,6 +1,6 @@
 //! Ethereum opcodes
 
-#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 #[allow(missing_docs)]
 /// Opcode enum. One-to-one corresponding to an `u8` value.
 pub enum Opcode {
