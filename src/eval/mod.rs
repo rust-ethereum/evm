@@ -11,7 +11,8 @@ use super::pc::Instruction;
 use super::commit::{AccountState, BlockhashState};
 use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
                     OnChainError, NotSupportedError};
-use super::{Stack, Context, HeaderParams, Patch, PC, PCMut, Valids, Memory, AccountCommitment, Log};
+use super::{Stack, Context, HeaderParams, Patch, PC, PCMut, Valids, Memory,
+            AccountCommitment, Log, Opcode};
 
 use self::check::{check_opcode, check_support, extra_check_opcode};
 use self::run::run_opcode;
@@ -243,6 +244,15 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         let pc = PC::<P>::new(&self.state.context.code,
                               &self.state.valids, &self.state.position);
         match pc.peek() {
+            Ok(val) => Some(val),
+            Err(_) => None,
+        }
+    }
+
+    pub fn peek_opcode(&self) -> Option<Opcode> {
+        let pc = PC::<P>::new(&self.state.context.code,
+                              &self.state.valids, &self.state.position);
+        match pc.peek_opcode() {
             Ok(val) => Some(val),
             Err(_) => None,
         }

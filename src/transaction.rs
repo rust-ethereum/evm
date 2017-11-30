@@ -20,7 +20,7 @@ use super::errors::PreExecutionError;
 use super::{State, Machine, Context, ContextVM, VM, AccountState,
             BlockhashState, Patch, HeaderParams, Memory, VMStatus,
             AccountCommitment, Log, AccountChange, MachineStatus,
-            Instruction};
+            Instruction, Opcode};
 
 use block_core::TransactionAction;
 #[cfg(feature = "std")]
@@ -301,6 +301,13 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
     fn peek(&self) -> Option<Instruction> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.peek(),
+            TransactionVMState::Constructing { .. } => None,
+        }
+    }
+
+    fn peek_opcode(&self) -> Option<Opcode> {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => vm.peek_opcode(),
             TransactionVMState::Constructing { .. } => None,
         }
     }

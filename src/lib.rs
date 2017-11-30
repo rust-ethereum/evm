@@ -97,6 +97,8 @@ pub trait VM {
     fn status(&self) -> VMStatus;
     /// Read the next instruction to be executed.
     fn peek(&self) -> Option<Instruction>;
+    /// Read the next opcode to be executed.
+    fn peek_opcode(&self) -> Option<Opcode>;
     /// Run one instruction and return. If it succeeds, VM status can
     /// still be `Running`. If the call stack has more than one items,
     /// this will only executes the last items' one single
@@ -228,6 +230,15 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         match self.machines.last().unwrap().status().clone() {
             MachineStatus::Running => {
                 self.machines.last().unwrap().peek()
+            },
+            _ => None,
+        }
+    }
+
+    fn peek_opcode(&self) -> Option<Opcode> {
+        match self.machines.last().unwrap().status().clone() {
+            MachineStatus::Running => {
+                self.machines.last().unwrap().peek_opcode()
             },
             _ => None,
         }
