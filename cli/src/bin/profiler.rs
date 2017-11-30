@@ -1,9 +1,10 @@
 use sputnikvm::Opcode;
 use std::collections::{HashMap, hash_map};
+use std::cmp::Ordering;
 use flame::Span;
 
 pub struct Profiler {
-    occurances: HashMap<Opcode, (usize, f64)>,
+    occurances: HashMap<String, (usize, f64)>,
 }
 
 impl Default for Profiler {
@@ -15,7 +16,8 @@ impl Default for Profiler {
 }
 
 impl Profiler {
-    pub fn record(&mut self, opcode: Opcode, span: &Span) {
+    pub fn record(&mut self, span: &Span) {
+        let opcode = span.name.to_string();
         match self.occurances.entry(opcode) {
             hash_map::Entry::Occupied(mut entry) => {
                 let (occ, avg) = entry.get().clone();
@@ -26,5 +28,21 @@ impl Profiler {
                 entry.insert((1, span.delta as f64));
             },
         }
+    }
+
+    pub fn print_stats(&self) {
+        println!("--- Profiler Stats ---");
+        let mut occs: Vec<_> = self.occurances.iter().collect();
+        occs.sort_by(|&(k1, v1), &(k2, v2)| {
+            match v1.1.partial_cmp(&v2.1) {
+                Some(val) => val,
+                None => Ordering::Equal,
+            }
+        });
+        occs.reverse();
+        for occ in occs {
+            println!("{}: {:.0} ns ({} times)", occ.0, (occ.1).1, (occ.1).0);
+        }
+        println!("--- End Profiler Stats ---");
     }
 }

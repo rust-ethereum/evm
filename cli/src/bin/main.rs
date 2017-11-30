@@ -11,6 +11,7 @@ mod profiler;
 
 use std::fs::File;
 
+use profiler::Profiler;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::read_hex;
 use sputnikvm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
@@ -58,8 +59,8 @@ fn profile_fire_without_rpc(vm: &mut VM) {
     loop {
         match vm.status() {
             VMStatus::Running => {
-                let instruction = vm.peek();
-                flame::span_of(format!("{:?}", instruction), || {
+                let opcode = vm.peek_opcode();
+                flame::span_of(format!("{:?}", opcode), || {
                     handle_step_without_rpc(vm)
                 });
             },
@@ -149,6 +150,7 @@ fn main() {
         (about: "CLI tool for SputnikVM.")
         (@arg CREATE: --create "Execute a CreateContract transaction instead of message call.")
         (@arg PROFILE: --profile "Whether to output a profiling result for the execution.")
+        (@arg PROFILE_DUMP: --profile_dump +takes_value "Dump profiler result as HTML.")
         (@arg CODE: --code +takes_value +required "Code to be executed.")
         (@arg RPC: --rpc +takes_value "Indicate this EVM should be run on an actual blockchain.")
         (@arg DATA: --data +takes_value "Data associated with this transaction.")
@@ -241,7 +243,14 @@ fn main() {
         None => {
             if matches.is_present("PROFILE") {
                 profile_fire_without_rpc(vm.deref_mut());
-                flame::dump_html(&mut File::create("profile.html").unwrap()).unwrap();
+                if matches.is_present("PROFILE_DUMP") {
+                    flame::dump_html(&mut File::create(matches.value_of("PROFILE_DUMP").unwrap()).unwrap()).unwrap();
+                }
+                let mut profiler = Profiler::default();
+                for span in flame::spans() {
+                    profiler.record(&span);
+                }
+                profiler.print_stats();
             } else {
                 handle_fire_without_rpc(vm.deref_mut());
             }
