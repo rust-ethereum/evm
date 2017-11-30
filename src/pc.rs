@@ -145,13 +145,19 @@ impl<'a, P: Patch> PC<'a, P> {
         *self.position == self.code.len()
     }
 
-    /// Peek the next instruction.
-    pub fn peek(&self) -> Result<Instruction, OnChainError> {
+    /// Peek the next opcode.
+    pub fn peek_opcode(&self) -> Result<Opcode, OnChainError> {
         let position = self.position;
         if *position >= self.code.len() {
             return Err(OnChainError::PCOverflow);
         }
-        let opcode: Opcode = self.code[*position].into();
+        Ok(self.code[*position].into())
+    }
+
+    /// Peek the next instruction.
+    pub fn peek(&self) -> Result<Instruction, OnChainError> {
+        let position = self.position;
+        let opcode: Opcode = self.peek_opcode()?;
         Ok(match opcode {
             Opcode::STOP => Instruction::STOP,
             Opcode::ADD => Instruction::ADD,
