@@ -7,6 +7,8 @@ extern crate serde_json;
 extern crate gethrpc;
 extern crate flame;
 
+mod profiler;
+
 use std::fs::File;
 
 use bigint::{Gas, Address, U256, M256, H256};
