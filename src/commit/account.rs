@@ -620,7 +620,6 @@ impl<A: AccountPatch> AccountState<A> {
     /// Increase the balance of an account. The account will be
     /// created if it is nonexist in the beginning.
     pub fn increase_balance(&mut self, address: Address, topup: U256) {
-        if topup == U256::zero() { return; }
         let account = match self.accounts.remove(&address) {
             Some(AccountChange::Full {
                 address,
@@ -642,7 +641,7 @@ impl<A: AccountPatch> AccountState<A> {
             },
             Some(AccountChange::DecreaseBalance(address, balance)) => {
                 if balance == topup {
-                    None
+                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
                 } else if balance > topup {
                     Some(AccountChange::DecreaseBalance(address, balance - topup))
                 } else {
@@ -685,7 +684,6 @@ impl<A: AccountPatch> AccountState<A> {
     /// Decrease the balance of an account. The account will be
     /// created if it is nonexist in the beginning.
     pub fn decrease_balance(&mut self, address: Address, withdraw: U256) {
-        if withdraw == U256::zero() { return; }
         let account = match self.accounts.remove(&address) {
             Some(AccountChange::Full {
                 address,
@@ -707,7 +705,7 @@ impl<A: AccountPatch> AccountState<A> {
             },
             Some(AccountChange::IncreaseBalance(address, balance)) => {
                 if balance == withdraw {
-                    None
+                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
                 } else if balance > withdraw {
                     Some(AccountChange::IncreaseBalance(address, balance - withdraw))
                 } else {
@@ -731,9 +729,19 @@ impl<A: AccountPatch> AccountState<A> {
             },
             // We cannot decrease balance of a nonexist account (with
             // balance zero).
-            Some(AccountChange::Nonexist(_)) => panic!(),
+            Some(AccountChange::Nonexist(_)) => {
+                if withdraw == U256::zero() {
+                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
+                } else {
+                    panic!()
+                }
+            },
             None => {
-                Some(AccountChange::DecreaseBalance(address, withdraw))
+                if withdraw == U256::zero() {
+                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
+                } else {
+                    Some(AccountChange::DecreaseBalance(address, withdraw))
+                }
             },
         };
         if account.is_some() {
