@@ -14,12 +14,13 @@ extern crate bigint;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
-use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, EIP160Patch, VMStatus};
-use evm_stateful::MemoryStateful;
+use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, MainnetEIP160Patch, EIP160Patch, VMStatus, AccountPatch};
+use evm_stateful::{MemoryStateful, LiteralAccount};
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::rc::Rc;
 use rand::Rng;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -54,26 +55,42 @@ fn secure_trie() {
 
 #[test]
 fn morden_state_root() {
-    let mut stateful = MemoryStateful::default();
+    let database = MemoryDatabase::default();
+    let mut stateful = MemoryStateful::empty(&database);
     let mut rng = rand::thread_rng();
 
     let mut accounts: Vec<(&String, &JSONAccount)> = MORDEN_ACCOUNTS.iter().collect();
     rng.shuffle(&mut accounts);
 
     for (key, value) in accounts {
+        struct MordenAccountPatch;
+        impl AccountPatch for MordenAccountPatch {
+            fn initial_nonce() -> U256 { U256::from(2u64.pow(20)) }
+        }
+
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
+        let empty_input = Rc::new(Vec::new());
 
-        stateful.transit(
-            &[AccountChange::Create {
-                address,
-                balance,
-                storage: Storage::new(address, false),
-                code: Vec::new(),
-                nonce: U256::from(2u64.pow(20)),
-                exists: true,
-            }]
-        );
+        let vm: SeqTransactionVM<EIP160Patch<MordenAccountPatch>> = stateful.execute(ValidTransaction {
+            caller: None,
+            gas_price: Gas::zero(),
+            gas_limit: Gas::from(100000u64),
+            action: TransactionAction::Call(address),
+            value: balance,
+            input: empty_input.clone(),
+            nonce: U256::zero(),
+        }, HeaderParams {
+            beneficiary: Address::default(),
+            timestamp: 0,
+            number: U256::zero(),
+            difficulty: U256::zero(),
+            gas_limit: Gas::max_value()
+        }, &[]);
+        match vm.status() {
+            VMStatus::ExitedOk => (),
+            _ => panic!(),
+        }
     }
 
     assert_eq!(stateful.root(), H256::from("0xf3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9"));
@@ -81,23 +98,25 @@ fn morden_state_root() {
 
 #[test]
 fn genesis_state_root() {
-    let mut stateful = MemoryStateful::default();
+    let database = MemoryDatabase::default();
+    let mut stateful = MemoryStateful::empty(&database);
     let mut rng = rand::thread_rng();
 
     let mut accounts: Vec<(&String, &JSONAccount)> = GENESIS_ACCOUNTS.iter().collect();
     rng.shuffle(&mut accounts);
+    let empty_input = Rc::new(Vec::new());
 
     for (key, value) in accounts {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        let vm: SeqTransactionVM<EIP160Patch> = stateful.execute(ValidTransaction {
+        let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.execute(ValidTransaction {
             caller: None,
             gas_price: Gas::zero(),
             gas_limit: Gas::from(100000u64),
             action: TransactionAction::Call(address),
             value: balance,
-            input: Vec::new(),
+            input: empty_input.clone(),
             nonce: U256::zero(),
         }, HeaderParams {
             beneficiary: Address::default(),

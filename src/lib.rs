@@ -16,24 +16,33 @@
         unused_variables, non_shorthand_field_patterns,
         unreachable_code)]
 
-extern crate log;
+#![cfg_attr(not(feature = "std"), no_std)]
+#![cfg_attr(not(feature = "std"), feature(alloc))]
+
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
 extern crate rlp;
 extern crate bigint;
-extern crate hexutil;
-extern crate block;
+extern crate block_core;
+extern crate sha3;
 extern crate ripemd160;
 extern crate sha2;
-extern crate sha3;
-extern crate secp256k1;
 extern crate digest;
-#[macro_use]
-extern crate lazy_static;
+
+#[cfg(feature = "c-secp256k1")]
+extern crate secp256k1;
+
+#[cfg(feature = "rust-secp256k1")]
+extern crate secp256k1;
+
+#[cfg(feature = "std")]
+extern crate block;
 
 mod util;
 mod memory;
 mod stack;
 mod pc;
-mod storage;
 mod params;
 mod eval;
 mod commit;
@@ -43,17 +52,24 @@ pub mod errors;
 
 pub use self::memory::{Memory, SeqMemory};
 pub use self::stack::Stack;
-pub use self::pc::{PC, Instruction};
-pub use self::storage::Storage;
+pub use self::pc::{PC, PCMut, Instruction, Valids};
 pub use self::params::*;
 pub use self::patch::*;
-pub use self::eval::{State, Machine, MachineStatus};
-pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState};
+pub use self::eval::{State, Machine, Runtime, MachineStatus};
+pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState, Storage};
 pub use self::transaction::{ValidTransaction, TransactionVM};
+pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
+pub use self::util::opcode::Opcode;
+pub use block_core::TransactionAction;
 
-use std::collections::{HashSet, hash_map};
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
+#[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
+#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(not(feature = "std"))] use core::cmp::min;
 use bigint::{U256, H256, Gas, Address};
-use self::errors::{RequireError, CommitError, MachineError};
 
 #[derive(Debug, Clone)]
 /// VM Status
@@ -64,7 +80,8 @@ pub enum VMStatus {
     ExitedOk,
     /// VM is stopped due to an error. The state of the VM is before
     /// the last failing instruction.
-    ExitedErr(MachineError),
+    ExitedErr(OnChainError),
+    ExitedNotSupported(NotSupportedError),
 }
 
 /// Represents an EVM. This is usually the main interface for clients
@@ -78,6 +95,10 @@ pub trait VM {
     fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError>;
     /// Returns the current status of the VM.
     fn status(&self) -> VMStatus;
+    /// Read the next instruction to be executed.
+    fn peek(&self) -> Option<Instruction>;
+    /// Read the next opcode to be executed.
+    fn peek_opcode(&self) -> Option<Opcode>;
     /// Run one instruction and return. If it succeeds, VM status can
     /// still be `Running`. If the call stack has more than one items,
     /// this will only executes the last items' one single
@@ -90,15 +111,16 @@ pub trait VM {
         loop {
             match self.status() {
                 VMStatus::Running => self.step()?,
-                VMStatus::ExitedOk | VMStatus::ExitedErr(_) => return Ok(()),
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
+                VMStatus::ExitedNotSupported(_) => return Ok(()),
             }
         }
     }
     /// Returns the changed or committed accounts information up to
     /// current execution status.
-    fn accounts(&self) -> hash_map::Values<Address, AccountChange>;
+    fn accounts(&self) -> map::Values<Address, AccountChange>;
     /// Returns all fetched or modified addresses.
-    fn used_addresses(&self) -> HashSet<Address>;
+    fn used_addresses(&self) -> Set<Address>;
     /// Returns the out value, if any.
     fn out(&self) -> &[u8];
     /// Returns the available gas of this VM.
@@ -110,17 +132,22 @@ pub trait VM {
     fn logs(&self) -> &[Log];
     /// Returns all removed account addresses as for current VM execution.
     fn removed(&self) -> &[Address];
+    /// Returns the real used gas by the transaction or the VM
+    /// context. Only available when the status of the VM is
+    /// exited. Otherwise returns zero.
+    fn used_gas(&self) -> Gas;
 }
 
 /// A sequencial VM. It uses sequencial memory representation and hash
 /// map storage for accounts.
-pub type SeqContextVM<P> = ContextVM<SeqMemory, P>;
+pub type SeqContextVM<P> = ContextVM<SeqMemory<P>, P>;
 /// A sequencial transaction VM. This is same as `SeqContextVM` except
 /// it runs at transaction level.
-pub type SeqTransactionVM<P> = TransactionVM<SeqMemory, P>;
+pub type SeqTransactionVM<P> = TransactionVM<SeqMemory<P>, P>;
 
 /// A VM that executes using a context and block information.
 pub struct ContextVM<M, P: Patch> {
+    runtime: Runtime,
     machines: Vec<Machine<M, P>>,
     history: Vec<Context>
 }
@@ -129,20 +156,22 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     /// Create a new VM using the given context, block header and patch.
     pub fn new(context: Context, block: HeaderParams) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::new(context, block, 1));
+        machines.push(Machine::new(context, 1));
         ContextVM {
             machines,
+            runtime: Runtime::new(block),
             history: Vec::new()
         }
     }
 
     /// Create a new VM with the given account state and blockhash state.
     pub fn with_states(context: Context, block: HeaderParams,
-                       account_state: AccountState, blockhash_state: BlockhashState) -> Self {
+                       account_state: AccountState<P::Account>, blockhash_state: BlockhashState) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::with_states(context, block, 1, account_state, blockhash_state));
+        machines.push(Machine::with_states(context, 1, account_state));
         ContextVM {
             machines,
+            runtime: Runtime::with_states(block, blockhash_state),
             history: Vec::new()
         }
     }
@@ -152,12 +181,22 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     pub fn with_previous(context: Context, block: HeaderParams, vm: &ContextVM<M, P>) -> Self {
         Self::with_states(context, block,
                           vm.machines[0].state().account_state.clone(),
-                          vm.machines[0].state().blockhash_state.clone())
+                          vm.runtime.blockhash_state.clone())
     }
 
     /// Returns the call create history. Only used in testing.
     pub fn history(&self) -> &[Context] {
         self.history.as_slice()
+    }
+
+    /// Returns the current state of the VM.
+    pub fn current_state(&self) -> &State<M, P> {
+        self.current_machine().state()
+    }
+
+    /// Returns the current runtime machine.
+    pub fn current_machine(&self) -> &Machine<M, P> {
+        self.machines.last().unwrap()
     }
 }
 
@@ -170,33 +209,59 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     }
 
     fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
-        for machine in &mut self.machines {
-            machine.commit_blockhash(number, hash)?;
-        }
-        Ok(())
+        self.runtime.blockhash_state.commit(number, hash)
     }
 
     fn status(&self) -> VMStatus {
+        match self.machines.last().unwrap().status().clone() {
+            MachineStatus::ExitedNotSupported(err) => return VMStatus::ExitedNotSupported(err),
+            _ => (),
+        }
+
         match self.machines[0].status() {
             MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
             MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err.into()),
+            MachineStatus::ExitedNotSupported(err) => VMStatus::ExitedNotSupported(err),
+        }
+    }
+
+    fn peek(&self) -> Option<Instruction> {
+        match self.machines.last().unwrap().status().clone() {
+            MachineStatus::Running => {
+                self.machines.last().unwrap().peek()
+            },
+            _ => None,
+        }
+    }
+
+    fn peek_opcode(&self) -> Option<Opcode> {
+        match self.machines.last().unwrap().status().clone() {
+            MachineStatus::Running => {
+                self.machines.last().unwrap().peek_opcode()
+            },
+            _ => None,
         }
     }
 
     fn step(&mut self) -> Result<(), RequireError> {
         match self.machines.last().unwrap().status().clone() {
             MachineStatus::Running => {
-                self.machines.last_mut().unwrap().step()
+                self.machines.last_mut().unwrap().step(&self.runtime)
             },
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
-                if self.machines.len() <= 1 {
+                if self.machines.len() == 0 {
+                    panic!()
+                } else if self.machines.len() == 1 {
                     Ok(())
                 } else {
                     let finished = self.machines.pop().unwrap();
                     self.machines.last_mut().unwrap().apply_sub(finished);
                     Ok(())
                 }
+            },
+            MachineStatus::ExitedNotSupported(_) => {
+                Ok(())
             },
             MachineStatus::InvokeCall(context, _) => {
                 self.history.push(context.clone());
@@ -219,16 +284,17 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         loop {
             match self.status() {
                 VMStatus::Running => self.step()?,
-                VMStatus::ExitedOk | VMStatus::ExitedErr(_) => return Ok(()),
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
+                VMStatus::ExitedNotSupported(_) => return Ok(()),
             }
         }
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
+    fn accounts(&self) -> map::Values<Address, AccountChange> {
         self.machines[0].state().account_state.accounts()
     }
 
-    fn used_addresses(&self) -> HashSet<Address> {
+    fn used_addresses(&self) -> Set<Address> {
         self.machines[0].state().account_state.used_addresses()
     }
 
@@ -250,5 +316,19 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
 
     fn removed(&self) -> &[Address] {
         self.machines[0].state().removed.as_slice()
+    }
+
+    fn used_gas(&self) -> Gas {
+        match self.machines[0].status() {
+            MachineStatus::ExitedErr(_) =>
+                self.machines[0].state().context.gas_limit,
+            MachineStatus::ExitedOk => {
+                let total_used = self.machines[0].state().memory_gas() + self.machines[0].state().used_gas;
+                let refund_cap = total_used / Gas::from(2u64);
+                let refunded = min(refund_cap, self.machines[0].state().refunded_gas);
+                total_used - refunded
+            }
+            _ => Gas::zero(),
+        }
     }
 }

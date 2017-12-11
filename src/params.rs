@@ -1,6 +1,13 @@
 //! Parameters used by the VM.
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::{U256, Address, Gas};
+#[cfg(feature = "std")]
 use block::Header;
 
 #[derive(Debug, Clone)]
@@ -18,6 +25,7 @@ pub struct HeaderParams {
     pub gas_limit: Gas
 }
 
+#[cfg(feature = "std")]
 impl<'a> From<&'a Header> for HeaderParams {
     fn from(val: &'a Header) -> HeaderParams {
         HeaderParams {
@@ -38,9 +46,9 @@ pub struct Context {
     /// Caller of the runtime.
     pub caller: Address,
     /// Code to be executed.
-    pub code: Vec<u8>,
+    pub code: Rc<Vec<u8>>,
     /// Data associated with this execution.
-    pub data: Vec<u8>,
+    pub data: Rc<Vec<u8>>,
     /// Gas limit.
     pub gas_limit: Gas,
     /// Gas price.
@@ -56,4 +64,4 @@ pub struct Context {
     pub is_system: bool,
 }
 
-pub use block::Log;
+pub use block_core::Log;

@@ -2,8 +2,9 @@
 
 use ::Memory;
 use super::State;
+use patch::Patch;
 
-pub fn calldataload<M: Memory + Default>(state: &mut State<M>) {
+pub fn calldataload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index);
     let index: Option<usize> = if index > usize::max_value().into() {
         None

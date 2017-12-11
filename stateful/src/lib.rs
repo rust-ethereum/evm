@@ -19,33 +19,51 @@ use trie::{FixedSecureTrie, DatabaseGuard, MemoryDatabase, Database, DatabaseOwn
 use block::{Account, Transaction};
 use std::collections::HashMap;
 use std::cmp::min;
+use std::rc::Rc;
+use std::ops::Deref;
 
-pub struct Stateful<D> {
-    database: D,
+pub struct LiteralAccount {
+    pub nonce: U256,
+    pub balance: U256,
+    pub storage: HashMap<U256, M256>,
+    pub code: Vec<u8>,
+}
+
+#[derive(Debug)]
+pub struct Stateful<'a, D: 'a> {
+    database: &'a D,
     root: H256,
 }
 
-impl<D> Stateful<D> {
-    pub fn new(database: D, root: H256) -> Self {
+impl<'a, D: 'a> Clone for Stateful<'a, D> {
+    fn clone(&self) -> Self {
+        Self {
+            database: self.database.clone(),
+            root: self.root.clone(),
+        }
+    }
+}
+
+impl<'a, D> Stateful<'a, D> {
+    pub fn new(database: &'a D, root: H256) -> Self {
         Self {
             database,
             root
         }
     }
-}
 
-impl<D: Default> Default for Stateful<D> {
-    fn default() -> Self {
-        Self {
-            database: D::default(),
-            root: MemoryDatabase::new().create_empty().root(),
-        }
+    pub fn empty(database: &'a D) -> Self {
+        Self::new(database, MemoryDatabase::new().create_empty().root())
     }
 }
 
-impl<D: DatabaseOwned> Stateful<D> {
+impl<'b, D: DatabaseOwned> Stateful<'b, D> {
     fn is_empty_hash(hash: H256) -> bool {
         hash == H256::from(Keccak256::digest(&[]).as_slice())
+    }
+
+    pub fn database(&self) -> &'b D {
+        self.database
     }
 
     pub fn code(&self, hash: H256) -> Option<Vec<u8>> {
@@ -55,6 +73,88 @@ impl<D: DatabaseOwned> Stateful<D> {
             Some(Vec::new())
         } else {
             code_hashes.get(hash)
+        }
+    }
+
+    pub fn step<V: VM>(
+        &self, vm: &mut V, block_number: U256, most_recent_block_hashes: &[H256]
+    ) {
+        assert!(U256::from(most_recent_block_hashes.len()) >=
+                min(block_number, U256::from(256)));
+
+        let state = self.database.create_fixed_secure_trie(self.root);
+        let code_hashes = self.database.create_guard();
+
+        loop {
+            match vm.step() {
+                Ok(()) => break,
+                Err(RequireError::Account(address)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let code = if Self::is_empty_hash(account.code_hash) {
+                                Vec::new()
+                            } else {
+                                code_hashes.get(account.code_hash).unwrap()
+                            };
+
+                            vm.commit_account(AccountCommitment::Full {
+                                nonce: account.nonce,
+                                address: address,
+                                balance: account.balance,
+                                code: Rc::new(code),
+                            }).unwrap();
+                        },
+                        None => {
+                            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::AccountCode(address)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let code = if Self::is_empty_hash(account.code_hash) {
+                                Vec::new()
+                            } else {
+                                code_hashes.get(account.code_hash).unwrap()
+                            };
+
+                            vm.commit_account(AccountCommitment::Code {
+                                address: address,
+                                code: Rc::new(code),
+                            }).unwrap();
+                        },
+                        None => {
+                            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::AccountStorage(address, index)) => {
+                    let account: Option<Account> = state.get(&address);
+
+                    match account {
+                        Some(account) => {
+                            let storage = self.database.create_fixed_secure_trie(account.storage_root);
+                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+
+                            vm.commit_account(AccountCommitment::Storage {
+                                address: address,
+                                index, value
+                            }).unwrap();
+                        },
+                        None => {
+                            vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
+                        },
+                    }
+                },
+                Err(RequireError::Blockhash(number)) => {
+                    let index = (block_number - number).as_usize();
+                    vm.commit_blockhash(number, most_recent_block_hashes[index]).unwrap();
+                },
+            }
         }
     }
 
@@ -87,7 +187,7 @@ impl<D: DatabaseOwned> Stateful<D> {
                                 nonce: account.nonce,
                                 address: address,
                                 balance: account.balance,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -108,7 +208,7 @@ impl<D: DatabaseOwned> Stateful<D> {
 
                             vm.commit_account(AccountCommitment::Code {
                                 address: address,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -142,6 +242,38 @@ impl<D: DatabaseOwned> Stateful<D> {
         }
 
         vm
+    }
+
+    pub fn sets(
+        &mut self, accounts: &[(Address, LiteralAccount)]
+    ) {
+        let mut state = self.database.create_fixed_secure_trie(self.root);
+        let mut code_hashes = self.database.create_guard();
+
+        for &(address, ref account) in accounts {
+            let mut storage_trie = self.database.create_fixed_secure_empty();
+            for (key, value) in &account.storage {
+                if *value == M256::zero() {
+                    storage_trie.remove(&H256::from(*key));
+                } else {
+                    storage_trie.insert(H256::from(*key), *value);
+                }
+            }
+
+            let code_hash = H256::from(Keccak256::digest(&account.code).as_slice());
+            code_hashes.set(code_hash, account.code.clone());
+
+            let account = Account {
+                nonce: account.nonce,
+                balance: account.balance,
+                storage_root: storage_trie.root(),
+                code_hash
+            };
+
+            state.insert(address, account);
+        }
+
+        self.root = state.root();
     }
 
     pub fn transit(
@@ -200,35 +332,34 @@ impl<D: DatabaseOwned> Stateful<D> {
                     state.insert(address, account);
                 },
                 AccountChange::Create {
-                    nonce, address, balance, storage, code, exists
+                    nonce, address, balance, storage, code
                 } => {
-                    if !exists {
-                        state.remove(&address);
-                    } else {
-                        let storage: HashMap<U256, M256> = storage.into();
+                    let storage: HashMap<U256, M256> = storage.into();
 
-                        let mut storage_trie = self.database.create_fixed_secure_empty();
-                        for (key, value) in storage {
-                            if value == M256::zero() {
-                                storage_trie.remove(&H256::from(key));
-                            } else {
-                                storage_trie.insert(H256::from(key), value);
-                            }
+                    let mut storage_trie = self.database.create_fixed_secure_empty();
+                    for (key, value) in storage {
+                        if value == M256::zero() {
+                            storage_trie.remove(&H256::from(key));
+                        } else {
+                            storage_trie.insert(H256::from(key), value);
                         }
-
-                        let code_hash = H256::from(Keccak256::digest(&code).as_slice());
-                        code_hashes.set(code_hash, code);
-
-                        let account = Account {
-                            nonce: nonce,
-                            balance: balance,
-                            storage_root: storage_trie.root(),
-                            code_hash
-                        };
-
-                        state.insert(address, account);
                     }
+
+                    let code_hash = H256::from(Keccak256::digest(&code).as_slice());
+                    code_hashes.set(code_hash, code.deref().clone());
+
+                    let account = Account {
+                        nonce: nonce,
+                        balance: balance,
+                        storage_root: storage_trie.root(),
+                        code_hash
+                    };
+
+                    state.insert(address, account);
                 },
+                AccountChange::Nonexist(address) => {
+                    state.remove(&address);
+                }
             }
         }
 
@@ -273,7 +404,7 @@ impl<D: DatabaseOwned> Stateful<D> {
                                 nonce: account.nonce,
                                 address: address,
                                 balance: account.balance,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -294,7 +425,7 @@ impl<D: DatabaseOwned> Stateful<D> {
 
                             account_state.commit(AccountCommitment::Code {
                                 address: address,
-                                code: code,
+                                code: Rc::new(code),
                             }).unwrap();
                         },
                         None => {
@@ -356,4 +487,4 @@ impl<D: DatabaseOwned> Stateful<D> {
     }
 }
 
-pub type MemoryStateful = Stateful<MemoryDatabase>;
+pub type MemoryStateful<'a> = Stateful<'a, MemoryDatabase>;

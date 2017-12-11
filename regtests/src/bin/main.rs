@@ -13,14 +13,15 @@ use std::fs::File;
 use std::path::Path;
 use std::io::{BufReader};
 use std::str::FromStr;
+use std::rc::Rc;
 use std::collections::{HashMap, HashSet};
 
 use block::TransactionAction;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::*;
 use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                AccountCommitment, AccountChange, FrontierPatch, HomesteadPatch,
-                EIP150Patch, EIP160Patch};
+                AccountCommitment, AccountChange, MainnetFrontierPatch, MainnetHomesteadPatch,
+                MainnetEIP150Patch, MainnetEIP160Patch};
 use evm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 
@@ -45,7 +46,7 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
         value: U256::from_str(&transaction.value).unwrap(),
         gas_limit: Gas::from_str(&transaction.gas).unwrap(),
         gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
-        input: read_hex(&transaction.input).unwrap(),
+        input: Rc::new(read_hex(&transaction.input).unwrap()),
         nonce: U256::from_str(&transaction.nonce).unwrap(),
     }
 }
@@ -85,7 +86,7 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                         nonce: nonce,
                         address: address,
                         balance: balance,
-                        code: code,
+                        code: Rc::new(code),
                     }).unwrap();
                 }
             },
@@ -106,7 +107,7 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                                                      &last_block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
                     address: address,
-                    code: code,
+                    code: Rc::new(code),
                 }).unwrap();
             },
             Err(RequireError::Blockhash(number)) => {
@@ -162,7 +163,7 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
         handle_fire(client, &mut vm, last_id);
 
-        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.real_used_gas());
+        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
             assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
@@ -234,6 +235,13 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
                                 U256::from_str(&cur_balance).unwrap());
                     }
                 },
+                &AccountChange::Nonexist(address) => {
+                    if !is_miner_or_uncle(client, address, &block) {
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
+                                                                  &cur_number);
+                        assert!(U256::from_str(&expected_balance).unwrap() == U256::zero());
+                    }
+                },
             }
         }
     }
@@ -241,10 +249,10 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
 fn test_blocks_patch<T: GethRPCClient>(client: &mut T, number: &str, patch: Option<&str>) {
     match patch {
-        Some("frontier") => test_blocks::<_, FrontierPatch>(client, number),
-        Some("homestead") => test_blocks::<_, HomesteadPatch>(client, number),
-        Some("eip150") => test_blocks::<_, EIP150Patch>(client, number),
-        Some("eip160") => test_blocks::<_, EIP160Patch>(client, number),
+        Some("frontier") => test_blocks::<_, MainnetFrontierPatch>(client, number),
+        Some("homestead") => test_blocks::<_, MainnetHomesteadPatch>(client, number),
+        Some("eip150") => test_blocks::<_, MainnetEIP150Patch>(client, number),
+        Some("eip160") => test_blocks::<_, MainnetEIP160Patch>(client, number),
         _ => panic!("Unknown patch."),
     }
 }
@@ -319,7 +327,7 @@ fn test_all_previously_failed_frontier_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/frontier_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block::<_, FrontierPatch>(&mut client, n);
+        test_block::<_, MainnetFrontierPatch>(&mut client, n);
     }
 }
 
@@ -330,7 +338,7 @@ fn test_all_previously_failed_homestead_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/homestead_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block::<_, HomesteadPatch>(&mut client, n);
+        test_block::<_, MainnetHomesteadPatch>(&mut client, n);
     }
 }
 
@@ -341,6 +349,6 @@ fn test_all_previously_failed_eip150_blocks() {
     let numbers: Vec<usize> = serde_json::from_str(include_str!("../../res/eip150_numbers.json")).unwrap();
     let mut client = CachedGethRPCClient::from_value(cached);
     for n in numbers {
-        test_block::<_, EIP150Patch>(&mut client, n);
+        test_block::<_, MainnetEIP150Patch>(&mut client, n);
     }
 }

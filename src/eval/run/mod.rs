@@ -49,15 +49,19 @@ mod flow;
 mod environment;
 mod system;
 
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
 use bigint::{M256, MI256, U256, Address, Gas};
-use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
+#[cfg(feature = "std")] use std::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
+#[cfg(not(feature = "std"))] use core::ops::{Add, Sub, Mul, Div, Rem, BitAnd, BitOr, BitXor};
 use ::{Memory, Instruction, Patch};
-use super::{State, Control};
+use super::{State, Runtime, Control};
 use super::util::{copy_from_memory, copy_into_memory};
 
 #[allow(unused_variables)]
 /// Run an instruction.
-pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state: &mut State<M>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state: &mut State<M, P>, runtime: &Runtime, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
     match pc.0 {
         Instruction::STOP => { Some(Control::Stop) },
         Instruction::ADD => { op2!(state, add); None },
@@ -114,23 +118,23 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::EXTCODECOPY => { pop!(state, address: Address);
                                       pop!(state, memory_index: U256, code_index: U256, len: U256);
                                       copy_into_memory(&mut state.memory,
-                                                       state.account_state.code(address).unwrap(),
+                                                       &state.account_state.code(address).unwrap(),
                                                        memory_index, code_index, len);
                                       None },
 
         Instruction::BLOCKHASH => { pop!(state, number: U256);
-                                    let current_number = state.block.number;
+                                    let current_number = runtime.block.number;
                                     if !(number >= current_number || current_number - number > U256::from(256u64)) {
-                                        push!(state, M256::from(state.blockhash_state.get(number).unwrap()));
+                                        push!(state, M256::from(runtime.blockhash_state.get(number).unwrap()));
                                     } else {
                                         push!(state, M256::zero());
                                     }
                                     None },
-        Instruction::COINBASE => { push!(state, M256::from(state.block.beneficiary)); None },
-        Instruction::TIMESTAMP => { push!(state, M256::from(state.block.timestamp)); None },
-        Instruction::NUMBER => { push!(state, M256::from(state.block.number)); None },
-        Instruction::DIFFICULTY => { push!(state, M256::from(state.block.difficulty)); None },
-        Instruction::GASLIMIT => { push!(state, state.block.gas_limit.into()); None },
+        Instruction::COINBASE => { push!(state, M256::from(runtime.block.beneficiary)); None },
+        Instruction::TIMESTAMP => { push!(state, M256::from(runtime.block.timestamp)); None },
+        Instruction::NUMBER => { push!(state, M256::from(runtime.block.number)); None },
+        Instruction::DIFFICULTY => { push!(state, M256::from(runtime.block.difficulty)); None },
+        Instruction::GASLIMIT => { push!(state, runtime.block.gas_limit.into()); None },
 
         Instruction::POP => { state.stack.pop().unwrap(); None },
         Instruction::MLOAD => { flow::mload(state); None },
@@ -167,7 +171,7 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::CALLCODE => { system::call::<M, P>(state, stipend_gas, after_gas, true) },
         Instruction::DELEGATECALL => { system::delegate_call::<M, P>(state, after_gas) },
         Instruction::RETURN => { pop!(state, start: U256, len: U256);
-                                 state.out = copy_from_memory(&mut state.memory, start, len);
+                                 state.out = Rc::new(copy_from_memory(&mut state.memory, start, len));
                                  Some(Control::Stop) },
         Instruction::SUICIDE => { system::suicide(state); Some(Control::Stop) },
     }

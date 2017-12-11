@@ -16,94 +16,108 @@ pub enum PreExecutionError {
 }
 
 #[derive(Debug, Clone)]
-/// Errors returned by an EVM memory.
-pub enum MemoryError {
-    /// The index is too large for the implementation of the VM to
-    /// handle.
-    IndexNotSupported,
-}
-
-impl From<MemoryError> for MachineError {
-    fn from(val: MemoryError) -> MachineError {
-        MachineError::Memory(val)
-    }
-}
-
-impl From<MemoryError> for EvalError {
-    fn from(val: MemoryError) -> EvalError {
-        EvalError::Machine(MachineError::Memory(val))
-    }
-}
-
-#[derive(Debug, Clone)]
-/// Errors returned by an EVM stack.
-pub enum StackError {
+pub enum OnChainError {
     /// Stack is overflowed (pushed more than 1024 items to the
     /// stack).
-    Overflow,
+    StackOverflow,
     /// Stack is underflowed (poped an empty stack).
-    Underflow,
-}
-
-impl From<StackError> for EvalError {
-    fn from(val: StackError) -> EvalError {
-        EvalError::Machine(MachineError::Stack(val))
-    }
-}
-
-#[derive(Debug, Clone)]
-/// Errors returned by an EVM PC.
-pub enum PCError {
+    StackUnderflow,
     /// The opcode is invalid and the PC is not able to convert it to
     /// an instruction.
     InvalidOpcode,
-    /// The index is too large for the implementation of the VM to
-    /// handle.
-    IndexNotSupported,
     /// PC jumped to an invalid jump destination.
     BadJumpDest,
     /// PC overflowed (tries to read the next opcode which is already
-    /// the end of the code).
-    Overflow,
+    /// the end of the code). In Yellow Paper, this is categorized the
+    /// same as InvalidOpcode.
+    PCOverflow,
+    /// Not enough gas to continue.
+    EmptyGas,
+    /// For instruction that requires reading a range, it is
+    /// invalid. This in the Yellow Paper is covered by EmptyGas.
+    InvalidRange,
 }
 
-impl From<PCError> for EvalError {
-    fn from(val: PCError) -> EvalError {
-        EvalError::Machine(MachineError::PC(val))
+impl From<OnChainError> for RuntimeError {
+    fn from(val: OnChainError) -> RuntimeError {
+        RuntimeError::OnChain(val)
+    }
+}
+
+impl From<OnChainError> for EvalOnChainError {
+    fn from(val: OnChainError) -> EvalOnChainError {
+        EvalOnChainError::OnChain(val)
+    }
+}
+
+impl From<OnChainError> for EvalError {
+    fn from(val: OnChainError) -> EvalError {
+        EvalError::OnChain(val)
     }
 }
 
 #[derive(Debug, Clone)]
-/// Errors returned when trying to step the instruction.
-pub enum EvalError {
-    /// A runtime error. Non-recoverable.
-    Machine(MachineError),
-    /// The VM requires account of blockhash information to be
-    /// committed. Recoverable after the required information is
-    /// committed.
+pub enum NotSupportedError {
+    /// The memory index is too large for the implementation of the VM to
+    /// handle.
+    MemoryIndexNotSupported,
+    /// A particular precompiled contract is not supported.
+    PrecompiledNotSupported,
+}
+
+impl From<NotSupportedError> for RuntimeError {
+    fn from(val: NotSupportedError) -> RuntimeError {
+        RuntimeError::NotSupported(val)
+    }
+}
+
+impl From<NotSupportedError> for EvalError {
+    fn from(val: NotSupportedError) -> EvalError {
+        EvalError::NotSupported(val)
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum RuntimeError {
+    /// On chain error.
+    OnChain(OnChainError),
+    /// Off chain error due to VM not supported.
+    NotSupported(NotSupportedError),
+}
+
+impl From<RuntimeError> for EvalError {
+    fn from(val: RuntimeError) -> EvalError {
+        match val {
+            RuntimeError::OnChain(err) =>
+                EvalError::OnChain(err),
+            RuntimeError::NotSupported(err) =>
+                EvalError::NotSupported(err),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum EvalOnChainError {
+    OnChain(OnChainError),
     Require(RequireError),
 }
 
-#[derive(Debug, Clone)]
-/// Errors returned by the a single machine of the VM.
-pub enum MachineError {
-    /// VM memory error.
-    Memory(MemoryError),
-    /// VM stack error.
-    Stack(StackError),
-    /// VM PC error.
-    PC(PCError),
-
-    /// For instruction that requires reading a range, it is invalid.
-    InvalidRange,
-    /// Not enough gas to continue.
-    EmptyGas,
+impl From<EvalOnChainError> for EvalError {
+    fn from(val: EvalOnChainError) -> EvalError {
+        match val {
+            EvalOnChainError::OnChain(err) =>
+                EvalError::OnChain(err),
+            EvalOnChainError::Require(err) =>
+                EvalError::Require(err),
+        }
+    }
 }
 
-impl From<MachineError> for EvalError {
-    fn from(val: MachineError) -> EvalError {
-        EvalError::Machine(val)
-    }
+#[derive(Debug, Clone)]
+pub enum EvalError {
+    OnChain(OnChainError),
+    NotSupported(NotSupportedError),
+    Require(RequireError),
 }
 
 #[derive(Debug, Clone)]
@@ -131,6 +145,12 @@ pub enum RequireError {
 impl From<RequireError> for EvalError {
     fn from(val: RequireError) -> EvalError {
         EvalError::Require(val)
+    }
+}
+
+impl From<RequireError> for EvalOnChainError {
+    fn from(val: RequireError) -> EvalOnChainError {
+        EvalOnChainError::Require(val)
     }
 }
 

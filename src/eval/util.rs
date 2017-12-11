@@ -1,17 +1,22 @@
 //! Eval utilities
 
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
 use bigint::{U256, M256, Gas};
 use ::Memory;
-use errors::MachineError;
-use std::cmp::min;
+use errors::OnChainError;
+
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(not(feature = "std"))] use core::cmp::min;
 
 pub fn l64(gas: Gas) -> Gas {
     gas - gas / Gas::from(64u64)
 }
 
-pub fn check_range(start: U256, len: U256) -> Result<(), MachineError> {
+pub fn check_range(start: U256, len: U256) -> Result<(), OnChainError> {
     if M256::from(start) + M256::from(len) < M256::from(start) {
-        Err(MachineError::InvalidRange)
+        Err(OnChainError::InvalidRange)
     } else {
         Ok(())
     }

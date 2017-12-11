@@ -9,6 +9,7 @@ pub use self::blockchain::{JSONBlock, create_block, create_context};
 
 use serde_json::Value;
 use std::str::FromStr;
+use std::ops::Deref;
 use bigint::{Gas, M256, U256, H256, Address};
 use hexutil::*;
 use evm::errors::RequireError;
@@ -105,7 +106,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
                     return false;
                 }
             }
-            if transaction.gas_limit != gas_limit || transaction.value != value || if destination.is_some() { transaction.data != data } else { transaction.code != data } {
+            if transaction.gas_limit != gas_limit || transaction.value != value || if destination.is_some() { transaction.data.deref() != &data } else { transaction.code.deref() != &data } {
                 if debug {
                     print!("\n");
                     println!("Transaction mismatch. gas limit 0x{:x} =?= 0x{:x}, value 0x{:x} =?= 0x{:x}, data {:?} =?= {:?}", transaction.gas_limit, gas_limit, transaction.value, value, transaction.data, data);

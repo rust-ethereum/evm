@@ -3,17 +3,17 @@
 use bigint::{U256, M256, Gas};
 
 use ::{Memory, Instruction, Patch};
-use errors::{MachineError, EvalError};
-use eval::{State, ControlCheck};
+use errors::{OnChainError, NotSupportedError, EvalOnChainError};
+use eval::{State, Runtime, ControlCheck};
 
 use super::util::check_range;
 
 #[allow(unused_variables)]
-pub fn extra_check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M>, stipend_gas: Gas, after_gas: Gas) -> Result<(), EvalError> {
+pub fn extra_check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>, stipend_gas: Gas, after_gas: Gas) -> Result<(), OnChainError> {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE | Instruction::DELEGATECALL => {
             if P::err_on_call_with_more_gas() && after_gas < state.stack.peek(0).unwrap().into() {
-                Err(EvalError::Machine(MachineError::EmptyGas))
+                Err(OnChainError::EmptyGas)
             } else {
                 Ok(())
             }
@@ -22,10 +22,54 @@ pub fn extra_check_opcode<M: Memory + Default, P: Patch>(instruction: Instructio
     }
 }
 
+pub fn check_support<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>) -> Result<(), NotSupportedError> {
+    match instruction {
+        Instruction::MSTORE => {
+            state.memory.check_write(state.stack.peek(0).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::MSTORE8 => {
+            state.memory.check_write(state.stack.peek(0).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::CALLDATACOPY => {
+            state.memory.check_write_range(
+                state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::CODECOPY => {
+            state.memory.check_write_range(
+                state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::EXTCODECOPY => {
+            state.memory.check_write_range(
+                state.stack.peek(1).unwrap().into(), state.stack.peek(3).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::CALL => {
+            state.memory.check_write_range(
+                state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::CALLCODE => {
+            state.memory.check_write_range(
+                state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
+            Ok(())
+        },
+        Instruction::DELEGATECALL => {
+            state.memory.check_write_range(
+                state.stack.peek(4).unwrap().into(), state.stack.peek(5).unwrap().into())?;
+            Ok(())
+        },
+        _ => Ok(()),
+    }
+}
+
 #[allow(unused_variables)]
 /// Check whether `run_opcode` would fail without mutating any of the
 /// machine state.
-pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State<M>) -> Result<Option<ControlCheck>, EvalError> {
+pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>, runtime: &Runtime) -> Result<Option<ControlCheck>, EvalOnChainError> {
     match instruction {
         Instruction::STOP => Ok(None),
         Instruction::ADD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
@@ -71,15 +115,13 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALLDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CALLDATACOPY => {
             state.stack.check_pop_push(3, 0)?;
-            state.memory.check_write_range(
-                state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
+            check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             Ok(None)
         },
         Instruction::CODESIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::CODECOPY => {
             state.stack.check_pop_push(3, 0)?;
-            state.memory.check_write_range(
-                state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
+            check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             Ok(None)
         },
         Instruction::GASPRICE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
@@ -91,17 +133,16 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::EXTCODECOPY => {
             state.stack.check_pop_push(4, 0)?;
             state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
-            state.memory.check_write_range(
-                state.stack.peek(1).unwrap().into(), state.stack.peek(3).unwrap().into())?;
+            check_range(state.stack.peek(1).unwrap().into(), state.stack.peek(3).unwrap().into())?;
             Ok(None)
         },
 
         Instruction::BLOCKHASH => {
             state.stack.check_pop_push(1, 1)?;
-            let current_number = state.block.number;
+            let current_number = runtime.block.number;
             let number: U256 = state.stack.peek(0).unwrap().into();
             if !(number >= current_number || current_number - number > U256::from(256u64)) {
-                state.blockhash_state.get(number)?;
+                runtime.blockhash_state.get(number)?;
             }
             Ok(None)
         },
@@ -115,12 +156,10 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::MLOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
         Instruction::MSTORE => {
             state.stack.check_pop_push(2, 0)?;
-            state.memory.check_write(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::MSTORE8 => {
             state.stack.check_pop_push(2, 0)?;
-            state.memory.check_write(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         },
         Instruction::SLOAD => {
@@ -171,8 +210,7 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALL => {
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap().into(), state.stack.peek(4).unwrap().into())?;
-            state.memory.check_write_range(
-                state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
+            check_range(state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
@@ -180,8 +218,7 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::CALLCODE => {
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap().into(), state.stack.peek(4).unwrap().into())?;
-            state.memory.check_write_range(
-                state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
+            check_range(state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
@@ -194,8 +231,7 @@ pub fn check_opcode<M: Memory + Default>(instruction: Instruction, state: &State
         Instruction::DELEGATECALL => {
             state.stack.check_pop_push(6, 1)?;
             check_range(state.stack.peek(2).unwrap().into(), state.stack.peek(3).unwrap().into())?;
-            state.memory.check_write_range(
-                state.stack.peek(4).unwrap().into(), state.stack.peek(5).unwrap().into())?;
+            check_range(state.stack.peek(4).unwrap().into(), state.stack.peek(5).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)

@@ -1,16 +1,16 @@
 [package]
 name = "evm-stateful"
-version = "0.7.1"
+version = "0.9.1"
 license = "Apache-2.0"
 description = "Stateful evm-rs wrapped with tries."
 authors = ["Wei Tang <hi@that.world>"]
-repository = "https://git.that.world/evm-rs.git"
+repository = "https://source.that.world/source/evm-rs"
 
 [dependencies]
-evm = { version = "0.7", path = '..' }
+evm = { version = "0.9", path = '..' }
 etcommon-bigint = "0.2"
 etcommon-trie = "0.3"
-etcommon-block = "0.2"
+etcommon-block = "0.3"
 etcommon-rlp = "0.2"
 sha3 = "0.6"
 rand = "0.3"

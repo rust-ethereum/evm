@@ -7,6 +7,7 @@ use evm::{Machine, Log, Context,
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
+use std::rc::Rc;
 
 pub struct JSONBlock {
     codes: HashMap<Address, Vec<u8>>,
@@ -44,7 +45,7 @@ impl JSONBlock {
         AccountCommitment::Full {
             address: address,
             balance: balance,
-            code: code.into(),
+            code: Rc::new(code.into()),
             nonce: nonce
         }
     }
@@ -70,7 +71,7 @@ impl JSONBlock {
 
         AccountCommitment::Code {
             address: address,
-            code: code.clone(),
+            code: Rc::new(code.clone()),
         }
     }
 
@@ -101,6 +102,12 @@ impl JSONBlock {
                 self.set_account_code(address, code.as_slice());
                 self.storages.insert(address, storage.into());
                 self.set_account_nonce(address, nonce);
+            },
+            AccountChange::Nonexist(address) => {
+                self.set_balance(address, U256::zero());
+                self.set_account_code(address, &[]);
+                self.storages.insert(address, HashMap::new());
+                self.set_account_nonce(address, U256::zero());
             },
             AccountChange::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);
@@ -252,8 +259,8 @@ pub fn create_context(v: &Value) -> Context {
     Context {
         address: address,
         caller: caller,
-        code: code,
-        data: data,
+        code: Rc::new(code),
+        data: Rc::new(data),
         gas_limit: gas,
         gas_price: gas_price,
         origin: origin,

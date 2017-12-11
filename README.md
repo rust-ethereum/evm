@@ -4,62 +4,79 @@
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 [![Cargo](https://img.shields.io/crates/v/sputnikvm.svg)](https://crates.io/crates/sputnikvm)
 
-* [Latest release documentation](https://docs.rs/sputnikvm)
-* [Unstable documentation](https://that.world/~docs/sputnikvm/sputnikvm)
-
 SputnikVM is an implementation of an Ethereum Virtual Machine. It aims to be an
-efficient, pluggable virtual machine for different blockchains.
+efficient, pluggable virtual machine for different Ethereum-based blockchains.
 
 We encourage all Ethereum'esque blockchains to adopt SputnikVM, and to make use
 of SputnikVM's [RFC governance project](https://etcrfc.that.world/) which
 governs the parameters of each blockchain's VM. This way we can draw from the
 experience of the community and learn from other proposed RFCs.
 
-## Reasoning
+## Features
 
-__RFC Advancement__: As the Ethereum Classic Request For Comment (RFC)
-process advances, it'll become harder for the many and varied Ethereum Classic
-clients to keep up with these changes.
+ * *Standalone* - can be launched as an independent process or integrated into other apps
+ * *Universal* - supports different Ethereum chains, such as ETC, ETH or private ones
+ * *Stateless* - only an execution environment connected to independent State storage
+ * *Fast* - main focus is on performance
+ * *IoT compatible* - designed to support hardware used in embedded devices
+ * FFI, Protobuf and JSON interface
+ * written in Rust, can be used as a binary, cargo crate or shared library  
 
-> Having the Virtual Machine in library form allows us as a community to
-cooperate and focus expertise on one VM. Clients that use SputnikVM will have a larger
-community of users that'll be able to navigate the problem domain at a much
-faster pace than an Ethereum Classic client that chooses to implement and
-maintain their own virtual machine.
+## Related projects
 
-__Licensing__: Unless a business is specifically setup to earn money from
-supporting code, it becomes hard for that business to use _GPLv3_ licensed
-code, as the _GPLv3_ requires them to _GPLv3_ sublicense any source code that
-links to a _GPLv3_ Ethereum Virtual Machine.
-
-> SputnikVM is licensed under the Apache 2 License. Businesses may use the VM
-without relicensing their code. Copyright is spread throughout the community,
-meaning the code isn't easily susceptible to corporate hijacking and
-relicensing thereafter. It's requested that if you use this code, you give
-proper acknowledgement, and we also encourage you to send patches upstream.
-Please don't develop in the dark.
-
-__Accessiblity__: Most Ethereum Virtual Machines are tied up and buried in an
-Ethereum Client implemenation, forcing you to use their Virtual Machine.
-
-> We've deliberately designed SputnikVM to be portable and accessible in different
-ways. This will encourage Ethereum Classic clients to use SputnikVM as their
-Virtual Machine. The methods of access are:
->
-> * Rust crate
-> * Foreign Function Interface
-> * Socket connection
-> * Command Line Interface
+ * [SputnikVM Dev](https://github.com/ethereumproject/sputnikvm-dev) - SputnikVM instance for Smart Contract development, 
+    provides testing environment and mock for JSON RPC API
+ * [SputnikVM in Browser](https://github.com/ethereumproject/sputnikvm-in-browser) - experimental version of SputnikVM 
+    compiled into WebAssembly, therefore can be launched in a browser on Node.js
+ * [SputnikVM for embedded devices](https://github.com/ethereumproject/sputnikvm-on-rux) - experimental project to run on 
+    full functional EVM on embedded devices       
 
 ## Dependencies
 
 Ensure you have at least `rustc 1.16.0 (30cf806ef 2017-03-10)`. Rust 1.15.0 and
 before is not supported.
 
-## Build Instructions
+## Documentation
+
+* [Latest release documentation](https://docs.rs/sputnikvm)
+* [Unstable documentation](https://that.world/~docs/sputnikvm/sputnikvm)
+
+## Build from sources
 
 SputnikVM is written Rust. If you are not familiar with Rust please
 see the
-[getting started guide](https://doc.rust-lang.org/book/getting-started.html).
+[getting started guide](https://doc.rust-lang.org/book/getting-started.html). 
 
-* [Building and Testing](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)
+### Build 
+
+To start working with SputnikVM you'll 
+need to install [rustup](https://www.rustup.rs/), then you can do:
+ 
+```bash
+$ git clone git@github.com:ethereumproject/sputnikvm.git
+$ cd sputnikvm
+$ cargo build --release --all
+```
+
+### Testing
+
+We currently use two ways to test SputnikVM and ensure its execution
+aligns with other Ethereum Virtual Machine implementations:
+
+* [jsontests](/jsontests): This uses part of the Ethereum
+  [tests](https://github.com/ethereumproject/tests). Those tests
+  currently does not have good coverage for system operation
+  opcodes. Besides, some tests are incorrect so they are disabled.
+* [regtests](/regtests): A complete regression tests is done on the
+  Ethereum Classic mainnet from genesis block to block 4 million. Some
+  of the previously failed tests are also integrated into Rust's test
+  system. See
+  [wiki](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)
+  for how to reproduce the regression tests.
+  
+To learn more about building SputnikVM from source please read wiki page
+ [Building and Testing](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)  
+
+## License
+
+Apache 2.0

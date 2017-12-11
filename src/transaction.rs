@@ -1,25 +1,47 @@
 //! Transaction related functionality.
 
-use std::collections::{HashSet, hash_map};
-use std::cmp::min;
-use std::str::FromStr;
+#[cfg(not(feature = "std"))]
+use alloc::Vec;
+
+#[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(feature = "std")] use std::rc::Rc;
+
+#[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
+#[cfg(feature = "std")] use std::cmp::min;
+#[cfg(feature = "std")] use std::ops::Deref;
+#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
+#[cfg(not(feature = "std"))] use core::cmp::min;
+#[cfg(not(feature = "std"))] use core::ops::Deref;
 use bigint::{U256, H256, Address, Gas};
 
-use super::errors::{RequireError, CommitError, PreExecutionError};
-use super::{Context, ContextVM, VM, AccountState, BlockhashState, Patch, HeaderParams, Memory,
-            VMStatus, AccountCommitment, Log, AccountChange, MachineStatus};
-use block::{Transaction, TransactionAction};
+use super::errors::{RequireError, CommitError};
+#[cfg(feature = "std")]
+use super::errors::PreExecutionError;
+use super::{State, Machine, Context, ContextVM, VM, AccountState,
+            BlockhashState, Patch, HeaderParams, Memory, VMStatus,
+            AccountCommitment, Log, AccountChange, MachineStatus,
+            Instruction, Opcode};
+
+use block_core::TransactionAction;
+#[cfg(feature = "std")]
+use block::Transaction;
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
 const G_TRANSACTION: usize = 21000;
 
+static SYSTEM_ADDRESS: [u8; 20] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+                                   0xff, 0xff, 0xff, 0xff];
+
 macro_rules! system_address {
     () => {
-        Address::from_str("0xffffffffffffffffffffffffffffffffffffffff").unwrap()
+        Address::from(SYSTEM_ADDRESS.as_ref())
     }
 }
 
+/// Represents an Ethereum transaction.
+///
 /// ## About SYSTEM transaction
 ///
 /// SYSTEM transaction in Ethereum is something that cannot be
@@ -31,7 +53,6 @@ macro_rules! system_address {
 /// changed. A SYSTEM transaction must have gas_price set to zero.
 
 #[derive(Debug, Clone)]
-/// Represents an Ethereum transaction.
 pub struct ValidTransaction {
     /// Caller of this transaction. If caller is None, then this is a
     /// SYSTEM transaction.
@@ -45,16 +66,17 @@ pub struct ValidTransaction {
     /// Value of this transaction.
     pub value: U256,
     /// Data or init associated with this transaction.
-    pub input: Vec<u8>,
+    pub input: Rc<Vec<u8>>,
     /// Nonce of the transaction.
     pub nonce: U256,
 }
 
+#[cfg(feature = "std")]
 impl ValidTransaction {
     /// Create a valid transaction from a block transaction. Caller is
     /// always Some.
     pub fn from_transaction<P: Patch>(
-        transaction: &Transaction, account_state: &AccountState
+        transaction: &Transaction, account_state: &AccountState<P::Account>
     ) -> Result<Result<ValidTransaction, PreExecutionError>, RequireError> {
         let caller = match transaction.caller() {
             Ok(val) => val,
@@ -72,7 +94,7 @@ impl ValidTransaction {
             gas_limit: transaction.gas_limit,
             action: transaction.action.clone(),
             value: transaction.value,
-            input: transaction.input.clone(),
+            input: Rc::new(transaction.input.clone()),
             nonce: nonce,
         };
 
@@ -81,7 +103,7 @@ impl ValidTransaction {
         }
 
         let balance = account_state.balance(caller)?;
-        if balance < valid.preclaimed_value() {
+        if balance < valid.preclaimed_value() + valid.value {
             return Ok(Err(PreExecutionError::InsufficientBalance));
         }
 
@@ -102,7 +124,7 @@ impl ValidTransaction {
         if self.action == TransactionAction::Create {
             gas = gas + Gas::from(P::gas_transaction_create());
         }
-        for d in &self.input {
+        for d in self.input.deref() {
             if *d == 0 {
                 gas = gas + Gas::from(G_TXDATAZERO);
             } else {
@@ -114,8 +136,9 @@ impl ValidTransaction {
 
     /// Convert this transaction into a context. Note that this will
     /// change the account state.
-    pub fn into_context(self, upfront: Gas, origin: Option<Address>,
-                        account_state: &mut AccountState, is_code: bool) -> Result<Context, RequireError> {
+    pub fn into_context<P: Patch>(
+        self, upfront: Gas, origin: Option<Address>,
+        account_state: &mut AccountState<P::Account>, is_code: bool) -> Result<Context, RequireError> {
         let address = self.address();
 
         match self.action {
@@ -137,7 +160,7 @@ impl ValidTransaction {
                     gas_price: self.gas_price,
                     value: self.value,
                     gas_limit: self.gas_limit - upfront,
-                    code: account_state.code(address).unwrap().into(),
+                    code: account_state.code(address).unwrap(),
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                     is_system: self.caller.is_none(),
@@ -156,7 +179,7 @@ impl ValidTransaction {
                     gas_price: self.gas_price,
                     value: self.value,
                     gas_limit: self.gas_limit - upfront,
-                    data: Vec::new(),
+                    data: Rc::new(Vec::new()),
                     code: self.input,
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
@@ -180,13 +203,13 @@ enum TransactionVMState<M, P: Patch> {
         preclaimed_value: U256,
         finalized: bool,
         code_deposit: bool,
-        fresh_account_state: AccountState,
+        fresh_account_state: AccountState<P::Account>,
     },
     Constructing {
         transaction: ValidTransaction,
         block: HeaderParams,
 
-        account_state: AccountState,
+        account_state: AccountState<P::Account>,
         blockhash_state: BlockhashState,
     },
 }
@@ -226,29 +249,23 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
                 TransactionVMState::Constructing { ref blockhash_state, .. } =>
                     blockhash_state.clone(),
                 TransactionVMState::Running { ref vm, .. } =>
-                    vm.machines[0].state().blockhash_state.clone(),
+                    vm.runtime.blockhash_state.clone(),
             },
         })
     }
 
-    /// Returns the real used gas by the transaction. This is what is
-    /// recorded in the transaction receipt.
-    pub fn real_used_gas(&self) -> Gas {
+    /// Returns the current state of the VM.
+    pub fn current_state(&self) -> Option<&State<M, P>> {
+        self.current_machine().map(|m| m.state())
+    }
+
+    /// Returns the current runtime machine.
+    pub fn current_machine(&self) -> Option<&Machine<M, P>> {
         match self.0 {
-            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
-                match vm.machines[0].status() {
-                    MachineStatus::ExitedErr(_) =>
-                        vm.machines[0].state().context.gas_limit + intrinsic_gas,
-                    MachineStatus::ExitedOk => {
-                        let total_used = vm.machines[0].state().memory_gas() + vm.machines[0].state().used_gas + intrinsic_gas;
-                        let refund_cap = total_used / Gas::from(2u64);
-                        let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
-                        total_used - refunded
-                    }
-                    _ => Gas::zero(),
-                }
+            TransactionVMState::Running { ref vm, .. } => {
+                Some(vm.current_machine())
             }
-            TransactionVMState::Constructing { .. } => Gas::zero(),
+            TransactionVMState::Constructing { .. } => None,
         }
     }
 }
@@ -281,16 +298,30 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         }
     }
 
+    fn peek(&self) -> Option<Instruction> {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => vm.peek(),
+            TransactionVMState::Constructing { .. } => None,
+        }
+    }
+
+    fn peek_opcode(&self) -> Option<Opcode> {
+        match self.0 {
+            TransactionVMState::Running { ref vm, .. } => vm.peek_opcode(),
+            TransactionVMState::Constructing { .. } => None,
+        }
+    }
+
     fn step(&mut self) -> Result<(), RequireError> {
         let cgas: Gas;
         let ccontext: Context;
         let cblock: HeaderParams;
-        let caccount_state: AccountState;
+        let caccount_state: AccountState<P::Account>;
         let cblockhash_state: BlockhashState;
         let ccode_deposit: bool;
         let cpreclaimed_value: U256;
 
-        let real_used_gas = self.real_used_gas();
+        let real_used_gas = self.used_gas();
 
         match self.0 {
             TransactionVMState::Running {
@@ -305,6 +336,9 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                     VMStatus::Running => {
                         return vm.step();
                     },
+                    VMStatus::ExitedNotSupported(_) => {
+                        return Ok(());
+                    },
                     _ => {
                         if *code_deposit {
                             vm.machines[0].code_deposit();
@@ -313,7 +347,8 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                         }
 
                         if !*finalized {
-                            vm.machines[0].finalize(real_used_gas, preclaimed_value,
+                            vm.machines[0].finalize(vm.runtime.block.beneficiary,
+                                                    real_used_gas, preclaimed_value,
                                                     fresh_account_state)?;
                             *finalized = true;
                             return Ok(());
@@ -336,7 +371,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 };
                 cgas = transaction.intrinsic_gas::<P>();
                 cpreclaimed_value = transaction.preclaimed_value();
-                ccontext = transaction.clone().into_context(cgas, None, account_state, false)?;
+                ccontext = transaction.clone().into_context::<P>(cgas, None, account_state, false)?;
                 cblock = block.clone();
                 caccount_state = account_state.clone();
                 cblockhash_state = blockhash_state.clone();
@@ -366,14 +401,14 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         Ok(())
     }
 
-    fn accounts(&self) -> hash_map::Values<Address, AccountChange> {
+    fn accounts(&self) -> map::Values<Address, AccountChange> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.accounts(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.accounts(),
         }
     }
 
-    fn used_addresses(&self) -> HashSet<Address> {
+    fn used_addresses(&self) -> Set<Address> {
         match self.0 {
             TransactionVMState::Running { ref vm, .. } => vm.used_addresses(),
             TransactionVMState::Constructing { ref account_state, .. } => account_state.used_addresses(),
@@ -414,6 +449,25 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
             TransactionVMState::Constructing { .. } => &[],
         }
     }
+
+    fn used_gas(&self) -> Gas {
+        match self.0 {
+            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
+                match vm.machines[0].status() {
+                    MachineStatus::ExitedErr(_) =>
+                        vm.machines[0].state().context.gas_limit + intrinsic_gas,
+                    MachineStatus::ExitedOk => {
+                        let total_used = vm.machines[0].state().memory_gas() + vm.machines[0].state().used_gas + intrinsic_gas;
+                        let refund_cap = total_used / Gas::from(2u64);
+                        let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
+                        total_used - refunded
+                    }
+                    _ => Gas::zero(),
+                }
+            }
+            TransactionVMState::Constructing { .. } => Gas::zero(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -422,6 +476,7 @@ mod tests {
     use bigint::*;
     use block::TransactionAction;
     use std::str::FromStr;
+    use std::rc::Rc;
 
     #[test]
     fn system_transaction() {
@@ -431,10 +486,10 @@ mod tests {
             gas_limit: Gas::from_str("0xffffffffffffffff").unwrap(),
             action: TransactionAction::Call(Address::default()),
             value: U256::from_str("0xffffffffffffffff").unwrap(),
-            input: Vec::new(),
+            input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         };
-        let mut vm = SeqTransactionVM::<EIP160Patch>::new(transaction, HeaderParams {
+        let mut vm = SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, HeaderParams {
             beneficiary: Address::default(),
             timestamp: 0,
             number: U256::zero(),
@@ -451,10 +506,9 @@ mod tests {
         assert_eq!(accounts.len(), 1);
         match accounts[0] {
             AccountChange::Create {
-                address, exists, balance, ..
+                address, balance, ..
             } => {
                 assert_eq!(address, Address::default());
-                assert_eq!(exists, true);
                 assert_eq!(balance, U256::from_str("0xffffffffffffffff").unwrap());
             },
             _ => panic!()
