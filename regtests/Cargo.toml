@@ -11,8 +11,8 @@ name = "regtests"
 [dependencies]
 evm = { path = '..' }
 gethrpc = { path = '../gethrpc' }
-etcommon-block = "0.3"
-etcommon-bigint = "0.2"
-etcommon-hexutil = "0.2"
+ethereum-block = "0.3"
+ethereum-bigint = "0.2"
+ethereum-hexutil = "0.2"
 clap = "2.22"
 serde_json = "0.9"

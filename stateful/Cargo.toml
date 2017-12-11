@@ -8,10 +8,10 @@ repository = "https://source.that.world/source/evm-rs"
 
 [dependencies]
 evm = { version = "0.9", path = '..' }
-etcommon-bigint = "0.2"
-etcommon-trie = "0.3"
-etcommon-block = "0.3"
-etcommon-rlp = "0.2"
+ethereum-bigint = "0.2"
+ethereum-trie = "0.3"
+ethereum-block = "0.3"
+ethereum-rlp = "0.2"
 sha3 = "0.6"
 rand = "0.3"
 
@@ -20,4 +20,4 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 lazy_static = "0.2"
-etcommon-hexutil = "0.2"
+ethereum-hexutil = "0.2"
