@@ -51,6 +51,9 @@ macro_rules! system_address {
 /// 0xffffffffffffffffffffffffffffffffffffffff. As a result, when
 /// executing a message call or a contract creation, nonce are not
 /// changed. A SYSTEM transaction must have gas_price set to zero.
+/// Because the transaction reward is always zero, a SYSTEM
+/// transaction will also not invoke creation of the beneficiary
+/// address if it does not exist before.
 
 #[derive(Debug, Clone)]
 pub struct ValidTransaction {
