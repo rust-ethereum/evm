@@ -49,7 +49,7 @@ see the
 To start working with SputnikVM you'll 
 need to install [rustup](https://www.rustup.rs/), then you can do:
  
-```bash
+```lang=bash
 $ git clone git@github.com:ethereumproject/sputnikvm.git
 $ cd sputnikvm
 $ cargo build --release --all
