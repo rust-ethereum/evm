@@ -8,15 +8,15 @@ specs](https://github.com/ethoxy/specs) initiative.
 
 ## Features
 
-* *Partially verified (WIP)* - use various verification techniques to
+* **Partially verified (WIP)** - use various verification techniques to
   partially verify the correctness of functions.
-* *Nightly* - take advantage of Rust nightly features, such as
+* **Nightly** - take advantage of Rust nightly features, such as
   compiler plugins
-* *Standalone* - can be launched as an independent process or integrated into other apps
-* *Universal* - supports different Ethereum chains, such as ETC, ETH or private ones
-* *Stateless* - only an execution environment connected to independent State storage
-* *Fast* - main focus is on performance
-* *IoT compatible* - designed to support hardware used in embedded devices
+* **Standalone** - can be launched as an independent process or integrated into other apps
+* **Universal** - supports different Ethereum chains, such as ETC, ETH or private ones
+* **Stateless** - only an execution environment connected to independent State storage
+* **Fast** - main focus is on performance
+* **IoT compatible** - designed to support hardware used in embedded devices
 * written in Rust, can be used as a binary, cargo crate or shared
   library
 
