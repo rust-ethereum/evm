@@ -3,9 +3,9 @@ name = "evm"
 version = "0.9.4"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
-description = "Ethereum Virtual Machine implementation in Rust. Nightly version of SputnikVM."
-repository = "https://source.that.world/source/evm-rs"
-keywords = ["no_std"]
+description = "SputnikVM - a Portable Blockchain Virtual Machine"
+repository = "https://github.com/etclabscore/sputnikvm"
+keywords = ["no_std", "ethereum"]
 
 [dependencies]
 sha3 = "0.6"
