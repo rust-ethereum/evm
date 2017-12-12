@@ -1,35 +1,33 @@
-# SputnikVM: A Blockchain Virtual Machine
+# evm-rs: Rust Ethereum Virtual Machine Implementation
 
-[![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
-[![Cargo](https://img.shields.io/crates/v/sputnikvm.svg)](https://crates.io/crates/sputnikvm)
-
-SputnikVM is an implementation of an Ethereum Virtual Machine. It aims to be an
-efficient, pluggable virtual machine for different Ethereum-based blockchains.
-
-We encourage all Ethereum'esque blockchains to adopt SputnikVM, and to make use
-of SputnikVM's [RFC governance project](https://etcrfc.that.world/) which
-governs the parameters of each blockchain's VM. This way we can draw from the
-experience of the community and learn from other proposed RFCs.
+evm-rs is an Ethereum Virtual Machine implementation, and is the
+nightly version of
+[SputnikVM](https://github.com/ethereumproject/sputnikvm). It is also
+one of the implementation that supports the [ethoxy
+specs](https://github.com/ethoxy/specs) initiative.
 
 ## Features
 
+ * *Partially verified (WIP)* - use various verification techniques to
+   partially verify the correctness of functions.
+ * *Nightly* - take advantage of Rust nightly features, such as
+   compiler plugins
  * *Standalone* - can be launched as an independent process or integrated into other apps
  * *Universal* - supports different Ethereum chains, such as ETC, ETH or private ones
  * *Stateless* - only an execution environment connected to independent State storage
  * *Fast* - main focus is on performance
  * *IoT compatible* - designed to support hardware used in embedded devices
- * FFI, Protobuf and JSON interface
- * written in Rust, can be used as a binary, cargo crate or shared library  
+ * written in Rust, can be used as a binary, cargo crate or shared
+   library
 
 ## Related projects
 
- * [SputnikVM Dev](https://github.com/ethereumproject/sputnikvm-dev) - SputnikVM instance for Smart Contract development, 
-    provides testing environment and mock for JSON RPC API
- * [SputnikVM in Browser](https://github.com/ethereumproject/sputnikvm-in-browser) - experimental version of SputnikVM 
-    compiled into WebAssembly, therefore can be launched in a browser on Node.js
- * [SputnikVM for embedded devices](https://github.com/ethereumproject/sputnikvm-on-rux) - experimental project to run on 
-    full functional EVM on embedded devices       
+ * [ethereum-rs](https://source.that.world/source/ethereum-rs) -
+   common traits and structs for Ethereum. Nightly development branch
+   of [etcommon-rs](https://github.com/ethereumproject/etcommon-rs)
+   and support branch for evm-rs.
+ * [etclient](https://source.that.world/source/etclient) -
+   bare-minimal Ethereum client written in Rust.
 
 ## Dependencies
 
@@ -38,8 +36,7 @@ before is not supported.
 
 ## Documentation
 
-* [Latest release documentation](https://docs.rs/sputnikvm)
-* [Unstable documentation](https://that.world/~docs/sputnikvm/sputnikvm)
+* [Latest release documentation](https://docs.rs/evm)
 
 ## Build from sources
 
