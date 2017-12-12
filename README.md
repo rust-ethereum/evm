@@ -8,26 +8,26 @@ specs](https://github.com/ethoxy/specs) initiative.
 
 ## Features
 
- * *Partially verified (WIP)* - use various verification techniques to
-   partially verify the correctness of functions.
- * *Nightly* - take advantage of Rust nightly features, such as
-   compiler plugins
- * *Standalone* - can be launched as an independent process or integrated into other apps
- * *Universal* - supports different Ethereum chains, such as ETC, ETH or private ones
- * *Stateless* - only an execution environment connected to independent State storage
- * *Fast* - main focus is on performance
- * *IoT compatible* - designed to support hardware used in embedded devices
- * written in Rust, can be used as a binary, cargo crate or shared
-   library
+* *Partially verified (WIP)* - use various verification techniques to
+  partially verify the correctness of functions.
+* *Nightly* - take advantage of Rust nightly features, such as
+  compiler plugins
+* *Standalone* - can be launched as an independent process or integrated into other apps
+* *Universal* - supports different Ethereum chains, such as ETC, ETH or private ones
+* *Stateless* - only an execution environment connected to independent State storage
+* *Fast* - main focus is on performance
+* *IoT compatible* - designed to support hardware used in embedded devices
+* written in Rust, can be used as a binary, cargo crate or shared
+  library
 
 ## Related projects
 
- * [ethereum-rs](https://source.that.world/source/ethereum-rs) -
-   common traits and structs for Ethereum. Nightly development branch
-   of [etcommon-rs](https://github.com/ethereumproject/etcommon-rs)
-   and support branch for evm-rs.
- * [etclient](https://source.that.world/source/etclient) -
-   bare-minimal Ethereum client written in Rust.
+* [ethereum-rs](https://source.that.world/source/ethereum-rs) -
+  common traits and structs for Ethereum. Nightly development branch
+  of [etcommon-rs](https://github.com/ethereumproject/etcommon-rs)
+  and support branch for evm-rs.
+* [etclient](https://source.that.world/source/etclient) -
+  bare-minimal Ethereum client written in Rust.
 
 ## Dependencies
 
