@@ -262,7 +262,9 @@ impl ValidTransaction {
     /// When the execution of a transaction begins, this preclaimed
     /// value is deducted from the account.
     pub fn preclaimed_value(&self) -> U256 {
-        (self.gas_limit * self.gas_price).into()
+        let gas_limit: U256 = self.gas_limit.into();
+        let gas_price: U256 = self.gas_price.into();
+        (gas_limit.saturating_mul(gas_price)).into()
     }
 }
 
