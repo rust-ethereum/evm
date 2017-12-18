@@ -146,16 +146,16 @@ impl ValidTransaction {
     /// Create a valid transaction from a block transaction. Caller is
     /// always Some.
     pub fn from_transaction<P: Patch>(
-        transaction: &Transaction, caller_nonce: U256, caller_balance: U256
-    ) -> Result<ValidTransaction, PreExecutionError> {
+        transaction: &Transaction, account_state: &AccountState<P::Account>
+    ) -> Result<Result<ValidTransaction, PreExecutionError>, RequireError> {
         let caller = match transaction.caller() {
             Ok(val) => val,
-            Err(_) => return Err(PreExecutionError::InvalidCaller),
+            Err(_) => return Ok(Err(PreExecutionError::InvalidCaller)),
         };
 
-        let nonce = caller_nonce;
+        let nonce = account_state.nonce(caller)?;
         if nonce != transaction.nonce {
-            return Err(PreExecutionError::InvalidNonce);
+            return Ok(Err(PreExecutionError::InvalidNonce));
         }
 
         let valid = ValidTransaction {
@@ -169,10 +169,10 @@ impl ValidTransaction {
         };
 
         if valid.gas_limit < valid.intrinsic_gas::<P>() {
-            return Err(PreExecutionError::InsufficientGasLimit);
+            return Ok(Err(PreExecutionError::InsufficientGasLimit));
         }
 
-        let balance = caller_balance;
+        let balance = account_state.balance(caller)?;
 
         let gas_limit: U256 = valid.gas_limit.into();
         let gas_price: U256 = valid.gas_price.into();
@@ -180,14 +180,14 @@ impl ValidTransaction {
         let (preclaimed_value, overflowed1) = gas_limit.overflowing_mul(gas_price);
         let (total, overflowed2) = preclaimed_value.overflowing_add(valid.value);
         if overflowed1 || overflowed2 {
-            return Err(PreExecutionError::InsufficientBalance);
+            return Ok(Err(PreExecutionError::InsufficientBalance));
         }
 
         if balance < total {
-            return Err(PreExecutionError::InsufficientBalance);
+            return Ok(Err(PreExecutionError::InsufficientBalance));
         }
 
-        Ok(valid)
+        Ok(Ok(valid))
     }
 }
 
