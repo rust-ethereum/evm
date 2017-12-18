@@ -55,6 +55,58 @@ macro_rules! system_address {
 /// transaction will also not invoke creation of the beneficiary
 /// address if it does not exist before.
 
+pub struct VMTransaction {
+    pub caller: AccountCommitment,
+    pub gas_price: Gas,
+    pub gas_limit: Gas,
+    pub action: TransactionAction,
+    pub value: U256,
+    pub input: Rc<Vec<u8>>,
+}
+
+impl VMTransaction {
+    pub fn to_valid<P: Patch>(&self) -> Option<ValidTransaction> {
+        let valid = {
+            let (nonce, balance, address) = match self.caller.clone() {
+                AccountCommitment::Full { nonce, balance, address, .. } => {
+                    (nonce, balance, address)
+                },
+                _ => return None,
+            };
+
+            let gas_limit: U256 = self.gas_limit.into();
+            let gas_price: U256 = self.gas_price.into();
+
+            let (preclaimed_value, overflowed1) = gas_limit.overflowing_mul(gas_price);
+            let (total, overflowed2) = preclaimed_value.overflowing_add(self.value);
+
+            if overflowed1 || overflowed2 {
+                return None;
+            }
+
+            if balance < total {
+                return None;
+            }
+
+            ValidTransaction {
+                caller: Some(address),
+                gas_price: self.gas_price,
+                gas_limit: self.gas_limit,
+                action: self.action.clone(),
+                value: self.value,
+                input: self.input.clone(),
+                nonce: nonce,
+            }
+        };
+
+        if valid.gas_limit < valid.intrinsic_gas::<P>() {
+            return None;
+        }
+
+        return Some(valid);
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ValidTransaction {
     /// Caller of this transaction. If caller is None, then this is a
@@ -106,7 +158,17 @@ impl ValidTransaction {
         }
 
         let balance = account_state.balance(caller)?;
-        if balance < valid.preclaimed_value() + valid.value {
+
+        let gas_limit: U256 = valid.gas_limit.into();
+        let gas_price: U256 = valid.gas_price.into();
+
+        let (preclaimed_value, overflowed1) = gas_limit.overflowing_mul(gas_price);
+        let (total, overflowed2) = preclaimed_value.overflowing_add(valid.value);
+        if overflowed1 || overflowed2 {
+            return Ok(Err(PreExecutionError::InsufficientBalance));
+        }
+
+        if balance < total {
             return Ok(Err(PreExecutionError::InsufficientBalance));
         }
 
@@ -221,6 +283,19 @@ enum TransactionVMState<M, P: Patch> {
 pub struct TransactionVM<M, P: Patch>(TransactionVMState<M, P>);
 
 impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
+    pub fn new_from_unknown(transaction: VMTransaction, block: HeaderParams) -> Option<Self> {
+        let valid = transaction.to_valid::<P>()?;
+        let mut vm = TransactionVM(TransactionVMState::Constructing {
+            transaction: valid,
+            block: block,
+
+            account_state: AccountState::default(),
+            blockhash_state: BlockhashState::default(),
+        });
+        vm.commit_account(transaction.caller).unwrap();
+        Some(vm)
+    }
+
     /// Create a new VM using the given transaction, block header and
     /// patch. This VM runs at the transaction level.
     pub fn new(transaction: ValidTransaction, block: HeaderParams) -> Self {
@@ -486,6 +561,43 @@ mod tests {
         let transaction = ValidTransaction {
             caller: None,
             gas_price: Gas::zero(),
+            gas_limit: Gas::from_str("0xffffffffffffffff").unwrap(),
+            action: TransactionAction::Call(Address::default()),
+            value: U256::from_str("0xffffffffffffffff").unwrap(),
+            input: Rc::new(Vec::new()),
+            nonce: U256::zero(),
+        };
+        let mut vm = SeqTransactionVM::<MainnetEIP160Patch>::new(transaction, HeaderParams {
+            beneficiary: Address::default(),
+            timestamp: 0,
+            number: U256::zero(),
+            difficulty: U256::zero(),
+            gas_limit: Gas::zero(),
+        });
+        vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
+        vm.fire().unwrap();
+
+        let mut accounts: Vec<AccountChange> = Vec::new();
+        for account in vm.accounts() {
+            accounts.push(account.clone());
+        }
+        assert_eq!(accounts.len(), 1);
+        match accounts[0] {
+            AccountChange::Create {
+                address, balance, ..
+            } => {
+                assert_eq!(address, Address::default());
+                assert_eq!(balance, U256::from_str("0xffffffffffffffff").unwrap());
+            },
+            _ => panic!()
+        }
+    }
+
+    #[test]
+    fn system_transaction_non_zero_fee() {
+        let transaction = ValidTransaction {
+            caller: None,
+            gas_price: Gas::one(),
             gas_limit: Gas::from_str("0xffffffffffffffff").unwrap(),
             action: TransactionAction::Call(Address::default()),
             value: U256::from_str("0xffffffffffffffff").unwrap(),

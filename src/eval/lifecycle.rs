@@ -34,8 +34,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         if !self.state.context.is_system {
             self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
             self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        } else {
-            assert!(preclaimed_value == U256::zero());
         }
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
     }
@@ -58,8 +56,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         if !self.state.context.is_system {
             self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
             self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
-        } else {
-            assert!(preclaimed_value == U256::zero());
         }
         self.state.account_state.create(self.state.context.address, self.state.context.value).unwrap();
 
@@ -131,8 +127,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
             // Apply miner rewards
             self.state.account_state.increase_balance(beneficiary, gas_dec.into());
-        } else {
-            assert!(preclaimed_value == U256::zero() && gas_dec == Gas::zero());
         }
 
         for address in &self.state.removed {
