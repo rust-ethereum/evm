@@ -40,8 +40,21 @@ macro_rules! system_address {
     }
 }
 
+/// Represents an Ethereum transaction.
+///
+/// ## About SYSTEM transaction
+///
+/// SYSTEM transaction in Ethereum is something that cannot be
+/// executed by the user, and is enforced by the blockchain rules. The
+/// SYSTEM transaction does not have a caller. When executed in EVM,
+/// however, the CALLER opcode would return
+/// 0xffffffffffffffffffffffffffffffffffffffff. As a result, when
+/// executing a message call or a contract creation, nonce are not
+/// changed. A SYSTEM transaction must have gas_price set to zero.
+/// Because the transaction reward is always zero, a SYSTEM
+/// transaction will also not invoke creation of the beneficiary
+/// address if it does not exist before.
 #[derive(Debug, Clone)]
-/// Represents an untrusted Ethereum transaction.
 pub struct UntrustedTransaction {
     pub caller: AccountCommitment,
     pub gas_price: Gas,
@@ -95,7 +108,6 @@ impl UntrustedTransaction {
     }
 }
 
-#[derive(Debug, Clone)]
 /// Represents an Ethereum transaction.
 ///
 /// ## About SYSTEM transaction
