@@ -110,6 +110,7 @@ impl UntrustedTransaction {
 /// Because the transaction reward is always zero, a SYSTEM
 /// transaction will also not invoke creation of the beneficiary
 /// address if it does not exist before.
+#[derive(Debug, Clone)]
 pub struct ValidTransaction {
     /// Caller of this transaction. If caller is None, then this is a
     /// SYSTEM transaction.
