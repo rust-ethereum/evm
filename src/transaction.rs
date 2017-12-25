@@ -55,7 +55,7 @@ macro_rules! system_address {
 /// transaction will also not invoke creation of the beneficiary
 /// address if it does not exist before.
 
-pub struct VMTransaction {
+pub struct UntrustedTransaction {
     pub caller: AccountCommitment,
     pub gas_price: Gas,
     pub gas_limit: Gas,
@@ -64,14 +64,14 @@ pub struct VMTransaction {
     pub input: Rc<Vec<u8>>,
 }
 
-impl VMTransaction {
-    pub fn to_valid<P: Patch>(&self) -> Option<ValidTransaction> {
+impl UntrustedTransaction {
+    pub fn to_valid<P: Patch>(&self) -> Result<ValidTransaction, PreExecutionError> {
         let valid = {
             let (nonce, balance, address) = match self.caller.clone() {
                 AccountCommitment::Full { nonce, balance, address, .. } => {
                     (nonce, balance, address)
                 },
-                _ => return None,
+                _ => return Err(PreExecutionError::InvalidCaller),
             };
 
             let gas_limit: U256 = self.gas_limit.into();
@@ -81,11 +81,11 @@ impl VMTransaction {
             let (total, overflowed2) = preclaimed_value.overflowing_add(self.value);
 
             if overflowed1 || overflowed2 {
-                return None;
+                return Err(PreExecutionError::InsufficientBalance);
             }
 
             if balance < total {
-                return None;
+                return Err(PreExecutionError::InsufficientBalance);
             }
 
             ValidTransaction {
@@ -100,10 +100,10 @@ impl VMTransaction {
         };
 
         if valid.gas_limit < valid.intrinsic_gas::<P>() {
-            return None;
+            return Err(PreExecutionError::InsufficientGasLimit);
         }
 
-        return Some(valid);
+        return Ok(valid);
     }
 }
 
@@ -283,7 +283,7 @@ enum TransactionVMState<M, P: Patch> {
 pub struct TransactionVM<M, P: Patch>(TransactionVMState<M, P>);
 
 impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
-    pub fn new_from_unknown(transaction: VMTransaction, block: HeaderParams) -> Option<Self> {
+    pub fn new_untrusted(transaction: UntrustedTransaction, block: HeaderParams) -> Result<Self, PreExecutionError> {
         let valid = transaction.to_valid::<P>()?;
         let mut vm = TransactionVM(TransactionVMState::Constructing {
             transaction: valid,
@@ -293,7 +293,7 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
             blockhash_state: BlockhashState::default(),
         });
         vm.commit_account(transaction.caller).unwrap();
-        Some(vm)
+        Ok(vm)
     }
 
     /// Create a new VM using the given transaction, block header and
