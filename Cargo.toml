@@ -24,7 +24,7 @@ libsecp256k1 = { version = "0.1", optional = true }
 ethereum-hexutil = "0.2"
 
 [features]
-default = ["std", "c-secp256k1"]
+default = ["std", "rust-secp256k1"]
 c-secp256k1 = ["secp256k1-plus", "ethereum-block/c-secp256k1"]
 rust-secp256k1 = ["libsecp256k1", "ethereum-block/rust-secp256k1"]
 std = ["ethereum-block-core/std", "ethereum-rlp/std", "ethereum-bigint/std", "ethereum-block"]
