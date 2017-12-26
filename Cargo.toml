@@ -1,6 +1,6 @@
 [package]
 name = "evm"
-version = "0.9.3"
+version = "0.9.4"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "Ethereum Virtual Machine implementation in Rust. Nightly version of SputnikVM."
