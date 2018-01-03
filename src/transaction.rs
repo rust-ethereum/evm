@@ -14,8 +14,7 @@ use alloc::Vec;
 #[cfg(not(feature = "std"))] use core::ops::Deref;
 use bigint::{U256, H256, Address, Gas};
 
-use super::errors::{RequireError, CommitError};
-use super::errors::PreExecutionError;
+use super::errors::{RequireError, CommitError, PreExecutionError};
 use super::{State, Machine, Context, ContextVM, VM, AccountState,
             BlockhashState, Patch, HeaderParams, Memory, VMStatus,
             AccountCommitment, Log, AccountChange,
