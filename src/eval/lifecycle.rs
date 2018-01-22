@@ -28,6 +28,9 @@ use super::cost::code_deposit_gas;
 
 impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Initialize a MessageCall transaction.
+    ///
+    /// ### Panic
+    /// Requires caller of the transaction to be committed.
     pub fn initialize_call(&mut self, preclaimed_value: U256) {
         self.state.account_state.premark_exists(self.state.context.address);
 
@@ -39,6 +42,9 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Initialize the runtime as a call from a CALL or CALLCODE opcode.
+    ///
+    /// ### Panic
+    /// Requires caller of the CALL/CALLCODE opcode to be committed.
     pub fn invoke_call(&mut self) {
         self.state.account_state.premark_exists(self.state.context.address);
 
@@ -49,6 +55,9 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Initialize a ContractCreation transaction.
+    ///
+    /// ### Panic
+    /// Requires caller of the transaction to be committed.
     pub fn initialize_create(&mut self, preclaimed_value: U256) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
@@ -63,6 +72,9 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Initialize the runtime as a call from a CREATE opcode.
+    ///
+    /// ### Panic
+    /// Requires caller of the CREATE opcode to be committed.
     pub fn invoke_create(&mut self) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
@@ -98,6 +110,9 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Finalize a transaction. This should not be used when invoked
     /// by an opcode.
+    ///
+    /// ### Panic
+    /// Requires caller of the transaction to be committed.
     pub fn finalize(&mut self, beneficiary: Address, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 

@@ -163,8 +163,6 @@ pub enum AccountChange {
     },
     /// Only balance is changed, and it is increasing for this address.
     IncreaseBalance(Address, U256),
-    /// Only balance is changed, and it is decreasing for this address.
-    DecreaseBalance(Address, U256),
     /// Create or delete a (new) account.
     Create {
         /// Account nonce.
@@ -190,7 +188,6 @@ impl AccountChange {
                 ..
             } => address,
             &AccountChange::IncreaseBalance(address, _) => address,
-            &AccountChange::DecreaseBalance(address, _) => address,
             &AccountChange::Create {
                 address,
                 ..
@@ -304,15 +301,6 @@ impl<A: AccountPatch> AccountState<A> {
                                 code,
                             }
                         },
-                        AccountChange::DecreaseBalance(address, withdraw) => {
-                            AccountChange::Full {
-                                nonce,
-                                address,
-                                balance: balance - withdraw,
-                                changing_storage: Storage::new(address, true),
-                                code,
-                            }
-                        },
                     }
                 } else {
                     AccountChange::Full {
@@ -371,10 +359,6 @@ impl<A: AccountPatch> AccountState<A> {
                                 code: Rc::new(Vec::new())
                             }
                         },
-                        // If balance is decreased with a negative
-                        // value, there's no way it is a nonexist
-                        // account.
-                        AccountChange::DecreaseBalance(_, _) => panic!(),
                     }
                 } else {
                     if self.premarked_exists.contains(&address) {
@@ -406,7 +390,6 @@ impl<A: AccountPatch> AccountState<A> {
             Some(&AccountChange::Full { .. }) => Ok(true),
             Some(&AccountChange::Nonexist(_)) => Ok(false),
             Some(&AccountChange::IncreaseBalance(_, _)) => Ok(true),
-            Some(&AccountChange::DecreaseBalance(_, _)) => Ok(true),
             _ => Err(RequireError::Account(address)),
         }
     }
@@ -417,7 +400,6 @@ impl<A: AccountPatch> AccountState<A> {
             Some(&mut AccountChange::Full { .. }) => (),
             Some(&mut AccountChange::Create { .. }) => (),
             Some(&mut AccountChange::IncreaseBalance(_, _)) => (),
-            Some(&mut AccountChange::DecreaseBalance(_, _)) => (),
             Some(val) => {
                 match val {
                     &mut AccountChange::Nonexist(_) => (),
@@ -448,7 +430,6 @@ impl<A: AccountPatch> AccountState<A> {
                 &AccountChange::Create { ref code, .. } => return Ok(code.clone()),
                 &AccountChange::Nonexist(_) => return Ok(Rc::new(Vec::new())),
                 &AccountChange::IncreaseBalance(_, _) => (),
-                &AccountChange::DecreaseBalance(_, _) => (),
             }
         }
 
@@ -639,15 +620,6 @@ impl<A: AccountPatch> AccountState<A> {
             Some(AccountChange::IncreaseBalance(address, balance)) => {
                 Some(AccountChange::IncreaseBalance(address, balance + topup))
             },
-            Some(AccountChange::DecreaseBalance(address, balance)) => {
-                if balance == topup {
-                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
-                } else if balance > topup {
-                    Some(AccountChange::DecreaseBalance(address, balance - topup))
-                } else {
-                    Some(AccountChange::IncreaseBalance(address, topup - balance))
-                }
-            },
             Some(AccountChange::Create {
                 address,
                 balance,
@@ -700,18 +672,6 @@ impl<A: AccountPatch> AccountState<A> {
                     nonce,
                 })
             },
-            Some(AccountChange::DecreaseBalance(address, balance)) => {
-                Some(AccountChange::DecreaseBalance(address, balance + withdraw))
-            },
-            Some(AccountChange::IncreaseBalance(address, balance)) => {
-                if balance == withdraw {
-                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
-                } else if balance > withdraw {
-                    Some(AccountChange::IncreaseBalance(address, balance - withdraw))
-                } else {
-                    Some(AccountChange::DecreaseBalance(address, withdraw - balance))
-                }
-            },
             Some(AccountChange::Create {
                 address,
                 balance,
@@ -727,22 +687,9 @@ impl<A: AccountPatch> AccountState<A> {
                     nonce,
                 })
             },
-            // We cannot decrease balance of a nonexist account (with
-            // balance zero).
-            Some(AccountChange::Nonexist(_)) => {
-                if withdraw == U256::zero() {
-                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
-                } else {
-                    panic!()
-                }
-            },
-            None => {
-                if withdraw == U256::zero() {
-                    Some(AccountChange::IncreaseBalance(address, U256::zero()))
-                } else {
-                    Some(AccountChange::DecreaseBalance(address, withdraw))
-                }
-            },
+            Some(AccountChange::IncreaseBalance(_, _)) => panic!(),
+            Some(AccountChange::Nonexist(_)) => panic!(),
+            None => panic!(),
         };
         if account.is_some() {
             self.accounts.insert(address, account.unwrap());

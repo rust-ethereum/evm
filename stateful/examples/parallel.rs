@@ -37,8 +37,6 @@ pub enum SendableAccountChange {
     },
     /// Only balance is changed, and it is increasing for this address.
     IncreaseBalance(Address, U256),
-    /// Only balance is changed, and it is decreasing for this address.
-    DecreaseBalance(Address, U256),
     /// Create or delete a (new) account.
     Create {
         /// Account nonce.
@@ -64,7 +62,6 @@ impl SendableAccountChange {
                 ..
             } => address,
             &SendableAccountChange::IncreaseBalance(address, _) => address,
-            &SendableAccountChange::DecreaseBalance(address, _) => address,
             &SendableAccountChange::Create {
                 address,
                 ..
@@ -85,8 +82,6 @@ impl From<AccountChange> for SendableAccountChange {
             },
             AccountChange::IncreaseBalance(address, balance) =>
                 SendableAccountChange::IncreaseBalance(address, balance),
-            AccountChange::DecreaseBalance(address, balance) =>
-                SendableAccountChange::DecreaseBalance(address, balance),
             AccountChange::Create { nonce, address, balance, storage, code } => {
                 SendableAccountChange::Create {
                     nonce, address, balance, storage,
@@ -109,8 +104,6 @@ impl Into<AccountChange> for SendableAccountChange {
             },
             SendableAccountChange::IncreaseBalance(address, balance) =>
                 AccountChange::IncreaseBalance(address, balance),
-            SendableAccountChange::DecreaseBalance(address, balance) =>
-                AccountChange::DecreaseBalance(address, balance),
             SendableAccountChange::Create { nonce, address, balance, storage, code } => {
                 AccountChange::Create {
                     nonce, address, balance, storage,

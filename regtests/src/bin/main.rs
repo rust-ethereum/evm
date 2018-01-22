@@ -224,17 +224,6 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
                                 U256::from_str(&cur_balance).unwrap());
                     }
                 },
-                &AccountChange::DecreaseBalance(address, balance) => {
-                    if !is_miner_or_uncle(client, address, &block) {
-                        let last_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &last_number);
-                        let cur_balance = client.get_balance(&format!("0x{:x}", address),
-                                                             &cur_number);
-
-                        assert!(U256::from_str(&last_balance).unwrap() - balance ==
-                                U256::from_str(&cur_balance).unwrap());
-                    }
-                },
                 &AccountChange::Nonexist(address) => {
                     if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),

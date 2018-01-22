@@ -113,10 +113,6 @@ impl JSONBlock {
                 let balance = self.balance(address);
                 self.set_balance(address, balance + topup);
             },
-            AccountChange::DecreaseBalance(address, withdraw) => {
-                let balance = self.balance(address);
-                self.set_balance(address, balance - withdraw);
-            },
         }
     }
 

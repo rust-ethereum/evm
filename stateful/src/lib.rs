@@ -324,13 +324,6 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                         }
                     }
                 },
-                AccountChange::DecreaseBalance(address, value) => {
-                    let mut account: Account = state.get(&address).unwrap();
-
-                    account.balance = account.balance - value;
-
-                    state.insert(address, account);
-                },
                 AccountChange::Create {
                     nonce, address, balance, storage, code
                 } => {
