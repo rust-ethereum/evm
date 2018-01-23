@@ -464,7 +464,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         if ccode_deposit {
             vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
         } else {
-            vm.machines[0].initialize_call(cpreclaimed_value);
+            vm.machines[0].initialize_call(cpreclaimed_value).unwrap();
         }
 
         self.0 = TransactionVMState::Running {

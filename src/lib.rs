@@ -264,9 +264,9 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                 Ok(())
             },
             MachineStatus::InvokeCall(context, _) => {
-                self.history.push(context.clone());
-                let mut sub = self.machines.last().unwrap().derive(context);
-                sub.invoke_call();
+                let mut sub = self.machines.last().unwrap().derive(context.clone());
+                sub.invoke_call()?;
+                self.history.push(context);
                 self.machines.push(sub);
                 Ok(())
             },

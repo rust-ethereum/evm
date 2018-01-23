@@ -9,7 +9,7 @@ use alloc::Vec;
 use bigint::{U256, M256, Gas, Address};
 use errors::{RequireError, OnChainError};
 use commit::AccountState;
-use ::{Memory, Patch};
+use ::{Memory, Patch, AccountPatch};
 use super::{Machine, MachineStatus};
 use super::util::copy_into_memory_apply;
 use super::cost::code_deposit_gas;
@@ -31,27 +31,31 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     ///
     /// ### Panic
     /// Requires caller of the transaction to be committed.
-    pub fn initialize_call(&mut self, preclaimed_value: U256) {
-        self.state.account_state.premark_exists(self.state.context.address);
+    pub fn initialize_call(&mut self, preclaimed_value: U256) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
 
         if !self.state.context.is_system {
             self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
             self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         }
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
+
+        Ok(())
     }
 
     /// Initialize the runtime as a call from a CALL or CALLCODE opcode.
     ///
     /// ### Panic
     /// Requires caller of the CALL/CALLCODE opcode to be committed.
-    pub fn invoke_call(&mut self) {
-        self.state.account_state.premark_exists(self.state.context.address);
+    pub fn invoke_call(&mut self) -> Result<(), RequireError> {
+        self.state.account_state.require(self.state.context.address)?;
 
         if !self.state.context.is_system {
             self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         }
         self.state.account_state.increase_balance(self.state.context.address, self.state.context.value);
+
+        Ok(())
     }
 
     /// Initialize a ContractCreation transaction.
@@ -61,7 +65,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     pub fn initialize_create(&mut self, preclaimed_value: U256) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
-        self.state.account_state.premark_exists(self.state.context.address);
         if !self.state.context.is_system {
             self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
             self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
@@ -78,7 +81,6 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     pub fn invoke_create(&mut self) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
 
-        self.state.account_state.premark_exists(self.state.context.address);
         if !self.state.context.is_system {
             self.state.account_state.decrease_balance(self.state.context.caller, self.state.context.value);
         }
@@ -115,6 +117,9 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Requires caller of the transaction to be committed.
     pub fn finalize(&mut self, beneficiary: Address, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
+        if !P::Account::allow_partial_change() {
+            self.state.account_state.require(beneficiary)?;
+        }
 
         match self.status() {
             MachineStatus::ExitedOk => {

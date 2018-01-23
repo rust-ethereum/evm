@@ -66,6 +66,8 @@ fn morden_state_root() {
         struct MordenAccountPatch;
         impl AccountPatch for MordenAccountPatch {
             fn initial_nonce() -> U256 { U256::from(2u64.pow(20)) }
+            fn initial_create_nonce() -> U256 { Self::initial_nonce() }
+            fn empty_considered_exists() -> bool { true }
         }
 
         let address = Address::from_str(key).unwrap();

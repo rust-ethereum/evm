@@ -13,12 +13,22 @@ use bigint::{Address, Gas, U256, H160};
 pub trait AccountPatch {
     /// Initial nonce for accounts.
     fn initial_nonce() -> U256;
+    /// Initial create nonce for accounts. (EIP161.a)
+    fn initial_create_nonce() -> U256;
+    /// Whether empty accounts are considered to be existing. (EIP161.b/EIP161.c/EIP161.d)
+    fn empty_considered_exists() -> bool;
+    /// Whether to allow partial change IncreaseBalance.
+    fn allow_partial_change() -> bool {
+        Self::empty_considered_exists()
+    }
 }
 
 /// Mainnet account patch
 pub struct MainnetAccountPatch;
 impl AccountPatch for MainnetAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
+    fn initial_create_nonce() -> U256 { Self::initial_nonce() }
+    fn empty_considered_exists() -> bool { true }
 }
 
 /// Represents different block range context.
