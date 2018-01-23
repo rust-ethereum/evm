@@ -61,6 +61,8 @@ pub trait Patch {
     fn force_code_deposit() -> bool;
     /// Whether the EVM has DELEGATECALL opcode.
     fn has_delegate_call() -> bool;
+    /// Whether the EVM has STATICCALL opcode.
+    fn has_static_call() -> bool;
     /// Whether to throw out of gas error when
     /// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
     /// of gas.
@@ -108,6 +110,7 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
     fn gas_transaction_create() -> Gas { Gas::from(0usize) }
     fn force_code_deposit() -> bool { true }
     fn has_delegate_call() -> bool { false }
+    fn has_static_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -133,6 +136,7 @@ impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
     fn force_code_deposit() -> bool { false }
     fn has_delegate_call() -> bool { true }
+    fn has_static_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -157,6 +161,7 @@ impl Patch for VMTestPatch {
     fn gas_transaction_create() -> Gas { Gas::from(0usize) }
     fn force_code_deposit() -> bool { true }
     fn has_delegate_call() -> bool { false }
+    fn has_static_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -182,6 +187,7 @@ impl<A: AccountPatch> Patch for EIP150Patch<A> {
     fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
     fn force_code_deposit() -> bool { false }
     fn has_delegate_call() -> bool { true }
+    fn has_static_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
@@ -207,6 +213,7 @@ impl<A: AccountPatch> Patch for EIP160Patch<A> {
     fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
     fn force_code_deposit() -> bool { false }
     fn has_delegate_call() -> bool { true }
+    fn has_static_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
@@ -234,6 +241,7 @@ impl<A: AccountPatch> Patch for EmbeddedPatch<A> {
     fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
     fn force_code_deposit() -> bool { false }
     fn has_delegate_call() -> bool { true }
+    fn has_static_call() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }

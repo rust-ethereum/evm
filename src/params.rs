@@ -62,6 +62,8 @@ pub struct Context {
     pub apprent_value: U256,
     /// Whether this represents a system call.
     pub is_system: bool,
+    /// Whether this call is static.
+    pub is_static: bool,
 }
 
 pub use block_core::Log;

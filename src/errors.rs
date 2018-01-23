@@ -36,6 +36,8 @@ pub enum OnChainError {
     /// For instruction that requires reading a range, it is
     /// invalid. This in the Yellow Paper is covered by EmptyGas.
     InvalidRange,
+    /// In static context but does mutation.
+    NotStatic,
 }
 
 impl From<OnChainError> for RuntimeError {

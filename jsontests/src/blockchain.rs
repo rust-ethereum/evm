@@ -263,5 +263,6 @@ pub fn create_context(v: &Value) -> Context {
         value: value,
         apprent_value: value,
         is_system: false,
+        is_static: false,
     }
 }

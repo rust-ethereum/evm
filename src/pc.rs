@@ -25,7 +25,7 @@ pub enum Instruction {
     EXTCODESIZE, EXTCODECOPY, BLOCKHASH, COINBASE, TIMESTAMP, NUMBER,
     DIFFICULTY, GASLIMIT, POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE,
     JUMP, JUMPI, PC, MSIZE, GAS, JUMPDEST, CREATE, CALL, CALLCODE,
-    RETURN, DELEGATECALL, SUICIDE,
+    RETURN, DELEGATECALL, SUICIDE, STATICCALL,
 
     PUSH(M256),
     DUP(usize),
@@ -240,6 +240,13 @@ impl<'a, P: Patch> PC<'a, P> {
                     return Err(OnChainError::InvalidOpcode);
                 }
             },
+            Opcode::STATICCALL => {
+                if P::has_static_call() {
+                    Instruction::STATICCALL
+                } else {
+                    return Err(OnChainError::InvalidOpcode);
+                }
+            },
 
             Opcode::INVALID => {
                 return Err(OnChainError::InvalidOpcode);
@@ -415,6 +422,13 @@ impl<'a, P: Patch> PCMut<'a, P> {
             Opcode::DELEGATECALL => {
                 if P::has_delegate_call() {
                     Instruction::DELEGATECALL
+                } else {
+                    return Err(OnChainError::InvalidOpcode);
+                }
+            },
+            Opcode::STATICCALL => {
+                if P::has_static_call() {
+                    Instruction::STATICCALL
                 } else {
                     return Err(OnChainError::InvalidOpcode);
                 }

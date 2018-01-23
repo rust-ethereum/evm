@@ -65,7 +65,7 @@ fn xfer_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: 
 
 fn new_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if instruction == &Instruction::CALL && !machine.account_state.exists(address).unwrap() {
+    if (instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL) && !machine.account_state.exists(address).unwrap() {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -161,6 +161,7 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
         Instruction::CALL => call_cost::<M, P>(state, &Instruction::CALL),
         Instruction::CALLCODE => call_cost::<M, P>(state, &Instruction::CALLCODE),
         Instruction::DELEGATECALL => call_cost::<M, P>(state, &Instruction::DELEGATECALL),
+        Instruction::STATICCALL => call_cost::<M, P>(state, &Instruction::STATICCALL),
         Instruction::SUICIDE => suicide_cost::<M, P>(state),
         Instruction::SSTORE => sstore_cost(state),
 

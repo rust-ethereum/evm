@@ -14,7 +14,7 @@ use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
 use super::{Stack, Context, HeaderParams, Patch, PC, PCMut, Valids, Memory,
             AccountCommitment, Log, Opcode};
 
-use self::check::{check_opcode, check_support, extra_check_opcode};
+use self::check::{check_opcode, check_static, check_support, extra_check_opcode};
 use self::run::run_opcode;
 use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
 
@@ -322,6 +322,19 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 Err(EvalOnChainError::Require(error)) => {
                     return Err(error);
                 },
+            }
+
+            if self.state.context.is_static {
+                match check_static(instruction, &self.state, runtime) {
+                    Ok(()) => (),
+                    Err(EvalOnChainError::OnChain(error)) => {
+                        self.status = MachineStatus::ExitedErr(error);
+                        return Ok(());
+                    },
+                    Err(EvalOnChainError::Require(error)) => {
+                        return Err(error);
+                    },
+                }
             }
 
             let position = pc.position();

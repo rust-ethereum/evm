@@ -203,7 +203,8 @@ impl ValidTransaction {
     /// change the account state.
     pub fn into_context<P: Patch>(
         self, upfront: Gas, origin: Option<Address>,
-        account_state: &mut AccountState<P::Account>, is_code: bool) -> Result<Context, RequireError> {
+        account_state: &mut AccountState<P::Account>, is_code: bool,
+        is_static: bool) -> Result<Context, RequireError> {
         let address = self.address();
 
         match self.action {
@@ -229,6 +230,7 @@ impl ValidTransaction {
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                     is_system: self.caller.is_none(),
+                    is_static
                 })
             },
             TransactionAction::Create => {
@@ -249,6 +251,7 @@ impl ValidTransaction {
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                     is_system: self.caller.is_none(),
+                    is_static
                 })
             },
         }
@@ -449,7 +452,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 };
                 cgas = transaction.intrinsic_gas::<P>();
                 cpreclaimed_value = transaction.preclaimed_value();
-                ccontext = transaction.clone().into_context::<P>(cgas, None, account_state, false)?;
+                ccontext = transaction.clone().into_context::<P>(cgas, None, account_state, false, false)?;
                 cblock = block.clone();
                 caccount_state = account_state.clone();
                 cblockhash_state = blockhash_state.clone();

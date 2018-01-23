@@ -89,7 +89,8 @@ pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas:
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
     let context = transaction.into_context::<P>(
-        Gas::zero(), Some(state.context.origin), &mut state.account_state, true
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true,
+        state.context.is_static,
     ).unwrap();
 
     push!(state, context.address.into());
@@ -118,11 +119,41 @@ pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipend_gas:
     };
 
     let mut context = transaction.into_context::<P>(
-        Gas::zero(), Some(state.context.origin), &mut state.account_state, true
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true,
+        state.context.is_static,
     ).unwrap();
     if as_self {
         context.address = state.context.address;
     }
+
+    push!(state, M256::from(1u64));
+    Some(Control::InvokeCall(context, (out_start, out_len)))
+}
+
+pub fn static_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+    let l64_after_gas = if P::call_create_l64_after_gas() { l64(after_gas) } else { after_gas };
+
+    pop!(state, gas: Gas, to: Address);
+    pop!(state, in_start: U256, in_len: U256, out_start: U256, out_len: U256);
+    let gas_limit = min(gas, l64_after_gas) + stipend_gas;
+
+    try_callstack_limit!(state, P);
+
+    let input = Rc::new(copy_from_memory(&state.memory, in_start, in_len));
+    let transaction = ValidTransaction {
+        caller: Some(state.context.address),
+        gas_price: state.context.gas_price,
+        gas_limit: gas_limit,
+        value: U256::zero(),
+        input: input,
+        action: TransactionAction::Call(to),
+        nonce: state.account_state.nonce(state.context.address).unwrap(),
+    };
+
+    let mut context = transaction.into_context::<P>(
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true,
+        true,
+    ).unwrap();
 
     push!(state, M256::from(1u64));
     Some(Control::InvokeCall(context, (out_start, out_len)))
@@ -149,7 +180,8 @@ pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, aft
     };
 
     let mut context = transaction.into_context::<P>(
-        Gas::zero(), Some(state.context.origin), &mut state.account_state, true
+        Gas::zero(), Some(state.context.origin), &mut state.account_state, true,
+        state.context.is_static,
     ).unwrap();
     context.value = U256::zero();
     context.address = state.context.address;

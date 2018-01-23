@@ -67,6 +67,95 @@ pub fn check_support<M: Memory + Default, P: Patch>(instruction: Instruction, st
 }
 
 #[allow(unused_variables)]
+/// Check whether `run_opcode` would be static.
+pub fn check_static<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>, runtime: &Runtime) -> Result<(), EvalOnChainError> {
+    match instruction {
+        Instruction::STOP |
+        Instruction::ADD |
+        Instruction::MUL |
+        Instruction::SUB |
+        Instruction::DIV |
+        Instruction::SDIV |
+        Instruction::MOD |
+        Instruction::SMOD |
+        Instruction::ADDMOD |
+        Instruction::MULMOD |
+        Instruction::EXP |
+        Instruction::SIGNEXTEND => Ok(()),
+
+        Instruction::LT |
+        Instruction::GT |
+        Instruction::SLT |
+        Instruction::SGT |
+        Instruction::EQ |
+        Instruction::ISZERO |
+        Instruction::AND |
+        Instruction::OR |
+        Instruction::XOR |
+        Instruction::NOT |
+        Instruction::BYTE => Ok(()),
+
+        Instruction::SHA3 => Ok(()),
+
+        Instruction::ADDRESS |
+        Instruction::BALANCE |
+        Instruction::ORIGIN |
+        Instruction::CALLER |
+        Instruction::CALLVALUE |
+        Instruction::CALLDATALOAD |
+        Instruction::CALLDATASIZE |
+        Instruction::CALLDATACOPY |
+        Instruction::CODESIZE |
+        Instruction::CODECOPY |
+        Instruction::GASPRICE |
+        Instruction::EXTCODESIZE |
+        Instruction::EXTCODECOPY => Ok(()),
+
+        Instruction::BLOCKHASH |
+        Instruction::COINBASE |
+        Instruction::TIMESTAMP |
+        Instruction::NUMBER |
+        Instruction::DIFFICULTY |
+        Instruction::GASLIMIT => Ok(()),
+
+        Instruction::POP |
+        Instruction::MLOAD |
+        Instruction::MSTORE |
+        Instruction::MSTORE8 => Ok(()),
+
+        Instruction::SLOAD => Ok(()),
+        Instruction::SSTORE => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
+
+        Instruction::JUMP |
+        Instruction::JUMPI |
+        Instruction::PC |
+        Instruction::MSIZE |
+        Instruction::GAS |
+        Instruction::JUMPDEST => Ok(()),
+
+        Instruction::PUSH(_) |
+        Instruction::DUP(_) |
+        Instruction::SWAP(_) => Ok(()),
+
+        Instruction::LOG(_) => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
+        Instruction::CREATE => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
+        Instruction::CALL => {
+            let value: U256 = state.stack.peek(2).unwrap().into();
+            if value != U256::zero() {
+                Err(EvalOnChainError::OnChain(OnChainError::NotStatic))
+            } else {
+                Ok(())
+            }
+        },
+        Instruction::STATICCALL => Ok(()),
+        Instruction::CALLCODE => Ok(()),
+        Instruction::RETURN => Ok(()),
+        Instruction::DELEGATECALL => Ok(()),
+        Instruction::SUICIDE => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
+    }
+}
+
+#[allow(unused_variables)]
 /// Check whether `run_opcode` would fail without mutating any of the
 /// machine state.
 pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>, runtime: &Runtime) -> Result<Option<ControlCheck>, EvalOnChainError> {
@@ -211,6 +300,14 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
             state.stack.check_pop_push(7, 1)?;
             check_range(state.stack.peek(3).unwrap().into(), state.stack.peek(4).unwrap().into())?;
             check_range(state.stack.peek(5).unwrap().into(), state.stack.peek(6).unwrap().into())?;
+            state.account_state.require(state.context.address)?;
+            state.account_state.require(state.stack.peek(1).unwrap().into())?;
+            Ok(None)
+        },
+        Instruction::STATICCALL => {
+            state.stack.check_pop_push(6, 1)?;
+            check_range(state.stack.peek(2).unwrap().into(), state.stack.peek(3).unwrap().into())?;
+            check_range(state.stack.peek(4).unwrap().into(), state.stack.peek(5).unwrap().into())?;
             state.account_state.require(state.context.address)?;
             state.account_state.require(state.stack.peek(1).unwrap().into())?;
             Ok(None)
