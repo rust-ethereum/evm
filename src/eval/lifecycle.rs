@@ -96,6 +96,13 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             _ => panic!(),
         }
 
+        if P::code_deposit_limit().is_some() {
+            if self.state.out.len() > P::code_deposit_limit().unwrap() {
+                self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
+                return;
+            }
+        }
+
         let deposit_cost = code_deposit_gas(self.state.out.len());
         if deposit_cost > self.state.available_gas() {
             if !P::force_code_deposit() {

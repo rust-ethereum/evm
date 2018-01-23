@@ -36,6 +36,8 @@ pub trait Patch {
     /// Account patch
     type Account: AccountPatch;
 
+    /// Maximum contract size.
+    fn code_deposit_limit() -> Option<usize>;
     /// Limit of the call stack.
     fn callstack_limit() -> usize;
     /// Gas paid for extcode.
@@ -94,6 +96,7 @@ pub type MainnetFrontierPatch = FrontierPatch<MainnetAccountPatch>;
 impl<A: AccountPatch> Patch for FrontierPatch<A> {
     type Account = A;
 
+    fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(20usize) }
     fn gas_balance() -> Gas { Gas::from(20usize) }
@@ -118,6 +121,7 @@ pub type MainnetHomesteadPatch = HomesteadPatch<MainnetAccountPatch>;
 impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     type Account = A;
 
+    fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(20usize) }
     fn gas_balance() -> Gas { Gas::from(20usize) }
@@ -141,6 +145,7 @@ pub struct VMTestPatch;
 impl Patch for VMTestPatch {
     type Account = MainnetAccountPatch;
 
+    fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 2 }
     fn gas_extcode() -> Gas { Gas::from(20usize) }
     fn gas_balance() -> Gas { Gas::from(20usize) }
@@ -165,6 +170,7 @@ pub type MainnetEIP150Patch = EIP150Patch<MainnetAccountPatch>;
 impl<A: AccountPatch> Patch for EIP150Patch<A> {
     type Account = A;
 
+    fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(700usize) }
     fn gas_balance() -> Gas { Gas::from(400usize) }
@@ -189,6 +195,7 @@ pub type MainnetEIP160Patch = EIP160Patch<MainnetAccountPatch>;
 impl<A: AccountPatch> Patch for EIP160Patch<A> {
     type Account = A;
 
+    fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(700usize) }
     fn gas_balance() -> Gas { Gas::from(400usize) }
@@ -215,6 +222,7 @@ pub type MainnetEmbeddedPatch = EmbeddedPatch<MainnetAccountPatch>;
 impl<A: AccountPatch> Patch for EmbeddedPatch<A> {
     type Account = A;
 
+    fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 1024 }
     fn gas_extcode() -> Gas { Gas::from(700usize) }
     fn gas_balance() -> Gas { Gas::from(400usize) }
