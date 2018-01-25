@@ -38,7 +38,6 @@ extern crate secp256k1;
 
 #[cfg(feature = "std")]
 extern crate block;
-
 #[cfg(test)]
 extern crate hexutil;
 #[cfg(feature = "precompiled-modexp")]
