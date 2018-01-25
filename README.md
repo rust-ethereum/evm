@@ -22,12 +22,12 @@ specs](https://github.com/ethoxy/specs) initiative.
 
 ## Supported Networks
 
-* [Foundation](./network/foundation)
-* [Classic](./network/classic)
-* [Ellaism](./network/ellaism)
-* [Expanse](./network/expanse)
-* [Musicoin](./network/musicoin)
-* [Ubiq](./network/ubiq)
+* Foundation (evm-network-foundation)
+* Classic (evm-network-classic)
+* Ellaism (evm-network-ellaism)
+* Expanse (evm-network-expanse)
+* Musicoin (evm-network-musicoin)
+* Ubiq (evm-network-ubiq)
 
 ## Related projects
 
