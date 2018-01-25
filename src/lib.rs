@@ -41,6 +41,8 @@ extern crate block;
 
 #[cfg(test)]
 extern crate hexutil;
+#[cfg(feature = "precompiled-modexp")]
+extern crate num_bigint;
 
 mod util;
 mod memory;
