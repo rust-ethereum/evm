@@ -1,0 +1,11 @@
+[package]
+name = "evm-precompiled-bn128"
+version = "0.0.1"
+license = "Apache-2.0"
+authors = ["Wei Tang <hi@that.world>"]
+repository = "https://source.that.world/source/evm-rs"
+
+[dependencies]
+evm = { version = "0.9", path = "../.." }
+ethereum-bigint = { version = "0.2", default-features = false }
+bn = { git = "https://github.com/paritytech/bn" }

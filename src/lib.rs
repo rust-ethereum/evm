@@ -39,9 +39,6 @@ extern crate secp256k1;
 #[cfg(feature = "std")]
 extern crate block;
 
-#[cfg(feature = "precompiled-modexp")]
-extern crate num_bigint;
-
 mod util;
 mod memory;
 mod stack;
