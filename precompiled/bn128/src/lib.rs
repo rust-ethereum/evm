@@ -92,3 +92,68 @@ impl Precompiled for Bn128MulPrecompiled {
         Ok((gas, Rc::new(output)))
     }
 }
+
+pub struct Bn128PairingPrecompiled;
+impl Precompiled for Bn128PairingPrecompiled {
+    fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
+        use bn::{G1, AffineG1, Fq, Group, pairing, Gt, G2, Fq2, AffineG2};
+
+        fn read_one(s: &[u8]) -> Result<(G1, G2), RuntimeError> {
+            let ax = Fq::from_slice(&s[0..32])
+                .map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?;
+            let ay = Fq::from_slice(&s[32..64])
+                .map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?;
+            let bay = Fq::from_slice(&s[64..96])
+                .map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?;
+            let bax = Fq::from_slice(&s[96..128])
+                .map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?;
+            let bby = Fq::from_slice(&s[128..160])
+                .map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?;
+            let bbx = Fq::from_slice(&s[160..192])
+                .map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?;
+
+            let ba = Fq2::new(bax, bay);
+            let bb = Fq2::new(bbx, bby);
+
+            let b = if ba.is_zero() && bb.is_zero() {
+                G2::zero()
+            } else {
+                AffineG2::new(ba, bb).map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?.into()
+            };
+            let a = if ax.is_zero() && ay.is_zero() {
+                G1::zero()
+            } else {
+                AffineG1::new(ax, ay).map_err(|_| RuntimeError::OnChain(OnChainError::EmptyGas))?.into()
+            };
+
+            Ok((a, b))
+        }
+
+        if data.len() % 192 != 0 {
+            return Err(RuntimeError::OnChain(OnChainError::EmptyGas));
+        }
+
+        let ele_len = data.len() / 192;
+        let gas = Gas::from(80000usize) * Gas::from(ele_len) + Gas::from(100000usize);
+        if gas > gas_limit {
+            return Err(RuntimeError::OnChain(OnChainError::EmptyGas));
+        }
+
+        let mut acc = Gt::one();
+        for i in 0..ele_len {
+            let (a, b) = read_one(&data[i*192..i*192+192])?;
+            acc = acc * pairing(a, b);
+        }
+
+        let result = if acc == Gt::one() {
+            U256::from(1)
+        } else {
+            U256::zero()
+        };
+
+        let mut output = vec![0u8; 32];
+        result.to_big_endian(&mut output);
+
+        Ok((gas, Rc::new(output)))
+    }
+}
