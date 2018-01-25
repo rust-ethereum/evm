@@ -109,7 +109,9 @@ pub fn check_static<M: Memory + Default, P: Patch>(instruction: Instruction, sta
         Instruction::CODECOPY |
         Instruction::GASPRICE |
         Instruction::EXTCODESIZE |
-        Instruction::EXTCODECOPY => Ok(()),
+        Instruction::EXTCODECOPY |
+        Instruction::RETURNDATASIZE |
+        Instruction::RETURNDATACOPY => Ok(()),
 
         Instruction::BLOCKHASH |
         Instruction::COINBASE |
@@ -225,6 +227,18 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
             state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
             check_range(state.stack.peek(1).unwrap().into(), state.stack.peek(3).unwrap().into())?;
             Ok(None)
+        },
+        Instruction::RETURNDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::RETURNDATACOPY => {
+            state.stack.check_pop_push(3, 0)?;
+            let start = state.stack.peek(0).unwrap().into();
+            let end = state.stack.peek(2).unwrap().into();
+            check_range(start, end)?;
+            if start + end > U256::from(state.ret.len()) {
+                Err(EvalOnChainError::OnChain(OnChainError::InvalidRange))
+            } else {
+                Ok(None)
+            }
         },
 
         Instruction::BLOCKHASH => {

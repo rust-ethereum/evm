@@ -82,6 +82,8 @@ pub struct State<M, P: Patch> {
 
     /// The current out value.
     pub out: Rc<Vec<u8>>,
+    /// Return data buffer.
+    pub ret: Rc<Vec<u8>>,
 
     /// The current memory cost. Note that this is different from
     /// memory gas.
@@ -206,6 +208,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 stack: Stack::default(),
 
                 out: Rc::new(Vec::new()),
+                ret: Rc::new(Vec::new()),
 
                 memory_cost: Gas::zero(),
                 used_gas: GasUsage::Some(Gas::zero()),
@@ -236,6 +239,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 stack: Stack::default(),
 
                 out: Rc::new(Vec::new()),
+                ret: Rc::new(Vec::new()),
 
                 memory_cost: Gas::zero(),
                 used_gas: GasUsage::Some(Gas::zero()),

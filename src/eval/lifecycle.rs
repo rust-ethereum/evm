@@ -199,6 +199,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         self.state.logs.append(&mut sub.state.logs);
         self.state.used_gas += sub_total_used_gas;
         self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
+        self.state.ret = sub.state.out.clone();
 
         match sub.status() {
             MachineStatus::ExitedOk => {
@@ -227,10 +228,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             MachineStatus::ExitedOk => {
                 self.state.account_state = sub.state.account_state;
                 self.state.removed = sub.state.removed;
+                self.state.ret = Rc::new(Vec::new());
             },
             MachineStatus::ExitedErr(_) => {
                 self.state.stack.pop().unwrap();
                 self.state.stack.push(M256::zero()).unwrap();
+                self.state.ret = sub.state.out.clone();
             },
             _ => panic!(),
         }

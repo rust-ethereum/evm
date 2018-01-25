@@ -13,7 +13,7 @@ pub enum Opcode {
 
     ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD,
     CALLDATASIZE, CALLDATACOPY, CODESIZE, CODECOPY, GASPRICE,
-    EXTCODESIZE, EXTCODECOPY,
+    EXTCODESIZE, EXTCODECOPY, RETURNDATASIZE, RETURNDATACOPY,
 
     BLOCKHASH, COINBASE, TIMESTAMP, NUMBER, DIFFICULTY, GASLIMIT,
 
@@ -73,6 +73,8 @@ impl From<u8> for Opcode {
             0x3a => Opcode::GASPRICE,
             0x3b => Opcode::EXTCODESIZE,
             0x3c => Opcode::EXTCODECOPY,
+            0x3d => Opcode::RETURNDATASIZE,
+            0x3e => Opcode::RETURNDATACOPY,
 
             0x40 => Opcode::BLOCKHASH,
             0x41 => Opcode::COINBASE,
@@ -224,6 +226,8 @@ impl Into<u8> for Opcode {
             Opcode::GASPRICE => 0x3a,
             Opcode::EXTCODESIZE => 0x3b,
             Opcode::EXTCODECOPY => 0x3c,
+            Opcode::RETURNDATASIZE => 0x3d,
+            Opcode::RETURNDATACOPY => 0x3e,
 
             Opcode::BLOCKHASH => 0x40,
             Opcode::COINBASE => 0x41,

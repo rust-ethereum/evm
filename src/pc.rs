@@ -25,7 +25,7 @@ pub enum Instruction {
     EXTCODESIZE, EXTCODECOPY, BLOCKHASH, COINBASE, TIMESTAMP, NUMBER,
     DIFFICULTY, GASLIMIT, POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE,
     JUMP, JUMPI, PC, MSIZE, GAS, JUMPDEST, CREATE, CALL, CALLCODE,
-    RETURN, DELEGATECALL, SUICIDE, STATICCALL, REVERT,
+    RETURN, DELEGATECALL, SUICIDE, STATICCALL, REVERT, RETURNDATASIZE, RETURNDATACOPY,
 
     PUSH(M256),
     DUP(usize),
@@ -254,6 +254,20 @@ impl<'a, P: Patch> PC<'a, P> {
                     return Err(OnChainError::InvalidOpcode);
                 }
             },
+            Opcode::RETURNDATASIZE => {
+                if P::has_return_data() {
+                    Instruction::RETURNDATASIZE
+                } else {
+                    return Err(OnChainError::InvalidOpcode);
+                }
+            },
+            Opcode::RETURNDATACOPY => {
+                if P::has_return_data() {
+                    Instruction::RETURNDATACOPY
+                } else {
+                    return Err(OnChainError::InvalidOpcode);
+                }
+            },
 
             Opcode::INVALID => {
                 return Err(OnChainError::InvalidOpcode);
@@ -443,6 +457,20 @@ impl<'a, P: Patch> PCMut<'a, P> {
             Opcode::REVERT => {
                 if P::has_revert() {
                     Instruction::REVERT
+                } else {
+                    return Err(OnChainError::InvalidOpcode);
+                }
+            },
+            Opcode::RETURNDATASIZE => {
+                if P::has_return_data() {
+                    Instruction::RETURNDATASIZE
+                } else {
+                    return Err(OnChainError::InvalidOpcode);
+                }
+            },
+            Opcode::RETURNDATACOPY => {
+                if P::has_return_data() {
+                    Instruction::RETURNDATACOPY
                 } else {
                     return Err(OnChainError::InvalidOpcode);
                 }

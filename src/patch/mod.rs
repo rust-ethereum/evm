@@ -65,6 +65,8 @@ pub trait Patch {
     fn has_static_call() -> bool;
     /// Whether the EVM has REVERT opcode.
     fn has_revert() -> bool;
+    /// Whether the EVM has RETURNDATASIZE and RETURNDATACOPY opcode.
+    fn has_return_data() -> bool;
     /// Whether to throw out of gas error when
     /// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
     /// of gas.
@@ -114,6 +116,7 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
     fn has_delegate_call() -> bool { false }
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
+    fn has_return_data() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -141,6 +144,7 @@ impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     fn has_delegate_call() -> bool { true }
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
+    fn has_return_data() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -167,6 +171,7 @@ impl Patch for VMTestPatch {
     fn has_delegate_call() -> bool { false }
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
+    fn has_return_data() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -194,6 +199,7 @@ impl<A: AccountPatch> Patch for EIP150Patch<A> {
     fn has_delegate_call() -> bool { true }
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
+    fn has_return_data() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
@@ -221,6 +227,7 @@ impl<A: AccountPatch> Patch for EIP160Patch<A> {
     fn has_delegate_call() -> bool { true }
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
+    fn has_return_data() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
@@ -250,6 +257,7 @@ impl<A: AccountPatch> Patch for EmbeddedPatch<A> {
     fn has_delegate_call() -> bool { true }
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
+    fn has_return_data() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }

@@ -121,6 +121,12 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
                                                        &state.account_state.code(address).unwrap(),
                                                        memory_index, code_index, len);
                                       None },
+        Instruction::RETURNDATASIZE => { push!(state, state.ret.len().into()); None },
+        Instruction::RETURNDATACOPY => { pop!(state, memory_index: U256, data_index: U256, len: U256);
+                                         copy_into_memory(&mut state.memory,
+                                                          state.ret.as_slice(),
+                                                          memory_index, data_index, len);
+                                         None },
 
         Instruction::BLOCKHASH => { pop!(state, number: U256);
                                     let current_number = runtime.block.number;

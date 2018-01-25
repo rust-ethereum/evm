@@ -117,7 +117,7 @@ pub fn memory_cost<M: Memory + Default, P: Patch>(instruction: Instruction, stat
             let len: U256 = stack.peek(1).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
         },
-        Instruction::CODECOPY | Instruction::CALLDATACOPY => {
+        Instruction::CODECOPY | Instruction::CALLDATACOPY | Instruction::RETURNDATACOPY => {
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(2).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
@@ -184,7 +184,7 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
             (Gas::from(P::gas_extcode()) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
         },
 
-        Instruction::CALLDATACOPY | Instruction::CODECOPY => {
+        Instruction::CALLDATACOPY | Instruction::CODECOPY | Instruction::RETURNDATACOPY => {
             let len = state.stack.peek(2).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
@@ -209,7 +209,7 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
 
         // W_base
         Instruction::ADDRESS | Instruction::ORIGIN | Instruction::CALLER |
-        Instruction::CALLVALUE | Instruction::CALLDATASIZE |
+        Instruction::CALLVALUE | Instruction::CALLDATASIZE | Instruction::RETURNDATASIZE |
         Instruction::CODESIZE | Instruction::GASPRICE | Instruction::COINBASE |
         Instruction::TIMESTAMP | Instruction::NUMBER | Instruction::DIFFICULTY |
         Instruction::GASLIMIT | Instruction::POP | Instruction::PC |
