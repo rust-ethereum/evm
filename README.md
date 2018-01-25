@@ -20,6 +20,15 @@ specs](https://github.com/ethoxy/specs) initiative.
 * written in Rust, can be used as a binary, cargo crate or shared
   library
 
+## Supported Networks
+
+* [Foundation](./network/foundation)
+* [Classic](./network/classic)
+* [Ellaism](./network/ellaism)
+* [Expanse](./network/expanse)
+* [Musicoin](./network/musicoin)
+* [Ubiq](./network/ubiq)
+
 ## Related projects
 
 * [ethereum-rs](https://source.that.world/source/ethereum-rs) -

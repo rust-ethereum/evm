@@ -11,10 +11,12 @@ extern crate trie;
 extern crate rand;
 extern crate sha3;
 extern crate bigint;
+extern crate evm_network_classic;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
-use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, MainnetEIP160Patch, EIP160Patch, VMStatus, AccountPatch};
+use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, VMStatus, AccountPatch};
+use evm_network_classic::{MainnetEIP160Patch, EIP160Patch};
 use evm_stateful::{MemoryStateful, LiteralAccount};
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};

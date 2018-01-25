@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 extern crate evm;
+extern crate evm_network_classic;
 extern crate serde_json;
 extern crate gethrpc;
 extern crate block;
@@ -20,8 +21,9 @@ use block::TransactionAction;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::*;
 use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                AccountCommitment, AccountChange, MainnetFrontierPatch, MainnetHomesteadPatch,
-                MainnetEIP150Patch, MainnetEIP160Patch};
+          AccountCommitment, AccountChange};
+use evm_network_classic::{MainnetFrontierPatch, MainnetHomesteadPatch,
+                          MainnetEIP150Patch, MainnetEIP160Patch};
 use evm::errors::RequireError;
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
 

@@ -37,4 +37,10 @@ members = [
   "./stateful",
   "./precompiled/modexp",
   "./precompiled/bn128",
+  "./network/foundation",
+  "./network/classic",
+  "./network/ellaism",
+  "./network/musicoin",
+  "./network/expanse",
+  "./network/ubiq",
 ]

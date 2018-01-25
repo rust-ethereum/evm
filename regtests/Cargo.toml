@@ -10,6 +10,7 @@ name = "regtests"
 
 [dependencies]
 evm = { path = '..' }
+evm-network-classic = { path = "../network/classic" }
 gethrpc = { path = '../gethrpc' }
 ethereum-block = "0.3"
 ethereum-bigint = "0.2"

@@ -5,8 +5,6 @@ mod precompiled;
 
 pub use self::precompiled::*;
 
-#[cfg(feature = "std")] use std::marker::PhantomData;
-#[cfg(not(feature = "std"))] use core::marker::PhantomData;
 use bigint::{Address, Gas, U256, H160};
 
 /// Account patch for account related variables.
@@ -24,8 +22,8 @@ pub trait AccountPatch {
 }
 
 /// Mainnet account patch
-pub struct MainnetAccountPatch;
-impl AccountPatch for MainnetAccountPatch {
+pub struct EmbeddedAccountPatch;
+impl AccountPatch for EmbeddedAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() }
     fn empty_considered_exists() -> bool { true }
@@ -81,7 +79,7 @@ pub trait Patch {
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)];
 }
 
-pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
+pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
      &ECREC_PRECOMPILED),
@@ -96,66 +94,10 @@ pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompi
      &ID_PRECOMPILED),
 ];
 
-/// Frontier patch.
-pub struct FrontierPatch<A: AccountPatch>(PhantomData<A>);
-pub type MainnetFrontierPatch = FrontierPatch<MainnetAccountPatch>;
-impl<A: AccountPatch> Patch for FrontierPatch<A> {
-    type Account = A;
-
-    fn code_deposit_limit() -> Option<usize> { None }
-    fn callstack_limit() -> usize { 1024 }
-    fn gas_extcode() -> Gas { Gas::from(20usize) }
-    fn gas_balance() -> Gas { Gas::from(20usize) }
-    fn gas_sload() -> Gas { Gas::from(50usize) }
-    fn gas_suicide() -> Gas { Gas::from(0usize) }
-    fn gas_suicide_new_account() -> Gas { Gas::from(0usize) }
-    fn gas_call() -> Gas { Gas::from(40usize) }
-    fn gas_expbyte() -> Gas { Gas::from(10usize) }
-    fn gas_transaction_create() -> Gas { Gas::from(0usize) }
-    fn force_code_deposit() -> bool { true }
-    fn has_delegate_call() -> bool { false }
-    fn has_static_call() -> bool { false }
-    fn has_revert() -> bool { false }
-    fn has_return_data() -> bool { false }
-    fn err_on_call_with_more_gas() -> bool { true }
-    fn call_create_l64_after_gas() -> bool { false }
-    fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        &ETC_PRECOMPILEDS }
-}
-
-/// Homestead patch.
-pub struct HomesteadPatch<A: AccountPatch>(PhantomData<A>);
-pub type MainnetHomesteadPatch = HomesteadPatch<MainnetAccountPatch>;
-impl<A: AccountPatch> Patch for HomesteadPatch<A> {
-    type Account = A;
-
-    fn code_deposit_limit() -> Option<usize> { None }
-    fn callstack_limit() -> usize { 1024 }
-    fn gas_extcode() -> Gas { Gas::from(20usize) }
-    fn gas_balance() -> Gas { Gas::from(20usize) }
-    fn gas_sload() -> Gas { Gas::from(50usize) }
-    fn gas_suicide() -> Gas { Gas::from(0usize) }
-    fn gas_suicide_new_account() -> Gas { Gas::from(0usize) }
-    fn gas_call() -> Gas { Gas::from(40usize) }
-    fn gas_expbyte() -> Gas { Gas::from(10usize) }
-    fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
-    fn force_code_deposit() -> bool { false }
-    fn has_delegate_call() -> bool { true }
-    fn has_static_call() -> bool { false }
-    fn has_revert() -> bool { false }
-    fn has_return_data() -> bool { false }
-    fn err_on_call_with_more_gas() -> bool { true }
-    fn call_create_l64_after_gas() -> bool { false }
-    fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        &ETC_PRECOMPILEDS }
-}
-
 /// Patch sepcific for the `jsontests` crate.
 pub struct VMTestPatch;
 impl Patch for VMTestPatch {
-    type Account = MainnetAccountPatch;
+    type Account = EmbeddedAccountPatch;
 
     fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 2 }
@@ -176,72 +118,13 @@ impl Patch for VMTestPatch {
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        &ETC_PRECOMPILEDS }
+        &EMBEDDED_PRECOMPILEDS }
 }
-
-/// EIP150 patch.
-pub struct EIP150Patch<A: AccountPatch>(PhantomData<A>);
-pub type MainnetEIP150Patch = EIP150Patch<MainnetAccountPatch>;
-impl<A: AccountPatch> Patch for EIP150Patch<A> {
-    type Account = A;
-
-    fn code_deposit_limit() -> Option<usize> { None }
-    fn callstack_limit() -> usize { 1024 }
-    fn gas_extcode() -> Gas { Gas::from(700usize) }
-    fn gas_balance() -> Gas { Gas::from(400usize) }
-    fn gas_sload() -> Gas { Gas::from(200usize) }
-    fn gas_suicide() -> Gas { Gas::from(5000usize) }
-    fn gas_suicide_new_account() -> Gas { Gas::from(25000usize) }
-    fn gas_call() -> Gas { Gas::from(700usize) }
-    fn gas_expbyte() -> Gas { Gas::from(10usize) }
-    fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
-    fn force_code_deposit() -> bool { false }
-    fn has_delegate_call() -> bool { true }
-    fn has_static_call() -> bool { false }
-    fn has_revert() -> bool { false }
-    fn has_return_data() -> bool { false }
-    fn err_on_call_with_more_gas() -> bool { false }
-    fn call_create_l64_after_gas() -> bool { true }
-    fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        &ETC_PRECOMPILEDS }
-}
-
-/// EIP160 patch.
-pub struct EIP160Patch<A: AccountPatch>(PhantomData<A>);
-pub type MainnetEIP160Patch = EIP160Patch<MainnetAccountPatch>;
-impl<A: AccountPatch> Patch for EIP160Patch<A> {
-    type Account = A;
-
-    fn code_deposit_limit() -> Option<usize> { None }
-    fn callstack_limit() -> usize { 1024 }
-    fn gas_extcode() -> Gas { Gas::from(700usize) }
-    fn gas_balance() -> Gas { Gas::from(400usize) }
-    fn gas_sload() -> Gas { Gas::from(200usize) }
-    fn gas_suicide() -> Gas { Gas::from(5000usize) }
-    fn gas_suicide_new_account() -> Gas { Gas::from(25000usize) }
-    fn gas_call() -> Gas { Gas::from(700usize) }
-    fn gas_expbyte() -> Gas { Gas::from(50usize) }
-    fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
-    fn force_code_deposit() -> bool { false }
-    fn has_delegate_call() -> bool { true }
-    fn has_static_call() -> bool { false }
-    fn has_revert() -> bool { false }
-    fn has_return_data() -> bool { false }
-    fn err_on_call_with_more_gas() -> bool { false }
-    fn call_create_l64_after_gas() -> bool { true }
-    fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        &ETC_PRECOMPILEDS }
-}
-
-pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 0] = [];
 
 /// Embedded patch.
-pub struct EmbeddedPatch<A: AccountPatch>(PhantomData<A>);
-pub type MainnetEmbeddedPatch = EmbeddedPatch<MainnetAccountPatch>;
-impl<A: AccountPatch> Patch for EmbeddedPatch<A> {
-    type Account = A;
+pub struct EmbeddedPatch;
+impl Patch for EmbeddedPatch {
+    type Account = EmbeddedAccountPatch;
 
     fn code_deposit_limit() -> Option<usize> { None }
     fn callstack_limit() -> usize { 1024 }

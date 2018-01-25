@@ -4,12 +4,14 @@ extern crate hexutil;
 extern crate bigint;
 extern crate evm;
 extern crate evm_stateful;
+extern crate evm_network_classic;
 #[macro_use] extern crate lazy_static;
 
 use hexutil::*;
 use block::TransactionAction;
 use bigint::{Address, U256, Gas};
-use evm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, MainnetEIP160Patch, ValidTransaction};
+use evm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, ValidTransaction};
+use evm_network_classic::{MainnetEIP160Patch, EIP160Patch};
 use trie::MemoryDatabase;
 use evm_stateful::{MemoryStateful, LiteralAccount};
 use std::thread;

@@ -8,6 +8,8 @@ use bigint::{Gas, U256};
 use evm::Precompiled;
 use evm::errors::{OnChainError, RuntimeError, NotSupportedError};
 
+pub static MODEXP_PRECOMPILED: ModexpPrecompiled = ModexpPrecompiled;
+
 pub struct ModexpPrecompiled;
 impl Precompiled for ModexpPrecompiled {
     fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {

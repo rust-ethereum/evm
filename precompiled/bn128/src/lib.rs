@@ -8,6 +8,8 @@ use bigint::{Gas, U256};
 use evm::Precompiled;
 use evm::errors::{OnChainError, RuntimeError, NotSupportedError};
 
+pub static BN128_ADD_PRECOMPILED: Bn128AddPrecompiled = Bn128AddPrecompiled;
+
 pub struct Bn128AddPrecompiled;
 impl Precompiled for Bn128AddPrecompiled {
     fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
@@ -54,6 +56,8 @@ impl Precompiled for Bn128AddPrecompiled {
     }
 }
 
+pub static BN128_MUL_PRECOMPILED: Bn128MulPrecompiled = Bn128MulPrecompiled;
+
 pub struct Bn128MulPrecompiled;
 impl Precompiled for Bn128MulPrecompiled {
     fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
@@ -92,6 +96,8 @@ impl Precompiled for Bn128MulPrecompiled {
         Ok((gas, Rc::new(output)))
     }
 }
+
+pub static BN128_PAIRING_PRECOMPILED: Bn128PairingPrecompiled = Bn128PairingPrecompiled;
 
 pub struct Bn128PairingPrecompiled;
 impl Precompiled for Bn128PairingPrecompiled {
