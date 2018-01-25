@@ -29,6 +29,15 @@ specs](https://github.com/ethoxy/specs) initiative.
 * Musicoin (evm-network-musicoin)
 * Ubiq (evm-network-ubiq)
 
+## Supported Networks
+
+* [Foundation](./network/foundation)
+* [Classic](./network/classic)
+* [Ellaism](./network/ellaism)
+* [Expanse](./network/expanse)
+* [Musicoin](./network/musicoin)
+* [Ubiq](./network/ubiq)
+
 ## Related projects
 
 * [ethereum-rs](https://source.that.world/source/ethereum-rs) -

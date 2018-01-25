@@ -6,12 +6,12 @@ extern crate serde_derive;
 extern crate lazy_static;
 extern crate evm;
 extern crate evm_stateful;
+extern crate evm_network_classic;
 extern crate block;
 extern crate trie;
 extern crate rand;
 extern crate sha3;
 extern crate bigint;
-extern crate evm_network_classic;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};

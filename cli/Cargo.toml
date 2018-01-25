@@ -1,0 +1,20 @@
+[package]
+name = "evm-cli"
+version = "0.6.0"
+license = "Apache-2.0"
+authors = ["Wei Tang <hi@that.world>"]
+description = "SputnikVM CLI"
+repository = "https://github.com/ethereumproject/sputnikvm"
+
+[[bin]]
+name = "evm-cli"
+
+[dependencies]
+ethereum-bigint = "0.2"
+ethereum-hexutil = "0.2"
+evm = { version = "0.9", path = ".." }
+evm-network-classic = { path = "../network/classic" }
+gethrpc = { path = '../gethrpc' }
+clap = "2.22"
+serde_json = "0.9"
+flame = "0.2"
