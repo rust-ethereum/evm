@@ -174,6 +174,9 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::RETURN => { pop!(state, start: U256, len: U256);
                                  state.out = Rc::new(copy_from_memory(&mut state.memory, start, len));
                                  Some(Control::Stop) },
+        Instruction::REVERT => { pop!(state, start: U256, len: U256);
+                                 state.out = Rc::new(copy_from_memory(&mut state.memory, start, len));
+                                 Some(Control::Revert) },
         Instruction::SUICIDE => { system::suicide(state); Some(Control::Stop) },
     }
 }

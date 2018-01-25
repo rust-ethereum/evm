@@ -150,6 +150,7 @@ pub fn check_static<M: Memory + Default, P: Patch>(instruction: Instruction, sta
         Instruction::STATICCALL => Ok(()),
         Instruction::CALLCODE => Ok(()),
         Instruction::RETURN => Ok(()),
+        Instruction::REVERT => Ok(()),
         Instruction::DELEGATECALL => Ok(()),
         Instruction::SUICIDE => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
     }
@@ -321,6 +322,11 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
             Ok(None)
         },
         Instruction::RETURN => {
+            state.stack.check_pop_push(2, 0)?;
+            check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(1).unwrap().into())?;
+            Ok(None)
+        },
+        Instruction::REVERT => {
             state.stack.check_pop_push(2, 0)?;
             check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(1).unwrap().into())?;
             Ok(None)

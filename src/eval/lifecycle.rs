@@ -10,7 +10,7 @@ use bigint::{U256, M256, Gas, Address};
 use errors::{RequireError, OnChainError};
 use commit::AccountState;
 use ::{Memory, Patch, AccountPatch};
-use super::{Machine, MachineStatus};
+use super::{Machine, MachineStatus, GasUsage};
 use super::util::copy_into_memory_apply;
 use super::cost::code_deposit_gas;
 
@@ -98,7 +98,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
         if P::code_deposit_limit().is_some() {
             if self.state.out.len() > P::code_deposit_limit().unwrap() {
-                self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
+                reset_error_hard!(self, OnChainError::EmptyGas);
                 return;
             }
         }
@@ -106,12 +106,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         let deposit_cost = code_deposit_gas(self.state.out.len());
         if deposit_cost > self.state.available_gas() {
             if !P::force_code_deposit() {
-                self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
+                reset_error_hard!(self, OnChainError::EmptyGas);
             } else {
                 self.state.account_state.code_deposit(self.state.context.address, Rc::new(Vec::new()));
             }
         } else {
-            self.state.used_gas = self.state.used_gas + deposit_cost;
+            self.state.used_gas += deposit_cost;
             self.state.account_state.code_deposit(self.state.context.address,
                                                   self.state.out.clone());
         }
@@ -138,11 +138,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             MachineStatus::ExitedErr(_) => {
                 // If exited with error, reset all changes.
                 self.state.account_state = fresh_account_state.clone();
+                self.state.removed = Vec::new();
                 if !self.state.context.is_system {
                     self.state.account_state.decrease_balance(self.state.context.caller, preclaimed_value);
                 }
-                self.state.logs = Vec::new();
-                self.state.removed = Vec::new();
             },
             _ => panic!(),
         }
@@ -193,25 +192,20 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     fn apply_create(&mut self, mut sub: Machine<M, P>) {
-        if self.state.available_gas() < sub.state.used_gas {
-            panic!();
-        }
-
         sub.code_deposit();
+
+        let sub_total_used_gas = sub.state.total_used_gas();
+
+        self.state.logs.append(&mut sub.state.logs);
+        self.state.used_gas += sub_total_used_gas;
+        self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
 
         match sub.status() {
             MachineStatus::ExitedOk => {
-                let sub_total_used_gas = sub.state.total_used_gas();
-
                 self.state.account_state = sub.state.account_state;
-                self.state.logs = sub.state.logs;
                 self.state.removed = sub.state.removed;
-                self.state.used_gas = self.state.used_gas + sub_total_used_gas;
-                self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-
             },
             MachineStatus::ExitedErr(_) => {
-                self.state.used_gas = self.state.used_gas + sub.state.context.gas_limit;
                 self.state.stack.pop().unwrap();
                 self.state.stack.push(M256::zero()).unwrap();
             },
@@ -219,25 +213,22 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
     }
 
-    fn apply_call(&mut self, sub: Machine<M, P>, out_start: U256, out_len: U256) {
-        if self.state.available_gas() < sub.state.used_gas {
-            panic!();
-        }
+    fn apply_call(&mut self, mut sub: Machine<M, P>, out_start: U256, out_len: U256) {
+        let sub_total_used_gas = sub.state.total_used_gas();
+
+        self.state.logs.append(&mut sub.state.logs);
+        self.state.used_gas += sub_total_used_gas;
+        self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
+
+        copy_into_memory_apply(&mut self.state.memory, sub.state.out.as_slice(),
+                               out_start, out_len);
 
         match sub.status() {
             MachineStatus::ExitedOk => {
-                let sub_total_used_gas = sub.state.total_used_gas();
-
                 self.state.account_state = sub.state.account_state;
-                self.state.logs = sub.state.logs;
                 self.state.removed = sub.state.removed;
-                self.state.used_gas = self.state.used_gas + sub_total_used_gas;
-                self.state.refunded_gas = self.state.refunded_gas + sub.state.refunded_gas;
-                copy_into_memory_apply(&mut self.state.memory, sub.state.out.as_slice(),
-                                       out_start, out_len);
             },
             MachineStatus::ExitedErr(_) => {
-                self.state.used_gas = self.state.used_gas + sub.state.context.gas_limit;
                 self.state.stack.pop().unwrap();
                 self.state.stack.push(M256::zero()).unwrap();
             },

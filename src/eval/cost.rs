@@ -112,7 +112,7 @@ pub fn memory_cost<M: Memory + Default, P: Patch>(instruction: Instruction, stat
 
     let current = state.memory_cost;
     let next = match instruction {
-        Instruction::SHA3 | Instruction::RETURN | Instruction::LOG(_) => {
+        Instruction::SHA3 | Instruction::RETURN | Instruction::REVERT | Instruction::LOG(_) => {
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(1).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
@@ -204,7 +204,7 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
         Instruction::SLOAD => P::gas_sload(),
 
         // W_zero
-        Instruction::STOP | Instruction::RETURN
+        Instruction::STOP | Instruction::RETURN | Instruction::REVERT
             => G_ZERO.into(),
 
         // W_base

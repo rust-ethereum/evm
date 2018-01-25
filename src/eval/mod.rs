@@ -6,6 +6,9 @@ use alloc::Vec;
 #[cfg(not(feature = "std"))] use alloc::rc::Rc;
 #[cfg(feature = "std")] use std::rc::Rc;
 
+#[cfg(not(feature = "std"))] use core::ops::AddAssign;
+#[cfg(feature = "std")] use std::ops::AddAssign;
+
 use bigint::{M256, U256, Gas, Address};
 use super::pc::Instruction;
 use super::commit::{AccountState, BlockhashState};
@@ -18,11 +21,54 @@ use self::check::{check_opcode, check_static, check_support, extra_check_opcode}
 use self::run::run_opcode;
 use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
 
+macro_rules! reset_error_hard {
+    ($self: expr, $err: expr) => {
+        $self.status = MachineStatus::ExitedErr($err);
+        $self.state.used_gas = GasUsage::All;
+        $self.state.refunded_gas = Gas::zero();
+        $self.state.logs = Vec::new();
+        $self.state.out = Rc::new(Vec::new());
+    }
+}
+
+macro_rules! reset_error_revert {
+    ($self: expr) => {
+        $self.status = MachineStatus::ExitedErr(OnChainError::Revert);
+    }
+}
+
+macro_rules! reset_error_not_supported {
+    ($self: expr, $err: expr) => {
+        $self.status = MachineStatus::ExitedNotSupported($err);
+        $self.state.used_gas = GasUsage::Some(Gas::zero());
+        $self.state.refunded_gas = Gas::zero();
+        $self.state.logs = Vec::new();
+        $self.state.out = Rc::new(Vec::new());
+    }
+}
+
 mod cost;
 mod run;
 mod check;
 mod util;
 mod lifecycle;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GasUsage {
+    All,
+    Some(Gas),
+}
+
+impl AddAssign<Gas> for GasUsage {
+    fn add_assign(&mut self, rhs: Gas) {
+        match self {
+            &mut GasUsage::All => (),
+            &mut GasUsage::Some(ref mut gas) => {
+                *gas = *gas + rhs;
+            }
+        }
+    }
+}
 
 /// A VM state without PC.
 pub struct State<M, P: Patch> {
@@ -41,7 +87,7 @@ pub struct State<M, P: Patch> {
     /// memory gas.
     pub memory_cost: Gas,
     /// Used gas excluding memory gas.
-    pub used_gas: Gas,
+    pub used_gas: GasUsage,
     /// Refunded gas.
     pub refunded_gas: Gas,
 
@@ -49,7 +95,7 @@ pub struct State<M, P: Patch> {
     pub account_state: AccountState<P::Account>,
     /// Logs appended.
     pub logs: Vec<Log>,
-    /// Removed accounts using the SUICIDE opcode.
+    /// All removed accounts using the SUICIDE opcode.
     pub removed: Vec<Address>,
 
     /// Depth of this runtime.
@@ -69,12 +115,15 @@ impl<M, P: Patch> State<M, P> {
 
     /// Available gas at this moment.
     pub fn available_gas(&self) -> Gas {
-        self.context.gas_limit - self.memory_gas() - self.used_gas
+        self.context.gas_limit - self.total_used_gas()
     }
 
     /// Total used gas including the memory gas.
     pub fn total_used_gas(&self) -> Gas {
-        self.memory_gas() + self.used_gas
+        match self.used_gas {
+            GasUsage::All => self.context.gas_limit,
+            GasUsage::Some(gas) => self.memory_gas() + gas,
+        }
     }
 }
 
@@ -134,6 +183,7 @@ pub enum ControlCheck {
 /// Used for `step` for additional operations related to the runtime.
 pub enum Control {
     Stop,
+    Revert,
     Jump(M256),
     InvokeCreate(Context),
     InvokeCall(Context, (U256, U256)),
@@ -158,7 +208,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 out: Rc::new(Vec::new()),
 
                 memory_cost: Gas::zero(),
-                used_gas: Gas::zero(),
+                used_gas: GasUsage::Some(Gas::zero()),
                 refunded_gas: Gas::zero(),
 
                 account_state,
@@ -188,11 +238,11 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 out: Rc::new(Vec::new()),
 
                 memory_cost: Gas::zero(),
-                used_gas: Gas::zero(),
+                used_gas: GasUsage::Some(Gas::zero()),
                 refunded_gas: Gas::zero(),
 
                 account_state: self.state.account_state.clone(),
-                logs: self.state.logs.clone(),
+                logs: Vec::new(),
                 removed: self.state.removed.clone(),
 
                 depth: self.state.depth + 1,
@@ -221,15 +271,14 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 let data = &self.state.context.data;
                 match precompiled.2.gas_and_step(data, self.state.context.gas_limit) {
                     Err(RuntimeError::OnChain(err)) => {
-                        self.state.used_gas = self.state.context.gas_limit;
-                        self.status = MachineStatus::ExitedErr(err);
+                        reset_error_hard!(self, err);
                     },
                     Err(RuntimeError::NotSupported(err)) => {
-                        self.status = MachineStatus::ExitedNotSupported(err);
+                        reset_error_not_supported!(self, err);
                     },
                     Ok((gas, ret)) => {
                         assert!(gas <= self.state.context.gas_limit);
-                        self.state.used_gas = gas;
+                        self.state.used_gas = GasUsage::Some(gas);
                         self.state.out = ret;
                         self.status = MachineStatus::ExitedOk;
                     }
@@ -297,7 +346,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             let instruction = match pc.peek() {
                 Ok(val) => val,
                 Err(err) => {
-                    self.status = MachineStatus::ExitedErr(err);
+                    reset_error_hard!(self, err);
                     return Ok(())
                 },
             };
@@ -316,7 +365,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             }) {
                 Ok(()) => (),
                 Err(EvalOnChainError::OnChain(error)) => {
-                    self.status = MachineStatus::ExitedErr(error);
+                    reset_error_hard!(self, error);
                     return Ok(());
                 },
                 Err(EvalOnChainError::Require(error)) => {
@@ -328,7 +377,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 match check_static(instruction, &self.state, runtime) {
                     Ok(()) => (),
                     Err(EvalOnChainError::OnChain(error)) => {
-                        self.status = MachineStatus::ExitedErr(error);
+                        reset_error_hard!(self, error);
                         return Ok(());
                     },
                     Err(EvalOnChainError::Require(error)) => {
@@ -337,6 +386,14 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 }
             }
 
+            let used_gas = match self.state.used_gas {
+                GasUsage::Some(gas) => gas,
+                GasUsage::All => {
+                    reset_error_hard!(self, OnChainError::EmptyGas);
+                    return Ok(());
+                },
+            };
+
             let position = pc.position();
             let memory_cost = memory_cost(instruction, &self.state);
             let memory_gas = memory_gas(memory_cost);
@@ -344,16 +401,16 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             let gas_stipend = gas_stipend(instruction, &self.state);
             let gas_refund = gas_refund(instruction, &self.state);
 
-            let all_gas_cost = memory_gas + self.state.used_gas + gas_cost;
+            let all_gas_cost = memory_gas + used_gas + gas_cost;
             if self.state.context.gas_limit < all_gas_cost {
-                self.status = MachineStatus::ExitedErr(OnChainError::EmptyGas);
+                reset_error_hard!(self, OnChainError::EmptyGas);
                 return Ok(());
             }
 
             match check_support(instruction, &self.state) {
                 Ok(()) => (),
                 Err(err) => {
-                    self.status = MachineStatus::ExitedNotSupported(err);
+                    reset_error_not_supported!(self, err);
                     return Ok(());
                 },
             };
@@ -363,7 +420,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             match extra_check_opcode::<M, P>(instruction, &self.state, gas_stipend, after_gas) {
                 Ok(()) => (),
                 Err(err) => {
-                    self.status = MachineStatus::ExitedErr(err);
+                    reset_error_hard!(self, err);
                     return Ok(());
                 },
             }
@@ -380,7 +437,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         let result = run_opcode::<M, P>((instruction, position),
                                         &mut self.state, runtime, gas_stipend, after_gas);
 
-        self.state.used_gas = self.state.used_gas + gas_cost - gas_stipend;
+        self.state.used_gas += gas_cost - gas_stipend;
         self.state.memory_cost = memory_cost;
         self.state.refunded_gas = self.state.refunded_gas + gas_refund;
 
@@ -402,6 +459,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             },
             Some(Control::Stop) => {
                 self.status = MachineStatus::ExitedOk;
+                Ok(())
+            },
+            Some(Control::Revert) => {
+                reset_error_revert!(self);
                 Ok(())
             },
         }

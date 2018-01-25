@@ -150,7 +150,7 @@ pub fn static_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipe
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
 
-    let mut context = transaction.into_context::<P>(
+    let context = transaction.into_context::<P>(
         Gas::zero(), Some(state.context.origin), &mut state.account_state, true,
         true,
     ).unwrap();

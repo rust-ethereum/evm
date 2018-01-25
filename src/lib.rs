@@ -319,16 +319,9 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     }
 
     fn used_gas(&self) -> Gas {
-        match self.machines[0].status() {
-            MachineStatus::ExitedErr(_) =>
-                self.machines[0].state().context.gas_limit,
-            MachineStatus::ExitedOk => {
-                let total_used = self.machines[0].state().memory_gas() + self.machines[0].state().used_gas;
-                let refund_cap = total_used / Gas::from(2u64);
-                let refunded = min(refund_cap, self.machines[0].state().refunded_gas);
-                total_used - refunded
-            }
-            _ => Gas::zero(),
-        }
+        let total_used = self.machines[0].state().total_used_gas();
+        let refund_cap = total_used / Gas::from(2u64);
+        let refunded = min(refund_cap, self.machines[0].state().refunded_gas);
+        total_used - refunded
     }
 }

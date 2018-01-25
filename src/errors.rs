@@ -38,6 +38,8 @@ pub enum OnChainError {
     InvalidRange,
     /// In static context but does mutation.
     NotStatic,
+    /// Invoked by REVERT opcode.
+    Revert,
 }
 
 impl From<OnChainError> for RuntimeError {

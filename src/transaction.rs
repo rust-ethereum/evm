@@ -19,7 +19,7 @@ use super::errors::{RequireError, CommitError};
 use super::errors::PreExecutionError;
 use super::{State, Machine, Context, ContextVM, VM, AccountState,
             BlockhashState, Patch, HeaderParams, Memory, VMStatus,
-            AccountCommitment, Log, AccountChange, MachineStatus,
+            AccountCommitment, Log, AccountChange,
             Instruction, Opcode};
 
 use block_core::TransactionAction;
@@ -534,17 +534,10 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
     fn used_gas(&self) -> Gas {
         match self.0 {
             TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
-                match vm.machines[0].status() {
-                    MachineStatus::ExitedErr(_) =>
-                        vm.machines[0].state().context.gas_limit + intrinsic_gas,
-                    MachineStatus::ExitedOk => {
-                        let total_used = vm.machines[0].state().memory_gas() + vm.machines[0].state().used_gas + intrinsic_gas;
-                        let refund_cap = total_used / Gas::from(2u64);
-                        let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
-                        total_used - refunded
-                    }
-                    _ => Gas::zero(),
-                }
+                let total_used = vm.machines[0].state().total_used_gas() + intrinsic_gas;
+                let refund_cap = total_used / Gas::from(2u64);
+                let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
+                total_used - refunded
             }
             TransactionVMState::Constructing { .. } => Gas::zero(),
         }
