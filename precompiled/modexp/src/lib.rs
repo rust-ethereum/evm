@@ -2,6 +2,9 @@ extern crate bigint;
 extern crate num_bigint;
 extern crate evm;
 
+#[cfg(test)]
+extern crate hexutil;
+
 use std::rc::Rc;
 use bigint::{Gas, U256};
 
@@ -19,7 +22,7 @@ impl Precompiled for ModexpPrecompiled {
         fn adjusted_exponent_length(exponent_length: U256, base_length: U256, data: &[u8]) -> U256 {
             let mut exp32_arr = Vec::new();
             for i in 0..32 {
-                if U256::from(data.len()) < U256::from(96) + base_length + U256::from(i) {
+                if U256::from(96) + base_length + U256::from(i) >= U256::from(data.len()) {
                     exp32_arr.push(0u8);
                 } else {
                     let base_length_usize: usize = base_length.as_usize();
@@ -38,13 +41,18 @@ impl Precompiled for ModexpPrecompiled {
             }
         }
 
-        fn mult_complexity(x: U256) -> U256 {
+        fn mult_complexity(x: U256) -> Result<U256, RuntimeError> {
             if x <= U256::from(64) {
-                x * x
+                Ok(x * x)
             } else if x <= U256::from(1024) {
-                x * x / U256::from(4) + U256::from(96) * x - U256::from(3072)
+                Ok(x * x / U256::from(4) + U256::from(96) * x - U256::from(3072))
             } else {
-                x * x / U256::from(16) + U256::from(480) * x - U256::from(199680)
+                let (sqr, o) = x.overflowing_mul(x);
+                if o {
+                    Err(RuntimeError::OnChain(OnChainError::EmptyGas))
+                } else {
+                    Ok(sqr / U256::from(16) + U256::from(480) * x - U256::from(199680))
+                }
             }
         }
 
@@ -58,7 +66,13 @@ impl Precompiled for ModexpPrecompiled {
         let exponent_length = U256::from(&data[32..64]);
         let modulus_length = U256::from(&data[64..96]);
 
-        let gas: Gas = (mult_complexity(cmp::max(modulus_length, base_length)) * cmp::max(adjusted_exponent_length(exponent_length, base_length, &data), U256::from(1)) / U256::from(20)).into();
+        let op1 = mult_complexity(cmp::max(modulus_length, base_length))?;
+        let op2 = cmp::max(adjusted_exponent_length(exponent_length, base_length, &data), U256::from(1)) / U256::from(20);
+        let (r, o) = op1.overflowing_mul(op2);
+        if o {
+            return Err(RuntimeError::OnChain(OnChainError::EmptyGas));
+        }
+        let gas: Gas = r.into();
 
         if gas > gas_limit {
             return Err(RuntimeError::OnChain(OnChainError::EmptyGas));
@@ -80,21 +94,21 @@ impl Precompiled for ModexpPrecompiled {
         let mut modulus_arr = Vec::new();
 
         for i in 0..base_length {
-            if data.len() < 96 + i {
+            if 96 + i >= data.len() {
                 base_arr.push(0u8);
             } else {
                 base_arr.push(data[96 + i]);
             }
         }
         for i in 0..exponent_length {
-            if data.len() < 96 + base_length + i {
+            if 96 + base_length + i >= data.len() {
                 exponent_arr.push(0u8);
             } else {
                 exponent_arr.push(data[96 + base_length + i]);
             }
         }
         for i in 0..modulus_length {
-            if data.len() < 96 + base_length + exponent_length + i {
+            if 96 + base_length + exponent_length + i >= data.len() {
                 modulus_arr.push(0u8);
             } else {
                 modulus_arr.push(data[96 + base_length + exponent_length + i]);
@@ -112,5 +126,53 @@ impl Precompiled for ModexpPrecompiled {
         }
 
         Ok((gas, Rc::new(result)))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use ::*;
+    use bigint::*;
+    use hexutil::*;
+
+    #[test]
+    fn spec_test1() {
+        let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002003fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").unwrap();
+        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let expected = read_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
+        assert_eq!(expected, Rc::try_unwrap(output).unwrap());
+    }
+
+    #[test]
+    fn spec_test2() {
+        let input = read_hex("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").unwrap();
+        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let expected = read_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
+        assert_eq!(expected, Rc::try_unwrap(output).unwrap());
+    }
+
+    #[test]
+    fn spec_test3() {
+        let input = read_hex("00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd").unwrap();
+        match MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)) {
+            Ok(_) => panic!(),
+            Err(_) => (),
+        }
+    }
+
+    #[test]
+    fn spec_test4() {
+        let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002003ffff800000000000000000000000000000000000000000000000000000000000000007").unwrap();
+        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let expected = read_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
+        assert_eq!(expected, Rc::try_unwrap(output).unwrap());
+    }
+
+    #[test]
+    fn sepc_test5() {
+        let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002003ffff80").unwrap();
+        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let expected = read_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
+        assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
 }

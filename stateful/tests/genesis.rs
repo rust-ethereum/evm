@@ -74,27 +74,14 @@ fn morden_state_root() {
 
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
-        let empty_input = Rc::new(Vec::new());
 
-        let vm: SeqTransactionVM<EIP160Patch<MordenAccountPatch>> = stateful.execute(ValidTransaction {
-            caller: None,
-            gas_price: Gas::zero(),
-            gas_limit: Gas::from(100000u64),
-            action: TransactionAction::Call(address),
-            value: balance,
-            input: empty_input.clone(),
-            nonce: U256::zero(),
-        }, HeaderParams {
-            beneficiary: Address::default(),
-            timestamp: 0,
-            number: U256::zero(),
-            difficulty: U256::zero(),
-            gas_limit: Gas::max_value()
-        }, &[]);
-        match vm.status() {
-            VMStatus::ExitedOk => (),
-            _ => panic!(),
-        }
+        stateful.sets(
+            &[(address, LiteralAccount {
+                nonce: U256::from(2u64.pow(20)),
+                storage: HashMap::new(),
+                code: Vec::new(),
+                balance,
+            })]);
     }
 
     assert_eq!(stateful.root(), H256::from("0xf3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9"));

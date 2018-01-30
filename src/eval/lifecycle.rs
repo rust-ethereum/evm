@@ -122,7 +122,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     ///
     /// ### Panic
     /// Requires caller of the transaction to be committed.
-    pub fn finalize(&mut self, beneficiary: Address, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
+    pub fn finalize_transaction(&mut self, beneficiary: Address, real_used_gas: Gas, preclaimed_value: U256, fresh_account_state: &AccountState<P::Account>) -> Result<(), RequireError> {
         self.state.account_state.require(self.state.context.address)?;
         if !P::Account::allow_partial_change() {
             self.state.account_state.require(beneficiary)?;
@@ -162,6 +162,17 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         match self.status() {
             MachineStatus::ExitedOk => Ok(()),
             MachineStatus::ExitedErr(_) => Ok(()),
+            _ => panic!(),
+        }
+    }
+
+    pub fn finalize_context(&mut self, fresh_account_state: &AccountState<P::Account>) {
+        match self.status() {
+            MachineStatus::ExitedOk => (),
+            MachineStatus::ExitedErr(_) => {
+                self.state.account_state = fresh_account_state.clone();
+                self.state.removed = Vec::new();
+            },
             _ => panic!(),
         }
     }

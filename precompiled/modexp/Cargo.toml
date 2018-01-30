@@ -9,3 +9,6 @@ repository = "https://source.that.world/source/evm-rs"
 evm = { version = "0.9", path = "../.." }
 ethereum-bigint = { version = "0.2", default-features = false }
 num-bigint = "0.1"
+
+[dev-dependencies]
+ethereum-hexutil = "0.2"

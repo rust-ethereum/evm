@@ -428,9 +428,9 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                         }
 
                         if !*finalized {
-                            vm.machines[0].finalize(vm.runtime.block.beneficiary,
-                                                    real_used_gas, preclaimed_value,
-                                                    fresh_account_state)?;
+                            vm.machines[0].finalize_transaction(vm.runtime.block.beneficiary,
+                                                                real_used_gas, preclaimed_value,
+                                                                fresh_account_state)?;
                             *finalized = true;
                             return Ok(());
                         }
@@ -460,15 +460,17 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         }
 
         let account_state = caccount_state;
-        let mut vm = ContextVM::with_states(ccontext, cblock,
-                                            account_state.clone(),
-                                            cblockhash_state);
-
-        if ccode_deposit {
-            vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
-        } else {
-            vm.machines[0].initialize_call(cpreclaimed_value).unwrap();
-        }
+        let mut vm = ContextVM::with_init(
+            ccontext, cblock,
+            account_state.clone(),
+            cblockhash_state,
+            |vm| {
+                if ccode_deposit {
+                    vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
+                } else {
+                    vm.machines[0].initialize_call(cpreclaimed_value).unwrap();
+                }
+            });
 
         self.0 = TransactionVMState::Running {
             fresh_account_state: account_state,
@@ -548,6 +550,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
 mod tests {
     use ::*;
     use bigint::*;
+    use hexutil::*;
     use block::TransactionAction;
     use std::str::FromStr;
     use std::rc::Rc;
@@ -624,5 +627,40 @@ mod tests {
             },
             _ => panic!()
         }
+    }
+
+    #[test]
+    fn eip140_spec_test() {
+        let context = Context {
+            address: Address::default(),
+            caller: Address::default(),
+            code: Rc::new(read_hex("6c726576657274656420646174616000557f726576657274206d657373616765000000000000000000000000000000000000600052600e6000fd").unwrap()),
+            data: Rc::new(Vec::new()),
+            gas_limit: Gas::from(100000usize),
+            gas_price: Gas::from(0usize),
+            origin: Address::default(),
+            value: U256::zero(),
+            apprent_value: U256::zero(),
+            is_system: false,
+            is_static: false,
+        };
+
+        let header = HeaderParams {
+            beneficiary: Address::default(),
+            timestamp: 0,
+            number: U256::zero(),
+            difficulty: U256::zero(),
+            gas_limit: Gas::from(100000usize),
+        };
+
+        let mut vm = SeqContextVM::<EmbeddedByzantiumPatch>::new(context, header);
+        vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
+        vm.fire().unwrap();
+
+        assert_eq!(vm.used_gas(), Gas::from(20024usize));
+        let out: Vec<u8> = vm.out().into();
+        assert_eq!(out, read_hex("726576657274206d657373616765").unwrap());
+        println!("accounts: {:?}", vm.accounts());
+        assert_eq!(vm.accounts().len(), 0);
     }
 }

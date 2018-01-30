@@ -39,6 +39,9 @@ extern crate secp256k1;
 #[cfg(feature = "std")]
 extern crate block;
 
+#[cfg(test)]
+extern crate hexutil;
+
 mod util;
 mod memory;
 mod stack;
@@ -149,7 +152,8 @@ pub type SeqTransactionVM<P> = TransactionVM<SeqMemory<P>, P>;
 pub struct ContextVM<M, P: Patch> {
     runtime: Runtime,
     machines: Vec<Machine<M, P>>,
-    history: Vec<Context>
+    history: Vec<Context>,
+    fresh_account_state: AccountState<P::Account>,
 }
 
 impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
@@ -160,7 +164,8 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
         ContextVM {
             machines,
             runtime: Runtime::new(block),
-            history: Vec::new()
+            history: Vec::new(),
+            fresh_account_state: AccountState::default(),
         }
     }
 
@@ -168,12 +173,24 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     pub fn with_states(context: Context, block: HeaderParams,
                        account_state: AccountState<P::Account>, blockhash_state: BlockhashState) -> Self {
         let mut machines = Vec::new();
-        machines.push(Machine::with_states(context, 1, account_state));
+        machines.push(Machine::with_states(context, 1, account_state.clone()));
         ContextVM {
             machines,
             runtime: Runtime::with_states(block, blockhash_state),
-            history: Vec::new()
+            history: Vec::new(),
+            fresh_account_state: account_state,
         }
+    }
+
+    /// Create a new VM with customized initialization code.
+    pub fn with_init<F: FnOnce(&mut ContextVM<M, P>)>(
+        context: Context, block: HeaderParams,
+        account_state: AccountState<P::Account>, blockhash_state: BlockhashState,
+        f: F) -> Self {
+        let mut vm = Self::with_states(context, block, account_state, blockhash_state);
+        f(&mut vm);
+        vm.fresh_account_state = vm.machines[0].state().account_state.clone();
+        vm
     }
 
     /// Create a new VM with the result of the previous VM. This is
@@ -247,7 +264,15 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
     fn step(&mut self) -> Result<(), RequireError> {
         match self.machines.last().unwrap().status().clone() {
             MachineStatus::Running => {
-                self.machines.last_mut().unwrap().step(&self.runtime)
+                self.machines.last_mut().unwrap().step(&self.runtime)?;
+                if self.machines.len() == 1 {
+                    match self.machines.last().unwrap().status().clone() {
+                        MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) =>
+                            self.machines.last_mut().unwrap().finalize_context(&self.fresh_account_state),
+                        _ => (),
+                    }
+                }
+                Ok(())
             },
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
                 if self.machines.len() == 0 {
