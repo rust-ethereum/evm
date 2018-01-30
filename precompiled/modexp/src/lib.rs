@@ -132,6 +132,7 @@ impl Precompiled for ModexpPrecompiled {
 #[cfg(test)]
 mod tests {
     use ::*;
+    use bigint::*;
     use hexutil::*;
 
     #[test]

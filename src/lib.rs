@@ -158,6 +158,7 @@ pub type SeqTransactionVM<P> = TransactionVM<SeqMemory<P>, P>;
 pub struct ContextVM<M, P: Patch> {
     runtime: Runtime,
     machines: Vec<Machine<M, P>>,
+    history: Vec<Context>,
     fresh_account_state: AccountState<P::Account>,
 }
 
@@ -169,6 +170,7 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
         ContextVM {
             machines,
             runtime: Runtime::new(block),
+            history: Vec::new(),
             fresh_account_state: AccountState::default(),
         }
     }
@@ -181,6 +183,7 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
         ContextVM {
             machines,
             runtime: Runtime::with_states(block, blockhash_state),
+            history: Vec::new(),
             fresh_account_state: account_state,
         }
     }
