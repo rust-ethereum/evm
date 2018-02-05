@@ -10,6 +10,7 @@ pub use self::blockchain::{JSONBlock, create_block, create_context};
 use serde_json::Value;
 use std::str::FromStr;
 use std::ops::Deref;
+use std::sync::{Arc, Mutex};
 use bigint::{Gas, M256, U256, H256, Address};
 use hexutil::*;
 use evm::errors::RequireError;
@@ -71,7 +72,7 @@ pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqContextVM<VMTestPatch>
     SeqContextVM::<VMTestPatch>::new(transaction, block.block_header())
 }
 
-pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSONBlock, debug: bool) -> bool {
+pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSONBlock, history: &Vec<Context>, debug: bool) -> bool {
     let ref callcreates = v["callcreates"];
 
     if callcreates.as_array().is_some() {
@@ -89,14 +90,14 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
             let gas_limit = Gas::from_str(callcreate["gasLimit"].as_str().unwrap()).unwrap();
             let value = U256::from_str(callcreate["value"].as_str().unwrap()).unwrap();
 
-            if i >= machine.history().len() {
+            if i >= history.len() {
                 if debug {
                     print!("\n");
                     println!("Transaction check failed, expected more than {} items.", i);
                 }
                 return false;
             }
-            let ref transaction = machine.history()[i];
+            let ref transaction = history[i];
             if destination.is_some() {
                 if transaction.address != destination.unwrap() {
                     if debug {
@@ -253,7 +254,12 @@ fn is_ok(status: VMStatus) -> bool {
 
 pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
     let mut block = create_block(v);
+    let mut history: Arc<Mutex<Vec<Context>>> = Arc::new(Mutex::new(Vec::new()));
+    let mut history_closure = history.clone();
     let mut machine = create_machine(v, &block);
+    machine.add_context_history_hook(move |context| {
+        history_closure.lock().unwrap().push(context.clone());
+    });
     fire_with_block(&mut machine, &block);
     apply_to_block(&machine, &mut block);
 
@@ -264,7 +270,7 @@ pub fn test_transaction(name: &str, v: &Value, debug: bool) -> bool {
 
     if out.is_some() {
         if is_ok(machine.status()) {
-            if test_machine(v, &machine, &block, debug) {
+            if test_machine(v, &machine, &block, &history.lock().unwrap(), debug) {
                 return true;
             } else {
                 return false;
