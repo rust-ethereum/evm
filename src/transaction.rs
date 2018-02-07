@@ -474,7 +474,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         }
 
         let account_state = caccount_state;
-        let mut vm = ContextVM::with_init(
+        let vm = ContextVM::with_init(
             ccontext, cblock,
             account_state.clone(),
             cblockhash_state,

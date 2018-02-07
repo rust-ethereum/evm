@@ -3,7 +3,6 @@ use hexutil::*;
 use evm::{Log, Context,
           AccountChange, AccountCommitment,
           HeaderParams};
-
 use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;

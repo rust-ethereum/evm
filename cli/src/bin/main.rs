@@ -30,7 +30,7 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
         timestamp: U256::from_str(&block.timestamp).unwrap().as_u64(),
         number: U256::from_str(&block.number).unwrap(),
         difficulty: U256::from_str(&block.difficulty).unwrap(),
-        gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
+        gas_limit: Gas::from_str(&block.gas_limit).unwrap(),
     }
 }
 
