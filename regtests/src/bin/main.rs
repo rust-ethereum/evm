@@ -8,24 +8,20 @@ extern crate block;
 extern crate bigint;
 extern crate hexutil;
 
-use serde_json::{Value};
-use std::process;
 use std::fs::File;
-use std::path::Path;
-use std::io::{BufReader};
 use std::str::FromStr;
 use std::rc::Rc;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use block::TransactionAction;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::*;
-use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
+use evm::{HeaderParams, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
           AccountCommitment, AccountChange};
 use evm_network_classic::{MainnetFrontierPatch, MainnetHomesteadPatch,
                           MainnetEIP150Patch, MainnetEIP160Patch};
 use evm::errors::RequireError;
-use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCCall, RPCBlock, RPCTransaction, RPCLog};
+use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCBlock, RPCTransaction, RPCLog};
 
 fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
     HeaderParams {
@@ -33,7 +29,7 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
         timestamp: U256::from_str(&block.timestamp).unwrap().into(),
         number: U256::from_str(&block.number).unwrap(),
         difficulty: U256::from_str(&block.difficulty).unwrap(),
-        gas_limit: Gas::from_str(&block.gasLimit).unwrap(),
+        gas_limit: Gas::from_str(&block.gas_limit).unwrap(),
     }
 }
 
@@ -47,7 +43,7 @@ fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
         },
         value: U256::from_str(&transaction.value).unwrap(),
         gas_limit: Gas::from_str(&transaction.gas).unwrap(),
-        gas_price: Gas::from_str(&transaction.gasPrice).unwrap(),
+        gas_price: Gas::from_str(&transaction.gas_price).unwrap(),
         input: Rc::new(read_hex(&transaction.input).unwrap()),
         nonce: U256::from_str(&transaction.nonce).unwrap(),
     }
@@ -116,7 +112,7 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                 println!("Feeding blockhash with number 0x{:x} ...", number);
                 let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
                                           .hash).unwrap();
-                vm.commit_blockhash(number, hash);
+                vm.commit_blockhash(number, hash).unwrap();
             },
         }
     }
@@ -165,7 +161,7 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
         handle_fire(client, &mut vm, last_id);
 
-        assert!(Gas::from_str(&receipt.gasUsed).unwrap() == vm.used_gas());
+        assert!(Gas::from_str(&receipt.gas_used).unwrap() == vm.used_gas());
         assert!(receipt.logs.len() == vm.logs().len());
         for i in 0..receipt.logs.len() {
             assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
@@ -301,7 +297,7 @@ fn main() {
                 let mut file = File::create(val).unwrap();
                 let mut client = RecordGethRPCClient::new(address);
                 test_blocks_patch(&mut client, number, patch);
-                serde_json::to_writer(&mut file, &client.to_value());
+                serde_json::to_writer(&mut file, &client.to_value()).unwrap();
             },
             None => {
                 let mut client = NormalGethRPCClient::new(address);

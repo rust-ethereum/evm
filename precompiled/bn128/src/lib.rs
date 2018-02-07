@@ -6,7 +6,7 @@ use std::rc::Rc;
 use bigint::{Gas, U256};
 
 use evm::Precompiled;
-use evm::errors::{OnChainError, RuntimeError, NotSupportedError};
+use evm::errors::{OnChainError, RuntimeError};
 
 pub static BN128_ADD_PRECOMPILED: Bn128AddPrecompiled = Bn128AddPrecompiled;
 

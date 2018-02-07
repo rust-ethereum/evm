@@ -1,7 +1,7 @@
 use bigint::{Gas, M256, U256, H256, Address};
 use hexutil::*;
-use evm::{Machine, Log, Context,
-          AccountChange, Storage, AccountCommitment,
+use evm::{Log, Context,
+          AccountChange, AccountCommitment,
           HeaderParams};
 
 use serde_json::Value;
@@ -78,11 +78,11 @@ impl JSONBlock {
     pub fn apply_account(&mut self, account: AccountChange) {
         match account {
             AccountChange::Full {
-                address: address,
-                balance: balance,
-                changing_storage: changing_storage,
-                code: code,
-                nonce: nonce,
+                address,
+                balance,
+                changing_storage,
+                code,
+                nonce,
             } => {
                 self.set_balance(address, balance);
                 self.set_account_code(address, code.as_slice());

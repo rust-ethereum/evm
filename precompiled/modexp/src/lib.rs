@@ -132,13 +132,12 @@ impl Precompiled for ModexpPrecompiled {
 #[cfg(test)]
 mod tests {
     use ::*;
-    use bigint::*;
     use hexutil::*;
 
     #[test]
     fn spec_test1() {
         let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002003fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").unwrap();
-        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
         let expected = read_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
@@ -146,7 +145,7 @@ mod tests {
     #[test]
     fn spec_test2() {
         let input = read_hex("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").unwrap();
-        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
         let expected = read_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
@@ -163,7 +162,7 @@ mod tests {
     #[test]
     fn spec_test4() {
         let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002003ffff800000000000000000000000000000000000000000000000000000000000000007").unwrap();
-        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
         let expected = read_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
@@ -171,7 +170,7 @@ mod tests {
     #[test]
     fn sepc_test5() {
         let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002003ffff80").unwrap();
-        let (gas, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
         let expected = read_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }

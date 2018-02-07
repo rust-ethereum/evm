@@ -11,7 +11,7 @@ use hexutil::*;
 use block::TransactionAction;
 use bigint::{Address, U256, Gas};
 use evm::{AccountChange, HeaderParams, SeqTransactionVM, VM, Storage, ValidTransaction};
-use evm_network_classic::{MainnetEIP160Patch, EIP160Patch};
+use evm_network_classic::MainnetEIP160Patch;
 use trie::MemoryDatabase;
 use evm_stateful::{MemoryStateful, LiteralAccount};
 use std::thread;

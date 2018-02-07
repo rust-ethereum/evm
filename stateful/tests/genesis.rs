@@ -15,8 +15,8 @@ extern crate evm_network_classic;
 
 use sha3::{Digest, Keccak256};
 use bigint::{H256, U256, Address, Gas};
-use evm::{ValidTransaction, Storage, AccountChange, VM, SeqTransactionVM, HeaderParams, VMStatus, AccountPatch};
-use evm_network_classic::{MainnetEIP160Patch, EIP160Patch};
+use evm::{ValidTransaction, VM, SeqTransactionVM, HeaderParams, VMStatus};
+use evm_network_classic::MainnetEIP160Patch;
 use evm_stateful::{MemoryStateful, LiteralAccount};
 use block::TransactionAction;
 use trie::{Database, MemoryDatabase};
@@ -42,7 +42,7 @@ lazy_static! {
 
 #[test]
 fn secure_trie() {
-    let mut database = MemoryDatabase::new();
+    let database = MemoryDatabase::new();
     let mut trie = database.create_empty();
 
     trie.insert_raw(Keccak256::digest("doe".as_bytes()).as_slice().into(),
@@ -65,13 +65,6 @@ fn morden_state_root() {
     rng.shuffle(&mut accounts);
 
     for (key, value) in accounts {
-        struct MordenAccountPatch;
-        impl AccountPatch for MordenAccountPatch {
-            fn initial_nonce() -> U256 { U256::from(2u64.pow(20)) }
-            fn initial_create_nonce() -> U256 { Self::initial_nonce() }
-            fn empty_considered_exists() -> bool { true }
-        }
-
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 

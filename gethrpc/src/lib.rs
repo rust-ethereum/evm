@@ -10,13 +10,11 @@ mod record;
 
 pub use record::{RecordGethRPCClient, CachedGethRPCClient};
 
-use std::process::Command;
 use std::io::Read;
 use hyper::header::ContentType;
 use hyper::Client;
 use hyper::net::HttpsConnector;
 use hyper_native_tls::NativeTlsClient;
-use serde_json::Value;
 
 #[derive(Serialize, Deserialize)]
 struct RPCRequest {
@@ -42,47 +40,50 @@ struct RPCObjectResponse<T> {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RPCTransaction {
     pub hash: String,
     pub nonce: String,
-    pub blockHash: String,
-    pub blockNumber: String,
-    pub transactionIndex: String,
+    pub block_hash: String,
+    pub block_number: String,
+    pub transaction_index: String,
     pub from: String,
     pub to: String,
     pub value: String,
     pub gas: String,
-    pub gasPrice: String,
+    pub gas_price: String,
     pub input: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RPCCall {
     pub from: String,
     pub to: String,
     pub gas: String,
-    pub gasPrice: String,
+    pub gas_price: String,
     pub value: String,
     pub data: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RPCBlock {
     pub number: String,
     pub hash: String,
-    pub parentHash: String,
+    pub parent_hash: String,
     pub nonce: String,
-    pub sha3Uncles: String,
-    pub logsBloom: String,
-    pub transactionsRoot: String,
-    pub stateRoot: String,
+    pub sha3_uncles: String,
+    pub logs_bloom: String,
+    pub transactions_root: String,
+    pub state_root: String,
     pub miner: String,
     pub difficulty: String,
-    pub totalDifficulty: String,
-    pub extraData: String,
+    pub total_difficulty: String,
+    pub extra_data: String,
     pub size: String,
-    pub gasLimit: String,
-    pub gasUsed: String,
+    pub gas_limit: String,
+    pub gas_used: String,
     pub timestamp: String,
     #[serde(default)]
     pub transactions: Vec<String>,
@@ -91,43 +92,47 @@ pub struct RPCBlock {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(untagged)]
+#[serde(rename_all = "camelCase")]
 pub enum RPCSyncStatus {
     NotSync(bool),
     Sync {
-        startingBlock: String,
-        currentBlock: String,
-        highestBlock: String,
+        starting_block: String,
+        current_block: String,
+        highest_block: String,
     },
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RPCTransactionReceipt {
-    pub transactionHash: String,
-    pub transactionIndex: String,
-    pub blockHash: String,
-    pub blockNumber: String,
-    pub cumulativeGasUsed: String,
-    pub gasUsed: String,
-    pub contractAddress: String,
+    pub transaction_hash: String,
+    pub transaction_index: String,
+    pub block_hash: String,
+    pub block_number: String,
+    pub cumulative_gas_used: String,
+    pub gas_used: String,
+    pub contract_address: String,
     pub logs: Vec<RPCLog>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RPCLog {
-    pub logIndex: String,
-    pub transactionIndex: String,
-    pub transactionHash: String,
-    pub blockHash: String,
-    pub blockNumber: String,
+    pub log_index: String,
+    pub transaction_index: String,
+    pub transaction_hash: String,
+    pub block_hash: String,
+    pub block_number: String,
     pub address: String,
     pub data: String,
     pub topics: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct RPCFilter {
-    pub fromBlock: String,
-    pub toBlock: String,
+    pub from_block: String,
+    pub to_block: String,
     pub address: String,
     pub topics: Vec<String>,
 }
@@ -156,7 +161,7 @@ pub trait GethRPCClient {
         self.rpc_request::<String>("net_peerCount", vec![])
     }
     fn sha3(&mut self, data: &str) -> String {
-        self.rpc_request::<String>("web3_sha3", vec![])
+        self.rpc_request::<String>("web3_sha3", vec![data.to_string()])
     }
     fn protocol_version(&mut self) -> String {
         self.rpc_request::<String>("eth_protocolVersion", vec![])
