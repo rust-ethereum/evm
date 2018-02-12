@@ -14,7 +14,7 @@
 #![deny(unused_import_braces, unused_imports,
         unused_comparisons, unused_must_use,
         unused_variables, non_shorthand_field_patterns,
-        unreachable_code)]
+        unreachable_code, missing_docs)]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
@@ -84,6 +84,11 @@ pub enum VMStatus {
     /// VM is stopped due to an error. The state of the VM is before
     /// the last failing instruction.
     ExitedErr(OnChainError),
+    /// VM is stopped because it does not support certain
+    /// operations. The client is expected to either drop the
+    /// transaction or panic. This rarely happens unless the executor
+    /// agrees upon on a really large number of gas limit, so it
+    /// usually can be safely ignored.
     ExitedNotSupported(NotSupportedError),
 }
 

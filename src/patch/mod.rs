@@ -87,6 +87,7 @@ pub trait Patch {
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)];
 }
 
+/// Default precompiled collections.
 pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,

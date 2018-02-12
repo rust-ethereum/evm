@@ -16,6 +16,7 @@ pub enum PreExecutionError {
 }
 
 #[derive(Debug, Clone)]
+/// Errors that can be written on chain.
 pub enum OnChainError {
     /// Stack is overflowed (pushed more than 1024 items to the
     /// stack).
@@ -61,6 +62,8 @@ impl From<OnChainError> for EvalError {
 }
 
 #[derive(Debug, Clone)]
+/// Errors when the VM detects that it does not support certain
+/// operations.
 pub enum NotSupportedError {
     /// The memory index is too large for the implementation of the VM to
     /// handle.
@@ -82,6 +85,8 @@ impl From<NotSupportedError> for EvalError {
 }
 
 #[derive(Debug, Clone)]
+/// Runtime error. Can either be an on-chain error or a not-supported
+/// error.
 pub enum RuntimeError {
     /// On chain error.
     OnChain(OnChainError),
@@ -101,8 +106,12 @@ impl From<RuntimeError> for EvalError {
 }
 
 #[derive(Debug, Clone)]
+/// Eval on-chain error. Can either be an on-chain error or a require
+/// error.
 pub enum EvalOnChainError {
+    /// On chain error.
     OnChain(OnChainError),
+    /// Require error for additional accounts.
     Require(RequireError),
 }
 
@@ -118,9 +127,13 @@ impl From<EvalOnChainError> for EvalError {
 }
 
 #[derive(Debug, Clone)]
+/// Eval error. On-chain error, not-supported error or require error.
 pub enum EvalError {
+    /// On chain error.
     OnChain(OnChainError),
+    /// Off chain error due to VM not supported.
     NotSupported(NotSupportedError),
+    /// Require error for additional accounts.
     Require(RequireError),
 }
 

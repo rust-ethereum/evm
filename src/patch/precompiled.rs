@@ -53,6 +53,7 @@ impl Precompiled for IDPrecompiled {
         Rc::new(data.into())
     }
 }
+/// Static value of ID precompiled contract.
 pub static ID_PRECOMPILED: IDPrecompiled = IDPrecompiled;
 
 /// RIP160 precompiled contract.
@@ -74,6 +75,7 @@ impl Precompiled for RIP160Precompiled {
         Rc::new(result.as_ref().into())
     }
 }
+/// Static value of RIP160 precompiled contract.
 pub static RIP160_PRECOMPILED: RIP160Precompiled = RIP160Precompiled;
 
 /// SHA256 precompiled contract.
@@ -96,6 +98,7 @@ impl Precompiled for SHA256Precompiled {
         Rc::new(result.as_ref().into())
     }
 }
+/// Static value of SHA256 precompiled contract.
 pub static SHA256_PRECOMPILED: SHA256Precompiled = SHA256Precompiled;
 
 /// ECREC precompiled contract.
@@ -130,6 +133,7 @@ impl Precompiled for ECRECPrecompiled {
         Err(RuntimeError::NotSupported(NotSupportedError::PrecompiledNotSupported))
     }
 }
+/// Static value of ECREC precompiled contract.
 pub static ECREC_PRECOMPILED: ECRECPrecompiled = ECRECPrecompiled;
 
 fn gas_div_ceil(a: Gas, b: Gas) -> Gas {

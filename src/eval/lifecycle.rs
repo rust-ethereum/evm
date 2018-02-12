@@ -118,7 +118,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Finalize a transaction. This should not be used when invoked
-    /// by an opcode.
+    /// by an opcode and should only be used in the top level.
     ///
     /// ### Panic
     /// Requires caller of the transaction to be committed.
@@ -166,6 +166,11 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
     }
 
+    /// Finalize a context execution. This should not be used when
+    /// invoked by an opcode and should only be used in the top level.
+    ///
+    /// ### Panic
+    /// Requires caller of the transaction to be committed.
     pub fn finalize_context(&mut self, fresh_account_state: &AccountState<P::Account>) {
         match self.status() {
             MachineStatus::ExitedOk => (),

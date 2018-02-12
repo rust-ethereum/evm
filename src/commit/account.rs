@@ -171,6 +171,8 @@ pub enum AccountChange {
         /// Code associated with this account.
         code: Rc<Vec<u8>>
     },
+    /// The account should remain nonexist, or should be deleted if
+    /// exists.
     Nonexist(Address)
 }
 

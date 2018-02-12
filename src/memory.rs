@@ -50,6 +50,7 @@ impl<P: Patch> Default for SeqMemory<P> {
 }
 
 impl<P: Patch> SeqMemory<P> {
+    /// Get the length of the current effective memory range.
     pub fn len(&self) -> usize {
         self.memory.len()
     }

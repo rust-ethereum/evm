@@ -141,10 +141,12 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    /// Create a new VM runtime.
     pub fn new(block: HeaderParams) -> Self {
         Self::with_states(block, BlockhashState::default())
     }
 
+    /// Create the runtime with the given blockhash state.
     pub fn with_states(block: HeaderParams, blockhash_state: BlockhashState) -> Self {
         Runtime {
             block, blockhash_state,
@@ -171,6 +173,10 @@ pub enum MachineStatus {
     /// This runtime has exited with errors. Calling `step` on this
     /// runtime again would panic.
     ExitedErr(OnChainError),
+    /// This runtime has exited because it does not support certain
+    /// operations. Unlike `ExitedErr`, this is not on-chain, and if
+    /// it happens, client should either drop the transaction or panic
+    /// (because it rarely happens).
     ExitedNotSupported(NotSupportedError),
     /// This runtime requires execution of a sub runtime, which is a
     /// ContractCreation instruction.
@@ -298,6 +304,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         return false;
     }
 
+    /// Peek the next instruction.
     pub fn peek(&self) -> Option<Instruction> {
         let pc = PC::<P>::new(&self.state.context.code,
                               &self.state.valids, &self.state.position);
@@ -307,6 +314,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
     }
 
+    /// Peek the next opcode.
     pub fn peek_opcode(&self) -> Option<Opcode> {
         let pc = PC::<P>::new(&self.state.context.code,
                               &self.state.valids, &self.state.position);
