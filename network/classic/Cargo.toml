@@ -1,6 +1,6 @@
 [package]
 name = "evm-network-classic"
-version = "0.0.1"
+version = "0.10.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 repository = "https://source.that.world/source/evm-rs"
