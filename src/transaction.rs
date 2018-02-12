@@ -52,6 +52,7 @@ macro_rules! system_address {
 /// Because the transaction reward is always zero, a SYSTEM
 /// transaction will also not invoke creation of the beneficiary
 /// address if it does not exist before.
+#[derive(Debug, Clone)]
 pub struct UntrustedTransaction {
     pub caller: AccountCommitment,
     pub gas_price: Gas,
