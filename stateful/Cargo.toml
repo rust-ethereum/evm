@@ -7,7 +7,7 @@ authors = ["Wei Tang <hi@that.world>"]
 repository = "https://source.that.world/source/evm-rs"
 
 [dependencies]
-evm = { version = "0.9", path = '..' }
+evm = { version = "0.10", path = '..' }
 ethereum-bigint = "0.2"
 ethereum-trie = "0.3"
 ethereum-block = "0.3"
