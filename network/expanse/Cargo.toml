@@ -1,12 +1,13 @@
 [package]
 name = "evm-network-expanse"
-version = "0.0.1"
+version = "0.10.0"
+description = "Expanse patches for SputnikVM."
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 repository = "https://source.that.world/source/evm-rs"
 
 [dependencies]
 evm = { version = "0.10", path = "../.." }
-evm-precompiled-bn128 = { path = "../../precompiled/bn128" }
-evm-precompiled-modexp = { path = "../../precompiled/modexp" }
+evm-precompiled-bn128 = { version = "0.10", path = "../../precompiled/bn128" }
+evm-precompiled-modexp = { version = "0.10", path = "../../precompiled/modexp" }
 ethereum-bigint = { version = "0.2", default-features = false }
