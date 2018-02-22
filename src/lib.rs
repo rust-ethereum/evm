@@ -61,7 +61,7 @@ pub use self::params::*;
 pub use self::patch::*;
 pub use self::eval::{State, Machine, Runtime, MachineStatus};
 pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState, Storage};
-pub use self::transaction::{ValidTransaction, TransactionVM};
+pub use self::transaction::{ValidTransaction, TransactionVM, UntrustedTransaction};
 pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
 pub use self::util::opcode::Opcode;
 pub use block_core::TransactionAction;
