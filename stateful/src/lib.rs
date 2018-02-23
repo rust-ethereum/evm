@@ -158,6 +158,78 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
         }
     }
 
+    pub fn require_to_commit(
+        &self, require: RequireError, root: Option<H256>
+    ) -> AccountCommitment {
+        let state = self.database.create_fixed_secure_trie(root.unwrap_or(self.root));
+
+        match require {
+            RequireError::Account(address) => {
+                let account: Option<Account> = state.get(&address);
+
+                match account {
+                    Some(account) => {
+                        let code = if Self::is_empty_hash(account.code_hash) {
+                            Vec::new()
+                        } else {
+                            self.code(account.code_hash).unwrap()
+                        };
+
+                        AccountCommitment::Full {
+                            nonce: account.nonce,
+                            address: address,
+                            balance: account.balance,
+                            code: Rc::new(code),
+                        }
+                    },
+                    None => {
+                        AccountCommitment::Nonexist(address)
+                    },
+                }
+            },
+            RequireError::AccountCode(address) => {
+                let account: Option<Account> = state.get(&address);
+
+                match account {
+                    Some(account) => {
+                        let code = if Self::is_empty_hash(account.code_hash) {
+                            Vec::new()
+                        } else {
+                            self.code(account.code_hash).unwrap()
+                        };
+
+                        AccountCommitment::Code {
+                            address: address,
+                            code: Rc::new(code),
+                        }
+                    },
+                    None => {
+                        AccountCommitment::Nonexist(address)
+                    },
+                }
+            },
+            RequireError::AccountStorage(address, index) => {
+                let account: Option<Account> = state.get(&address);
+
+                match account {
+                    Some(account) => {
+                        let storage = self.database.create_fixed_secure_trie(account.storage_root);
+                        let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+
+                        AccountCommitment::Storage {
+                            address: address,
+                            index, value
+                        }
+                    },
+                    None => {
+                        AccountCommitment::Nonexist(address)
+                    },
+                }
+            },
+            RequireError::Blockhash(_) => panic!(),
+        }
+    }
+
     pub fn call<M: Memory + Default, P: Patch>(
         &self, transaction: ValidTransaction, block: HeaderParams,
         most_recent_block_hashes: &[H256]
