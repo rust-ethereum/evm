@@ -1,15 +1,88 @@
-//! SputnikVM implementation, traits and structs
+//! SputnikVM implementation, traits and structs.
+//!
+//! SputnikVM work on two different levels. It can directly handles a
+//! transaction, or a normal Etheruem execution context. To interact
+//! with the virtual machine, you usually only need to work with the
+//! [VM](trait.VM.html) trait.
 //!
 //! ### Lifecycle
 //!
-//! A VM can be started given a `Context` and a `BlockHeader`. The
-//! user can then `fire` or `step` to run it. Those functions would
-//! only fail if it needs some information (accounts in the current
-//! block, or block hashes of previous blocks). If this happens, one
-//! can use the function `commit_account` and `commit_blockhash` to
-//! commit those information to the VM, and `fire` or `step` again
-//! until it succeeds. The current VM status can always be obtained
-//! using the `status` function.
+//! A VM can be started given a `Transaction` (or `Context`) and a
+//! `BlockHeader`. The user can then `fire` or `step` to run it.
+//! `fire` runs through all possible steps until it cannot continue,
+//! while `step` only runs one step. Those functions would only fail
+//! if it needs some information (accounts in the current block, or
+//! block hashes of previous blocks) provided by `RequireError`. If
+//! this happens, one can use the function `commit_account` and
+//! `commit_blockhash` to commit those information to the VM, and
+//! `fire` or `step` again until it succeeds. The current VM status
+//! can always be obtained using the `status` function.
+//!
+//! ### Patch
+//!
+//! Every VM is associated with a `Patch`. This patch tells the VM
+//! which Ethereum network and which hard fork it is on. You will need
+//! to specify the patch as the type parameter. To interact with
+//! multiple Patches at the same time, it is recommended that you use
+//! trait objects.
+//!
+//! ```
+//! extern crate bigint;
+//! extern crate sputnikvm;
+//!
+//! use sputnikvm::{EmbeddedByzantiumPatch, VMTestPatch,
+//!                 HeaderParams, ValidTransaction, TransactionAction,
+//!                 VM, SeqTransactionVM};
+//! use bigint::{Gas, U256, Address};
+//! use std::rc::Rc;
+//!
+//! fn main() {
+//!   let block_number = 1000;
+//!   let transaction = ValidTransaction {
+//!     caller: Some(Address::default()),
+//!     gas_price: Gas::zero(),
+//!     gas_limit: Gas::max_value(),
+//!     action: TransactionAction::Create,
+//!     value: U256::zero(),
+//!     input: Rc::new(Vec::new()),
+//!     nonce: U256::zero()
+//!   };
+//!   let header = HeaderParams {
+//!     beneficiary: Address::default(),
+//!     timestamp: 0,
+//!     number: U256::zero(),
+//!     difficulty: U256::zero(),
+//!     gas_limit: Gas::zero()
+//!   };
+//!   let vm = if block_number < 500 {
+//!     SeqTransactionVM::<VMTestPatch>::new(
+//!       transaction, header);
+//!   } else {
+//!     SeqTransactionVM::<EmbeddedByzantiumPatch>::new(
+//!       transaction, header);
+//!   };
+//! }
+//! ```
+//!
+//! ### Transaction Execution
+//!
+//! To start a VM on the Transaction level, use the `TransactionVM`
+//! struct. Usually, you use the sequencial memory module, which we
+//! have a definition called `SeqTransactionVM`. Call to
+//! `TransactionVM::new` would require the transaction to be valid
+//! (according to the rules for an Ethereum transaction). For an
+//! invalid transaction, it is possible for the VM to panic. If you
+//! want to handle untrusted transactions, you should use
+//! `SeqTransactionVM::new_untrusted` which will return an error if
+//! the transaction is invalid.
+//!
+//! ### Context Execution
+//!
+//! To start a VM on the Context leve, use the `ContextVM`
+//! struct. Usually, you use the sequencial memory module, which we
+//! have a definition called `SeqContextVM`. Context execution, as the
+//! same with other EVM implementations, will not handle
+//! transaction-level gas reductions.
 
 #![deny(unused_import_braces, unused_imports,
         unused_comparisons, unused_must_use,
