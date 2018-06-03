@@ -33,6 +33,7 @@ precompiled-modexp = ["num-bigint"]
 
 [workspace]
 members = [
+  "./cli",
   "./jsontests",
   "./regtests",
   "./gethrpc",

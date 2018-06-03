@@ -6,13 +6,23 @@ authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM CLI"
 repository = "https://github.com/ethereumproject/sputnikvm"
 
+# Since we have an explicit [[bin]] section below, we add the
+# following "autobins" line to prevent Cargo from automatically
+# inferring binary targets, only main.rs will be used. Should we move
+# src/bin/profile.rs somewhere else?
+#
+# In the Rust 2018 edition this will be necessary.  See
+# https://github.com/rust-lang/cargo/issues/5330
+autobins = false
+
 [[bin]]
 name = "evm-cli"
+path = "src/bin/main.rs"
 
 [dependencies]
 ethereum-bigint = "0.2"
 ethereum-hexutil = "0.2"
-evm = { version = "0.9", path = ".." }
+evm = { version = "0.10", path = "../" }
 evm-network-classic = { path = "../network/classic" }
 gethrpc = { path = '../gethrpc' }
 clap = "2.22"
