@@ -1,27 +1,33 @@
 //! SputnikVM implementation, traits and structs.
 //!
-//! SputnikVM works on two different levels. It can directly handle
-//! either a transaction or a normal Ethereum execution context. To
-//! interact with the virtual machine, you usually only need to work
-//! with the [VM](trait.VM.html) trait.
+//! SputnikVM works on two different levels. It handles:
+//! 1. a transaction, or
+//! 2. an Ethereum execution context.
 //!
-//! ### Lifecycle
+//! To interact with the virtual machine, you usually only need to
+//! work with [VM](trait.VM.html) methods.
+//!
+//! ### A SputnikVM's Lifecycle
 //!
 //! A VM can be started after it is given a `Transaction` (or
 //! `Context`) and a `BlockHeader`. The user can then `fire` or `step`
-//! to run it.  `fire` runs the EVM code (given in field `code` of the
-//! transaction) until it finishes or cannot continue. However `step`
+//! to run it.  [`fire`](trait.VM.html#method.fire) runs the EVM code
+//! (given in field `code` of the transaction) until it finishes or
+//! cannot continue. However [`step`](trait.VM.html#tymethod.step)
 //! only runs at most one instruction. If the virtual machine needs
 //! some information (accounts in the current block, or block hashes
-//! of previous blocks) it fails, returning a `RequireError`
-//! enumeration. With the data returned in the `RequireError`
-//! enumeration, one can use the function `commit_account` and
-//! `commit_blockhash` to commit the information to the VM. `fire` or
-//! `step` can be subsequently called to restart from that
-//! point. The current VM status can always be obtained using the
-//! `status` function.
+//! of previous blocks) it fails, returning a
+//! [`RequireError`](errors/enum.RequireError.html) enumeration. With
+//! the data returned in the `RequireError` enumeration, one can use
+//! the methods
+//! [`commit_account`](trait.VM.html#tymethod.commit_account) and
+//! [`commit_blockhash`](trait.VM.html#tymethod.commit_blockhash) to
+//! commit the information to the VM. `fire` or `step` can be
+//! subsequently called to restart from that point. The current VM
+//! status can always be obtained using the `status` function. Again,
+//! see [VM](trait.VM.html) for a list of methods that can be applied.
 //!
-//! ### Patch
+//! ### Patch: Specifying a Network and Hard-fork
 //!
 //! Every VM is associated with a `Patch`. This patch tells the VM
 //! which Ethereum network and which hard fork it is on. You will need
@@ -29,11 +35,12 @@
 //! multiple patches at the same time, it is recommended that you use
 //! trait objects.
 //!
-//! The example below creates a new SputnikVM and stores it in
-//! variable `vm`. To do this, it must first create a
-//! transaction and a block header.  The patch associated with the VM is
-//! either `EmbeddedByzantiumPatch` or `VMTestPatch` depending on
-//! an arbitrary block number value set at the beginning of the program.
+//! The example below creates a new SputnikVM and stores the object in
+//! `vm` which can be used to `fire`, `step` or get status on. To do
+//! this, it must first create a transaction and a block header.  The
+//! patch associated with the VM is either `EmbeddedByzantiumPatch` or
+//! `VMTestPatch` depending on an arbitrary block number value set at
+//! the beginning of the program.
 //!
 //! ```
 //! extern crate bigint;
