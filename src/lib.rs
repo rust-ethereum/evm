@@ -44,11 +44,11 @@
 //!
 //! ```
 //! extern crate bigint;
-//! extern crate sputnikvm;
+//! extern crate evm;
 //!
-//! use sputnikvm::{EmbeddedByzantiumPatch, VMTestPatch,
-//!                 HeaderParams, ValidTransaction, TransactionAction,
-//!                 VM, SeqTransactionVM};
+//! use evm::{EmbeddedByzantiumPatch, VMTestPatch,
+//!           HeaderParams, ValidTransaction, TransactionAction,
+//!           VM, SeqTransactionVM};
 //! use bigint::{Gas, U256, Address};
 //! use std::rc::Rc;
 //!
@@ -121,6 +121,9 @@ extern crate ripemd160;
 extern crate sha2;
 extern crate digest;
 
+#[macro_use]
+extern crate log;
+
 #[cfg(feature = "c-secp256k1")]
 extern crate secp256k1;
 
@@ -166,7 +169,7 @@ use alloc::Vec;
 #[cfg(not(feature = "std"))] use core::cmp::min;
 use bigint::{U256, H256, Gas, Address};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// VM Status
 pub enum VMStatus {
     /// A running VM.
@@ -308,6 +311,7 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     /// Add a new context history hook.
     pub fn add_context_history_hook<F: 'static + Fn(&Context)>(&mut self, f: F) {
         self.runtime.context_history_hooks.push(Box::new(f));
+        debug!("registered a new history hook");
     }
 }
 
@@ -316,11 +320,14 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         for machine in &mut self.machines {
             machine.commit_account(commitment.clone())?;
         }
+        debug!("committed account info: {:?}", commitment);
         Ok(())
     }
 
     fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
-        self.runtime.blockhash_state.commit(number, hash)
+        self.runtime.blockhash_state.commit(number, hash)?;
+        debug!("committed blockhash number {}: {}", number, hash);
+        Ok(())
     }
 
     fn status(&self) -> VMStatus {
@@ -407,6 +414,10 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
 
     fn fire(&mut self) -> Result<(), RequireError> {
         loop {
+            debug!("machines status:");
+            for (n, machine) in self.machines.iter().enumerate() {
+               debug!("Machine {}: {:x?}", n, machine.status());
+            }
             match self.status() {
                 VMStatus::Running => self.step()?,
                 VMStatus::ExitedOk | VMStatus::ExitedErr(_) |

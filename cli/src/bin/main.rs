@@ -15,9 +15,8 @@ use std::fs::File;
 use profiler::Profiler;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::read_hex;
-use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-                AccountCommitment, AccountChange, RequireError, TransactionAction, VMStatus,
-                SeqContextVM};
+use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM,
+          AccountCommitment, RequireError, TransactionAction, VMStatus, SeqContextVM};
 use evm_network_classic::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch};
 use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCBlock};
 use std::str::FromStr;

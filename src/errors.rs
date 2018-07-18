@@ -15,7 +15,7 @@ pub enum PreExecutionError {
     InsufficientGasLimit,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// Errors that can be written on chain.
 pub enum OnChainError {
     /// Stack is overflowed (pushed more than 1024 items to the
@@ -61,7 +61,7 @@ impl From<OnChainError> for EvalError {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 /// Errors when the VM detects that it does not support certain
 /// operations.
 pub enum NotSupportedError {

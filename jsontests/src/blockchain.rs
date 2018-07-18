@@ -7,6 +7,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::rc::Rc;
+use read_u256;
+use rlp;
+use sha3::Keccak256;
+use sha3::Digest;
 
 pub struct JSONBlock {
     codes: HashMap<Address, Vec<u8>>,
@@ -140,7 +144,7 @@ impl JSONBlock {
     }
 
     pub fn account_nonce(&self, address: Address) -> U256 {
-        self.nonces.get(&address).map_or(U256::zero(), |s| (*s).into())
+        self.nonces.get(&address).map_or(U256::zero(), |&s| s)
     }
 
     pub fn set_account_nonce(&mut self, address: Address, nonce: U256) {
@@ -156,11 +160,15 @@ impl JSONBlock {
     }
 
     pub fn balance(&self, address: Address) -> U256 {
-        self.balances.get(&address).map_or(U256::zero(), |s| (*s).into())
+        self.balances.get(&address).map_or(U256::zero(), |&s| s)
     }
 
     pub fn set_balance(&mut self, address: Address, balance: U256) {
         self.balances.insert(address, balance);
+    }
+
+    pub fn nonce(&self, address: Address) -> U256 {
+        self.nonces.get(&address).map_or(U256::zero(), |&s| s)
     }
 
     pub fn account_storage(&self, address: Address, index: U256) -> M256 {
@@ -192,6 +200,14 @@ impl JSONBlock {
         }
         return false;
     }
+
+    pub fn logs_rlp_hash(&self) -> U256 {
+        let encoded = rlp::encode_list(&self.logs[..]);
+        let mut keccak = Keccak256::new();
+        keccak.input(&encoded[..]);
+        let hash = keccak.result();
+        U256::from(&hash[..])
+    }
 }
 
 pub fn create_block(v: &Value) -> JSONBlock {
@@ -211,11 +227,10 @@ pub fn create_block(v: &Value) -> JSONBlock {
             nonces: HashMap::new(),
 
             beneficiary: Address::from_str(current_coinbase).unwrap(),
-            difficulty: U256::from_str(current_difficulty).unwrap(),
-            gas_limit: Gas::from_str(current_gas_limit).unwrap(),
-            number: U256::from_str(current_number).unwrap(),
-            timestamp: U256::from_str(current_timestamp).unwrap().into(),
-
+            difficulty: read_u256(current_difficulty),
+            gas_limit: Gas::from(read_u256(current_gas_limit)),
+            number: read_u256(current_number),
+            timestamp: read_u256(current_timestamp).into(),
             logs: Vec::new(),
         }
     };
@@ -224,7 +239,7 @@ pub fn create_block(v: &Value) -> JSONBlock {
 
     for (address, data) in pre_addresses.as_object().unwrap() {
         let address = Address::from_str(address.as_str()).unwrap();
-        let balance = U256::from_str(data["balance"].as_str().unwrap()).unwrap();
+        let balance = read_u256(data["balance"].as_str().unwrap());
         let code = read_hex(data["code"].as_str().unwrap()).unwrap();
 
         block.set_account_code(address, code.as_ref());
@@ -232,7 +247,7 @@ pub fn create_block(v: &Value) -> JSONBlock {
 
         let storage = data["storage"].as_object().unwrap();
         for (index, value) in storage {
-            let index = U256::from_str(index.as_str()).unwrap();
+            let index = read_u256(index.as_str());
             let value = M256::from_str(value.as_str().unwrap()).unwrap();
             block.set_account_storage(address, index, value);
         }
@@ -246,10 +261,10 @@ pub fn create_context(v: &Value) -> Context {
     let caller = Address::from_str(v["exec"]["caller"].as_str().unwrap()).unwrap();
     let code = read_hex(v["exec"]["code"].as_str().unwrap()).unwrap();
     let data = read_hex(v["exec"]["data"].as_str().unwrap()).unwrap();
-    let gas = Gas::from_str(v["exec"]["gas"].as_str().unwrap()).unwrap();
-    let gas_price = Gas::from_str(v["exec"]["gasPrice"].as_str().unwrap()).unwrap();
+    let gas = Gas::from(read_u256(v["exec"]["gas"].as_str().unwrap()));
+    let gas_price = Gas::from(read_u256(v["exec"]["gasPrice"].as_str().unwrap()));
     let origin = Address::from_str(v["exec"]["origin"].as_str().unwrap()).unwrap();
-    let value = U256::from_str(v["exec"]["value"].as_str().unwrap()).unwrap();
+    let value = read_u256(v["exec"]["value"].as_str().unwrap());
 
     Context {
         address: address,

@@ -7,6 +7,7 @@ use bigint::M256;
 use super::errors::OnChainError;
 
 /// Represents an EVM stack.
+#[derive(Debug)]
 pub struct Stack {
     stack: Vec<M256>,
 }

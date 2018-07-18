@@ -330,6 +330,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// runtime for it to run. In that case, the state of the current
     /// runtime will not be affected.
     pub fn step(&mut self, runtime: &Runtime) -> Result<(), RequireError> {
+        debug!("VM step started");
+        debug!("Code: {:x?}", &self.state.context.code[self.state.position..]);
+        debug!("Stack: {:#x?}", self.state.stack);
+
         struct Precheck {
             position: usize,
             memory_cost: Gas,
@@ -345,6 +349,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
 
         if self.step_precompiled() {
+            trace!("precompiled step succeeded");
             return Ok(());
         }
 
@@ -356,6 +361,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                                   &self.state.valids, &self.state.position);
 
             if pc.is_end() {
+                debug!("reached code EOF");
                 self.status = MachineStatus::ExitedOk;
                 return Ok(());
             }
@@ -448,15 +454,27 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             }
         };
 
+        trace!("position:    {}", position);
+        trace!("memory_cost: {:x?}", memory_cost);
+        trace!("gas_cost:    {:x?}", gas_cost);
+        trace!("gas_stipend: {:x?}", gas_stipend);
+        trace!("gas_refund:  {:x?}", gas_refund);
+        trace!("after_gas:   {:x?}", after_gas);
+
         let instruction = PCMut::<P>::new(&self.state.context.code,
                                           &self.state.valids, &mut self.state.position)
             .read().unwrap();
+
         let result = run_opcode::<M, P>((instruction, position),
                                         &mut self.state, runtime, gas_stipend, after_gas);
 
         self.state.used_gas += gas_cost - gas_stipend;
         self.state.memory_cost = memory_cost;
         self.state.refunded_gas = self.state.refunded_gas + gas_refund;
+
+        debug!("{:?} => {:?}", instruction, result);
+        debug!("gas used: {:x?}", self.state.total_used_gas());
+        debug!("gas left: {:x?}", self.state.available_gas());
 
         match result {
             None => Ok(()),

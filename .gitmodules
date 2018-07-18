@@ -1,0 +1,3 @@
+[submodule "jsontests/res/files/eth"]
+	path = jsontests/res/files/eth
+	url = https://github.com/ETCDEVTeam/tests.git
