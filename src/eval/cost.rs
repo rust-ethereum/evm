@@ -140,7 +140,7 @@ pub fn memory_cost<M: Memory + Default, P: Patch>(instruction: Instruction, stat
             let len: U256 = stack.peek(2).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
         },
-        Instruction::CALL => {
+        Instruction::CALL | Instruction::CALLCODE => {
             let in_from: U256 = stack.peek(3).unwrap().into();
             let in_len: U256 = stack.peek(4).unwrap().into();
             let out_from: U256 = stack.peek(5).unwrap().into();
