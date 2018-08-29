@@ -7,5 +7,12 @@ authors = ["Wei Tang <hi@that.world>"]
 repository = "https://source.that.world/source/evm-rs"
 
 [dependencies]
-evm = { version = "0.10", path = "../.." }
+evm = { version = "0.10", path = "../..", default-features = false }
 ethereum-bigint = { version = "0.2", default-features = false }
+
+[features]
+default = ["std", "rust-secp256k1"]
+rlp = ["ethereum-bigint/rlp"]
+c-secp256k1 = ["evm/c-secp256k1"]
+rust-secp256k1 = ["evm/rust-secp256k1"]
+std = ["evm/std"]
