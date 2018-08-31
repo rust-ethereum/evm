@@ -34,8 +34,8 @@ impl Storage {
     /// Create a new storage.
     fn new(address: Address, partial: bool) -> Self {
         Storage {
-            partial: partial,
-            address: address,
+            partial,
+            address,
             storage: Map::new(),
         }
     }
@@ -76,9 +76,14 @@ impl Storage {
     }
 
     /// Return the number of changed/full items in storage.
+    #[inline]
     pub fn len(&self) -> usize {
         self.storage.len()
     }
+
+    /// Return true if storage is empty, false otherwise
+    #[inline]
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
 #[derive(Debug, Clone)]
@@ -122,20 +127,20 @@ pub enum AccountCommitment {
 impl AccountCommitment {
     /// Address of this account commitment.
     pub fn address(&self) -> Address {
-        match self {
-            &AccountCommitment::Full {
+        match *self {
+            AccountCommitment::Full {
                 address,
                 ..
             } => address,
-            &AccountCommitment::Code {
+            AccountCommitment::Code {
                 address,
                 ..
             } => address,
-            &AccountCommitment::Storage {
+            AccountCommitment::Storage {
                 address,
                 ..
             } => address,
-            &AccountCommitment::Nonexist(address) => address,
+            AccountCommitment::Nonexist(address) => address,
         }
     }
 }
@@ -179,17 +184,17 @@ pub enum AccountChange {
 impl AccountChange {
     /// Address of this account.
     pub fn address(&self) -> Address {
-        match self {
-            &AccountChange::Full {
+        match *self {
+            AccountChange::Full {
                 address,
                 ..
             } => address,
-            &AccountChange::IncreaseBalance(address, _) => address,
-            &AccountChange::Create {
+            AccountChange::IncreaseBalance(address, _) => address,
+            AccountChange::Create {
                 address,
                 ..
             } => address,
-            &AccountChange::Nonexist(address) => address,
+            AccountChange::Nonexist(address) => address,
         }
     }
 }
@@ -223,7 +228,7 @@ impl<A: AccountPatch> Clone for AccountState<A> {
 }
 
 fn is_empty(nonce: U256, balance: U256, code: &[u8]) -> bool {
-    nonce == U256::zero() && balance == U256::zero() && code == &[]
+    nonce == U256::zero() && balance == U256::zero() && code.is_empty()
 }
 
 impl<A: AccountPatch> AccountState<A> {
@@ -268,7 +273,7 @@ impl<A: AccountPatch> AccountState<A> {
         for account in self.accounts() {
             set.insert(account.address());
         }
-        for (address, _) in &self.codes {
+        for address in self.codes.keys() {
             set.insert(*address);
         }
         set
@@ -283,10 +288,10 @@ impl<A: AccountPatch> AccountState<A> {
     /// state. Otherwise raise a `RequireError`.
     pub fn require(&self, address: Address) -> Result<(), RequireError> {
         match self.accounts.get(&address) {
-            Some(&AccountChange::Full { .. }) => return Ok(()),
-            Some(&AccountChange::Create { .. }) => return Ok(()),
-            Some(&AccountChange::Nonexist(_)) => return Ok(()),
-            _ => return Err(RequireError::Account(address)),
+            | Some(&AccountChange::Full { .. })
+            | Some(&AccountChange::Create { .. })
+            | Some(&AccountChange::Nonexist(_)) => Ok(()),
+            _ => Err(RequireError::Account(address)),
         }
     }
 
@@ -295,13 +300,14 @@ impl<A: AccountPatch> AccountState<A> {
     /// `RequireError`.
     pub fn require_code(&self, address: Address) -> Result<(), RequireError> {
         if self.codes.contains_key(&address) {
-            return Ok(());
-        }
-        match self.accounts.get(&address) {
-            Some(&AccountChange::Full { .. }) => return Ok(()),
-            Some(&AccountChange::Create { .. }) => return Ok(()),
-            Some(&AccountChange::Nonexist(_)) => return Ok(()),
-            _ => return Err(RequireError::AccountCode(address)),
+            Ok(())
+        } else {
+            match self.accounts.get(&address) {
+                | Some(&AccountChange::Full { .. })
+                | Some(&AccountChange::Create { .. })
+                | Some(&AccountChange::Nonexist(_)) => Ok(()),
+                _ => Err(RequireError::AccountCode(address)),
+            }
         }
     }
 
@@ -322,9 +328,9 @@ impl<A: AccountPatch> AccountState<A> {
             } => {
                 let account = if self.accounts.contains_key(&address) {
                     match self.accounts.remove(&address).unwrap() {
-                        AccountChange::Full { .. } => return Err(CommitError::AlreadyCommitted),
-                        AccountChange::Create { .. } => return Err(CommitError::AlreadyCommitted),
-                        AccountChange::Nonexist(_) => return Err(CommitError::AlreadyCommitted),
+                        | AccountChange::Full { .. }
+                        | AccountChange::Create { .. }
+                        | AccountChange::Nonexist(_) => return Err(CommitError::AlreadyCommitted),
                         AccountChange::IncreaseBalance(address, topup) => {
                             AccountChange::Full {
                                 nonce,
@@ -378,9 +384,9 @@ impl<A: AccountPatch> AccountState<A> {
             AccountCommitment::Nonexist(address) => {
                 let account = if self.accounts.contains_key(&address) {
                     match self.accounts.remove(&address).unwrap() {
-                        AccountChange::Full { .. } => return Err(CommitError::AlreadyCommitted),
-                        AccountChange::Create { .. } => return Err(CommitError::AlreadyCommitted),
-                        AccountChange::Nonexist(_) => return Err(CommitError::AlreadyCommitted),
+                        | AccountChange::Full { .. }
+                        | AccountChange::Create { .. }
+                        | AccountChange::Nonexist(_) => return Err(CommitError::AlreadyCommitted),
                         AccountChange::IncreaseBalance(address, topup) => {
                             AccountChange::Create {
                                 nonce: A::initial_nonce(),
@@ -420,9 +426,7 @@ impl<A: AccountPatch> AccountState<A> {
                 }),
             Some(&AccountChange::Nonexist(_)) => Ok(false),
             Some(&AccountChange::IncreaseBalance(address, topup)) =>
-                if A::empty_considered_exists() {
-                    Ok(true)
-                } else if topup > U256::zero() {
+                if A::empty_considered_exists() || topup > U256::zero() {
                     Ok(true)
                 } else {
                     Err(RequireError::Account(address))
@@ -435,18 +439,18 @@ impl<A: AccountPatch> AccountState<A> {
     /// failed, returns a `RequireError`.
     pub fn code(&self, address: Address) -> Result<Rc<Vec<u8>>, RequireError> {
         if self.accounts.contains_key(&address) {
-            match self.accounts.get(&address).unwrap() {
-                &AccountChange::Full { ref code, .. } => return Ok(code.clone()),
-                &AccountChange::Create { ref code, .. } => return Ok(code.clone()),
-                &AccountChange::Nonexist(_) => return Ok(Rc::new(Vec::new())),
-                &AccountChange::IncreaseBalance(_, _) => (),
+            match self.accounts[&address] {
+                | AccountChange::Full { ref code, .. }
+                | AccountChange::Create { ref code, .. } => return Ok(code.clone()),
+                AccountChange::Nonexist(_) => return Ok(Rc::new(Vec::new())),
+                AccountChange::IncreaseBalance(_, _) => (),
             }
         }
 
         if self.codes.contains_key(&address) {
-            return Ok(self.codes.get(&address).unwrap().clone());
+            Ok(self.codes[&address].clone())
         } else {
-            return Err(RequireError::AccountCode(address));
+            Err(RequireError::AccountCode(address))
         }
     }
 
@@ -454,66 +458,66 @@ impl<A: AccountPatch> AccountState<A> {
     /// failed, returns a `RequireError`.
     pub fn nonce(&self, address: Address) -> Result<U256, RequireError> {
         if self.accounts.contains_key(&address) {
-            match self.accounts.get(&address).unwrap() {
-                &AccountChange::Full {
+            match self.accounts[&address] {
+                AccountChange::Full {
                     nonce,
                     ..
                 } => return Ok(nonce),
-                &AccountChange::Create {
+                AccountChange::Create {
                     nonce,
                     ..
                 } => return Ok(nonce),
-                &AccountChange::Nonexist(_) => {
+                AccountChange::Nonexist(_) => {
                     return Ok(A::initial_nonce());
                 },
                 _ => (),
             }
         }
 
-        return Err(RequireError::Account(address));
+        Err(RequireError::Account(address))
     }
 
     /// Find balance by its address in this account state. If the
     /// search failed, returns a `RequireError`.
     pub fn balance(&self, address: Address) -> Result<U256, RequireError> {
         if self.accounts.contains_key(&address) {
-            match self.accounts.get(&address).unwrap() {
-                &AccountChange::Full {
+            match self.accounts[&address] {
+                AccountChange::Full {
                     balance,
                     ..
                 } => return Ok(balance),
-                &AccountChange::Create {
+                AccountChange::Create {
                     balance,
                     ..
                 } => return Ok(balance),
-                &AccountChange::Nonexist(_) => {
+                AccountChange::Nonexist(_) => {
                     return Ok(U256::zero());
                 },
                 _ => (),
             }
         }
 
-        return Err(RequireError::Account(address));
+        Err(RequireError::Account(address))
     }
 
     /// Read a value from an account storage.
     pub fn storage_read(&self, address: Address, index: U256) -> Result<M256, RequireError> {
         if self.accounts.contains_key(&address) {
-            match self.accounts.get(&address).unwrap() {
-                &AccountChange::Full {
+            match self.accounts[&address] {
+                AccountChange::Full {
                     ref changing_storage,
                     ..
                 } => return changing_storage.read(index),
-                &AccountChange::Create {
+                AccountChange::Create {
                     ref storage,
                     ..
                 } => return storage.read(index),
-                &AccountChange::Nonexist(_) => return Ok(M256::zero()),
+                AccountChange::Nonexist(_) => return Ok(M256::zero()),
                 _ => (),
             }
         }
 
-        return Err(RequireError::Account(address));
+        Err(RequireError::Account(address))
     }
 
     /// Write a value from an account storage. The account will be
@@ -521,18 +525,18 @@ impl<A: AccountPatch> AccountState<A> {
     pub fn storage_write(&mut self, address: Address, index: U256, value: M256) -> Result<(), RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts.get_mut(&address).unwrap() {
-                &mut AccountChange::Full {
+                AccountChange::Full {
                     ref mut changing_storage,
                     ..
                 } => return changing_storage.write(index, value),
-                &mut AccountChange::Create {
+                AccountChange::Create {
                     ref mut storage,
                     ..
                 } => return storage.write(index, value),
                 val => {
                     let is_nonexist;
                     match val {
-                        &mut AccountChange::Nonexist(_) => { is_nonexist = true; }
+                        AccountChange::Nonexist(_) => { is_nonexist = true; }
                         _ => { is_nonexist = false; }
                     }
                     if is_nonexist {
@@ -551,7 +555,7 @@ impl<A: AccountPatch> AccountState<A> {
             }
         }
 
-        return Err(RequireError::Account(address));
+        Err(RequireError::Account(address))
     }
 
     /// Create a new account (that should not yet have existed
@@ -600,7 +604,7 @@ impl<A: AccountPatch> AccountState<A> {
     /// created account.
     pub fn code_deposit(&mut self, address: Address, new_code: Rc<Vec<u8>>) {
         match self.accounts.get_mut(&address).unwrap() {
-            &mut AccountChange::Create { ref mut code, .. } => {
+            AccountChange::Create { ref mut code, .. } => {
                 *code = new_code;
             },
             _ => panic!(),
@@ -723,7 +727,7 @@ impl<A: AccountPatch> AccountState<A> {
             Some(val) => {
                 let is_nonexist;
                 match val {
-                    &mut AccountChange::Nonexist(_) => { is_nonexist = true; }
+                    AccountChange::Nonexist(_) => { is_nonexist = true; }
                     _ => { is_nonexist = false; }
                 }
                 if is_nonexist {

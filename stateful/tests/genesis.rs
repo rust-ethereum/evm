@@ -102,7 +102,7 @@ fn genesis_state_root() {
             value: balance,
             input: empty_input.clone(),
             nonce: U256::zero(),
-        }, HeaderParams {
+        }, &HeaderParams {
             beneficiary: Address::default(),
             timestamp: 0,
             number: U256::zero(),

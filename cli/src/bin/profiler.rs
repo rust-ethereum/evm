@@ -19,7 +19,7 @@ impl Profiler {
         let opcode = span.name.to_string();
         match self.occurances.entry(opcode) {
             hash_map::Entry::Occupied(mut entry) => {
-                let (occ, avg) = entry.get().clone();
+                let (occ, avg) = *entry.get();
                 let (nocc, navg) = (occ + 1, ((avg * (occ as f64)) + (span.delta as f64)) / ((occ + 1) as f64));
                 entry.insert((nocc, navg));
             },

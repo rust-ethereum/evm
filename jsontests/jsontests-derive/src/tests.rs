@@ -14,10 +14,10 @@ pub struct Test {
 pub fn read_tests_from_dir<P: AsRef<Path>>(dir_path: P) -> Result<impl Iterator<Item=Test>, Error> {
     let dir = fs::read_dir(dir_path)?;
 
-    let iter = dir.into_iter()
+    let iter = dir
         .flat_map(|file|{
             match file {
-                Ok(file) => tests_iterator_from_direntry(file).unwrap(),
+                Ok(file) => tests_iterator_from_direntry(&file).unwrap(),
                 Err(err) => panic!("failed to read dir: {}", err)
             }
         });
@@ -25,7 +25,7 @@ pub fn read_tests_from_dir<P: AsRef<Path>>(dir_path: P) -> Result<impl Iterator<
     Ok(iter)
 }
 
-pub fn tests_iterator_from_direntry(file: DirEntry) -> Result<impl Iterator<Item=Test>, Error> {
+pub fn tests_iterator_from_direntry(file: &DirEntry) -> Result<impl Iterator<Item=Test>, Error> {
     let path = file.path().to_owned();
     let file = File::open(&path)?;
     let tests: Value = json::from_reader(file)?;

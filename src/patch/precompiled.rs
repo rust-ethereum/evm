@@ -111,13 +111,12 @@ impl Precompiled for ECRECPrecompiled {
 
     fn step(&self, datao: &[u8]) -> Rc<Vec<u8>> {
         let mut data = [0u8; 128];
-        for i in 0..min(datao.len(), 128) {
-            data[i] = datao[i];
-        }
+        let copy_bytes = min(datao.len(), 128);
+        data[..copy_bytes].clone_from_slice(&datao[..copy_bytes]);
         match kececrec(&data) {
             Ok(mut ret) => {
-                for i in 0..12 {
-                    ret[i] = 0u8;
+                for i in &mut ret[..12] {
+                    *i = 0
                 }
                 Rc::new(ret.as_ref().into())
             },
@@ -151,7 +150,7 @@ fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
         27 | 28 if data[32..63] == [0; 31] => data[63] - 27,
         _ => return Err(Error::InvalidRecoveryId),
     };
-    let recid = RecoveryId::from_i32(recid_raw as i32)?;
+    let recid = RecoveryId::from_i32(i32::from(recid_raw))?;
     let sig = RecoverableSignature::from_compact(&SECP256K1, &data[64..128], recid)?;
     let recovered = SECP256K1.recover(&message, &sig)?;
     let key = recovered.serialize_vec(&SECP256K1, false);

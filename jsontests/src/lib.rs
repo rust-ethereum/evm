@@ -80,8 +80,11 @@ pub fn create_machine(v: &Value, block: &JSONBlock) -> SeqContextVM<VMTestPatch>
     SeqContextVM::<VMTestPatch>::new(transaction, block.block_header())
 }
 
-pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSONBlock, history: &Vec<Context>, debug: bool) -> bool {
-    let ref callcreates = v["callcreates"];
+// TODO: consider refactoring
+#[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
+#[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
+pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSONBlock, history: &[Context], debug: bool) -> bool {
+    let callcreates = &v["callcreates"];
 
     if callcreates.as_array().is_some() {
         for (i, callcreate) in callcreates.as_array().unwrap().into_iter().enumerate() {
@@ -99,16 +102,16 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
 
             if i >= history.len() {
                 if debug {
-                    print!("\n");
+                    println!();
                     println!("Transaction check failed, expected more than {} items.", i);
                 }
                 return false;
             }
-            let ref transaction = history[i];
+            let transaction = &history[i];
             if destination.is_some() {
                 if transaction.address != destination.unwrap() {
                     if debug {
-                        print!("\n");
+                        println!();
                         println!("Transaction address mismatch. 0x{:x} != 0x{:x}.", transaction.address, destination.unwrap());
                     }
                     return false;
@@ -116,7 +119,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
             }
             if transaction.gas_limit != gas_limit || transaction.value != value || if destination.is_some() { transaction.data.deref() != &data } else { transaction.code.deref() != &data } {
                 if debug {
-                    print!("\n");
+                    println!();
                     println!("Transaction mismatch. gas limit 0x{:x} =?= 0x{:x}, value 0x{:x} =?= 0x{:x}, data {:?} =?= {:?}", transaction.gas_limit, gas_limit, transaction.value, value, transaction.data, data);
                 }
                 return false;
@@ -132,7 +135,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
         let out_ref: &[u8] = out.as_ref();
         if machine.out() != out_ref {
             if debug {
-                print!("\n");
+                println!();
                 println!("Return value check failed. {:?} != {:?}", machine.out(), out_ref);
             }
 
@@ -144,7 +147,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
         let gas = Gas::from(read_u256(gas));
         if machine.available_gas() != gas {
             if debug {
-                print!("\n");
+                println!();
                 println!("Gas check failed, VM returned: 0x{:x}, expected: 0x{:x}",
                          machine.available_gas(), gas);
             }
@@ -153,7 +156,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
         }
     }
 
-    let ref post_addresses = v["post"];
+    let post_addresses = &v["post"];
 
     for (address, data) in post_addresses.as_object().unwrap() {
         let address = Address::from_str(address.as_str()).unwrap();
@@ -164,7 +167,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
 
         if code_ref != block.account_code(address) {
             if debug {
-                print!("\n");
+                println!();
                 println!("Account code check failed for address 0x{:x}.", address);
             }
 
@@ -173,7 +176,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
 
         if balance != block.balance(address) {
             if debug {
-                print!("\n");
+                println!();
                 println!("Balance check failed for address 0x{:x}.", address);
                 println!("Expected: 0x{:x}", balance);
                 println!("Actual:   0x{:x}", block.balance(address));
@@ -184,7 +187,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
 
         if nonce != block.nonce(address) {
             if debug {
-                print!("\n");
+                println!();
                 println!("Nonce check failed for address 0x{:x}.", address);
                 println!("Expected: 0x{:x}", nonce);
                 println!("Actual:   0x{:x}", block.nonce(address));
@@ -199,7 +202,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
             let value = M256::from_str(value.as_str().unwrap()).unwrap();
             if value != block.account_storage(address, index) {
                 if debug {
-                    print!("\n");
+                    println!();
                     println!("Storage check failed for address 0x{:x} in storage index 0x{:x}",
                              address, index);
                     println!("Expected: 0x{:x}", value);
@@ -210,7 +213,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
         }
     }
 
-    let ref expect = v["expect"];
+    let expect = &v["expect"];
 
     if expect.as_object().is_some() {
         for (address, data) in expect.as_object().unwrap() {
@@ -222,7 +225,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
                 let value = M256::from_str(value.as_str().unwrap()).unwrap();
                 if value != block.account_storage(address, index) {
                     if debug {
-                        print!("\n");
+                        println!();
                         println!("Storage check (expect) failed for address 0x{:x} in storage index 0x{:x}",
                                  address, index);
                         println!("Expected: 0x{:x}", value);
@@ -242,7 +245,7 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
         let vm_logs_hash = block.logs_rlp_hash();
         if logs_hash != vm_logs_hash {
             if debug {
-                print!("\n");
+                println!();
                 println!("Logs check failed (hashes mismatch)");
                 println!("Expected: 0x{:x}", logs_hash);
                 println!("Actual: 0x{:x}", vm_logs_hash);
@@ -251,11 +254,11 @@ pub fn test_machine(v: &Value, machine: &SeqContextVM<VMTestPatch>, block: &JSON
         }
     }
 
-    return true;
+    true
 }
 
-fn is_ok(status: VMStatus) -> bool {
-    match status {
+fn is_ok(status: &VMStatus) -> bool {
+    match *status {
         VMStatus::ExitedOk => true,
         _ => false,
     }
@@ -280,21 +283,19 @@ pub fn test_transaction(_name: &str, v: &Value, debug: bool) -> Result<bool, VMS
     let out = v["out"].as_str();
 
     if out.is_some() {
-        if is_ok(machine.status()) {
+        if is_ok(&machine.status()) {
             if test_machine(v, &machine, &block, &history.lock().unwrap(), debug) {
-                return Ok(true);
+                Ok(true)
             } else {
-                return Ok(false);
+                Ok(false)
             }
         } else {
-            return Err(machine.status());
+            Err(machine.status())
         }
+    } else if !is_ok(&machine.status()) {
+        Ok(true)
     } else {
-        if !is_ok(machine.status()) {
-            return Ok(true);
-        } else {
-            return Ok(false);
-        }
+        Ok(false)
     }
 }
 

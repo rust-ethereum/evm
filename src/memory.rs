@@ -51,9 +51,14 @@ impl<P: Patch> Default for SeqMemory<P> {
 
 impl<P: Patch> SeqMemory<P> {
     /// Get the length of the current effective memory range.
+    #[inline]
     pub fn len(&self) -> usize {
         self.memory.len()
     }
+
+    /// Return true if current effective memory range is zero
+    #[inline]
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 }
 
 impl<P: Patch> Memory for SeqMemory<P> {
@@ -108,9 +113,10 @@ impl<P: Patch> Memory for SeqMemory<P> {
     fn read(&self, index: U256) -> M256 {
         let mut a: [u8; 32] = [0u8; 32];
 
-        for i in 0..32 {
-            a[i] = self.read_raw(index + i.into());
+        for (i, item) in a[0..32].iter_mut().enumerate() {
+            *item = self.read_raw(index + i.into());
         }
+
         a.as_ref().into()
     }
 

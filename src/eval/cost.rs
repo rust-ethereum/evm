@@ -47,7 +47,7 @@ fn sstore_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>) -> Gas {
 }
 
 fn call_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
-    Gas::from(P::gas_call()) + xfer_cost(machine, instruction) + new_cost(machine, instruction)
+    P::gas_call() + xfer_cost(machine, instruction) + new_cost(machine, instruction)
 }
 
 fn xfer_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
@@ -74,11 +74,12 @@ fn new_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: &
 
 fn suicide_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
-    Gas::from(P::gas_suicide()) + if !machine.account_state.exists(address).unwrap() {
-        Gas::from(P::gas_suicide_new_account())
+    let suicide_gas_topup = if !machine.account_state.exists(address).unwrap() {
+        P::gas_suicide_new_account()
     } else {
         Gas::zero()
-    }
+    };
+    P::gas_suicide() + suicide_gas_topup
 }
 
 fn memory_expand(current: Gas, from: Gas, len: Gas) -> Gas {
@@ -102,16 +103,16 @@ pub fn code_deposit_gas(len: usize) -> Gas {
 
 /// Calculate the memory gas from the memory cost.
 pub fn memory_gas(a: Gas) -> Gas {
-    (Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)).into()
+    Gas::from(G_MEMORY) * a + a * a / Gas::from(512u64)
 }
 
 /// Calculate the memory cost. This is the same as the active memory
 /// length in the Yellow Paper.
 pub fn memory_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>) -> Gas {
-    let ref stack = state.stack;
+    let stack = &state.stack;
 
     let current = state.memory_cost;
-    let next = match instruction {
+    match instruction {
         Instruction::SHA3 | Instruction::RETURN | Instruction::REVERT | Instruction::LOG(_) => {
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(1).unwrap().into();
@@ -151,8 +152,7 @@ pub fn memory_cost<M: Memory + Default, P: Patch>(instruction: Instruction, stat
         _ => {
             current
         }
-    };
-    next
+    }
 }
 
 /// Calculate the gas cost.
@@ -169,33 +169,33 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
             let len = state.stack.peek(1).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }
         },
 
         Instruction::LOG(v) => {
             let len = state.stack.peek(1).unwrap();
-            (Gas::from(G_LOG) + Gas::from(G_LOGDATA) * Gas::from(len) + Gas::from(G_LOGTOPIC) * Gas::from(v)).into()
+            Gas::from(G_LOG) + Gas::from(G_LOGDATA) * Gas::from(len) + Gas::from(G_LOGTOPIC) * Gas::from(v)
         },
 
         Instruction::EXTCODECOPY => {
             let len = state.stack.peek(3).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(P::gas_extcode()) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            P::gas_extcode() + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }
         },
 
         Instruction::CALLDATACOPY | Instruction::CODECOPY | Instruction::RETURNDATACOPY => {
             let len = state.stack.peek(2).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            (Gas::from(G_VERYLOW) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }).into()
+            Gas::from(G_VERYLOW) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }
         },
 
         Instruction::EXP => {
             if state.stack.peek(1).unwrap() == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + Gas::from(P::gas_expbyte()) * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP) + P::gas_expbyte() * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
             }
         }
 

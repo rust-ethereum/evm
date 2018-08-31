@@ -62,8 +62,8 @@ pub enum GasUsage {
 impl AddAssign<Gas> for GasUsage {
     fn add_assign(&mut self, rhs: Gas) {
         match self {
-            &mut GasUsage::All => (),
-            &mut GasUsage::Some(ref mut gas) => {
+            GasUsage::All => (),
+            GasUsage::Some(ref mut gas) => {
                 *gas = *gas + rhs;
             }
         }
@@ -164,6 +164,7 @@ pub struct Machine<M, P: Patch> {
 
 #[derive(Debug, Clone)]
 /// Represents the current runtime status.
+// TODO: consider boxing the large fields to reduce the total size of the enum
 pub enum MachineStatus {
     /// This runtime is actively running or has just been started.
     Running,
@@ -194,6 +195,7 @@ pub enum ControlCheck {
 
 #[derive(Debug, Clone)]
 /// Used for `step` for additional operations related to the runtime.
+// TODO: consider boxing the large fields to reduce the total size of the enum
 pub enum Control {
     Stop,
     Revert,
@@ -301,7 +303,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     /// Peek the next instruction.
@@ -344,7 +346,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
 
         match &self.status {
-            &MachineStatus::Running => (),
+            MachineStatus::Running => (),
             _ => panic!(),
         }
 

@@ -29,19 +29,10 @@ pub struct LiteralAccount {
     pub code: Vec<u8>,
 }
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct Stateful<'a, D: 'a> {
     database: &'a D,
     root: H256,
-}
-
-impl<'a, D: 'a> Clone for Stateful<'a, D> {
-    fn clone(&self) -> Self {
-        Self {
-            database: self.database.clone(),
-            root: self.root.clone(),
-        }
-    }
 }
 
 impl<'a, D> Stateful<'a, D> {
@@ -101,7 +92,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                             vm.commit_account(AccountCommitment::Full {
                                 nonce: account.nonce,
-                                address: address,
+                                address,
                                 balance: account.balance,
                                 code: Rc::new(code),
                             }).unwrap();
@@ -123,7 +114,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                             };
 
                             vm.commit_account(AccountCommitment::Code {
-                                address: address,
+                                address,
                                 code: Rc::new(code),
                             }).unwrap();
                         },
@@ -138,10 +129,10 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                     match account {
                         Some(account) => {
                             let storage = self.database.create_fixed_secure_trie(account.storage_root);
-                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+                            let value = storage.get(&H256::from(index)).unwrap_or_else(M256::zero);
 
                             vm.commit_account(AccountCommitment::Storage {
-                                address: address,
+                                address,
                                 index, value
                             }).unwrap();
                         },
@@ -158,6 +149,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
         }
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(needless_pass_by_value))]
     pub fn require_to_commit(
         &self, require: RequireError, root: Option<H256>
     ) -> AccountCommitment {
@@ -177,7 +169,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                         AccountCommitment::Full {
                             nonce: account.nonce,
-                            address: address,
+                            address,
                             balance: account.balance,
                             code: Rc::new(code),
                         }
@@ -199,7 +191,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                         };
 
                         AccountCommitment::Code {
-                            address: address,
+                            address,
                             code: Rc::new(code),
                         }
                     },
@@ -214,10 +206,10 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                 match account {
                     Some(account) => {
                         let storage = self.database.create_fixed_secure_trie(account.storage_root);
-                        let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+                        let value = storage.get(&H256::from(index)).unwrap_or_else(M256::zero);
 
                         AccountCommitment::Storage {
-                            address: address,
+                            address,
                             index, value
                         }
                     },
@@ -231,7 +223,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
     }
 
     pub fn call<M: Memory + Default, P: Patch>(
-        &self, transaction: ValidTransaction, block: HeaderParams,
+        &self, transaction: ValidTransaction, block: &HeaderParams,
         most_recent_block_hashes: &[H256]
     ) -> TransactionVM<M, P> {
         assert!(U256::from(most_recent_block_hashes.len()) >=
@@ -257,7 +249,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                             vm.commit_account(AccountCommitment::Full {
                                 nonce: account.nonce,
-                                address: address,
+                                address,
                                 balance: account.balance,
                                 code: Rc::new(code),
                             }).unwrap();
@@ -279,7 +271,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                             };
 
                             vm.commit_account(AccountCommitment::Code {
-                                address: address,
+                                address,
                                 code: Rc::new(code),
                             }).unwrap();
                         },
@@ -294,10 +286,10 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                     match account {
                         Some(account) => {
                             let storage = self.database.create_fixed_secure_trie(account.storage_root);
-                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+                            let value = storage.get(&H256::from(index)).unwrap_or_else(M256::zero);
 
                             vm.commit_account(AccountCommitment::Storage {
-                                address: address,
+                                address,
                                 index, value
                             }).unwrap();
                         },
@@ -414,8 +406,8 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                     code_hashes.set(code_hash, code.deref().clone());
 
                     let account = Account {
-                        nonce: nonce,
-                        balance: balance,
+                        nonce,
+                        balance,
                         storage_root: storage_trie.root(),
                         code_hash
                     };
@@ -432,10 +424,10 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
     }
 
     pub fn execute<M: Memory + Default, P: Patch>(
-        &mut self, transaction: ValidTransaction, block: HeaderParams,
+        &mut self, transaction: ValidTransaction, block: &HeaderParams,
         most_recent_block_hashes: &[H256]
     ) -> TransactionVM<M, P> {
-        let vm = self.call::<_, P>(transaction, block, most_recent_block_hashes);
+        let vm = self.call::<_, P>(transaction, &block, most_recent_block_hashes);
         let mut accounts = Vec::new();
         for account in vm.accounts() {
             accounts.push(account.clone());
@@ -445,7 +437,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
     }
 
     pub fn to_valid<P: Patch>(
-        &self, transaction: Transaction,
+        &self, transaction: &Transaction,
     ) -> Result<ValidTransaction, PreExecutionError> {
         let state = self.database.create_fixed_secure_trie(self.root);
         let code_hashes = self.database.create_guard();
@@ -467,7 +459,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
 
                             account_state.commit(AccountCommitment::Full {
                                 nonce: account.nonce,
-                                address: address,
+                                address,
                                 balance: account.balance,
                                 code: Rc::new(code),
                             }).unwrap();
@@ -489,7 +481,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                             };
 
                             account_state.commit(AccountCommitment::Code {
-                                address: address,
+                                address,
                                 code: Rc::new(code),
                             }).unwrap();
                         },
@@ -504,10 +496,10 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
                     match account {
                         Some(account) => {
                             let storage = self.database.create_fixed_secure_trie(account.storage_root);
-                            let value = storage.get(&H256::from(index)).unwrap_or(M256::zero());
+                            let value = storage.get(&H256::from(index)).unwrap_or_else(M256::zero);
 
                             account_state.commit(AccountCommitment::Storage {
-                                address: address,
+                                address,
                                 index, value
                             }).unwrap();
                         },

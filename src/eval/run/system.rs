@@ -39,8 +39,8 @@ pub fn log<M: Memory + Default, P: Patch>(state: &mut State<M, P>, topic_len: us
 
     state.logs.push(Log {
         address: state.context.address,
-        data: data,
-        topics: topics,
+        data,
+        topics,
     });
 }
 
@@ -83,7 +83,7 @@ pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas:
         caller: Some(state.context.address),
         gas_price: state.context.gas_price,
         gas_limit: l64_after_gas,
-        value: value,
+        value,
         input: init,
         action: TransactionAction::Create,
         nonce: state.account_state.nonce(state.context.address).unwrap(),
@@ -111,9 +111,9 @@ pub fn call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipend_gas:
     let transaction = ValidTransaction {
         caller: Some(state.context.address),
         gas_price: state.context.gas_price,
-        gas_limit: gas_limit,
-        value: value,
-        input: input,
+        gas_limit,
+        value,
+        input,
         action: TransactionAction::Call(to),
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
@@ -143,9 +143,9 @@ pub fn static_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, stipe
     let transaction = ValidTransaction {
         caller: Some(state.context.address),
         gas_price: state.context.gas_price,
-        gas_limit: gas_limit,
+        gas_limit,
         value: U256::zero(),
-        input: input,
+        input,
         action: TransactionAction::Call(to),
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };
@@ -172,9 +172,9 @@ pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, aft
     let transaction = ValidTransaction {
         caller: Some(state.context.caller),
         gas_price: state.context.gas_price,
-        gas_limit: gas_limit,
+        gas_limit,
         value: state.context.value,
-        input: input,
+        input,
         action: TransactionAction::Call(to),
         nonce: state.account_state.nonce(state.context.address).unwrap(),
     };

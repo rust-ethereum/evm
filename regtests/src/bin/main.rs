@@ -57,7 +57,7 @@ fn from_rpc_log(log: &RPCLog) -> Log {
     Log {
         address: Address::from_str(&log.address).unwrap(),
         data: read_hex(&log.data).unwrap(),
-        topics: topics,
+        topics,
     }
 }
 
@@ -81,9 +81,9 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                     vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
                 } else {
                     vm.commit_account(AccountCommitment::Full {
-                        nonce: nonce,
-                        address: address,
-                        balance: balance,
+                        nonce,
+                        address,
+                        balance,
                         code: Rc::new(code),
                     }).unwrap();
                 }
@@ -94,9 +94,9 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                                                                   &format!("0x{:x}", index),
                                                                   &last_block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Storage {
-                    address: address,
-                    index: index,
-                    value: value,
+                    address,
+                    index,
+                    value,
                 }).unwrap();
             },
             Err(RequireError::AccountCode(address)) => {
@@ -104,7 +104,7 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                 let code = read_hex(&client.get_code(&format!("0x{:x}", address),
                                                      &last_block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
-                    address: address,
+                    address,
                     code: Rc::new(code),
                 }).unwrap();
             },
@@ -125,7 +125,7 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
     if miner == address {
         return true;
     }
-    if block.uncles.len() > 0 {
+    if !block.uncles.is_empty() {
         for i in 0..block.uncles.len() {
             let uncle = client.get_uncle_by_block_number_and_index(&block.number,
                                                                    &format!("0x{:x}", i));
@@ -136,7 +136,7 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
         }
     }
 
-    return false;
+    false
 }
 
 fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
@@ -161,10 +161,10 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
         handle_fire(client, &mut vm, last_id);
 
-        assert!(Gas::from_str(&receipt.gas_used).unwrap() == vm.used_gas());
-        assert!(receipt.logs.len() == vm.logs().len());
+        assert_eq!(Gas::from_str(&receipt.gas_used).unwrap(), vm.used_gas());
+        assert_eq!(receipt.logs.len(), vm.logs().len());
         for i in 0..receipt.logs.len() {
-            assert!(from_rpc_log(&receipt.logs[i]) == vm.logs()[i]);
+            assert_eq!(from_rpc_log(&receipt.logs[i]), vm.logs()[i]);
         }
 
         last_vm = Some(vm);
@@ -172,8 +172,8 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
 
     if last_vm.is_some() {
         for account in last_vm.as_ref().unwrap().accounts() {
-            match account {
-                &AccountChange::Full {
+            match *account {
+                AccountChange::Full {
                     address,
                     balance,
                     ref changing_storage,
@@ -189,10 +189,10 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
                                                                    &cur_number);
-                        assert!(M256::from_str(&expected_value).unwrap() == value);
+                        assert_eq!(M256::from_str(&expected_value).unwrap(), value);
                     }
                 },
-                &AccountChange::Create {
+                AccountChange::Create {
                     address,
                     balance,
                     ref storage,
@@ -208,25 +208,25 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
                         let expected_value = client.get_storage_at(&format!("0x{:x}", address),
                                                                    &format!("0x{:x}", key),
                                                                    &cur_number);
-                        assert!(M256::from_str(&expected_value).unwrap() == value);
+                        assert_eq!(M256::from_str(&expected_value).unwrap(), value);
                     }
                 },
-                &AccountChange::IncreaseBalance(address, balance) => {
+                AccountChange::IncreaseBalance(address, balance) => {
                     if !is_miner_or_uncle(client, address, &block) {
                         let last_balance = client.get_balance(&format!("0x{:x}", address),
                                                               &last_number);
                         let cur_balance = client.get_balance(&format!("0x{:x}", address),
                                                              &cur_number);
 
-                        assert!(U256::from_str(&last_balance).unwrap() + balance ==
-                                U256::from_str(&cur_balance).unwrap());
+                        assert_eq!(U256::from_str(&last_balance).unwrap() + balance,
+                                   U256::from_str(&cur_balance).unwrap());
                     }
                 },
-                &AccountChange::Nonexist(address) => {
+                AccountChange::Nonexist(address) => {
                     if !is_miner_or_uncle(client, address, &block) {
                         let expected_balance = client.get_balance(&format!("0x{:x}", address),
                                                                   &cur_number);
-                        assert!(U256::from_str(&expected_balance).unwrap() == U256::zero());
+                        assert_eq!(U256::from_str(&expected_balance).unwrap(), U256::zero());
                     }
                 },
             }
@@ -258,7 +258,7 @@ fn test_blocks<T: GethRPCClient, P: Patch>(client: &mut T, number: &str) {
         for n in from..to {
             test_block::<_, P>(client, n);
         }
-    } else if number.contains(",") {
+    } else if number.contains(',') {
         let numbers: Vec<&str> = number.split("..").collect();
         for number in numbers {
             let n = usize::from_str_radix(number, 10).unwrap();

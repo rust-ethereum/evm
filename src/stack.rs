@@ -77,7 +77,12 @@ impl Stack {
     }
 
     /// Get the current stack length.
+    #[inline]
     pub fn len(&self) -> usize {
         self.stack.len()
     }
+
+    /// Returns true if stack is empty
+    #[inline]
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 }

@@ -32,7 +32,7 @@ impl Default for ExternalRef {
 
 impl From<String> for ExternalRef {
     fn from(path: String) -> Self {
-        let name = path.rsplit(":").next().unwrap().to_owned();
+        let name = path.rsplit(':').next().unwrap().to_owned();
         ExternalRef {
             path: Ident::from(path),
             name: Ident::from(name)

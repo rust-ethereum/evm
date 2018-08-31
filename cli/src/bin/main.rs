@@ -41,8 +41,8 @@ fn handle_step_without_rpc(vm: &mut VM) {
         },
         Err(RequireError::AccountStorage(address, index)) => {
             vm.commit_account(AccountCommitment::Storage {
-                address: address,
-                index: index,
+                address,
+                index,
                 value: M256::zero(),
             }).unwrap();
         },
@@ -79,8 +79,8 @@ fn handle_fire_without_rpc(vm: &mut VM) {
             },
             Err(RequireError::AccountStorage(address, index)) => {
                 vm.commit_account(AccountCommitment::Storage {
-                    address: address,
-                    index: index,
+                    address,
+                    index,
                     value: M256::zero(),
                 }).unwrap();
             },
@@ -109,9 +109,9 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_num
                     vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
                 } else {
                     vm.commit_account(AccountCommitment::Full {
-                        nonce: nonce,
-                        address: address,
-                        balance: balance,
+                        nonce,
+                        address,
+                        balance,
                         code: Rc::new(code),
                     }).unwrap();
                 }
@@ -121,16 +121,16 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_num
                                                                   &format!("0x{:x}", index),
                                                                   &block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Storage {
-                    address: address,
-                    index: index,
-                    value: value,
+                    address,
+                    index,
+                    value,
                 }).unwrap();
             },
             Err(RequireError::AccountCode(address)) => {
                 let code = read_hex(&client.get_code(&format!("0x{:x}", address),
                                                      &block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
-                    address: address,
+                    address,
                     code: Rc::new(code),
                 }).unwrap();
             },

@@ -330,6 +330,7 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         Ok(())
     }
 
+    #[cfg_attr(feature = "cargo-clippy", allow(single_match))]
     fn status(&self) -> VMStatus {
         match self.machines.last().unwrap().status().clone() {
             MachineStatus::ExitedNotSupported(err) => return VMStatus::ExitedNotSupported(err),
@@ -339,7 +340,7 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         match self.machines[0].status() {
             MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
-            MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err.into()),
+            MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err),
             MachineStatus::ExitedNotSupported(err) => VMStatus::ExitedNotSupported(err),
         }
     }
@@ -376,7 +377,7 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                 Ok(())
             },
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
-                if self.machines.len() == 0 {
+                if self.machines.is_empty() {
                     panic!()
                 } else if self.machines.len() == 1 {
                     Ok(())

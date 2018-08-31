@@ -36,9 +36,7 @@ pub fn json_tests(input: TokenStream) -> TokenStream {
     };
 
     // Return the generated impl
-    let parsed = gen.parse().unwrap();
-
-    parsed
+    gen.parse().unwrap()
 }
 
 fn impl_json_tests(ast: &syn::DeriveInput) -> Result<quote::Tokens, Error> {
@@ -47,7 +45,7 @@ fn impl_json_tests(ast: &syn::DeriveInput) -> Result<quote::Tokens, Error> {
     let mut tokens = quote::Tokens::new();
 
     // split tests into groups by filepath
-    let tests = tests.into_iter().group_by(|test| test.path.clone());
+    let tests = tests.group_by(|test| test.path.clone());
 
     open_directory_module(&config, &mut tokens);
 
@@ -62,8 +60,8 @@ fn impl_json_tests(ast: &syn::DeriveInput) -> Result<quote::Tokens, Error> {
 
         // Generate test function
         for test in tests {
-            let ref test_func_path = config.test_with.path;
-            let ref test_func_name = config.test_with.name;
+            let test_func_path = &config.test_with.path;
+            let test_func_name = &config.test_with.name;
             let name = sanitize_ident(&test.name);
             let name_ident = Ident::from(name.as_ref());
             let data = json::to_string(&test.data)?;
@@ -85,8 +83,8 @@ fn impl_json_tests(ast: &syn::DeriveInput) -> Result<quote::Tokens, Error> {
 
             // generate optional benchmark body
             if let Some(ref bench) = config.bench_with {
-                let ref bench_func_path = bench.path;
-                let ref bench_func_name = bench.name;
+                let bench_func_path = &bench.path;
+                let bench_func_name = &bench.name;
                 let name = format!("bench_{}", name);
                 let name_ident = Ident::from(name.as_ref());
 

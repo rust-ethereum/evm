@@ -57,6 +57,6 @@ pub fn copy_into_memory_apply<M: Memory>(memory: &mut M, values: &[u8], start: U
     while i < start + actual_len {
         memory.write_raw(i, values[j]).unwrap();
         i = i + U256::from(1u64);
-        j = j + 1;
+        j += 1;
     }
 }

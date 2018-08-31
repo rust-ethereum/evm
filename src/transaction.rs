@@ -97,18 +97,18 @@ impl UntrustedTransaction {
                 caller: Some(address),
                 gas_price: self.gas_price,
                 gas_limit: self.gas_limit,
-                action: self.action.clone(),
+                action: self.action,
                 value: self.value,
                 input: self.input.clone(),
-                nonce: nonce,
+                nonce,
             }
         };
 
         if valid.gas_limit < valid.intrinsic_gas::<P>() {
-            return Err(PreExecutionError::InsufficientGasLimit);
+            Err(PreExecutionError::InsufficientGasLimit)
+        } else {
+            Ok(valid)
         }
-
-        return Ok(valid);
     }
 }
 
@@ -166,10 +166,10 @@ impl ValidTransaction {
             caller: Some(caller),
             gas_price: transaction.gas_price,
             gas_limit: transaction.gas_limit,
-            action: transaction.action.clone(),
+            action: transaction.action,
             value: transaction.value,
             input: Rc::new(transaction.input.clone()),
-            nonce: nonce,
+            nonce,
         };
 
         if valid.gas_limit < valid.intrinsic_gas::<P>() {
@@ -205,9 +205,11 @@ impl ValidTransaction {
     /// execution.
     pub fn intrinsic_gas<P: Patch>(&self) -> Gas {
         let mut gas = Gas::from(G_TRANSACTION);
+
         if self.action == TransactionAction::Create {
-            gas = gas + Gas::from(P::gas_transaction_create());
+            gas = gas + P::gas_transaction_create();
         }
+
         for d in self.input.deref() {
             if *d == 0 {
                 gas = gas + Gas::from(G_TXDATAZERO);
@@ -215,7 +217,8 @@ impl ValidTransaction {
                 gas = gas + Gas::from(G_TXDATANONZERO);
             }
         }
-        return gas;
+
+        gas
     }
 
     /// Convert this transaction into a context. Note that this will
@@ -311,8 +314,7 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
         let valid = transaction.to_valid::<P>()?;
         let mut vm = TransactionVM(TransactionVMState::Constructing {
             transaction: valid,
-            block: block,
-
+            block,
             account_state: AccountState::default(),
             blockhash_state: BlockhashState::default(),
         });
@@ -324,9 +326,8 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
     /// patch. This VM runs at the transaction level.
     pub fn new(transaction: ValidTransaction, block: HeaderParams) -> Self {
         TransactionVM(TransactionVMState::Constructing {
-            transaction: transaction,
-            block: block,
-
+            transaction,
+            block,
             account_state: AccountState::default(),
             blockhash_state: BlockhashState::default(),
         })
@@ -338,9 +339,8 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
         transaction: ValidTransaction, block: HeaderParams, vm: &TransactionVM<M, P>
     ) -> Self {
         TransactionVM(TransactionVMState::Constructing {
-            transaction: transaction,
-            block: block,
-
+            transaction,
+            block,
             account_state: match vm.0 {
                 TransactionVMState::Constructing { ref account_state, .. } =>
                     account_state.clone(),

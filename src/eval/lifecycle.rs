@@ -90,13 +90,14 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     }
 
     /// Deposit code for a ContractCreation transaction or a CREATE opcode.
+    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
     pub fn code_deposit(&mut self) {
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),
             _ => panic!(),
         }
 
-        if P::code_deposit_limit().is_some() {
+        if P::code_deposit_limit().is_some()  {
             if self.state.out.len() > P::code_deposit_limit().unwrap() {
                 reset_error_hard!(self, OnChainError::EmptyGas);
                 return;

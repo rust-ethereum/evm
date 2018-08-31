@@ -48,13 +48,13 @@ impl Valids {
             match opcode {
                 Opcode::JUMPDEST => {
                     valids[i] = true;
-                    i = i + 1;
+                    i += 1;
                 },
                 Opcode::PUSH(v) => {
-                    i = i + v + 1;
+                    i += v + 1;
                 },
                 _ => {
-                    i = i + 1;
+                    i += 1;
                 }
             }
         }
@@ -64,7 +64,12 @@ impl Valids {
 
     /// Get the length of the valid mapping. This is the same as the
     /// code bytes.
+    #[inline]
     pub fn len(&self) -> usize { self.0.len() }
+
+    /// Returns true if the valids list is empty
+    #[inline]
+    pub fn is_empty(&self) -> bool { self.len() == 0 }
 
     /// Returns `true` if the position is a valid jump destination. If
     /// not, returns `false`.
@@ -77,7 +82,7 @@ impl Valids {
             return false;
         }
 
-        return true;
+        true
     }
 }
 
@@ -129,13 +134,13 @@ macro_rules! impl_pc {
                     let opcode: Opcode = self.code[i].into();
                     match opcode {
                         Opcode::PUSH(v) => {
-                            i = i + v + 1;
+                            i += v + 1;
                         },
                         _ => {
-                            i = i + 1;
+                            i += 1;
                         }
                     }
-                    o = o + 1;
+                    o += 1;
                 }
                 o
             }
@@ -330,7 +335,7 @@ impl<'a, P: Patch> PCMut<'a, P> {
                 *self.position = min(*self.position + v + 1, self.code.len());
             },
             _ => {
-                *self.position = *self.position + 1;
+                *self.position += 1;
             },
         }
         Ok(result)
