@@ -62,7 +62,7 @@ The core library has the initial four precompiled contracts embedded. To use the
 
 ## Dependencies
 
-Ensure you have at least `rustc 1.16.0 (30cf806ef 2017-03-10)`. Rust 1.15.0 and
+Ensure you have at least `rustc 1.26.2 (594fb253c 2018-06-01)`. Rust 1.25.0 and
 before is not supported.
 
 ## Documentation
