@@ -10,6 +10,7 @@ pub struct Config {
     pub directory: String,
     pub test_with: ExternalRef,
     pub bench_with: Option<ExternalRef>,
+    pub criterion_config: Option<ExternalRef>,
     pub skip: bool,
     pub should_panic: bool,
 }
@@ -61,6 +62,7 @@ pub fn extract_attrs(ast: &syn::DeriveInput) -> Result<Config, Error> {
                     "directory" => Config { directory: value.clone(), ..config },
                     "test_with" => Config { test_with: ExternalRef::from(value.clone()), ..config },
                     "bench_with" => Config { bench_with: Some(ExternalRef::from(value.clone())), ..config },
+                    "criterion_config" => Config { criterion_config: Some(ExternalRef::from(value.clone())), ..config },
                     _ => panic!("{}", ERROR_MSG),
                 }
             },

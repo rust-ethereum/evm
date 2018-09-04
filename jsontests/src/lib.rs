@@ -6,9 +6,7 @@ extern crate bigint;
 extern crate env_logger;
 extern crate sha3;
 extern crate rlp;
-
-#[cfg(feature = "bench")]
-extern crate test;
+extern crate criterion;
 
 mod blockchain;
 pub mod util;
@@ -297,6 +295,25 @@ pub fn test_transaction(_name: &str, v: &Value, debug: bool) -> Result<bool, VMS
     } else {
         Ok(false)
     }
+}
+
+use criterion::Criterion;
+
+pub fn bench_transaction(_name: &str, v: Value, c: &mut Criterion) {
+    c.bench_function(_name, move |b| {
+        b.iter_with_large_setup(|| {
+            let block = create_block(&v);
+            let history: Arc<Mutex<Vec<Context>>> = Arc::new(Mutex::new(Vec::new()));
+            let history_closure = history.clone();
+            let mut machine = create_machine(&v, &block);
+            machine.add_context_history_hook(move |context| {
+                history_closure.lock().unwrap().push(context.clone());
+            });
+            (machine, block)
+        }, |(mut machine, block)| {
+            fire_with_block(&mut machine, &block);
+        })
+    });
 }
 
 /// Read U256 number exactly the way go big.Int parses strings

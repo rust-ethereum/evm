@@ -4,6 +4,10 @@ version = "0.0.0"
 license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
 
+[[bench]]
+name = "performance"
+harness = false
+
 [dependencies]
 evm = { path = '../' }
 jsontests-derive = { path = "./jsontests-derive" }
@@ -14,6 +18,7 @@ lazy_static = "0.2"
 env_logger = "0.5.11"
 sha3 = "0.6"
 ethereum-rlp = { version = "0.2", default-features = false }
+criterion = "0.2.5"
 
 [features]
 default = []
