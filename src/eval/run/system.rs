@@ -1,7 +1,7 @@
 //! System operations instructions
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 #[cfg(not(feature = "std"))] use alloc::rc::Rc;
 #[cfg(feature = "std")] use std::rc::Rc;

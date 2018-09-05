@@ -1,7 +1,7 @@
 //! Transaction related functionality.
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 #[cfg(not(feature = "std"))] use alloc::rc::Rc;
 #[cfg(feature = "std")] use std::rc::Rc;
@@ -9,7 +9,7 @@ use alloc::Vec;
 #[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
 #[cfg(feature = "std")] use std::cmp::min;
 #[cfg(feature = "std")] use std::ops::Deref;
-#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
+#[cfg(not(feature = "std"))] use alloc::{collections::BTreeSet as Set, collections::btree_map as map};
 #[cfg(not(feature = "std"))] use core::cmp::min;
 #[cfg(not(feature = "std"))] use core::ops::Deref;
 use bigint::{U256, H256, Address, Gas};

@@ -1,9 +1,10 @@
 //! VM Runtime
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 #[cfg(not(feature = "std"))] use alloc::rc::Rc;
+#[cfg(not(feature = "std"))] use alloc::boxed::Box;
 #[cfg(feature = "std")] use std::rc::Rc;
 
 #[cfg(not(feature = "std"))] use core::ops::AddAssign;

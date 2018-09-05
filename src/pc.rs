@@ -1,7 +1,7 @@
 //! EVM Program Counter.
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 use bigint::M256;
 use util::opcode::Opcode;

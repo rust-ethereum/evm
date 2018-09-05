@@ -1,11 +1,11 @@
 //! Account commitment managment
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 #[cfg(feature = "std")] use std::collections::{HashSet as Set, HashMap as Map, hash_map as map};
 #[cfg(feature = "std")] use std::marker::PhantomData;
-#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, BTreeMap as Map, btree_map as map};
+#[cfg(not(feature = "std"))] use alloc::{collections::BTreeSet as Set, collections::BTreeMap as Map, collections::btree_map as map};
 #[cfg(not(feature = "std"))] use core::marker::PhantomData;
 use bigint::{M256, U256, Address};
 use patch::AccountPatch;

@@ -1,7 +1,7 @@
 //! VM memory representation
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 use bigint::{U256, M256};
 

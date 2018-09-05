@@ -161,10 +161,11 @@ pub use self::util::opcode::Opcode;
 pub use block_core::TransactionAction;
 
 #[cfg(not(feature = "std"))]
-use alloc::Vec;
+use alloc::vec::Vec;
 
 #[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
-#[cfg(not(feature = "std"))] use alloc::{BTreeSet as Set, btree_map as map};
+#[cfg(not(feature = "std"))] use alloc::{collections::BTreeSet as Set, collections::btree_map as map};
+#[cfg(not(feature = "std"))] use alloc::boxed::Box;
 #[cfg(feature = "std")] use std::cmp::min;
 #[cfg(not(feature = "std"))] use core::cmp::min;
 use bigint::{U256, H256, Gas, Address};

@@ -1,7 +1,7 @@
 //! Blockhash commitment management
 
 #[cfg(feature = "std")] use std::collections::HashMap as Map;
-#[cfg(not(feature = "std"))] use alloc::BTreeMap as Map;
+#[cfg(not(feature = "std"))] use alloc::collections::BTreeMap as Map;
 use bigint::{U256, H256};
 
 use errors::{RequireError, CommitError};
