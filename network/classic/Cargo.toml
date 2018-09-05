@@ -8,11 +8,14 @@ repository = "https://source.that.world/source/evm-rs"
 
 [dependencies]
 evm = { version = "0.10", path = "../..", default-features = false }
+evm-precompiled-bn128 = { version = "0.10", path = "../../precompiled/bn128", default-features = false}
+evm-precompiled-modexp = { version = "0.10", path = "../../precompiled/modexp", default-features = false }
 ethereum-bigint = { version = "0.2", default-features = false }
 
 [features]
 default = ["std", "rust-secp256k1"]
 rlp = ["ethereum-bigint/rlp"]
-c-secp256k1 = ["evm/c-secp256k1"]
-rust-secp256k1 = ["evm/rust-secp256k1"]
+c-secp256k1 = ["evm/c-secp256k1", "evm-precompiled-bn128/c-secp256k1", "evm-precompiled-modexp/c-secp256k1"]
+rust-secp256k1 = ["evm/rust-secp256k1", "evm-precompiled-bn128/rust-secp256k1", "evm-precompiled-modexp/rust-secp256k1"]
 std = ["evm/std"]
+
