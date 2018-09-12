@@ -1,6 +1,6 @@
 //! Bitwise instructions
 
-use bigint::M256;
+use bigint::{M256, MI256, Sign};
 
 use ::Memory;
 use super::State;
@@ -37,4 +37,64 @@ pub fn byte<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     }
 
     push!(state, ret);
+}
+
+pub fn shl<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+    pop!(state, shift, value);
+
+    let result = if value == M256::zero() || shift >= M256::from(256) {
+        M256::zero()
+    } else {
+        let shift: u64 = shift.into();
+        value << shift as usize
+    };
+
+    push!(state, result);
+}
+
+pub fn shr<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+    pop!(state, shift, value);
+
+    let result = if value == M256::zero() || shift >= M256::from(256) {
+        M256::zero()
+    } else {
+        let shift: u64 = shift.into();
+        value >> shift as usize
+    };
+
+    push!(state, result);
+}
+
+pub fn sar<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+    pop!(state, shift, value);
+    let value = MI256::from(value);
+
+    let result = if value == MI256::zero() || shift >= M256::from(256) {
+        let MI256(sign, _) = value;
+        match sign {
+            // value is 0 or >=1, pushing 0
+            Sign::Plus | Sign::NoSign => {
+                M256::zero()
+            },
+            // value is <0, pushing -1
+            Sign::Minus => {
+                MI256(Sign::Minus, M256::one()).into()
+            }
+        }
+    } else {
+        let shift: u64 = shift.into();
+
+        match value.0 {
+            Sign::Plus | Sign::NoSign => {
+                let shifted = value.1 >> shift as usize;
+                shifted
+            },
+            Sign::Minus => {
+                let shifted = ((value.1 - M256::one()) >> shift as usize) + M256::one();
+                MI256(Sign::Minus, shifted).into()
+            }
+        }
+    };
+
+    push!(state, result);
 }

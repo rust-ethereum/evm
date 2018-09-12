@@ -20,7 +20,7 @@ use super::errors::OnChainError;
 pub enum Instruction {
     STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP,
     SIGNEXTEND, LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE,
-    SHA3, ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD,
+    SHL, SHR, SAR, SHA3, ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD,
     CALLDATASIZE, CALLDATACOPY, CODESIZE, CODECOPY, GASPRICE,
     EXTCODESIZE, EXTCODECOPY, BLOCKHASH, COINBASE, TIMESTAMP, NUMBER,
     DIFFICULTY, GASLIMIT, POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE,
@@ -193,6 +193,28 @@ macro_rules! impl_pc {
                     Opcode::XOR => Instruction::XOR,
                     Opcode::NOT => Instruction::NOT,
                     Opcode::BYTE => Instruction::BYTE,
+
+                    Opcode::SHL => {
+                        if P::has_bitwise_shift() {
+                            Instruction::SHL
+                        } else {
+                            return Err(OnChainError::InvalidOpcode);
+                        }
+                    },
+                    Opcode::SHR => {
+                        if P::has_bitwise_shift() {
+                            Instruction::SHR
+                        } else {
+                            return Err(OnChainError::InvalidOpcode);
+                        }
+                    },
+                    Opcode::SAR => {
+                        if P::has_bitwise_shift() {
+                            Instruction::SAR
+                        } else {
+                            return Err(OnChainError::InvalidOpcode);
+                        }
+                    },
 
                     Opcode::SHA3 => Instruction::SHA3,
 

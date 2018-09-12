@@ -9,6 +9,8 @@ pub enum Opcode {
 
     LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE,
 
+    SHL, SHR, SAR,
+
     SHA3,
 
     ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD,
@@ -57,6 +59,10 @@ impl From<u8> for Opcode {
             0x18 => Opcode::XOR,
             0x19 => Opcode::NOT,
             0x1a => Opcode::BYTE,
+
+            0x1b => Opcode::SHL,
+            0x1c => Opcode::SHR,
+            0x1d => Opcode::SAR,
 
             0x20 => Opcode::SHA3,
 
@@ -210,6 +216,10 @@ impl Into<u8> for Opcode {
             Opcode::XOR => 0x18,
             Opcode::NOT => 0x19,
             Opcode::BYTE => 0x1a,
+
+            Opcode::SHL => 0x1b,
+            Opcode::SHR => 0x1c,
+            Opcode::SAR => 0x1d,
 
             Opcode::SHA3 => 0x20,
 

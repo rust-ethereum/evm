@@ -95,6 +95,10 @@ pub fn check_static<M: Memory + Default, P: Patch>(instruction: Instruction, sta
         Instruction::NOT |
         Instruction::BYTE => Ok(()),
 
+        Instruction::SHL |
+        Instruction::SHR |
+        Instruction::SAR => Ok(()),
+
         Instruction::SHA3 => Ok(()),
 
         Instruction::ADDRESS |
@@ -187,6 +191,10 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
         Instruction::XOR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
         Instruction::NOT => { state.stack.check_pop_push(1, 1)?; Ok(None) },
         Instruction::BYTE => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+
+        Instruction::SHL => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+        Instruction::SHR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+        Instruction::SAR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
 
         Instruction::SHA3 => {
             state.stack.check_pop_push(2, 1)?;

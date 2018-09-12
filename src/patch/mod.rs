@@ -73,6 +73,8 @@ pub trait Patch {
     fn has_revert() -> bool;
     /// Whether the EVM has RETURNDATASIZE and RETURNDATACOPY opcode.
     fn has_return_data() -> bool;
+    /// Whether the EVM has SHL, SHR and SAR
+    fn has_bitwise_shift() -> bool;
     /// Whether to throw out of gas error when
     /// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
     /// of gas.
@@ -123,6 +125,7 @@ impl Patch for VMTestPatch {
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
     fn has_return_data() -> bool { false }
+    fn has_bitwise_shift() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -150,6 +153,7 @@ impl Patch for EmbeddedPatch {
     fn has_static_call() -> bool { false }
     fn has_revert() -> bool { false }
     fn has_return_data() -> bool { false }
+    fn has_bitwise_shift() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }

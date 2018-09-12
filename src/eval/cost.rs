@@ -222,7 +222,8 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
         Instruction::ISZERO | Instruction::AND | Instruction::OR | Instruction::XOR |
         Instruction::BYTE | Instruction::CALLDATALOAD | Instruction::MLOAD |
         Instruction::MSTORE | Instruction::MSTORE8 | Instruction::PUSH(_) |
-        Instruction::DUP(_) | Instruction::SWAP(_)
+        Instruction::DUP(_) | Instruction::SWAP(_) |
+        Instruction::SHL | Instruction::SHR | Instruction::SAR
             => G_VERYLOW.into(),
 
         // W_low

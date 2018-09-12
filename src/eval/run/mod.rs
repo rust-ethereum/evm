@@ -88,6 +88,10 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::NOT => { bitwise::not(state); None },
         Instruction::BYTE => { bitwise::byte(state); None },
 
+        Instruction::SHL => { bitwise::shl(state); None },
+        Instruction::SHR => { bitwise::shr(state); None },
+        Instruction::SAR => { bitwise::sar(state); None },
+
         Instruction::SHA3 => { system::sha3(state); None },
 
         Instruction::ADDRESS => { push!(state, state.context.address.into()); None },
