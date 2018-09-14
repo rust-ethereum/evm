@@ -156,30 +156,3 @@ impl Patch for EmbeddedPatch {
     fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
         &EMBEDDED_PRECOMPILEDS }
 }
-
-/// Embedded patch.
-pub struct EmbeddedByzantiumPatch;
-impl Patch for EmbeddedByzantiumPatch {
-    type Account = EmbeddedAccountPatch;
-
-    fn code_deposit_limit() -> Option<usize> { Some(0x6000) }
-    fn callstack_limit() -> usize { 1024 }
-    fn gas_extcode() -> Gas { Gas::from(700usize) }
-    fn gas_balance() -> Gas { Gas::from(400usize) }
-    fn gas_sload() -> Gas { Gas::from(200usize) }
-    fn gas_suicide() -> Gas { Gas::from(5000usize) }
-    fn gas_suicide_new_account() -> Gas { Gas::from(25000usize) }
-    fn gas_call() -> Gas { Gas::from(700usize) }
-    fn gas_expbyte() -> Gas { Gas::from(50usize) }
-    fn gas_transaction_create() -> Gas { Gas::from(32000usize) }
-    fn force_code_deposit() -> bool { false }
-    fn has_delegate_call() -> bool { true }
-    fn has_static_call() -> bool { true }
-    fn has_revert() -> bool { true }
-    fn has_return_data() -> bool { true }
-    fn err_on_call_with_more_gas() -> bool { false }
-    fn call_create_l64_after_gas() -> bool { true }
-    fn memory_limit() -> usize { usize::max_value() }
-    fn precompileds() -> &'static [(Address, Option<&'static [u8]>, &'static Precompiled)] {
-        &EMBEDDED_PRECOMPILEDS }
-}
