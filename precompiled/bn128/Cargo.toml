@@ -1,6 +1,6 @@
 [package]
 name = "evm-precompiled-bn128"
-version = "0.10.0"
+version = "0.10.1"
 description = "bn128 precompiled contracts for SputnikVM."
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
