@@ -33,6 +33,7 @@ const G_SHA3: usize = 30;
 const G_SHA3WORD: usize = 6;
 const G_COPY: usize = 3;
 const G_BLOCKHASH: usize = 20;
+const G_EXTCODEHASH: usize = 400;
 
 fn sstore_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>) -> Gas {
     let index: U256 = machine.stack.peek(0).unwrap().into();
@@ -242,6 +243,7 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
         Instruction::EXTCODESIZE => P::gas_extcode(),
         Instruction::BALANCE => P::gas_balance(),
         Instruction::BLOCKHASH => G_BLOCKHASH.into(),
+        Instruction::EXTCODEHASH => G_EXTCODEHASH.into(),
     }
 }
 

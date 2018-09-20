@@ -75,6 +75,8 @@ pub trait Patch {
     fn has_return_data() -> bool;
     /// Whether the EVM has SHL, SHR and SAR
     fn has_bitwise_shift() -> bool;
+    /// Whether the EVM has EXTCODEHASH
+    fn has_extcodehash() -> bool;
     /// Whether to throw out of gas error when
     /// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
     /// of gas.
@@ -121,11 +123,12 @@ impl Patch for VMTestPatch {
     fn gas_expbyte() -> Gas { Gas::from(10usize) }
     fn gas_transaction_create() -> Gas { Gas::from(0usize) }
     fn force_code_deposit() -> bool { true }
-    fn has_delegate_call() -> bool { false }
-    fn has_static_call() -> bool { false }
-    fn has_revert() -> bool { false }
-    fn has_return_data() -> bool { false }
+    fn has_delegate_call() -> bool { true }
+    fn has_static_call() -> bool { true }
+    fn has_revert() -> bool { true }
+    fn has_return_data() -> bool { true }
     fn has_bitwise_shift() -> bool { true }
+    fn has_extcodehash() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -154,6 +157,7 @@ impl Patch for EmbeddedPatch {
     fn has_revert() -> bool { false }
     fn has_return_data() -> bool { false }
     fn has_bitwise_shift() -> bool { false }
+    fn has_extcodehash() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }

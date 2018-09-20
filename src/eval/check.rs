@@ -114,6 +114,7 @@ pub fn check_static<M: Memory + Default, P: Patch>(instruction: Instruction, sta
         Instruction::GASPRICE |
         Instruction::EXTCODESIZE |
         Instruction::EXTCODECOPY |
+        Instruction::EXTCODEHASH |
         Instruction::RETURNDATASIZE |
         Instruction::RETURNDATACOPY => Ok(()),
 
@@ -236,6 +237,11 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
             check_range(state.stack.peek(1).unwrap().into(), state.stack.peek(3).unwrap().into())?;
             Ok(None)
         },
+        Instruction::EXTCODEHASH => {
+            state.stack.check_pop_push(1, 1)?;
+            state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
+            Ok(None)
+        }
         Instruction::RETURNDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
         Instruction::RETURNDATACOPY => {
             state.stack.check_pop_push(3, 0)?;

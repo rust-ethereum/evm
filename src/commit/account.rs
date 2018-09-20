@@ -438,17 +438,26 @@ impl<A: AccountPatch> AccountState<A> {
     /// Find code by its address in this account state. If the search
     /// failed, returns a `RequireError`.
     pub fn code(&self, address: Address) -> Result<Rc<Vec<u8>>, RequireError> {
+        let code = self.code_opt_nonexist(address)?
+            .unwrap_or_else(|| Rc::new(Vec::new()));
+
+        Ok(code)
+    }
+
+    /// Find code of account that may not exist. If search
+    /// failed, returns a `RequireError`
+    pub fn code_opt_nonexist(&self, address: Address) -> Result<Option<Rc<Vec<u8>>>, RequireError> {
         if self.accounts.contains_key(&address) {
             match self.accounts[&address] {
                 | AccountChange::Full { ref code, .. }
-                | AccountChange::Create { ref code, .. } => return Ok(code.clone()),
-                AccountChange::Nonexist(_) => return Ok(Rc::new(Vec::new())),
+                | AccountChange::Create { ref code, .. } => return Ok(Some(code.clone())),
+                AccountChange::Nonexist(_) => return Ok(None),
                 AccountChange::IncreaseBalance(_, _) => (),
             }
         }
 
         if self.codes.contains_key(&address) {
-            Ok(self.codes[&address].clone())
+            Ok(Some(self.codes[&address].clone()))
         } else {
             Err(RequireError::AccountCode(address))
         }
