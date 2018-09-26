@@ -46,10 +46,18 @@ fn extcodehash_impl(code: &[u8]) -> H256 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
     #[test]
     fn extcodehash_empty_code() {
         let code = &[];
         let hash = extcodehash_impl(code);
         assert_eq!(hash, H256::from("0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"));
+    }
+
+    #[test]
+    fn extcodehash_hash() {
+        let code = &[0x68, 0x65, 0x6c, 0x6c, 0x6f, 0x63, 0x6f, 0x64, 0x65, 0x68, 0x61, 0x73, 0x68];
+        let hash = extcodehash_impl(code);
+        assert_eq!(hash, H256::from("0x854a9ae2c913e6cef584ecaf9cbb52a38b59fb923a09beccee9d17c17d15cf7a"));
     }
 }

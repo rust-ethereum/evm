@@ -10,7 +10,7 @@ extern crate jsontests;
 extern crate test;
 
 #[derive(JsonTests)]
-#[directory = "jsontests/res/files/SputnikVM/vmBitwiseLogicOperation"]
+#[directory = "jsontests/res/files/SputnikVM/vmConstantinopleTests"]
 #[test_with = "jsontests::util::run_test"]
 #[cfg_attr(feature = "bench", bench_with = "jsontests::util::run_bench")]
-struct BitwiseLogicOperation;
+struct ConstantinopleTests;
