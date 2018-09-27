@@ -4,7 +4,7 @@ version = "0.10.0"
 license = "Apache-2.0"
 description = "Stateful evm-rs wrapped with tries."
 authors = ["Wei Tang <hi@that.world>"]
-repository = "https://source.that.world/source/evm-rs"
+repository = "https://github.com/etclabscore/sputnikvm"
 
 [dependencies]
 evm = { version = "0.10", path = '..' }

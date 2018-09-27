@@ -1,6 +1,6 @@
 # SputnikVM: Rust Ethereum Virtual Machine Implementation
 
-[![Build Status](https://travis-ci.org/ethereumproject/sputnikvm.svg?branch=master)](https://travis-ci.org/ethereumproject/sputnikvm)
+[![Build Status](https://travis-ci.org/etclabscore/sputnikvm.svg?branch=master)](https://travis-ci.org/etclabscore/sputnikvm)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 | Name               | Description                                   | Crates.io                                                                                                           | Documentation                                                                                        |
@@ -53,12 +53,19 @@ The core library has the initial four precompiled contracts embedded. To use the
 
 ## Related projects
 
-* [ethereum-rs](https://source.that.world/source/ethereum-rs) -
-  common traits and structs for Ethereum. Nightly development branch
-  of [etcommon-rs](https://github.com/ethereumproject/etcommon-rs)
-  and support branch for evm-rs.
+<<<<<<< HEAD
+* [ethereum-rs](https://github.com/etclabscore/ethereum-rs) -
+  common traits and structs for Ethereum. 
 * [etclient](https://source.that.world/source/etclient) -
   bare-minimal Ethereum client written in Rust.
+=======
+ * [SputnikVM Dev](https://github.com/ETCDEVTeam/sputnikvm-dev) - SputnikVM instance for Smart Contract development, 
+    provides testing environment and mock for JSON RPC API
+ * [SputnikVM in Browser](https://github.com/sorpaas/sputnikvm-in-browser) - experimental version of SputnikVM 
+    compiled into WebAssembly, therefore can be launched in a browser on Node.js
+ * [SputnikVM for embedded devices](https://github.com/sorpaas/sputnikvm-on-rux) - experimental project to run on 
+    full functional EVM on embedded devices       
+>>>>>>> Fixed all github links, Fixed the travis badge
 
 ## Dependencies
 
@@ -80,8 +87,8 @@ see the
 To start working with SputnikVM you'll 
 need to install [rustup](https://www.rustup.rs/), then you can do:
  
-```lang=bash
-$ git clone git@github.com:ethereumproject/sputnikvm.git
+```bash
+$ git clone git@github.com:etclabscore/sputnikvm.git
 $ cd sputnikvm
 $ cargo build --release --all
 ```
@@ -92,18 +99,18 @@ We currently use two ways to test SputnikVM and ensure its execution
 aligns with other Ethereum Virtual Machine implementations:
 
 * [jsontests](/jsontests): This uses part of the Ethereum
-  [tests](https://github.com/ethereumproject/tests). Those tests
+  [tests](https://github.com/etclabscore/tests). Those tests
   currently does not have good coverage for system operation
   opcodes. Besides, some tests are incorrect so they are disabled.
 * [regtests](/regtests): A complete regression tests is done on the
   Ethereum Classic mainnet from genesis block to block 4 million. Some
   of the previously failed tests are also integrated into Rust's test
   system. See
-  [wiki](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)
+  [wiki](https://github.com/ETCDEVTeam/sputnikvm/wiki/Building-and-Testing)
   for how to reproduce the regression tests.
   
 To learn more about building SputnikVM from source please read wiki page
- [Building and Testing](https://github.com/ethereumproject/sputnikvm/wiki/Building-and-Testing)  
+ [Building and Testing](https://github.com/ETCDEVTeam/sputnikvm/wiki/Building-and-Testing)  
 
 ## License
 
