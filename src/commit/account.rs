@@ -438,10 +438,8 @@ impl<A: AccountPatch> AccountState<A> {
     /// Find code by its address in this account state. If the search
     /// failed, returns a `RequireError`.
     pub fn code(&self, address: Address) -> Result<Rc<Vec<u8>>, RequireError> {
-        let code = self.code_opt_nonexist(address)?
-            .unwrap_or_else(|| Rc::new(Vec::new()));
-
-        Ok(code)
+        self.code_opt_nonexist(address)
+            .map(|opt_code| opt_code.unwrap_or_else(|| Rc::new(Vec::new())))
     }
 
     /// Find code of account that may not exist. If search
