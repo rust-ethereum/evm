@@ -97,7 +97,7 @@ impl UntrustedTransaction {
                 caller: Some(address),
                 gas_price: self.gas_price,
                 gas_limit: self.gas_limit,
-                action: self.action,
+                action: self.action.clone(),
                 value: self.value,
                 input: self.input.clone(),
                 nonce,
@@ -166,7 +166,7 @@ impl ValidTransaction {
             caller: Some(caller),
             gas_price: transaction.gas_price,
             gas_limit: transaction.gas_limit,
-            action: transaction.action,
+            action: transaction.action.clone(),
             value: transaction.value,
             input: Rc::new(transaction.input.clone()),
             nonce,
@@ -255,7 +255,7 @@ impl ValidTransaction {
                     is_static
                 })
             },
-            TransactionAction::Create => {
+            TransactionAction::Create | TransactionAction::Create2(..) => {
                 if self.caller.is_some() {
                     account_state.require(self.caller.unwrap())?;
                     let nonce = self.nonce;
@@ -470,6 +470,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 ccode_deposit = match transaction.action {
                     TransactionAction::Call(_) => false,
                     TransactionAction::Create => true,
+                    TransactionAction::Create2(..) => true,
                 };
                 cgas = transaction.intrinsic_gas::<P>();
                 cpreclaimed_value = transaction.preclaimed_value();
