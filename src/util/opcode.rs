@@ -27,7 +27,7 @@ pub enum Opcode {
     SWAP(usize),
     LOG(usize),
 
-    CREATE, CALL, CALLCODE, RETURN, DELEGATECALL, STATICCALL, REVERT,
+    CREATE, CREATE2, CALL, CALLCODE, RETURN, DELEGATECALL, STATICCALL, REVERT,
 
     INVALID, SUICIDE
 }
@@ -181,6 +181,7 @@ impl From<u8> for Opcode {
             0xf2 => Opcode::CALLCODE,
             0xf3 => Opcode::RETURN,
             0xf4 => Opcode::DELEGATECALL,
+            0xf5 => Opcode::CREATE2,
             0xfa => Opcode::STATICCALL,
             0xfd => Opcode::REVERT,
 
@@ -286,6 +287,7 @@ impl Into<u8> for Opcode {
             Opcode::CALLCODE => 0xf2,
             Opcode::RETURN => 0xf3,
             Opcode::DELEGATECALL => 0xf4,
+            Opcode::CREATE2 => 0xf5,
             Opcode::STATICCALL => 0xfa,
             Opcode::REVERT => 0xfd,
 

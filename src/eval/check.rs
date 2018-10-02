@@ -146,6 +146,7 @@ pub fn check_static<M: Memory + Default, P: Patch>(instruction: Instruction, sta
 
         Instruction::LOG(_) => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
         Instruction::CREATE => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
+        Instruction::CREATE2 => Err(EvalOnChainError::OnChain(OnChainError::NotStatic)),
         Instruction::CALL => {
             let value: U256 = state.stack.peek(2).unwrap().into();
             if value != U256::zero() {
@@ -319,7 +320,7 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(instruction: Instruction, sta
             check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(1).unwrap().into())?;
             Ok(None)
         },
-        Instruction::CREATE => {
+        Instruction::CREATE | Instruction::CREATE2 => {
             state.stack.check_pop_push(3, 1)?;
             check_range(state.stack.peek(1).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             state.account_state.require(state.context.address)?;

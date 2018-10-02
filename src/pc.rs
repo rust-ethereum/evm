@@ -24,7 +24,7 @@ pub enum Instruction {
     CALLDATASIZE, CALLDATACOPY, CODESIZE, CODECOPY, GASPRICE,
     EXTCODESIZE, EXTCODECOPY, EXTCODEHASH, BLOCKHASH, COINBASE, TIMESTAMP, NUMBER,
     DIFFICULTY, GASLIMIT, POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE,
-    JUMP, JUMPI, PC, MSIZE, GAS, JUMPDEST, CREATE, CALL, CALLCODE,
+    JUMP, JUMPI, PC, MSIZE, GAS, JUMPDEST, CREATE, CREATE2, CALL, CALLCODE,
     RETURN, DELEGATECALL, SUICIDE, STATICCALL, REVERT, RETURNDATASIZE, RETURNDATACOPY,
 
     PUSH(M256),
@@ -263,6 +263,7 @@ macro_rules! impl_pc {
                     Opcode::LOG(v) => Instruction::LOG(v),
 
                     Opcode::CREATE => Instruction::CREATE,
+                    Opcode::CREATE2 => Instruction::CREATE2,
                     Opcode::CALL => Instruction::CALL,
                     Opcode::CALLCODE => Instruction::CALLCODE,
                     Opcode::RETURN => Instruction::RETURN,

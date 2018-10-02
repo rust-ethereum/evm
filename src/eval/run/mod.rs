@@ -178,6 +178,7 @@ pub fn run_opcode<M: Memory + Default, P: Patch>(pc: (Instruction, usize), state
         Instruction::LOG(v) => { system::log(state, v); None },
 
         Instruction::CREATE => { system::create::<M, P>(state, after_gas) },
+        Instruction::CREATE2 => { system::create2::<M, P>(state, after_gas) },
         Instruction::CALL => { system::call::<M, P>(state, stipend_gas, after_gas, false) },
         Instruction::CALLCODE => { system::call::<M, P>(state, stipend_gas, after_gas, true) },
         Instruction::DELEGATECALL => { system::delegate_call::<M, P>(state, after_gas) },
