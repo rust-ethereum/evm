@@ -20,7 +20,7 @@ use super::{Stack, Context, HeaderParams, Patch, PC, PCMut, Valids, Memory,
 
 use self::check::{check_opcode, check_static, check_support, extra_check_opcode};
 use self::run::run_opcode;
-use self::cost::{gas_refund, gas_stipend, gas_cost, memory_cost, memory_gas};
+use self::cost::{gas_refund, AddRefund, gas_stipend, gas_cost, memory_cost, memory_gas};
 
 macro_rules! reset_error_hard {
     ($self: expr, $err: expr) => {
@@ -342,7 +342,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             memory_cost: Gas,
             gas_cost: Gas,
             gas_stipend: Gas,
-            gas_refund: Gas,
+            gas_refund: isize,
             after_gas: Gas,
         }
 
@@ -461,7 +461,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         trace!("memory_cost: {:x?}", memory_cost);
         trace!("gas_cost:    {:x?}", gas_cost);
         trace!("gas_stipend: {:x?}", gas_stipend);
-        trace!("gas_refund:  {:x?}", gas_refund);
+        trace!("gas_refund:  {:x}", gas_refund);
         trace!("after_gas:   {:x?}", after_gas);
 
         let instruction = PCMut::<P>::new(&self.state.context.code,
@@ -473,7 +473,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
         self.state.used_gas += gas_cost - gas_stipend;
         self.state.memory_cost = memory_cost;
-        self.state.refunded_gas = self.state.refunded_gas + gas_refund;
+        self.state.refunded_gas = self.state.refunded_gas.add_refund(gas_refund);;
 
         debug!("{:?} => {:?}", instruction, result);
         debug!("gas used: {:x?}", self.state.total_used_gas());

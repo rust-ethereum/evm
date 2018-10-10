@@ -87,6 +87,7 @@ impl Patch for FrontierPatch {
     fn has_return_data() -> bool { false }
     fn has_bitwise_shift() -> bool { false }
     fn has_extcodehash() -> bool { false }
+    fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -116,6 +117,7 @@ impl Patch for HomesteadPatch {
     fn has_return_data() -> bool { false }
     fn has_bitwise_shift() -> bool { false }
     fn has_extcodehash() -> bool { false }
+    fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -145,6 +147,7 @@ impl Patch for SpuriousDragonPatch {
     fn has_return_data() -> bool { false }
     fn has_bitwise_shift() -> bool { false }
     fn has_extcodehash() -> bool { false }
+    fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }
@@ -174,6 +177,7 @@ impl Patch for ByzantiumPatch {
     fn has_return_data() -> bool { true }
     fn has_bitwise_shift() -> bool { false }
     fn has_extcodehash() -> bool { false }
+    fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }

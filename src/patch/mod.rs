@@ -77,6 +77,8 @@ pub trait Patch {
     fn has_bitwise_shift() -> bool;
     /// Whether the EVM has EXTCODEHASH
     fn has_extcodehash() -> bool;
+    /// Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
+    fn has_reduced_sstore_gas_metering() -> bool;
     /// Whether to throw out of gas error when
     /// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
     /// of gas.
@@ -129,6 +131,7 @@ impl Patch for VMTestPatch {
     fn has_return_data() -> bool { true }
     fn has_bitwise_shift() -> bool { true }
     fn has_extcodehash() -> bool { true }
+    fn has_reduced_sstore_gas_metering() -> bool { true }
     fn err_on_call_with_more_gas() -> bool { true }
     fn call_create_l64_after_gas() -> bool { false }
     fn memory_limit() -> usize { usize::max_value() }
@@ -158,6 +161,7 @@ impl Patch for EmbeddedPatch {
     fn has_return_data() -> bool { false }
     fn has_bitwise_shift() -> bool { false }
     fn has_extcodehash() -> bool { false }
+    fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
     fn call_create_l64_after_gas() -> bool { true }
     fn memory_limit() -> usize { usize::max_value() }

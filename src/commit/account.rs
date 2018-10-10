@@ -7,6 +7,8 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")] use std::marker::PhantomData;
 #[cfg(not(feature = "std"))] use alloc::{collections::BTreeSet as Set, collections::BTreeMap as Map, collections::btree_map as map};
 #[cfg(not(feature = "std"))] use core::marker::PhantomData;
+#[cfg(feature = "std")] use std::cell::RefCell;
+#[cfg(not(feature = "std"))] use core::cell::RefCell;
 use bigint::{M256, U256, Address};
 use patch::AccountPatch;
 
@@ -203,6 +205,7 @@ impl AccountChange {
 /// A struct that manages the current account state for one EVM.
 pub struct AccountState<A: AccountPatch> {
     accounts: Map<Address, AccountChange>,
+    orig_storage: RefCell<Map<Address, Storage>>,
     codes: Map<Address, Rc<Vec<u8>>>,
     _marker: PhantomData<A>,
 }
@@ -212,6 +215,7 @@ impl<A: AccountPatch> Default for AccountState<A> {
         Self {
             accounts: Map::new(),
             codes: Map::new(),
+            orig_storage: RefCell::new(Map::new()),
             _marker: PhantomData,
         }
     }
@@ -222,6 +226,7 @@ impl<A: AccountPatch> Clone for AccountState<A> {
         Self {
             accounts: self.accounts.clone(),
             codes: self.codes.clone(),
+            orig_storage: self.orig_storage.clone(),
             _marker: PhantomData,
         }
     }
@@ -380,6 +385,11 @@ impl<A: AccountPatch> AccountState<A> {
                         return Err(CommitError::InvalidCommitment);
                     },
                 }
+                self.orig_storage
+                    .borrow_mut()
+                    .entry(address)
+                    .or_insert(Storage::new(address, true))
+                    .commit(index, value)?
             },
             AccountCommitment::Nonexist(address) => {
                 let account = if self.accounts.contains_key(&address) {
@@ -525,6 +535,16 @@ impl<A: AccountPatch> AccountState<A> {
         }
 
         Err(RequireError::Account(address))
+    }
+
+    /// Read an original (pre-execution) value from an account storage
+    pub fn storage_read_orig(&self, address: Address, index: U256) -> Result<M256, RequireError> {
+        let mut orig_storage = self.orig_storage.borrow_mut();
+        let orig_account_storage = orig_storage
+            .entry(address)
+            .or_insert(Storage::new(address, true));
+
+        orig_account_storage.read(index)
     }
 
     /// Write a value from an account storage. The account will be

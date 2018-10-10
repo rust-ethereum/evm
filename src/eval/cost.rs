@@ -15,10 +15,13 @@ const G_LOW: usize = 5;
 const G_MID: usize = 8;
 const G_HIGH: usize = 10;
 const G_JUMPDEST: usize = 1;
+const G_SNOOP: usize = 200;
 const G_SSET: usize = 20000;
 const G_SRESET: usize = 5000;
-const R_SCLEAR: usize = 15000;
-const R_SUICIDE: usize = 24000;
+const R_SRESET: isize = 15000;
+const R_SCLEAR: isize = 19800;
+const R_SNOOP: isize = 4800;
+const R_SUICIDE: isize = 24000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSIT: usize = 200;
 const G_CALLVALUE: usize = 9000;
@@ -35,15 +38,33 @@ const G_COPY: usize = 3;
 const G_BLOCKHASH: usize = 20;
 const G_EXTCODEHASH: usize = 400;
 
-fn sstore_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>) -> Gas {
-    let index: U256 = machine.stack.peek(0).unwrap().into();
-    let value = machine.stack.peek(1).unwrap();
-    let address = machine.context.address;
+fn sstore_cost<M: Memory + Default, P: Patch>(state: &State<M, P>) -> Gas {
+    let index: U256 = state.stack.peek(0).unwrap().into();
+    let value = state.stack.peek(1).unwrap();
+    let address = state.context.address;
 
-    if value != M256::zero() && machine.account_state.storage_read(address, index).unwrap() == M256::zero() {
-        G_SSET.into()
+    if P::has_reduced_sstore_gas_metering() {
+        let orig = state.account_state.storage_read_orig(address, index).unwrap();
+        let current = state.account_state.storage_read(address, index).unwrap();
+        if value == current {
+            G_SNOOP.into()
+        } else {
+            if orig == current {
+                if orig == M256::zero() {
+                    G_SSET.into()
+                } else {
+                    G_SRESET.into()
+                }
+            } else {
+                G_SNOOP.into()
+            }
+        }
     } else {
-        G_SRESET.into()
+        if value != M256::zero() && state.account_state.storage_read(address, index).unwrap() == M256::zero() {
+            G_SSET.into()
+        } else {
+            G_SRESET.into()
+        }
     }
 }
 
@@ -264,26 +285,78 @@ pub fn gas_stipend<M: Memory + Default, P: Patch>(instruction: Instruction, stat
 }
 
 /// Calculate the refunded gas.
-pub fn gas_refund<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>) -> Gas {
+pub fn gas_refund<M: Memory + Default, P: Patch>(instruction: Instruction, state: &State<M, P>) -> isize {
     match instruction {
         Instruction::SSTORE => {
             let index: U256 = state.stack.peek(0).unwrap().into();
             let value = state.stack.peek(1).unwrap();
             let address = state.context.address;
 
-            if value == M256::zero() && state.account_state.storage_read(address, index).unwrap() != M256::zero() {
-                Gas::from(R_SCLEAR)
+            if P::has_reduced_sstore_gas_metering() {
+                let orig = state.account_state.storage_read_orig(address, index).unwrap();
+                let current = state.account_state.storage_read(address, index).unwrap();
+                let mut refund = 0;
+
+                if value != current {
+                    if orig == current {
+                        if orig != M256::zero() {
+                            refund += R_SRESET;
+                        }
+                    } else {
+                        if orig != M256::zero() {
+                            if current == M256::zero() {
+                                refund -= R_SRESET;
+                            }
+                            if value == M256::zero() {
+                                refund += R_SRESET;
+                            }
+                        }
+                        if orig == value {
+                            if orig == M256::zero() {
+                                refund += R_SCLEAR;
+                            } else {
+                                refund += R_SNOOP;
+                            }
+                        }
+                    }
+                }
+
+                refund
             } else {
-                Gas::zero()
+                if value == M256::zero() && state.account_state.storage_read(address, index).unwrap() != M256::zero() {
+                    R_SRESET
+                } else {
+                    0
+                }
             }
         },
         Instruction::SUICIDE => {
             if state.removed.contains(&state.context.address) {
-                Gas::zero()
+                0
             } else {
-                Gas::from(R_SUICIDE)
+                R_SUICIDE
             }
         },
-        _ => Gas::zero()
+        _ => 0
+    }
+}
+
+pub trait AddRefund {
+    fn add_refund(self, refund: isize) -> Self;
+}
+
+impl AddRefund for Gas {
+    fn add_refund(self, refund: isize) -> Self {
+        let (refund, sign) = if refund < 0 {
+            (0 - refund, true)
+        } else {
+            (refund, false)
+        };
+
+        if sign {
+            self - Gas::from(refund as usize)
+        } else {
+            self + Gas::from(refund as usize)
+        }
     }
 }
