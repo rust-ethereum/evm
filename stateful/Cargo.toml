@@ -10,7 +10,7 @@ repository = "https://github.com/etclabscore/sputnikvm"
 evm = { version = "0.10", path = '..' }
 ethereum-bigint = "0.2"
 ethereum-trie = "0.3"
-ethereum-block = "0.3"
+ethereum-block = "0.4"
 ethereum-rlp = "0.2"
 sha3 = "0.6"
 rand = "0.3"

@@ -444,7 +444,7 @@ impl<'b, D: DatabaseOwned> Stateful<'b, D> {
         let mut account_state = AccountState::default();
 
         loop {
-            match ValidTransaction::from_transaction::<P>(&transaction, &account_state) {
+            match ValidTransaction::from_transaction::<P>(transaction, &account_state) {
                 Ok(val) => return val,
                 Err(RequireError::Account(address)) => {
                     let account: Option<Account> = state.get(&address);
