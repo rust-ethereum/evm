@@ -10,7 +10,15 @@ extern crate jsontests;
 extern crate test;
 
 #[derive(JsonTests)]
-#[directory = "jsontests/res/files/SputnikVM/vmConstantinopleTests"]
+#[directory = "jsontests/res/files/eth/VMTests/vmConstantinopleTests"]
 #[test_with = "jsontests::util::run_test"]
 #[cfg_attr(feature = "bench", bench_with = "jsontests::util::run_bench")]
 struct ConstantinopleTests;
+
+#[derive(JsonTests)]
+#[directory = "jsontests/res/files/eth/VMTests/vmEIP1283"]
+#[test_with = "jsontests::util::run_test"]
+#[cfg_attr(feature = "bench", bench_with = "jsontests::util::run_bench")]
+struct EIP1283Tests;
+
+
