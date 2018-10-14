@@ -1,7 +1,6 @@
 extern crate serde;
 extern crate serde_json;
-extern crate hyper;
-extern crate hyper_native_tls;
+extern crate reqwest;
 
 #[macro_use]
 extern crate serde_derive;
@@ -10,11 +9,7 @@ mod record;
 
 pub use record::{RecordGethRPCClient, CachedGethRPCClient};
 
-use std::io::Read;
-use hyper::header::ContentType;
-use hyper::Client;
-use hyper::net::HttpsConnector;
-use hyper_native_tls::NativeTlsClient;
+use reqwest::Client;
 
 #[derive(Serialize, Deserialize)]
 struct RPCRequest {
@@ -138,13 +133,13 @@ pub struct RPCFilter {
 }
 
 pub trait GethRPCClient {
-    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::de::DeserializeOwned>(
         &mut self,
         method: &str,
         params: Req,
     ) -> Res;
 
-    fn rpc_request<T: serde::Deserialize>(&mut self, method: &str, params: Vec<String>) -> T {
+    fn rpc_request<T: serde::de::DeserializeOwned>(&mut self, method: &str, params: Vec<String>) -> T {
         self.rpc_object_request::<Vec<String>, T>(method, params)
     }
 
@@ -320,18 +315,16 @@ pub struct NormalGethRPCClient {
 
 impl NormalGethRPCClient {
     pub fn new(endpoint: &str) -> Self {
-        let ssl = NativeTlsClient::new().unwrap();
-        let connector = HttpsConnector::new(ssl);
         NormalGethRPCClient {
             endpoint: endpoint.to_string(),
             free_id: 1,
-            http: Client::with_connector(connector),
+            http: Client::new(),
         }
     }
 }
 
 impl GethRPCClient for NormalGethRPCClient {
-    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::de::DeserializeOwned>(
         &mut self,
         method: &str,
         params: Req,
@@ -344,16 +337,13 @@ impl GethRPCClient for NormalGethRPCClient {
         };
         self.free_id = self.free_id + 1;
 
-        let mut response_raw = self.http
-            .post(&self.endpoint)
-            .header(ContentType::json())
-            .body(&serde_json::to_string(&request).unwrap())
+        let mut response = self.http.post(&self.endpoint)
+            .json(&request)
             .send()
             .unwrap();
-        let mut buffer = String::new();
-        response_raw.read_to_string(&mut buffer).unwrap();
 
-        let response: RPCObjectResponse<Res> = serde_json::from_str(&buffer).unwrap();
+        let response: RPCObjectResponse<Res> = response.json().unwrap();
+
         response.result
     }
 }

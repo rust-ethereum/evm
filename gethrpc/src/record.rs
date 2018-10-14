@@ -2,11 +2,7 @@ use super::{GethRPCClient, RPCObjectRequest, RPCObjectResponse};
 
 use serde;
 use serde_json;
-use std::io::Read;
-use hyper::header::ContentType;
-use hyper::Client;
-use hyper::net::HttpsConnector;
-use hyper_native_tls::NativeTlsClient;
+use reqwest::Client;
 
 #[derive(Serialize, Deserialize)]
 struct Record {
@@ -24,12 +20,10 @@ pub struct RecordGethRPCClient {
 
 impl RecordGethRPCClient {
     pub fn new(endpoint: &str) -> Self {
-        let ssl = NativeTlsClient::new().unwrap();
-        let connector = HttpsConnector::new(ssl);
         RecordGethRPCClient {
             endpoint: endpoint.to_string(),
             free_id: 1,
-            http: Client::with_connector(connector),
+            http: Client::new(),
             records: Vec::new(),
         }
     }
@@ -40,7 +34,7 @@ impl RecordGethRPCClient {
 }
 
 impl GethRPCClient for RecordGethRPCClient {
-    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::de::DeserializeOwned>(
         &mut self,
         method: &str,
         params: Req,
@@ -54,16 +48,12 @@ impl GethRPCClient for RecordGethRPCClient {
         };
         self.free_id = self.free_id + 1;
 
-        let mut response_raw = self.http
-            .post(&self.endpoint)
-            .header(ContentType::json())
-            .body(&serde_json::to_string(&request).unwrap())
+        let mut response = self.http.post(&self.endpoint)
+            .json(&request)
             .send()
             .unwrap();
-        let mut buffer = String::new();
-        response_raw.read_to_string(&mut buffer).unwrap();
 
-        let response_value: serde_json::Value = serde_json::from_str(&buffer).unwrap();
+        let response_value: serde_json::Value = response.json().unwrap();
         let response: RPCObjectResponse<Res> = serde_json::from_value(response_value.clone())
             .unwrap();
 
@@ -88,7 +78,7 @@ impl CachedGethRPCClient {
 }
 
 impl GethRPCClient for CachedGethRPCClient {
-    fn rpc_object_request<Req: serde::Serialize, Res: serde::Deserialize>(
+    fn rpc_object_request<Req: serde::Serialize, Res: serde::de::DeserializeOwned>(
         &mut self,
         method: &str,
         params: Req,
