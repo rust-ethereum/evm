@@ -39,11 +39,11 @@ struct RPCObjectResponse<T> {
 pub struct RPCTransaction {
     pub hash: String,
     pub nonce: String,
-    pub block_hash: String,
-    pub block_number: String,
-    pub transaction_index: String,
+    pub block_hash: Option<String>,
+    pub block_number: Option<String>,
+    pub transaction_index: Option<String>,
     pub from: String,
-    pub to: String,
+    pub to: Option<String>,
     pub value: String,
     pub gas: String,
     pub gas_price: String,
@@ -64,17 +64,17 @@ pub struct RPCCall {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct RPCBlock {
-    pub number: String,
-    pub hash: String,
+    pub number: Option<String>,
+    pub hash: Option<String>,
     pub parent_hash: String,
-    pub nonce: String,
+    pub nonce: Option<String>,
     pub sha3_uncles: String,
-    pub logs_bloom: String,
+    pub logs_bloom: Option<String>,
     pub transactions_root: String,
     pub state_root: String,
     pub miner: String,
     pub difficulty: String,
-    pub total_difficulty: String,
+    pub total_difficulty: Option<String>,
     pub extra_data: String,
     pub size: String,
     pub gas_limit: String,
@@ -104,9 +104,11 @@ pub struct RPCTransactionReceipt {
     pub transaction_index: String,
     pub block_hash: String,
     pub block_number: String,
+    pub from: String,
+    pub to: Option<String>,
     pub cumulative_gas_used: String,
     pub gas_used: String,
-    pub contract_address: String,
+    pub contract_address: Option<String>,
     pub logs: Vec<RPCLog>,
 }
 
@@ -140,6 +142,7 @@ pub trait GethRPCClient {
     ) -> Res;
 
     fn rpc_request<T: serde::de::DeserializeOwned>(&mut self, method: &str, params: Vec<String>) -> T {
+        println!("method: {}", method);
         self.rpc_object_request::<Vec<String>, T>(method, params)
     }
 
@@ -245,30 +248,30 @@ pub trait GethRPCClient {
         )
     }
 
-    fn get_block_by_hash(&mut self, hash: &str) -> RPCBlock {
-        self.rpc_object_request::<(String, bool), RPCBlock>(
+    fn get_block_by_hash(&mut self, hash: &str) -> Option<RPCBlock> {
+        self.rpc_object_request::<(String, bool), Option<RPCBlock>>(
             "eth_getBlockByHash",
             (hash.to_string(), false),
         )
     }
 
-    fn get_block_by_number(&mut self, number: &str) -> RPCBlock {
-        self.rpc_object_request::<(String, bool), RPCBlock>(
+    fn get_block_by_number(&mut self, number: &str) -> Option<RPCBlock> {
+        self.rpc_object_request::<(String, bool), Option<RPCBlock>>(
             "eth_getBlockByNumber",
             (number.to_string(), false),
         )
     }
 
-    fn get_transaction_by_hash(&mut self, hash: &str) -> RPCTransaction {
-        self.rpc_request::<RPCTransaction>("eth_getTransactionByHash", vec![hash.to_string()])
+    fn get_transaction_by_hash(&mut self, hash: &str) -> Option<RPCTransaction> {
+        self.rpc_request::<Option<RPCTransaction>>("eth_getTransactionByHash", vec![hash.to_string()])
     }
 
     fn get_transaction_by_block_hash_and_index(
         &mut self,
         hash: &str,
         index: &str,
-    ) -> RPCTransaction {
-        self.rpc_request::<RPCTransaction>(
+    ) -> Option<RPCTransaction> {
+        self.rpc_request::<Option<RPCTransaction>>(
             "eth_getTransactionByBlockHashAndIndex",
             vec![hash.to_string(), index.to_string()],
         )
@@ -278,29 +281,29 @@ pub trait GethRPCClient {
         &mut self,
         number: &str,
         index: &str,
-    ) -> RPCTransaction {
-        self.rpc_request::<RPCTransaction>(
+    ) -> Option<RPCTransaction> {
+        self.rpc_request::<Option<RPCTransaction>>(
             "eth_getTransactionByBlockNumberAndIndex",
             vec![number.to_string(), index.to_string()],
         )
     }
 
-    fn get_transaction_receipt(&mut self, hash: &str) -> RPCTransactionReceipt {
-        self.rpc_request::<RPCTransactionReceipt>(
+    fn get_transaction_receipt(&mut self, hash: &str) -> Option<RPCTransactionReceipt> {
+        self.rpc_request::<Option<RPCTransactionReceipt>>(
             "eth_getTransactionReceipt",
             vec![hash.to_string()],
         )
     }
 
-    fn get_uncle_by_block_hash_and_index(&mut self, hash: &str, index: &str) -> RPCBlock {
-        self.rpc_request::<RPCBlock>(
+    fn get_uncle_by_block_hash_and_index(&mut self, hash: &str, index: &str) -> Option<RPCBlock> {
+        self.rpc_request::<Option<RPCBlock>>(
             "eth_getUncleByBlockHashAndIndex",
             vec![hash.to_string(), index.to_string()],
         )
     }
 
-    fn get_uncle_by_block_number_and_index(&mut self, number: &str, index: &str) -> RPCBlock {
-        self.rpc_request::<RPCBlock>(
+    fn get_uncle_by_block_number_and_index(&mut self, number: &str, index: &str) -> Option<RPCBlock> {
+        self.rpc_request::<Option<RPCBlock>>(
             "eth_getUncleByBlockNumberAndIndex",
             vec![number.to_string(), index.to_string()],
         )

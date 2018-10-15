@@ -27,7 +27,7 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
     HeaderParams {
         beneficiary: Address::from_str(&block.miner).unwrap(),
         timestamp: U256::from_str(&block.timestamp).unwrap().into(),
-        number: U256::from_str(&block.number).unwrap(),
+        number: U256::from_str(&block.number.as_ref().unwrap()).unwrap(),
         difficulty: U256::from_str(&block.difficulty).unwrap(),
         gas_limit: Gas::from_str(&block.gas_limit).unwrap(),
     }
@@ -36,10 +36,10 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
 fn from_rpc_transaction(transaction: &RPCTransaction) -> ValidTransaction {
     ValidTransaction {
         caller: Some(Address::from_str(&transaction.from).unwrap()),
-        action: if transaction.to.is_empty() {
+        action: if transaction.to.is_none() {
             TransactionAction::Create
         } else {
-            TransactionAction::Call(Address::from_str(&transaction.to).unwrap())
+            TransactionAction::Call(Address::from_str(&transaction.to.as_ref().unwrap()).unwrap())
         },
         value: U256::from_str(&transaction.value).unwrap(),
         gas_limit: Gas::from_str(&transaction.gas).unwrap(),
@@ -111,7 +111,10 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
             Err(RequireError::Blockhash(number)) => {
                 println!("Feeding blockhash with number 0x{:x} ...", number);
                 let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
-                                          .hash).unwrap();
+                                            .unwrap()
+                                                .hash
+                                                .unwrap()
+                                         ).unwrap();
                 vm.commit_blockhash(number, hash).unwrap();
             },
         }
@@ -127,8 +130,9 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
     }
     if !block.uncles.is_empty() {
         for i in 0..block.uncles.len() {
-            let uncle = client.get_uncle_by_block_number_and_index(&block.number,
-                                                                   &format!("0x{:x}", i));
+            let uncle = client.get_uncle_by_block_number_and_index(block.number.as_ref().unwrap(),
+                                                                   &format!("0x{:x}", i))
+                                                                .unwrap();
             let uncle_miner = Address::from_str(&uncle.miner).unwrap();
             if uncle_miner == address {
                 return true;
@@ -140,18 +144,18 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
 }
 
 fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
-    let block = client.get_block_by_number(format!("0x{:x}", number).as_str());
-    println!("block {} ({}), transaction count: {}", number, block.number, block.transactions.len());
+    let block = client.get_block_by_number(format!("0x{:x}", number).as_str()).unwrap();
+    println!("block {} ({}), transaction count: {}", number, block.number.as_ref().unwrap(), block.transactions.len());
     let last_id = number - 1;
     let last_number = format!("0x{:x}", last_id);
-    let cur_number = block.number.to_string();
+    let cur_number = block.number.clone().unwrap();
     let block_header = from_rpc_block(&block);
 
     let mut last_vm: Option<SeqTransactionVM<P>> = None;
     for transaction_hash in &block.transactions {
         println!("\nworking on transaction {}", transaction_hash);
-        let transaction = from_rpc_transaction(&client.get_transaction_by_hash(&transaction_hash));
-        let receipt = client.get_transaction_receipt(&transaction_hash);
+        let transaction = from_rpc_transaction(&client.get_transaction_by_hash(&transaction_hash).unwrap());
+        let receipt = client.get_transaction_receipt(&transaction_hash).unwrap();
 
         let mut vm = if last_vm.is_none() {
             SeqTransactionVM::new(transaction, block_header.clone())
