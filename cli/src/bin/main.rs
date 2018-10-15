@@ -27,7 +27,7 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
     HeaderParams {
         beneficiary: Address::from_str(&block.miner).unwrap(),
         timestamp: U256::from_str(&block.timestamp).unwrap().as_u64(),
-        number: U256::from_str(&block.number).unwrap(),
+        number: U256::from_str(block.number.as_ref().unwrap()).unwrap(),
         difficulty: U256::from_str(&block.difficulty).unwrap(),
         gas_limit: Gas::from_str(&block.gas_limit).unwrap(),
     }
@@ -136,7 +136,9 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_num
             },
             Err(RequireError::Blockhash(number)) => {
                 let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
-                    .hash).unwrap();
+                    .expect("block not found")
+                    .hash
+                    .expect("block has no hash")).unwrap();
                 vm.commit_blockhash(number, hash).unwrap();
             },
         }
@@ -175,7 +177,7 @@ fn main() {
 
     let block = if matches.is_present("RPC") {
         let mut client = NormalGethRPCClient::new(matches.value_of("RPC").unwrap());
-        from_rpc_block(&client.get_block_by_number(block_number))
+        from_rpc_block(&client.get_block_by_number(block_number).expect("block not found"))
     } else {
         HeaderParams {
             beneficiary: Address::default(),

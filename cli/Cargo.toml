@@ -26,5 +26,5 @@ evm = { version = "0.10", path = "../" }
 evm-network-classic = { path = "../network/classic" }
 gethrpc = { path = '../gethrpc' }
 clap = "2.22"
-serde_json = "0.9"
+serde_json = "1.0"
 flame = "0.2"
