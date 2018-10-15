@@ -11,7 +11,7 @@ extern crate bigint;
 #[cfg(feature = "bench")]
 extern crate test;
 
-use sputnikvm::{EmbeddedAccountPatch, Patch, EMBEDDED_PRECOMPILEDS, Precompiled};
+use evm::{EmbeddedAccountPatch, Patch, EMBEDDED_PRECOMPILEDS, Precompiled};
 use bigint::{Address, Gas};
 
 #[derive(JsonTests)]
