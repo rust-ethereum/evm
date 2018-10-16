@@ -142,7 +142,6 @@ pub trait GethRPCClient {
     ) -> Res;
 
     fn rpc_request<T: serde::de::DeserializeOwned>(&mut self, method: &str, params: Vec<String>) -> T {
-        println!("method: {}", method);
         self.rpc_object_request::<Vec<String>, T>(method, params)
     }
 
