@@ -221,7 +221,13 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
             }
         }
 
-        Instruction::CREATE | Instruction::CREATE2 => G_CREATE.into(),
+        Instruction::CREATE => G_CREATE.into(),
+        Instruction::CREATE2 => {
+            let base = G_CREATE;
+            let init_code_len = state.stack.peek(2).unwrap().as_u64();
+            let sha_addup = G_SHA3WORD * (init_code_len as f32 / 32.0).ceil() as usize;
+            (base + sha_addup).into()
+        },
         Instruction::JUMPDEST => G_JUMPDEST.into(),
         Instruction::SLOAD => P::gas_sload(),
 
