@@ -21,7 +21,7 @@ use itertools::Itertools;
 use syn::Ident;
 use proc_macro::TokenStream;
 
-#[proc_macro_derive(JsonTests, attributes(directory, test_with, bench_with, criterion_config, skip, should_panic))]
+#[proc_macro_derive(JsonTests, attributes(directory, test_with, bench_with, criterion_config, skip, should_panic, patch))]
 pub fn json_tests(input: TokenStream) -> TokenStream {
     // Construct a string representation of the type definition
     let s = input.to_string();
@@ -110,6 +110,7 @@ fn generate_test(config: &Config, test_name: &Ident, data: &str, tokens: &mut qu
     let test_func_path = &config.test_with.path;
     let test_func_name = &config.test_with.name;
     let test_name_str = test_name.as_ref();
+    let (patch_name, patch_path) = derive_patch(config);
 
     tokens.append(quote!{#[test]});
     if config.should_panic {
@@ -119,8 +120,9 @@ fn generate_test(config: &Config, test_name: &Ident, data: &str, tokens: &mut qu
     tokens.append(quote! {
         fn #test_name() {
             use #test_func_path;
+            use #patch_path;
             let data = #data;
-            #test_func_name(#test_name_str, data);
+            #test_func_name::<#patch_name>(#test_name_str, data);
         }
     });
 }
@@ -137,11 +139,14 @@ fn generate_bench(config: &Config, test_name: &Ident, data: &str, tokens: &mut q
     let bench_name = format!("bench_{}", test_name.as_ref());
     let bench_ident = Ident::from(bench_name.as_ref());
 
+    let (patch_name, patch_path) = derive_patch(config);
+
     tokens.append(quote! {
         pub fn #bench_ident(c: &mut Criterion) {
             use #bench_func_path;
+            use #patch_path;
             let data = #data;
-            #bench_func_name(c, #bench_name, data);
+            #bench_func_name::<#patch_name>(c, #bench_name, data);
         }
     });
 
@@ -164,5 +169,16 @@ fn generate_criterion_macros(config: &Config, benches: &[Ident], tokens: &mut qu
             };
         };
         tokens.append(template.as_ref().replace("TARGETS", &benches));
+    }
+}
+
+fn derive_patch(config: &Config) -> (Ident, Ident) {
+    if let Some(patch) = config.patch.as_ref() {
+        (patch.name.clone(), patch.path.clone())
+    } else {
+        (
+            Ident::from("VMTestPatch"),
+            Ident::from("evm::VMTestPatch")
+        )
     }
 }

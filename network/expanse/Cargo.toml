@@ -4,11 +4,7 @@ version = "0.10.1"
 description = "Expanse patches for SputnikVM."
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
-<<<<<<< HEAD
-repository = "https://source.that.world/source/evm-rs"
-=======
-repository = "https://github.com/ETCDEVTeam/sputnikvm"
->>>>>>> Fixed all github links, Fixed the travis badge
+repository = "https://github.com/etclabscore/sputnikvm"
 
 [dependencies]
 evm = { version = "0.10", path = "../..", default-features = false }

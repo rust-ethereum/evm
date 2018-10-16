@@ -1,4 +1,5 @@
 use std::path::Path;
+use std::iter;
 use std::fs::{self, File, DirEntry};
 use failure::Error;
 
@@ -25,8 +26,14 @@ pub fn read_tests_from_dir<P: AsRef<Path>>(dir_path: P) -> Result<impl Iterator<
     Ok(iter)
 }
 
-pub fn tests_iterator_from_direntry(file: &DirEntry) -> Result<impl Iterator<Item=Test>, Error> {
+pub fn tests_iterator_from_direntry(file: &DirEntry) -> Result<Box<dyn Iterator<Item=Test>>, Error> {
     let path = file.path().to_owned();
+
+    // Skip non-json files
+    if !path.extension().map(|e| e == "json").unwrap_or(false) {
+        return Ok(Box::new(iter::empty()))
+    }
+
     let file = File::open(&path)?;
     let tests: Value = json::from_reader(file)?;
 
@@ -42,5 +49,5 @@ pub fn tests_iterator_from_direntry(file: &DirEntry) -> Result<impl Iterator<Ite
         data
     });
 
-    Ok(iter)
+    Ok(Box::new(iter))
 }

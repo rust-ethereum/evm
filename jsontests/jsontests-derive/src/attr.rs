@@ -11,6 +11,7 @@ pub struct Config {
     pub test_with: ExternalRef,
     pub bench_with: Option<ExternalRef>,
     pub criterion_config: Option<ExternalRef>,
+    pub patch: Option<ExternalRef>,
     pub skip: bool,
     pub should_panic: bool,
 }
@@ -47,11 +48,12 @@ pub fn extract_attrs(ast: &syn::DeriveInput) -> Result<Config, Error> {
                 #[directory = \"../tests/testset\"]\n\
                 #[test_with = \"test::test_function\"]\n\
                 #[bench_wuth = \"test::bench_function\"] (Optional)\n\
+                #[patch = \"CustomTestPatch\" (Optional)\n\
                 #[skip] (Optional)\n\
                 #[should_panic] (Optional)\n\
                 struct TestSet;";
 
-    if ast.attrs.len() < 2 || ast.attrs.len() > 5 {
+    if ast.attrs.len() < 2 || ast.attrs.len() > 6 {
         bail!(ERROR_MSG);
     }
 
@@ -63,6 +65,7 @@ pub fn extract_attrs(ast: &syn::DeriveInput) -> Result<Config, Error> {
                     "test_with" => Config { test_with: ExternalRef::from(value.clone()), ..config },
                     "bench_with" => Config { bench_with: Some(ExternalRef::from(value.clone())), ..config },
                     "criterion_config" => Config { criterion_config: Some(ExternalRef::from(value.clone())), ..config },
+                    "patch" => Config { patch: Some(ExternalRef::from(value.clone())), ..config },
                     _ => panic!("{}", ERROR_MSG),
                 }
             },
