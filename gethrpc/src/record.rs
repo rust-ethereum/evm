@@ -87,7 +87,6 @@ impl GethRPCClient for CachedGethRPCClient {
 
         for record in &self.records {
             if &record.method == method && record.request == request_value {
-                println!("response: {:#?}", record.response);
                 let response: RPCObjectResponse<Res> =
                     serde_json::from_value(record.response.clone()).unwrap();
                 return response.result;
