@@ -468,9 +468,8 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 account_state.require(address)?;
 
                 ccode_deposit = match transaction.action {
+                    TransactionAction::Create | TransactionAction::Create2(..) => true,
                     TransactionAction::Call(_) => false,
-                    TransactionAction::Create => true,
-                    TransactionAction::Create2(..) => true,
                 };
                 cgas = transaction.intrinsic_gas::<P>();
                 cpreclaimed_value = transaction.preclaimed_value();
