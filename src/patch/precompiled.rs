@@ -1,4 +1,4 @@
- #[cfg(not(feature = "std"))]
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
 #[cfg(not(feature = "std"))] use alloc::rc::Rc;
