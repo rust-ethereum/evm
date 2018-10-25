@@ -69,15 +69,7 @@ macro_rules! try_balance {
     }
 }
 
-pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas) -> Option<Control> {
-    do_create(state, after_gas, false)
-}
-
-pub fn create2<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas) -> Option<Control> {
-    do_create(state, after_gas, true)
-}
-
-fn do_create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas, is_create2: bool) -> Option<Control> {
+pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas, is_create2: bool) -> Option<Control> {
     let l64_after_gas = if P::call_create_l64_after_gas() { l64(after_gas) } else { after_gas };
 
     pop!(state, value: U256);
