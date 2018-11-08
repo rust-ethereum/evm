@@ -98,7 +98,7 @@ pub fn create<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas:
             gas_price: state.context.gas_price,
             gas_limit: l64_after_gas,
             value,
-            input: init.clone(),
+            input: init,
             action: TransactionAction::Create2(salt, init_hash),
             nonce: state.account_state.nonce(state.context.address).unwrap(),
         }
