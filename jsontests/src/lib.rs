@@ -167,6 +167,8 @@ pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSON
             if debug {
                 println!();
                 println!("Account code check failed for address 0x{:x}.", address);
+                println!("Expected: {:x?}", block.account_code(address));
+                println!("Actual:   {:x?}", code_ref);
             }
 
             return false;
