@@ -3,7 +3,6 @@
 #[macro_use]
 extern crate jsontests_derive;
 extern crate jsontests;
-extern crate sputnikvm;
 #[macro_use]
 extern crate criterion;
 extern crate evm;
@@ -17,7 +16,6 @@ use std::time::Duration;
 #[bench_with = "jsontests::util::run_bench"]
 #[criterion_config = "criterion_cfg"]
 struct Performance;
-
 
 pub fn criterion_cfg() -> Criterion {
     // Due to poor SputnikVM performance, there's no chance to get a lot of measurements

@@ -1,13 +1,13 @@
 [package]
 name = "evm-stateful"
-version = "0.10.0"
+version = "0.11.0-beta.0"
 license = "Apache-2.0"
 description = "Stateful evm-rs wrapped with tries."
 authors = ["Wei Tang <hi@that.world>"]
 repository = "https://github.com/etclabscore/sputnikvm"
 
 [dependencies]
-evm = { version = "0.10", path = '..' }
+evm = { version = "0.11.0-beta", path = '..' }
 ethereum-bigint = "0.2"
 ethereum-trie = "0.3"
 ethereum-block = "0.4"
@@ -21,4 +21,4 @@ serde_derive = "1.0"
 serde_json = "1.0"
 lazy_static = "0.2"
 ethereum-hexutil = "0.2"
-evm-network-classic = { path = "../network/classic" }
+evm-network-classic = { version = "0.11.0-beta", path = "../network/classic" }
