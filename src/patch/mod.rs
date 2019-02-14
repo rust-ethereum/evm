@@ -75,6 +75,8 @@ pub trait Patch {
     fn has_return_data() -> bool;
     /// Whether the EVM has SHL, SHR and SAR
     fn has_bitwise_shift() -> bool;
+    /// Whether the EVM has CREATE2
+    fn has_create2() -> bool;
     /// Whether the EVM has EXTCODEHASH
     fn has_extcodehash() -> bool;
     /// Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
@@ -130,6 +132,7 @@ impl Patch for VMTestPatch {
     fn has_revert() -> bool { true }
     fn has_return_data() -> bool { true }
     fn has_bitwise_shift() -> bool { true }
+    fn has_create2() -> bool { true }
     fn has_extcodehash() -> bool { true }
     fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { true }
@@ -160,6 +163,7 @@ impl Patch for EmbeddedPatch {
     fn has_revert() -> bool { false }
     fn has_return_data() -> bool { false }
     fn has_bitwise_shift() -> bool { false }
+    fn has_create2() -> bool { false }
     fn has_extcodehash() -> bool { false }
     fn has_reduced_sstore_gas_metering() -> bool { false }
     fn err_on_call_with_more_gas() -> bool { false }
