@@ -95,6 +95,7 @@ impl Patch for EIP1283Patch {
     fn has_bitwise_shift() -> bool {
         true
     }
+    fn has_create2() -> bool { true }
     fn has_extcodehash() -> bool {
         true
     }

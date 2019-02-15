@@ -263,7 +263,13 @@ macro_rules! impl_pc {
                     Opcode::LOG(v) => Instruction::LOG(v),
 
                     Opcode::CREATE => Instruction::CREATE,
-                    Opcode::CREATE2 => Instruction::CREATE2,
+                    Opcode::CREATE2 => {
+                        if P::has_create2() {
+                            Instruction::CREATE2
+                        } else {
+                            return Err(OnChainError::InvalidOpcode);
+                        }
+                    },
                     Opcode::CALL => Instruction::CALL,
                     Opcode::CALLCODE => Instruction::CALLCODE,
                     Opcode::RETURN => Instruction::RETURN,
