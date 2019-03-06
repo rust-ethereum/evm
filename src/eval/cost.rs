@@ -46,7 +46,9 @@ fn sstore_cost<M: Memory, P: Patch>(state: &State<M, P>) -> Gas {
     let address = state.context.address;
 
     if state.patch.has_reduced_sstore_gas_metering() {
-        let orig = state.account_state.storage_read_orig(address, index).unwrap();
+        trace!("using EIP1283 reduced SSTORE gas metering scheme");
+        // If RequireError is thrown here, that means that original storage was unset, hence defaulting to Zero.
+        let orig = state.account_state.storage_read_orig(address, index).unwrap_or(M256::zero());
         let current = state.account_state.storage_read(address, index).unwrap();
         if value == current {
             G_SNOOP.into()
@@ -359,7 +361,9 @@ pub fn gas_refund<M: Memory, P: Patch>(instruction: Instruction, state: &State<M
             let address = state.context.address;
 
             if state.patch.has_reduced_sstore_gas_metering() {
-                let orig = state.account_state.storage_read_orig(address, index).unwrap();
+                trace!("using EIP1283 reduced SSTORE gas metering scheme");
+                // If RequireError is thrown here, that means that original storage was unset, hence defaulting to Zero.
+                let orig = state.account_state.storage_read_orig(address, index).unwrap_or(M256::zero());
                 let current = state.account_state.storage_read(address, index).unwrap();
                 let mut refund = 0;
 
