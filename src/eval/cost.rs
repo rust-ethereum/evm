@@ -8,7 +8,7 @@ use core::cmp::max;
 use std::cmp::max;
 
 use super::State;
-use crate::{Instruction, Memory, Patch};
+use crate::{AccountPatch, Instruction, Memory, Patch};
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -98,9 +98,20 @@ fn new_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instructio
 
 fn suicide_cost<M: Memory, P: Patch>(machine: &State<M, P>) -> Gas {
     let address: Address = machine.stack.peek(0).unwrap().into();
-    let suicide_gas_topup = if !machine.account_state.exists(address).unwrap() {
+    let current_balance = machine.account_state.balance(machine.context.address).unwrap();
+    let is_existing = machine.account_state.exists(address).unwrap();
+
+    let is_eip161_relaxed_zero_balance_transfer =
+        current_balance != U256::zero() && !machine.patch.account_patch().empty_considered_exists();
+
+    debug!("suicide in favor of {}, exists: {}", address, is_existing);
+    debug!("suicide transfer value: {}", current_balance);
+
+    let suicide_gas_topup = if !is_existing && !is_eip161_relaxed_zero_balance_transfer {
+        trace!("suicide with new account gas topup");
         machine.patch.gas_suicide_new_account()
     } else {
+        trace!("suicide with zero gas topup");
         Gas::zero()
     };
     machine.patch.gas_suicide() + suicide_gas_topup
