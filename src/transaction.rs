@@ -245,6 +245,18 @@ impl ValidTransaction {
     ) -> Result<Context, RequireError> {
         let address = self.address();
 
+        // Calculate gas with overflow checks
+        let gas_limit: U256 = self.gas_limit.into();
+        let upfront: U256 = upfront.into();
+        let new_gas_limit = gas_limit.saturating_sub(upfront);
+        trace!("gas_limit({}) - upfront({}) = {}", gas_limit, upfront, new_gas_limit);
+        let new_gas_limit = Gas::from(new_gas_limit);
+
+        // print a warning if gas limit have zeroed out
+        if new_gas_limit == Gas::zero() {
+            warn!("gas limit saturated to zero");
+        }
+
         match self.action {
             TransactionAction::Call(_) => {
                 if self.caller.is_some() {
@@ -265,7 +277,7 @@ impl ValidTransaction {
                     data: self.input,
                     gas_price: self.gas_price,
                     value: self.value,
-                    gas_limit: self.gas_limit - upfront,
+                    gas_limit: new_gas_limit,
                     code: account_state.code(address).unwrap(),
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
@@ -287,7 +299,7 @@ impl ValidTransaction {
                     caller: self.caller.unwrap_or(system_address!()),
                     gas_price: self.gas_price,
                     value: self.value,
-                    gas_limit: self.gas_limit - upfront,
+                    gas_limit: new_gas_limit,
                     data: Rc::new(Vec::new()),
                     code: self.input,
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
