@@ -102,23 +102,39 @@ fn new_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instructio
 }
 
 fn suicide_cost<M: Memory, P: Patch>(machine: &State<M, P>) -> Gas {
-    let address: Address = machine.stack.peek(0).unwrap().into();
+    let target_address: Address = machine.stack.peek(0).unwrap().into();
     let current_balance = machine.account_state.balance(machine.context.address).unwrap();
-    let is_existing = machine.account_state.exists(address).unwrap();
+    let is_target_existing = machine.account_state.exists(target_address).unwrap();
 
-    let is_eip161_relaxed_zero_balance_transfer =
-        current_balance != U256::zero() && !machine.patch.account_patch().empty_considered_exists();
+    // Whether the suicide gas topup should be levied:
+    // if before EIP161:
+    // - if target nonexistent
+    // if after EIP161:
+    // - if transfer balance != 0
+    // - if target account is dead
+    // defined by EIP161 (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-161.md)
+    // AccountPatch::empty_considered_exists is set to false on State-Clearing ETH fork
+    let eip161 = !machine.patch.account_patch().empty_considered_exists();
+    let should_charge_topup = if eip161 {
+        current_balance != U256::zero() && !is_target_existing
+    } else {
+        !is_target_existing
+    };
 
-    debug!("suicide in favor of {}, exists: {}", address, is_existing);
+    debug!(
+        "suicide in favor of {}, exists: {}, on_eip161: {}",
+        target_address, is_target_existing, eip161
+    );
     debug!("suicide transfer value: {}", current_balance);
 
-    let suicide_gas_topup = if !is_existing && !is_eip161_relaxed_zero_balance_transfer {
+    let suicide_gas_topup = if should_charge_topup {
         trace!("suicide with new account gas topup");
         machine.patch.gas_suicide_new_account()
     } else {
         trace!("suicide with zero gas topup");
         Gas::zero()
     };
+
     machine.patch.gas_suicide() + suicide_gas_topup
 }
 
