@@ -17,7 +17,6 @@ use std::time::Duration;
 #[criterion_config = "criterion_cfg"]
 struct Performance;
 
-
 pub fn criterion_cfg() -> Criterion {
     // Due to poor SputnikVM performance, there's no chance to get a lot of measurements
     // and higher threshold is needed

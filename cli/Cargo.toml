@@ -22,7 +22,7 @@ path = "src/bin/main.rs"
 [dependencies]
 ethereum-bigint = "0.2"
 ethereum-hexutil = "0.2"
-evm = { version = "0.10", path = "../" }
+evm = { path = ".." }
 evm-network-classic = { path = "../network/classic" }
 gethrpc = { path = '../gethrpc' }
 clap = "2.22"
