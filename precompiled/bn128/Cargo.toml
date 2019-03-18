@@ -9,11 +9,11 @@ repository = "https://github.com/etclabscore/sputnikvm"
 [dependencies]
 evm = { version = "0.10", path = "../..", default-features = false }
 ethereum-bigint = { version = "0.2", default-features = false }
-bn = { version = "0.4", git = "https://github.com/etclabscore/bn.git", rev = "a604e5da959e1878318c8eea5219d90d6a28f578", default-features = false }
+bn-plus = { version = "0.4" }
 
 [features]
 default = ["std", "rust-secp256k1"]
 rlp = ["ethereum-bigint/rlp"]
 c-secp256k1 = ["evm/c-secp256k1"]
 rust-secp256k1 = ["evm/rust-secp256k1"]
-std = ["evm/std", "bn/std"]
+std = ["evm/std"]
