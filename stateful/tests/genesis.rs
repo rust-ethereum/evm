@@ -4,26 +4,26 @@ extern crate serde_json;
 extern crate serde_derive;
 #[macro_use]
 extern crate lazy_static;
-extern crate evm;
-extern crate evm_stateful;
-extern crate evm_network_classic;
+extern crate bigint;
 extern crate block;
-extern crate trie;
+extern crate evm;
+extern crate evm_network_classic;
+extern crate evm_stateful;
 extern crate rand;
 extern crate sha3;
-extern crate bigint;
+extern crate trie;
 
-use sha3::{Digest, Keccak256};
-use bigint::{H256, U256, Address, Gas};
-use evm::{ValidTransaction, VM, SeqTransactionVM, HeaderParams, VMStatus};
-use evm_network_classic::MainnetEIP160Patch;
-use evm_stateful::{MemoryStateful, LiteralAccount};
+use bigint::{Address, Gas, H256, U256};
 use block::TransactionAction;
-use trie::{Database, MemoryDatabase};
-use std::collections::HashMap;
-use std::str::FromStr;
-use std::rc::Rc;
+use evm::{HeaderParams, SeqTransactionVM, VMStatus, ValidTransaction, VM};
+use evm_network_classic::MainnetEIP160Patch;
+use evm_stateful::{LiteralAccount, MemoryStateful};
 use rand::Rng;
+use sha3::{Digest, Keccak256};
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::str::FromStr;
+use trie::{Database, MemoryDatabase};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct JSONAccount {
@@ -45,14 +45,23 @@ fn secure_trie() {
     let database = MemoryDatabase::new();
     let mut trie = database.create_empty();
 
-    trie.insert_raw(Keccak256::digest("doe".as_bytes()).as_slice().into(),
-                    "reindeer".as_bytes().into());
-    trie.insert_raw(Keccak256::digest("dog".as_bytes()).as_slice().into(),
-                    "puppy".as_bytes().into());
-    trie.insert_raw(Keccak256::digest("dogglesworth".as_bytes()).as_slice().into(),
-                    "cat".as_bytes().into());
+    trie.insert_raw(
+        Keccak256::digest("doe".as_bytes()).as_slice().into(),
+        "reindeer".as_bytes().into(),
+    );
+    trie.insert_raw(
+        Keccak256::digest("dog".as_bytes()).as_slice().into(),
+        "puppy".as_bytes().into(),
+    );
+    trie.insert_raw(
+        Keccak256::digest("dogglesworth".as_bytes()).as_slice().into(),
+        "cat".as_bytes().into(),
+    );
 
-    assert_eq!(trie.root(), H256::from_str("0xd4cd937e4a4368d7931a9cf51686b7e10abb3dce38a39000fd7902a092b64585").unwrap());
+    assert_eq!(
+        trie.root(),
+        H256::from_str("0xd4cd937e4a4368d7931a9cf51686b7e10abb3dce38a39000fd7902a092b64585").unwrap()
+    );
 }
 
 #[test]
@@ -68,16 +77,21 @@ fn morden_state_root() {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        stateful.sets(
-            &[(address, LiteralAccount {
+        stateful.sets(&[(
+            address,
+            LiteralAccount {
                 nonce: U256::from(2u64.pow(20)),
                 storage: HashMap::new(),
                 code: Vec::new(),
                 balance,
-            })]);
+            },
+        )]);
     }
 
-    assert_eq!(stateful.root(), H256::from("0xf3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9"));
+    assert_eq!(
+        stateful.root(),
+        H256::from("0xf3f4696bbf3b3b07775128eb7a3763279a394e382130f27c21e70233e04946a9")
+    );
 }
 
 #[test]
@@ -94,26 +108,33 @@ fn genesis_state_root() {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
 
-        let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.execute(ValidTransaction {
-            caller: None,
-            gas_price: Gas::zero(),
-            gas_limit: Gas::from(100000u64),
-            action: TransactionAction::Call(address),
-            value: balance,
-            input: empty_input.clone(),
-            nonce: U256::zero(),
-        }, &HeaderParams {
-            beneficiary: Address::default(),
-            timestamp: 0,
-            number: U256::zero(),
-            difficulty: U256::zero(),
-            gas_limit: Gas::max_value()
-        }, &[]);
+        let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.execute(
+            ValidTransaction {
+                caller: None,
+                gas_price: Gas::zero(),
+                gas_limit: Gas::from(100000u64),
+                action: TransactionAction::Call(address),
+                value: balance,
+                input: empty_input.clone(),
+                nonce: U256::zero(),
+            },
+            &HeaderParams {
+                beneficiary: Address::default(),
+                timestamp: 0,
+                number: U256::zero(),
+                difficulty: U256::zero(),
+                gas_limit: Gas::max_value(),
+            },
+            &[],
+        );
         match vm.status() {
             VMStatus::ExitedOk => (),
             _ => panic!(),
         }
     }
 
-    assert_eq!(stateful.root(), H256::from("0xd7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544"));
+    assert_eq!(
+        stateful.root(),
+        H256::from("0xd7f8974fb5ac78d9ac099b9ad5018bedc2ce0a72dad1827a1709da30580f0544")
+    );
 }

@@ -1,16 +1,20 @@
+use bigint::{Address, Gas, H160, U256};
+use evm::{
+    AccountPatch, Patch, Precompiled, ECREC_PRECOMPILED, ID_PRECOMPILED, RIP160_PRECOMPILED, SHA256_PRECOMPILED,
+};
 use std::marker::PhantomData;
-use bigint::{Gas, U256, H160, Address};
-use evm::{Precompiled, AccountPatch, Patch,
-          ID_PRECOMPILED, ECREC_PRECOMPILED, SHA256_PRECOMPILED, RIP160_PRECOMPILED};
 
 /// Mainnet account patch
 pub struct MainnetAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for MainnetAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() }
     fn empty_considered_exists() -> bool { true }
 }
 
+#[rustfmt::skip]
 pub static MUSIC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -29,6 +33,8 @@ pub static MUSIC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precom
 /// Frontier patch.
 pub struct FrontierPatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetFrontierPatch = FrontierPatch<MainnetAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for FrontierPatch<A> {
     type Account = A;
 
@@ -61,6 +67,8 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
 /// Homestead patch.
 pub struct HomesteadPatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetHomesteadPatch = HomesteadPatch<MainnetAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     type Account = A;
 

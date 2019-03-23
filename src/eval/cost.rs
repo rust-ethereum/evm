@@ -1,12 +1,14 @@
 //! Cost calculation logic
 
-use bigint::{M256, U256, Gas, Address};
+use bigint::{Address, Gas, M256, U256};
 
-#[cfg(feature = "std")] use std::cmp::max;
-#[cfg(not(feature = "std"))] use core::cmp::max;
+#[cfg(not(feature = "std"))]
+use core::cmp::max;
+#[cfg(feature = "std")]
+use std::cmp::max;
 
-use crate::{Memory, Instruction, Patch};
 use super::State;
+use crate::{Instruction, Memory, Patch};
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -87,7 +89,9 @@ fn xfer_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: 
 
 fn new_cost<M: Memory + Default, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if (instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL) && !machine.account_state.exists(address).unwrap() {
+    if (instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL)
+        && !machine.account_state.exists(address).unwrap()
+    {
         Gas::from(G_NEWACCOUNT)
     } else {
         Gas::zero()
@@ -139,41 +143,42 @@ pub fn memory_cost<M: Memory + Default, P: Patch>(instruction: Instruction, stat
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(1).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
-        },
+        }
         Instruction::CODECOPY | Instruction::CALLDATACOPY | Instruction::RETURNDATACOPY => {
             let from: U256 = stack.peek(0).unwrap().into();
             let len: U256 = stack.peek(2).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
-        },
+        }
         Instruction::EXTCODECOPY => {
             let from: U256 = stack.peek(1).unwrap().into();
             let len: U256 = stack.peek(3).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
-        },
+        }
         Instruction::MLOAD | Instruction::MSTORE => {
             let from: U256 = stack.peek(0).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(32u64))
-        },
+        }
         Instruction::MSTORE8 => {
             let from: U256 = stack.peek(0).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(1u64))
-        },
+        }
         Instruction::CREATE | Instruction::CREATE2 => {
             let from: U256 = stack.peek(1).unwrap().into();
             let len: U256 = stack.peek(2).unwrap().into();
             memory_expand(current, Gas::from(from), Gas::from(len))
-        },
+        }
         Instruction::CALL | Instruction::CALLCODE => {
             let in_from: U256 = stack.peek(3).unwrap().into();
             let in_len: U256 = stack.peek(4).unwrap().into();
             let out_from: U256 = stack.peek(5).unwrap().into();
             let out_len: U256 = stack.peek(6).unwrap().into();
-            memory_expand(memory_expand(current, Gas::from(in_from), Gas::from(in_len)),
-                          Gas::from(out_from), Gas::from(out_len))
-        },
-        _ => {
-            current
+            memory_expand(
+                memory_expand(current, Gas::from(in_from), Gas::from(in_len)),
+                Gas::from(out_from),
+                Gas::from(out_len),
+            )
         }
+        _ => current,
     }
 }
 
@@ -191,33 +196,53 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
             let len = state.stack.peek(1).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            Gas::from(G_SHA3) + Gas::from(G_SHA3WORD) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }
-        },
+            Gas::from(G_SHA3)
+                + Gas::from(G_SHA3WORD)
+                    * if wordr == Gas::zero() {
+                        wordd
+                    } else {
+                        wordd + Gas::from(1u64)
+                    }
+        }
 
         Instruction::LOG(v) => {
             let len = state.stack.peek(1).unwrap();
             Gas::from(G_LOG) + Gas::from(G_LOGDATA) * Gas::from(len) + Gas::from(G_LOGTOPIC) * Gas::from(v)
-        },
+        }
 
         Instruction::EXTCODECOPY => {
             let len = state.stack.peek(3).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            P::gas_extcode() + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }
-        },
+            P::gas_extcode()
+                + Gas::from(G_COPY)
+                    * if wordr == Gas::zero() {
+                        wordd
+                    } else {
+                        wordd + Gas::from(1u64)
+                    }
+        }
 
         Instruction::CALLDATACOPY | Instruction::CODECOPY | Instruction::RETURNDATACOPY => {
             let len = state.stack.peek(2).unwrap();
             let wordd = Gas::from(len) / Gas::from(32u64);
             let wordr = Gas::from(len) % Gas::from(32u64);
-            Gas::from(G_VERYLOW) + Gas::from(G_COPY) * if wordr == Gas::zero() { wordd } else { wordd + Gas::from(1u64) }
-        },
+            Gas::from(G_VERYLOW)
+                + Gas::from(G_COPY)
+                    * if wordr == Gas::zero() {
+                        wordd
+                    } else {
+                        wordd + Gas::from(1u64)
+                    }
+        }
 
         Instruction::EXP => {
             if state.stack.peek(1).unwrap() == M256::zero() {
                 Gas::from(G_EXP)
             } else {
-                Gas::from(G_EXP) + P::gas_expbyte() * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
+                Gas::from(G_EXP)
+                    + P::gas_expbyte()
+                        * (Gas::from(1u64) + Gas::from(state.stack.peek(1).unwrap().log2floor()) / Gas::from(8u64))
             }
         }
 
@@ -227,41 +252,67 @@ pub fn gas_cost<M: Memory + Default, P: Patch>(instruction: Instruction, state: 
             let init_code_len = state.stack.peek(2).unwrap().as_u64();
             let sha_addup = G_SHA3WORD * (init_code_len as f32 / 32.0).ceil() as usize;
             (base + sha_addup).into()
-        },
+        }
         Instruction::JUMPDEST => G_JUMPDEST.into(),
         Instruction::SLOAD => P::gas_sload(),
 
         // W_zero
-        Instruction::STOP | Instruction::RETURN | Instruction::REVERT
-            => G_ZERO.into(),
+        Instruction::STOP | Instruction::RETURN | Instruction::REVERT => G_ZERO.into(),
 
         // W_base
-        Instruction::ADDRESS | Instruction::ORIGIN | Instruction::CALLER |
-        Instruction::CALLVALUE | Instruction::CALLDATASIZE | Instruction::RETURNDATASIZE |
-        Instruction::CODESIZE | Instruction::GASPRICE | Instruction::COINBASE |
-        Instruction::TIMESTAMP | Instruction::NUMBER | Instruction::DIFFICULTY |
-        Instruction::GASLIMIT | Instruction::POP | Instruction::PC |
-        Instruction::MSIZE | Instruction::GAS
-            => G_BASE.into(),
+        Instruction::ADDRESS
+        | Instruction::ORIGIN
+        | Instruction::CALLER
+        | Instruction::CALLVALUE
+        | Instruction::CALLDATASIZE
+        | Instruction::RETURNDATASIZE
+        | Instruction::CODESIZE
+        | Instruction::GASPRICE
+        | Instruction::COINBASE
+        | Instruction::TIMESTAMP
+        | Instruction::NUMBER
+        | Instruction::DIFFICULTY
+        | Instruction::GASLIMIT
+        | Instruction::POP
+        | Instruction::PC
+        | Instruction::MSIZE
+        | Instruction::GAS => G_BASE.into(),
 
         // W_verylow
-        Instruction::ADD | Instruction::SUB | Instruction::NOT | Instruction::LT |
-        Instruction::GT | Instruction::SLT | Instruction::SGT | Instruction::EQ |
-        Instruction::ISZERO | Instruction::AND | Instruction::OR | Instruction::XOR |
-        Instruction::BYTE | Instruction::CALLDATALOAD | Instruction::MLOAD |
-        Instruction::MSTORE | Instruction::MSTORE8 | Instruction::PUSH(_) |
-        Instruction::DUP(_) | Instruction::SWAP(_) |
-        Instruction::SHL | Instruction::SHR | Instruction::SAR
-            => G_VERYLOW.into(),
+        Instruction::ADD
+        | Instruction::SUB
+        | Instruction::NOT
+        | Instruction::LT
+        | Instruction::GT
+        | Instruction::SLT
+        | Instruction::SGT
+        | Instruction::EQ
+        | Instruction::ISZERO
+        | Instruction::AND
+        | Instruction::OR
+        | Instruction::XOR
+        | Instruction::BYTE
+        | Instruction::CALLDATALOAD
+        | Instruction::MLOAD
+        | Instruction::MSTORE
+        | Instruction::MSTORE8
+        | Instruction::PUSH(_)
+        | Instruction::DUP(_)
+        | Instruction::SWAP(_)
+        | Instruction::SHL
+        | Instruction::SHR
+        | Instruction::SAR => G_VERYLOW.into(),
 
         // W_low
-        Instruction::MUL | Instruction::DIV | Instruction::SDIV | Instruction::MOD |
-        Instruction::SMOD | Instruction::SIGNEXTEND
-            => G_LOW.into(),
+        Instruction::MUL
+        | Instruction::DIV
+        | Instruction::SDIV
+        | Instruction::MOD
+        | Instruction::SMOD
+        | Instruction::SIGNEXTEND => G_LOW.into(),
 
         // W_mid
-        Instruction::ADDMOD | Instruction::MULMOD | Instruction::JUMP
-            => G_MID.into(),
+        Instruction::ADDMOD | Instruction::MULMOD | Instruction::JUMP => G_MID.into(),
 
         // W_high
         Instruction::JUMPI => G_HIGH.into(),
@@ -285,7 +336,7 @@ pub fn gas_stipend<M: Memory + Default, P: Patch>(instruction: Instruction, stat
             } else {
                 Gas::zero()
             }
-        },
+        }
         _ => Gas::zero(),
     }
 }
@@ -335,15 +386,15 @@ pub fn gas_refund<M: Memory + Default, P: Patch>(instruction: Instruction, state
                     0
                 }
             }
-        },
+        }
         Instruction::SUICIDE => {
             if state.removed.contains(&state.context.address) {
                 0
             } else {
                 R_SUICIDE
             }
-        },
-        _ => 0
+        }
+        _ => 0,
     }
 }
 

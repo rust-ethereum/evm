@@ -2,16 +2,19 @@ mod profiler;
 use self::profiler::Profiler;
 
 use std::fs::File;
-
-use bigint::{Gas, Address, U256, M256, H256};
-use hexutil::read_hex;
-use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM,
-          AccountCommitment, RequireError, TransactionAction, VMStatus, SeqContextVM};
-use evm_network_classic::{MainnetFrontierPatch, MainnetHomesteadPatch, MainnetEIP150Patch, MainnetEIP160Patch};
-use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCBlock};
-use std::str::FromStr;
 use std::ops::DerefMut;
 use std::rc::Rc;
+use std::str::FromStr;
+
+use bigint::{Address, Gas, H256, M256, U256};
+use hexutil::read_hex;
+
+use evm::{
+    AccountCommitment, Context, HeaderParams, RequireError, SeqContextVM, SeqTransactionVM, TransactionAction,
+    VMStatus, ValidTransaction, VM,
+};
+use evm_network_classic::{MainnetEIP150Patch, MainnetEIP160Patch, MainnetFrontierPatch, MainnetHomesteadPatch};
+use gethrpc::{GethRPCClient, NormalGethRPCClient, RPCBlock};
 
 fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
     HeaderParams {
@@ -25,23 +28,24 @@ fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
 
 fn handle_step_without_rpc(vm: &mut VM) {
     match vm.step() {
-        Ok(()) => {},
+        Ok(()) => {}
         Err(RequireError::Account(address)) => {
             vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
-        },
+        }
         Err(RequireError::AccountStorage(address, index)) => {
             vm.commit_account(AccountCommitment::Storage {
                 address,
                 index,
                 value: M256::zero(),
-            }).unwrap();
-        },
+            })
+            .unwrap();
+        }
         Err(RequireError::AccountCode(address)) => {
             vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
-        },
+        }
         Err(RequireError::Blockhash(number)) => {
             vm.commit_blockhash(number, H256::default()).unwrap();
-        },
+        }
     }
 }
 
@@ -50,12 +54,9 @@ fn profile_fire_without_rpc(vm: &mut VM) {
         match vm.status() {
             VMStatus::Running => {
                 let opcode = vm.peek_opcode();
-                flame::span_of(format!("{:?}", opcode), || {
-                    handle_step_without_rpc(vm)
-                });
-            },
-            VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
-            VMStatus::ExitedNotSupported(_) => return,
+                flame::span_of(format!("{:?}", opcode), || handle_step_without_rpc(vm));
+            }
+            VMStatus::ExitedOk | VMStatus::ExitedErr(_) | VMStatus::ExitedNotSupported(_) => return,
         }
     }
 }
@@ -66,20 +67,21 @@ fn handle_fire_without_rpc(vm: &mut VM) {
             Ok(()) => break,
             Err(RequireError::Account(address)) => {
                 vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
-            },
+            }
             Err(RequireError::AccountStorage(address, index)) => {
                 vm.commit_account(AccountCommitment::Storage {
                     address,
                     index,
                     value: M256::zero(),
-                }).unwrap();
-            },
+                })
+                .unwrap();
+            }
             Err(RequireError::AccountCode(address)) => {
                 vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
-            },
+            }
             Err(RequireError::Blockhash(number)) => {
                 vm.commit_blockhash(number, H256::default()).unwrap();
-            },
+            }
         }
     }
 }
@@ -89,13 +91,14 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_num
         match vm.fire() {
             Ok(()) => break,
             Err(RequireError::Account(address)) => {
-                let nonce = U256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
-                                                                         &block_number)).unwrap();
-                let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
-                                                                 &block_number)).unwrap();
-                let code = read_hex(&client.get_code(&format!("0x{:x}", address),
-                                                     &block_number)).unwrap();
-                if !client.account_exist(&format!("0x{:x}", address), U256::from_str(&block_number).unwrap().as_usize()) {
+                let nonce =
+                    U256::from_str(&client.get_transaction_count(&format!("0x{:x}", address), &block_number)).unwrap();
+                let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address), &block_number)).unwrap();
+                let code = read_hex(&client.get_code(&format!("0x{:x}", address), &block_number)).unwrap();
+                if !client.account_exist(
+                    &format!("0x{:x}", address),
+                    U256::from_str(&block_number).unwrap().as_usize(),
+                ) {
                     vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
                 } else {
                     vm.commit_account(AccountCommitment::Full {
@@ -103,34 +106,39 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_num
                         address,
                         balance,
                         code: Rc::new(code),
-                    }).unwrap();
+                    })
+                    .unwrap();
                 }
-            },
+            }
             Err(RequireError::AccountStorage(address, index)) => {
-                let value = M256::from_str(&client.get_storage_at(&format!("0x{:x}", address),
-                                                                  &format!("0x{:x}", index),
-                                                                  &block_number)).unwrap();
-                vm.commit_account(AccountCommitment::Storage {
-                    address,
-                    index,
-                    value,
-                }).unwrap();
-            },
+                let value = M256::from_str(&client.get_storage_at(
+                    &format!("0x{:x}", address),
+                    &format!("0x{:x}", index),
+                    &block_number,
+                ))
+                .unwrap();
+                vm.commit_account(AccountCommitment::Storage { address, index, value })
+                    .unwrap();
+            }
             Err(RequireError::AccountCode(address)) => {
-                let code = read_hex(&client.get_code(&format!("0x{:x}", address),
-                                                     &block_number)).unwrap();
+                let code = read_hex(&client.get_code(&format!("0x{:x}", address), &block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
                     address,
                     code: Rc::new(code),
-                }).unwrap();
-            },
+                })
+                .unwrap();
+            }
             Err(RequireError::Blockhash(number)) => {
-                let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
-                    .expect("block not found")
-                    .hash
-                    .expect("block has no hash")).unwrap();
+                let hash = H256::from_str(
+                    &client
+                        .get_block_by_number(&format!("0x{:x}", number))
+                        .expect("block not found")
+                        .hash
+                        .expect("block has no hash"),
+                )
+                .unwrap();
                 vm.commit_blockhash(number, hash).unwrap();
-            },
+            }
         }
     }
 }
@@ -155,12 +163,23 @@ fn main() {
         (@arg CALLER: --caller +takes_value "Caller of the transaction.")
         (@arg ADDRESS: --address +takes_value "Address of the transaction.")
         (@arg VALUE: --value +takes_value "Value of the transaction.")
-    ).get_matches();
+    )
+    .get_matches();
 
     let code = read_hex(matches.value_of("CODE").unwrap()).unwrap();
     let data = read_hex(matches.value_of("DATA").unwrap_or("")).unwrap();
-    let caller = Address::from_str(matches.value_of("CALLER").unwrap_or("0x0000000000000000000000000000000000000000")).unwrap();
-    let address = Address::from_str(matches.value_of("ADDRESS").unwrap_or("0x0000000000000000000000000000000000000000")).unwrap();
+    let caller = Address::from_str(
+        matches
+            .value_of("CALLER")
+            .unwrap_or("0x0000000000000000000000000000000000000000"),
+    )
+    .unwrap();
+    let address = Address::from_str(
+        matches
+            .value_of("ADDRESS")
+            .unwrap_or("0x0000000000000000000000000000000000000000"),
+    )
+    .unwrap();
     let value = U256::from_str(matches.value_of("VALUE").unwrap_or("0x0")).unwrap();
     let gas_limit = Gas::from_str(matches.value_of("GAS_LIMIT").unwrap_or("0x2540be400")).unwrap();
     let gas_price = Gas::from_str(matches.value_of("GAS_PRICE").unwrap_or("0x0")).unwrap();
@@ -188,7 +207,11 @@ fn main() {
 
     let mut vm: Box<VM> = if matches.is_present("CODE") {
         let context = Context {
-            address, caller, gas_limit, gas_price, value,
+            address,
+            caller,
+            gas_limit,
+            gas_price,
+            value,
             code: Rc::new(code),
             data: Rc::new(data),
             origin: caller,
@@ -207,13 +230,14 @@ fn main() {
     } else {
         let transaction = ValidTransaction {
             caller: Some(caller),
-            value, gas_limit, gas_price,
+            value,
+            gas_limit,
+            gas_price,
             input: Rc::new(data),
             nonce: match client {
                 Some(ref mut client) => {
-                    U256::from_str(&client.get_transaction_count(&format!("0x{:x}", caller),
-                                                                 &block_number)).unwrap()
-                },
+                    U256::from_str(&client.get_transaction_count(&format!("0x{:x}", caller), &block_number)).unwrap()
+                }
                 None => U256::zero(),
             },
             action: if is_create {
@@ -234,7 +258,7 @@ fn main() {
     match client {
         Some(ref mut client) => {
             handle_fire_with_rpc(client, vm.deref_mut(), block_number);
-        },
+        }
         None => {
             if matches.is_present("PROFILE") {
                 profile_fire_without_rpc(vm.deref_mut());
@@ -249,7 +273,7 @@ fn main() {
             } else {
                 handle_fire_without_rpc(vm.deref_mut());
             }
-        },
+        }
     }
 
     println!("VM returned: {:?}", vm.status());

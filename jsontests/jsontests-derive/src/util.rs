@@ -1,5 +1,5 @@
-use syn::Ident;
 use quote;
+use syn::Ident;
 
 use crate::attr::Config;
 
@@ -18,8 +18,7 @@ pub fn open_directory_module(config: &Config, tokens: &mut quote::Tokens) -> Str
 
 pub fn open_file_module(filepath: &str, tokens: &mut quote::Tokens) -> String {
     // get file name without extension
-    let filename = filepath.rsplit('/').next().unwrap()
-        .split('.').next().unwrap();
+    let filename = filepath.rsplit('/').next().unwrap().split('.').next().unwrap();
     // create identifier
     let filename = sanitize_ident(filename);
     let filename_ident = Ident::from(filename.as_ref());
@@ -46,12 +45,16 @@ pub fn sanitize_ident(ident: &str) -> String {
     // replace empty ident
     let ident = if ident.is_empty() {
         String::from("unnamed")
-    } else { ident.to_string() };
+    } else {
+        ident.to_string()
+    };
 
     // prepend alphabetic character if token starts with non-alphabetic character
     let ident = if ident.chars().nth(0).map(|c| !c.is_alphabetic()).unwrap_or(true) {
         format!("x_{}", ident)
-    } else { ident };
+    } else {
+        ident
+    };
 
     // replace special characters with _
     replace_chars(&ident, "!@#$%^&*-+=/<>;\'\"()`~", "_")

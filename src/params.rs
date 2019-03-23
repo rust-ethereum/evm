@@ -3,10 +3,12 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-#[cfg(not(feature = "std"))] use alloc::rc::Rc;
-#[cfg(feature = "std")] use std::rc::Rc;
+#[cfg(not(feature = "std"))]
+use alloc::rc::Rc;
+#[cfg(feature = "std")]
+use std::rc::Rc;
 
-use bigint::{U256, Address, Gas};
+use bigint::{Address, Gas, U256};
 #[cfg(feature = "std")]
 use block::Header;
 
@@ -22,7 +24,7 @@ pub struct HeaderParams {
     /// Difficulty of the block.
     pub difficulty: U256,
     /// Total block gas limit.
-    pub gas_limit: Gas
+    pub gas_limit: Gas,
 }
 
 #[cfg(feature = "std")]

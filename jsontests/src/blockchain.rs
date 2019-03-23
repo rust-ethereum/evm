@@ -1,15 +1,14 @@
-use bigint::{Gas, M256, U256, H256, Address};
+use bigint::{Address, Gas, H256, M256, U256};
+use evm::{AccountChange, AccountCommitment, Context, HeaderParams, Log};
 use hexutil::*;
-use evm::{Log, Context,
-          AccountChange, AccountCommitment,
-          HeaderParams};
-use serde_json::Value;
-use std::collections::HashMap;
-use std::str::FromStr;
-use std::rc::Rc;
+
 use rlp;
-use sha3::Keccak256;
+use serde_json::Value;
 use sha3::Digest;
+use sha3::Keccak256;
+use std::collections::HashMap;
+use std::rc::Rc;
+use std::str::FromStr;
 
 use crate::read_u256;
 
@@ -50,7 +49,7 @@ impl JSONBlock {
             address,
             balance,
             code: Rc::new(code.into()),
-            nonce
+            nonce,
         }
     }
 
@@ -62,11 +61,7 @@ impl JSONBlock {
             None => M256::zero(),
         };
 
-        AccountCommitment::Storage {
-            address,
-            index,
-            value,
-        }
+        AccountCommitment::Storage { address, index, value }
     }
 
     pub fn request_account_code(&self, address: Address) -> AccountCommitment {
@@ -96,25 +91,30 @@ impl JSONBlock {
                     self.storages.get_mut(&address).unwrap().insert(key, value);
                 }
                 self.set_account_nonce(address, nonce);
-            },
+            }
             AccountChange::Create {
-                address, balance, storage, code, nonce, ..
+                address,
+                balance,
+                storage,
+                code,
+                nonce,
+                ..
             } => {
                 self.set_balance(address, balance);
                 self.set_account_code(address, code.as_slice());
                 self.storages.insert(address, storage.into());
                 self.set_account_nonce(address, nonce);
-            },
+            }
             AccountChange::Nonexist(address) => {
                 self.set_balance(address, U256::zero());
                 self.set_account_code(address, &[]);
                 self.storages.insert(address, HashMap::new());
                 self.set_account_nonce(address, U256::zero());
-            },
+            }
             AccountChange::IncreaseBalance(address, topup) => {
                 let balance = self.balance(address);
                 self.set_balance(address, balance + topup);
-            },
+            }
         }
     }
 
@@ -173,12 +173,10 @@ impl JSONBlock {
     pub fn account_storage(&self, address: Address, index: U256) -> M256 {
         match self.storages.get(&address) {
             None => M256::zero(),
-            Some(ref ve) => {
-                match ve.get(&index) {
-                    Some(&v) => v,
-                    None => M256::zero()
-                }
-            }
+            Some(ref ve) => match ve.get(&index) {
+                Some(&v) => v,
+                None => M256::zero(),
+            },
         }
     }
 

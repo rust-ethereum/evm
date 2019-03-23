@@ -1,8 +1,8 @@
 use super::{GethRPCClient, RPCObjectRequest, RPCObjectResponse};
 
-use serde::{Serialize, Deserialize};
-use serde_json;
 use reqwest::Client;
+use serde::{Deserialize, Serialize};
+use serde_json;
 
 #[derive(Serialize, Deserialize)]
 struct Record {
@@ -48,14 +48,10 @@ impl GethRPCClient for RecordGethRPCClient {
         };
         self.free_id = self.free_id + 1;
 
-        let mut response = self.http.post(&self.endpoint)
-            .json(&request)
-            .send()
-            .unwrap();
+        let mut response = self.http.post(&self.endpoint).json(&request).send().unwrap();
 
         let response_value: serde_json::Value = response.json().unwrap();
-        let response: RPCObjectResponse<Res> = serde_json::from_value(response_value.clone())
-            .unwrap();
+        let response: RPCObjectResponse<Res> = serde_json::from_value(response_value.clone()).unwrap();
 
         self.records.push(Record {
             method: method.to_string(),
@@ -73,7 +69,9 @@ pub struct CachedGethRPCClient {
 
 impl CachedGethRPCClient {
     pub fn from_value(value: serde_json::Value) -> Self {
-        CachedGethRPCClient { records: serde_json::from_value(value).unwrap() }
+        CachedGethRPCClient {
+            records: serde_json::from_value(value).unwrap(),
+        }
     }
 }
 
@@ -87,8 +85,7 @@ impl GethRPCClient for CachedGethRPCClient {
 
         for record in &self.records {
             if &record.method == method && record.request == request_value {
-                let response: RPCObjectResponse<Res> =
-                    serde_json::from_value(record.response.clone()).unwrap();
+                let response: RPCObjectResponse<Res> = serde_json::from_value(record.response.clone()).unwrap();
                 return response.result;
             }
         }

@@ -4,32 +4,90 @@
 #[allow(missing_docs)]
 /// Opcode enum. One-to-one corresponding to an `u8` value.
 pub enum Opcode {
-    STOP, ADD, MUL, SUB, DIV, SDIV, MOD, SMOD, ADDMOD, MULMOD, EXP,
+    STOP,
+    ADD,
+    MUL,
+    SUB,
+    DIV,
+    SDIV,
+    MOD,
+    SMOD,
+    ADDMOD,
+    MULMOD,
+    EXP,
     SIGNEXTEND,
 
-    LT, GT, SLT, SGT, EQ, ISZERO, AND, OR, XOR, NOT, BYTE,
+    LT,
+    GT,
+    SLT,
+    SGT,
+    EQ,
+    ISZERO,
+    AND,
+    OR,
+    XOR,
+    NOT,
+    BYTE,
 
-    SHL, SHR, SAR,
+    SHL,
+    SHR,
+    SAR,
 
     SHA3,
 
-    ADDRESS, BALANCE, ORIGIN, CALLER, CALLVALUE, CALLDATALOAD,
-    CALLDATASIZE, CALLDATACOPY, CODESIZE, CODECOPY, GASPRICE,
-    EXTCODESIZE, EXTCODECOPY, EXTCODEHASH, RETURNDATASIZE, RETURNDATACOPY,
+    ADDRESS,
+    BALANCE,
+    ORIGIN,
+    CALLER,
+    CALLVALUE,
+    CALLDATALOAD,
+    CALLDATASIZE,
+    CALLDATACOPY,
+    CODESIZE,
+    CODECOPY,
+    GASPRICE,
+    EXTCODESIZE,
+    EXTCODECOPY,
+    EXTCODEHASH,
+    RETURNDATASIZE,
+    RETURNDATACOPY,
 
-    BLOCKHASH, COINBASE, TIMESTAMP, NUMBER, DIFFICULTY, GASLIMIT,
+    BLOCKHASH,
+    COINBASE,
+    TIMESTAMP,
+    NUMBER,
+    DIFFICULTY,
+    GASLIMIT,
 
-    POP, MLOAD, MSTORE, MSTORE8, SLOAD, SSTORE, JUMP, JUMPI, PC,
-    MSIZE, GAS, JUMPDEST,
+    POP,
+    MLOAD,
+    MSTORE,
+    MSTORE8,
+    SLOAD,
+    SSTORE,
+    JUMP,
+    JUMPI,
+    PC,
+    MSIZE,
+    GAS,
+    JUMPDEST,
 
     PUSH(usize),
     DUP(usize),
     SWAP(usize),
     LOG(usize),
 
-    CREATE, CREATE2, CALL, CALLCODE, RETURN, DELEGATECALL, STATICCALL, REVERT,
+    CREATE,
+    CREATE2,
+    CALL,
+    CALLCODE,
+    RETURN,
+    DELEGATECALL,
+    STATICCALL,
+    REVERT,
 
-    INVALID, SUICIDE
+    INVALID,
+    SUICIDE,
 }
 
 impl From<u8> for Opcode {
@@ -265,22 +323,22 @@ impl Into<u8> for Opcode {
             Opcode::PUSH(v) => {
                 assert!(v >= 1 && v <= 32);
                 0x5f + (v as u8)
-            },
+            }
 
             Opcode::DUP(v) => {
                 assert!(v >= 1 && v <= 16);
                 0x7f + (v as u8)
-            },
+            }
 
             Opcode::SWAP(v) => {
                 assert!(v >= 1 && v <= 16);
                 0x8f + (v as u8)
-            },
+            }
 
             Opcode::LOG(v) => {
                 assert!(v <= 4);
                 0xa0 + (v as u8)
-            },
+            }
 
             Opcode::CREATE => 0xf0,
             Opcode::CALL => 0xf1,

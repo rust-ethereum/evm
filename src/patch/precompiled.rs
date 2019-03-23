@@ -1,25 +1,29 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-#[cfg(not(feature = "std"))] use alloc::rc::Rc;
-#[cfg(feature = "std")] use std::rc::Rc;
+#[cfg(not(feature = "std"))]
+use alloc::rc::Rc;
+#[cfg(feature = "std")]
+use std::rc::Rc;
 
 use bigint::Gas;
-#[cfg(all(feature = "std", any(feature = "rust-secp256k1", feature = "c-secp256k1")))] use std::cmp::min;
-#[cfg(all(not(feature = "std"), any(feature = "rust-secp256k1", feature = "c-secp256k1")))] use core::cmp::min;
+#[cfg(all(not(feature = "std"), any(feature = "rust-secp256k1", feature = "c-secp256k1")))]
+use core::cmp::min;
+#[cfg(all(feature = "std", any(feature = "rust-secp256k1", feature = "c-secp256k1")))]
+use std::cmp::min;
 
+use digest::{Digest, FixedOutput};
+use ripemd160::Ripemd160;
 use sha2::Sha256;
 #[cfg(any(feature = "rust-secp256k1", feature = "c-secp256k1"))]
 use sha3::Keccak256;
-use ripemd160::Ripemd160;
-use digest::{Digest, FixedOutput};
 
-#[cfg(feature = "c-secp256k1")]
-use secp256k1::{SECP256K1, RecoverableSignature, Message, RecoveryId, Error};
 #[cfg(feature = "rust-secp256k1")]
-use secp256k1::{recover, Message, RecoveryId, Signature, Error};
+use secp256k1::{recover, Error, Message, RecoveryId, Signature};
+#[cfg(feature = "c-secp256k1")]
+use secp256k1::{Error, Message, RecoverableSignature, RecoveryId, SECP256K1};
 
-use crate::errors::{RuntimeError, OnChainError};
+use crate::errors::{OnChainError, RuntimeError};
 
 /// Represent a precompiled contract.
 pub trait Precompiled: Sync {
@@ -46,8 +50,7 @@ pub trait Precompiled: Sync {
 pub struct IDPrecompiled;
 impl Precompiled for IDPrecompiled {
     fn gas(&self, data: &[u8]) -> Gas {
-        Gas::from(15u64) +
-            Gas::from(3u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
+        Gas::from(15u64) + Gas::from(3u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
     }
 
     fn step(&self, data: &[u8]) -> Rc<Vec<u8>> {
@@ -61,8 +64,7 @@ pub static ID_PRECOMPILED: IDPrecompiled = IDPrecompiled;
 pub struct RIP160Precompiled;
 impl Precompiled for RIP160Precompiled {
     fn gas(&self, data: &[u8]) -> Gas {
-        Gas::from(600u64) +
-            Gas::from(120u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
+        Gas::from(600u64) + Gas::from(120u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
     }
 
     fn step(&self, data: &[u8]) -> Rc<Vec<u8>> {
@@ -83,9 +85,7 @@ pub static RIP160_PRECOMPILED: RIP160Precompiled = RIP160Precompiled;
 pub struct SHA256Precompiled;
 impl Precompiled for SHA256Precompiled {
     fn gas(&self, data: &[u8]) -> Gas {
-        Gas::from(60u64) +
-            Gas::from(12u64) * gas_div_ceil(Gas::from(data.len()),
-                                            Gas::from(32u64))
+        Gas::from(60u64) + Gas::from(12u64) * gas_div_ceil(Gas::from(data.len()), Gas::from(32u64))
     }
 
     fn step(&self, data: &[u8]) -> Rc<Vec<u8>> {
@@ -120,7 +120,7 @@ impl Precompiled for ECRECPrecompiled {
                     *i = 0
                 }
                 Rc::new(ret.as_ref().into())
-            },
+            }
             Err(_) => Rc::new(Vec::new()),
         }
     }

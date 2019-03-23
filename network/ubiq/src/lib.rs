@@ -1,7 +1,9 @@
-use bigint::{Gas, U256, H160, Address};
-use evm::{Precompiled, AccountPatch, Patch,
-          ID_PRECOMPILED, ECREC_PRECOMPILED, SHA256_PRECOMPILED, RIP160_PRECOMPILED};
+use bigint::{Address, Gas, H160, U256};
+use evm::{
+    AccountPatch, Patch, Precompiled, ECREC_PRECOMPILED, ID_PRECOMPILED, RIP160_PRECOMPILED, SHA256_PRECOMPILED,
+};
 
+#[rustfmt::skip]
 pub static FRONTIER_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -18,6 +20,8 @@ pub static FRONTIER_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Pre
 ];
 
 pub struct StateClearingAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for StateClearingAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() + U256::from(1) }
@@ -26,6 +30,8 @@ impl AccountPatch for StateClearingAccountPatch {
 
 /// Spurious Dragon patch.
 pub struct SpuriousDragonPatch;
+
+#[rustfmt::skip]
 impl Patch for SpuriousDragonPatch {
     type Account = StateClearingAccountPatch;
 

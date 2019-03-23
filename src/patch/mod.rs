@@ -5,7 +5,7 @@ mod precompiled;
 
 pub use self::precompiled::*;
 
-use bigint::{Address, Gas, U256, H160};
+use bigint::{Address, Gas, H160, U256};
 
 /// Account patch for account related variables.
 pub trait AccountPatch {
@@ -23,6 +23,8 @@ pub trait AccountPatch {
 
 /// Mainnet account patch
 pub struct EmbeddedAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for EmbeddedAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() }
@@ -31,6 +33,8 @@ impl AccountPatch for EmbeddedAccountPatch {
 
 /// Mainnet account patch
 pub struct EmbeddedByzantiumAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for EmbeddedByzantiumAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() + U256::one() }
@@ -96,6 +100,7 @@ pub trait Patch {
 }
 
 /// Default precompiled collections.
+#[rustfmt::skip]
 pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -113,6 +118,8 @@ pub static EMBEDDED_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Pre
 
 /// Patch sepcific for the `jsontests` crate.
 pub struct VMTestPatch;
+
+#[rustfmt::skip]
 impl Patch for VMTestPatch {
     type Account = EmbeddedAccountPatch;
 
@@ -144,6 +151,8 @@ impl Patch for VMTestPatch {
 
 /// Embedded patch.
 pub struct EmbeddedPatch;
+
+#[rustfmt::skip]
 impl Patch for EmbeddedPatch {
     type Account = EmbeddedAccountPatch;
 
@@ -173,4 +182,3 @@ impl Patch for EmbeddedPatch {
         &EMBEDDED_PRECOMPILEDS
     }
 }
-

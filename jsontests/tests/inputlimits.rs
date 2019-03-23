@@ -1,18 +1,19 @@
 #![allow(non_snake_case)]
 
+extern crate evm;
 extern crate jsontests;
 extern crate serde_json;
-extern crate evm;
 
-use serde_json::Value;
 use jsontests::test_transaction;
+use serde_json::Value;
 
 // Log format is broken for input limits tests
 
 #[test]
 #[ignore]
 fn inputLimitsLight() {
-    let TESTS: Value = serde_json::from_str(include_str!("../res/files/vmInputLimitsLight/vmInputLimitsLight.json")).unwrap();
+    let TESTS: Value =
+        serde_json::from_str(include_str!("../res/files/vmInputLimitsLight/vmInputLimitsLight.json")).unwrap();
     for (name, value) in TESTS.as_object().unwrap().iter() {
         print!("\t{} ... ", name);
         match test_transaction::<evm::VMTestPatch>(name, value, true) {
@@ -34,4 +35,3 @@ fn inputLimits() {
         }
     }
 }
-
