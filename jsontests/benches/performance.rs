@@ -15,7 +15,7 @@ use std::time::Duration;
 #[test_with = "jsontests::util::run_test"]
 #[bench_with = "jsontests::util::run_bench"]
 #[criterion_config = "criterion_cfg"]
-struct Performance;
+struct _Performance;
 
 pub fn criterion_cfg() -> Criterion {
     // Due to poor SputnikVM performance, there's no chance to get a lot of measurements

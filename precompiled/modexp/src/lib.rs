@@ -1,10 +1,3 @@
-extern crate bigint;
-extern crate num_bigint;
-extern crate evm;
-
-#[cfg(test)]
-extern crate hexutil;
-
 use std::rc::Rc;
 use bigint::{Gas, U256};
 
@@ -131,7 +124,7 @@ impl Precompiled for ModexpPrecompiled {
 
 #[cfg(test)]
 mod tests {
-    use ::*;
+    use crate::*;
     use hexutil::*;
 
     #[test]

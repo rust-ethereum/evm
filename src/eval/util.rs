@@ -4,8 +4,7 @@
 use alloc::vec::Vec;
 
 use bigint::{U256, M256, Gas};
-use ::Memory;
-use errors::OnChainError;
+use crate::{Memory, errors::OnChainError};
 
 #[cfg(feature = "std")] use std::cmp::min;
 #[cfg(not(feature = "std"))] use core::cmp::min;

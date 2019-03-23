@@ -569,7 +569,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
 
 #[cfg(test)]
 mod tests {
-    use ::*;
+    use crate::*;
     use bigint::*;
     use block::TransactionAction;
     use std::str::FromStr;

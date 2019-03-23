@@ -43,9 +43,6 @@
 //! the beginning of the program.
 //!
 //! ```
-//! extern crate bigint;
-//! extern crate evm;
-//!
 //! use evm::{EmbeddedPatch, VMTestPatch,
 //!                 HeaderParams, ValidTransaction, TransactionAction,
 //!                 VM, SeqTransactionVM};
@@ -110,19 +107,11 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 
+// extern crates below are left in code on purpose even though it's discouraged in Edition 2018
+// in the event of incorrect feature setting, the error will pop up on
+// extern crate statement in lib.rs, which is easier to debug
 #[cfg(not(feature = "std"))]
 extern crate alloc;
-
-extern crate rlp;
-extern crate bigint;
-extern crate block_core;
-extern crate sha3;
-extern crate ripemd160;
-extern crate sha2;
-extern crate digest;
-
-#[macro_use]
-extern crate log;
 
 #[cfg(feature = "c-secp256k1")]
 extern crate secp256k1;
@@ -132,10 +121,6 @@ extern crate secp256k1;
 
 #[cfg(feature = "std")]
 extern crate block;
-#[cfg(test)]
-extern crate hexutil;
-#[cfg(feature = "precompiled-modexp")]
-extern crate num_bigint;
 
 mod util;
 mod memory;
@@ -148,16 +133,16 @@ mod patch;
 mod transaction;
 pub mod errors;
 
-pub use self::memory::{Memory, SeqMemory};
-pub use self::stack::Stack;
-pub use self::pc::{PC, PCMut, Instruction, Valids};
-pub use self::params::*;
-pub use self::patch::*;
-pub use self::eval::{State, Machine, Runtime, MachineStatus};
-pub use self::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState, Storage};
-pub use self::transaction::{ValidTransaction, TransactionVM, UntrustedTransaction};
-pub use self::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
-pub use self::util::opcode::Opcode;
+pub use crate::memory::{Memory, SeqMemory};
+pub use crate::stack::Stack;
+pub use crate::pc::{PC, PCMut, Instruction, Valids};
+pub use crate::params::*;
+pub use crate::patch::*;
+pub use crate::eval::{State, Machine, Runtime, MachineStatus};
+pub use crate::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState, Storage};
+pub use crate::transaction::{ValidTransaction, TransactionVM, UntrustedTransaction};
+pub use crate::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
+pub use crate::util::opcode::Opcode;
 pub use block_core::TransactionAction;
 
 #[cfg(not(feature = "std"))]
@@ -169,6 +154,8 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")] use std::cmp::min;
 #[cfg(not(feature = "std"))] use core::cmp::min;
 use bigint::{U256, H256, Gas, Address};
+
+use log::debug;
 
 #[derive(Debug, Clone, PartialEq)]
 /// VM Status

@@ -4,7 +4,7 @@
 #[cfg(not(feature = "std"))] use alloc::collections::BTreeMap as Map;
 use bigint::{U256, H256};
 
-use errors::{RequireError, CommitError};
+use crate::errors::{RequireError, CommitError};
 
 #[derive(Debug, Clone)]
 /// A struct that manages the current blockhash state for one EVM.

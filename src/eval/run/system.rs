@@ -7,9 +7,10 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")] use std::rc::Rc;
 
 use bigint::{U256, M256, H256, Address, Gas};
-use ::{Memory, Log, ValidTransaction, Patch};
-use eval::util::{l64, copy_from_memory};
 use block_core::TransactionAction;
+
+use crate::{Memory, Log, ValidTransaction, Patch};
+use crate::eval::util::{l64, copy_from_memory};
 use super::{Control, State};
 
 #[cfg(feature = "std")] use std::cmp::min;

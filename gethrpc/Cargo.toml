@@ -5,10 +5,10 @@ license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
 description = "gethrpc - provides functionality for interacting with geth's blockchain."
 repository = "https://github.com/etclabscore/sputnikvm"
+edition = "2018"
 
 [dependencies]
 clap = "2.22"
-serde = "1.0"
-serde_derive = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = "0.9"

@@ -1,9 +1,8 @@
 //! Flow control instructions.
 
-use ::Memory;
 use bigint::{U256, M256};
+use crate::{Memory, Patch};
 use super::State;
-use patch::Patch;
 
 pub fn sload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index: U256);

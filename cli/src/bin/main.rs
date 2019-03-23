@@ -1,18 +1,8 @@
-#[macro_use]
-extern crate clap;
-extern crate bigint;
-extern crate hexutil;
-extern crate evm;
-extern crate evm_network_classic;
-extern crate serde_json;
-extern crate gethrpc;
-extern crate flame;
-
 mod profiler;
+use self::profiler::Profiler;
 
 use std::fs::File;
 
-use profiler::Profiler;
 use bigint::{Gas, Address, U256, M256, H256};
 use hexutil::read_hex;
 use evm::{HeaderParams, Context, SeqTransactionVM, ValidTransaction, VM,
@@ -144,6 +134,8 @@ fn handle_fire_with_rpc<T: GethRPCClient>(client: &mut T, vm: &mut VM, block_num
         }
     }
 }
+
+use clap::clap_app;
 
 fn main() {
     let matches = clap_app!(sputnikvm =>

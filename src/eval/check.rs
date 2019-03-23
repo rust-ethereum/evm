@@ -2,9 +2,11 @@
 
 use bigint::{U256, M256, Gas};
 
-use ::{Memory, Instruction, Patch};
-use errors::{OnChainError, NotSupportedError, EvalOnChainError};
-use eval::{State, Runtime, ControlCheck};
+use crate::{
+    Memory, Instruction, Patch,
+    errors::{OnChainError, NotSupportedError, EvalOnChainError},
+    eval::{State, Runtime, ControlCheck},
+};
 
 use super::util::check_range;
 

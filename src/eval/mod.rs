@@ -10,6 +10,7 @@ use alloc::vec::Vec;
 #[cfg(not(feature = "std"))] use core::ops::AddAssign;
 #[cfg(feature = "std")] use std::ops::AddAssign;
 
+use log::{debug, trace};
 use bigint::{M256, U256, Gas, Address};
 use super::pc::Instruction;
 use super::commit::{AccountState, BlockhashState};

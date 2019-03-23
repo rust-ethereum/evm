@@ -3,8 +3,8 @@ use std::iter;
 use std::fs::{self, File, DirEntry};
 use failure::Error;
 
+use serde_json as json;
 use json::Value;
-use json;
 
 pub struct Test {
     pub path: String,

@@ -2,9 +2,8 @@
 
 use bigint::{M256, MI256, Sign};
 
-use ::Memory;
+use crate::{Memory, Patch};
 use super::State;
-use patch::Patch;
 
 pub fn iszero<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1);

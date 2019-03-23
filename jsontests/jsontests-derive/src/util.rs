@@ -1,7 +1,7 @@
 use syn::Ident;
 use quote;
 
-use attr::Config;
+use crate::attr::Config;
 
 pub fn open_directory_module(config: &Config, tokens: &mut quote::Tokens) -> String {
     // get the leaf directory name

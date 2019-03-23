@@ -1,25 +1,23 @@
 #[macro_use]
 extern crate quote;
-extern crate syn;
 extern crate proc_macro;
-extern crate serde_json as json;
-#[macro_use]
-extern crate failure;
-extern crate itertools;
 
 mod attr;
 mod tests;
 mod util;
 
-use attr::{Config, extract_attrs};
-use tests::read_tests_from_dir;
-use util::*;
-
 use failure::Error;
 use itertools::Itertools;
+use serde_json as json;
 
 use syn::Ident;
 use proc_macro::TokenStream;
+
+use self::{
+    attr::{Config, extract_attrs},
+    tests::read_tests_from_dir,
+    util::*,
+};
 
 #[proc_macro_derive(JsonTests, attributes(directory, test_with, bench_with, criterion_config, skip, should_panic, patch))]
 pub fn json_tests(input: TokenStream) -> TokenStream {

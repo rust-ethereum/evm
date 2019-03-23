@@ -5,6 +5,7 @@ description = "Expanse patches for SputnikVM."
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 repository = "https://github.com/etclabscore/sputnikvm"
+edition = "2018"
 
 [dependencies]
 evm = { version = "0.11.0-beta", path = "../..", default-features = false }

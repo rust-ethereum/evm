@@ -3,6 +3,7 @@ name = "jsontests"
 version = "0.0.0"
 license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
+edition = "2018"
 
 [[bench]]
 name = "performance"
