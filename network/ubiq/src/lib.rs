@@ -1,6 +1,3 @@
-extern crate bigint;
-extern crate evm;
-
 use bigint::{Gas, U256, H160, Address};
 use evm::{Precompiled, AccountPatch, Patch,
           ID_PRECOMPILED, ECREC_PRECOMPILED, SHA256_PRECOMPILED, RIP160_PRECOMPILED};

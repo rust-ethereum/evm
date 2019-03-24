@@ -1,14 +1,7 @@
-extern crate serde;
-extern crate serde_json;
-extern crate reqwest;
-
-#[macro_use]
-extern crate serde_derive;
-
 mod record;
+pub use self::record::{RecordGethRPCClient, CachedGethRPCClient};
 
-pub use record::{RecordGethRPCClient, CachedGethRPCClient};
-
+use serde::{Serialize, Deserialize};
 use reqwest::Client;
 
 #[derive(Serialize, Deserialize)]

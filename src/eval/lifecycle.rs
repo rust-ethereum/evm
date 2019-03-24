@@ -7,9 +7,11 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")] use std::rc::Rc;
 
 use bigint::{U256, M256, Gas, Address};
-use errors::{RequireError, OnChainError};
-use commit::AccountState;
-use ::{Memory, Patch, AccountPatch};
+use crate::{
+    Memory, Patch, AccountPatch,
+    commit::AccountState,
+    errors::{RequireError, OnChainError},
+};
 use super::{Machine, MachineStatus, GasUsage};
 use super::util::copy_into_memory_apply;
 use super::cost::code_deposit_gas;

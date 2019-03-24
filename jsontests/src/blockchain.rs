@@ -7,10 +7,11 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::rc::Rc;
-use read_u256;
 use rlp;
 use sha3::Keccak256;
 use sha3::Digest;
+
+use crate::read_u256;
 
 pub struct JSONBlock {
     codes: HashMap<Address, Vec<u8>>,

@@ -5,7 +5,7 @@ use bigint::{M256, U256, Gas, Address};
 #[cfg(feature = "std")] use std::cmp::max;
 #[cfg(not(feature = "std"))] use core::cmp::max;
 
-use ::{Memory, Instruction, Patch};
+use crate::{Memory, Instruction, Patch};
 use super::State;
 
 const G_ZERO: usize = 0;

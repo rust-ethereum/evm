@@ -3,13 +3,6 @@
         unused_variables, non_shorthand_field_patterns,
         unreachable_code)]
 
-extern crate trie;
-extern crate evm;
-extern crate sha3;
-extern crate block;
-extern crate rlp;
-extern crate bigint;
-
 use bigint::{H256, U256, M256, Address};
 use evm::{ValidTransaction, HeaderParams, Memory, TransactionVM, VM,
           AccountCommitment, Patch, AccountState, AccountChange};

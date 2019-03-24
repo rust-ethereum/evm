@@ -1,6 +1,6 @@
 use super::{GethRPCClient, RPCObjectRequest, RPCObjectResponse};
 
-use serde;
+use serde::{Serialize, Deserialize};
 use serde_json;
 use reqwest::Client;
 

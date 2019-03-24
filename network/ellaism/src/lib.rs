@@ -1,6 +1,3 @@
-extern crate bigint;
-extern crate evm;
-
 use std::marker::PhantomData;
 use bigint::{Gas, U256, H160, Address};
 use evm::{Precompiled, AccountPatch, Patch,

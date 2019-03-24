@@ -8,7 +8,6 @@ use bigint::Gas;
 #[cfg(all(feature = "std", any(feature = "rust-secp256k1", feature = "c-secp256k1")))] use std::cmp::min;
 #[cfg(all(not(feature = "std"), any(feature = "rust-secp256k1", feature = "c-secp256k1")))] use core::cmp::min;
 
-use errors::{RuntimeError, OnChainError};
 use sha2::Sha256;
 #[cfg(any(feature = "rust-secp256k1", feature = "c-secp256k1"))]
 use sha3::Keccak256;
@@ -19,6 +18,8 @@ use digest::{Digest, FixedOutput};
 use secp256k1::{SECP256K1, RecoverableSignature, Message, RecoveryId, Error};
 #[cfg(feature = "rust-secp256k1")]
 use secp256k1::{recover, Message, RecoveryId, Signature, Error};
+
+use crate::errors::{RuntimeError, OnChainError};
 
 /// Represent a precompiled contract.
 pub trait Precompiled: Sync {

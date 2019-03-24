@@ -4,12 +4,6 @@
 
 #[macro_use]
 extern crate jsontests_derive;
-extern crate bigint;
-extern crate evm;
-extern crate jsontests;
-
-#[cfg(feature = "bench")]
-extern crate test;
 
 use bigint::{Address, Gas};
 use evm::{EmbeddedAccountPatch, Patch, Precompiled, EMBEDDED_PRECOMPILEDS};
@@ -39,7 +33,7 @@ struct EIP1014;
 #[derive(JsonTests)]
 #[directory = "jsontests/res/files/eth/VMTests/vmEIP1283"]
 #[test_with = "jsontests::util::run_test"]
-#[patch = "EIP1283Patch"]
+#[patch = "crate::EIP1283Patch"]
 #[cfg_attr(feature = "bench", bench_with = "jsontests::util::run_bench")]
 struct EIP1283;
 

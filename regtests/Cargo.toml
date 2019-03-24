@@ -5,6 +5,7 @@ license = "Apache-2.0"
 authors = ["Stewart Mackenzie <setori88@gmail.com>", "Wei Tang <hi@that.world>"]
 description = "regtests - performs a regression test of the entire ethereum classic blockchain."
 repository = "https://github.com/etclabscore/sputnikvm"
+edition = "2018"
 
 # Since we have an explicit [[bin]] section below, we add the
 # following autobins line allow prevent Cargo to automatically infer

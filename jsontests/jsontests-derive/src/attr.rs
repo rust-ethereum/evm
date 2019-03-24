@@ -54,7 +54,7 @@ pub fn extract_attrs(ast: &syn::DeriveInput) -> Result<Config, Error> {
                 struct TestSet;";
 
     if ast.attrs.len() < 2 || ast.attrs.len() > 6 {
-        bail!(ERROR_MSG);
+        return Err(failure::err_msg(ERROR_MSG))
     }
 
     let config = ast.attrs.iter().fold(Config::default(), |config, attr| {

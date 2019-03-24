@@ -1,12 +1,10 @@
 //! Environment instructions
 
-use ::Memory;
-use super::State;
-use patch::Patch;
-use ::Address;
 use bigint::{H256, M256};
 use sha3::{Keccak256, Digest};
 
+use crate::{Memory, Address, Patch};
+use super::State;
 
 pub fn calldataload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index);

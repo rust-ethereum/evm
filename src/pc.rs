@@ -4,7 +4,6 @@
 use alloc::vec::Vec;
 
 use bigint::M256;
-use util::opcode::Opcode;
 #[cfg(feature = "std")] use std::cmp::min;
 #[cfg(feature = "std")] use std::marker::PhantomData;
 #[cfg(not(feature = "std"))] use core::cmp::min;
@@ -12,6 +11,7 @@ use util::opcode::Opcode;
 
 use super::Patch;
 use super::errors::OnChainError;
+use crate::util::opcode::Opcode;
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[allow(missing_docs)]

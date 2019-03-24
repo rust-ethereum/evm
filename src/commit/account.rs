@@ -10,12 +10,14 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")] use std::cell::RefCell;
 #[cfg(not(feature = "std"))] use core::cell::RefCell;
 use bigint::{M256, U256, Address};
-use patch::AccountPatch;
 
 #[cfg(not(feature = "std"))] use alloc::rc::Rc;
 #[cfg(feature = "std")] use std::rc::Rc;
 
-use errors::{RequireError, CommitError};
+use crate::{
+    AccountPatch,
+    errors::{RequireError, CommitError},
+};
 
 /// Internal representation of an account storage. It will return a
 /// `RequireError` if trying to access non-existing storage.

@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Mike Lubinets <lubinetsm@yandex.ru>"]
 readme = "README.md"
 license = "MIT"
+edition = "2018"
 
 [lib]
 doctest = false
