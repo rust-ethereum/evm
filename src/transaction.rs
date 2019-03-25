@@ -252,9 +252,9 @@ impl ValidTransaction {
         trace!("gas_limit({}) - upfront({}) = {}", gas_limit, upfront, new_gas_limit);
         let new_gas_limit = Gas::from(new_gas_limit);
 
-        // print a warning if gas limit have zeroed out
+        // print a debug warning if gas limit have zeroed out
         if new_gas_limit == Gas::zero() {
-            warn!("gas limit saturated to zero");
+            debug!("gas limit saturated to zero");
         }
 
         match self.action {
