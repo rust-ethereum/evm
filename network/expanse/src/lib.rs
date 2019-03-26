@@ -1,9 +1,11 @@
-use bigint::{Gas, U256, H160, Address};
-use evm::{Precompiled, AccountPatch, Patch,
-          ID_PRECOMPILED, ECREC_PRECOMPILED, SHA256_PRECOMPILED, RIP160_PRECOMPILED};
-use evm_precompiled_modexp::MODEXP_PRECOMPILED;
+use bigint::{Address, Gas, H160, U256};
+use evm::{
+    AccountPatch, Patch, Precompiled, ECREC_PRECOMPILED, ID_PRECOMPILED, RIP160_PRECOMPILED, SHA256_PRECOMPILED,
+};
 use evm_precompiled_bn128::{BN128_ADD_PRECOMPILED, BN128_MUL_PRECOMPILED, BN128_PAIRING_PRECOMPILED};
+use evm_precompiled_modexp::MODEXP_PRECOMPILED;
 
+#[rustfmt::skip]
 pub static FRONTIER_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -19,6 +21,7 @@ pub static FRONTIER_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Pre
      &ID_PRECOMPILED),
 ];
 
+#[rustfmt::skip]
 pub static BYZANTIUM_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 8] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -47,6 +50,8 @@ pub static BYZANTIUM_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Pr
 ];
 
 pub struct FrontierAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for FrontierAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() }
@@ -54,6 +59,8 @@ impl AccountPatch for FrontierAccountPatch {
 }
 
 pub struct StateClearingAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for StateClearingAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() + U256::from(1) }
@@ -62,6 +69,8 @@ impl AccountPatch for StateClearingAccountPatch {
 
 /// Frontier patch.
 pub struct FrontierPatch;
+
+#[rustfmt::skip]
 impl Patch for FrontierPatch {
     type Account = FrontierAccountPatch;
 
@@ -93,6 +102,8 @@ impl Patch for FrontierPatch {
 
 /// Homestead patch.
 pub struct HomesteadPatch;
+
+#[rustfmt::skip]
 impl Patch for HomesteadPatch {
     type Account = FrontierAccountPatch;
 
@@ -124,6 +135,8 @@ impl Patch for HomesteadPatch {
 
 /// Spurious Dragon patch.
 pub struct SpuriousDragonPatch;
+
+#[rustfmt::skip]
 impl Patch for SpuriousDragonPatch {
     type Account = StateClearingAccountPatch;
 
@@ -155,6 +168,8 @@ impl Patch for SpuriousDragonPatch {
 
 /// Spurious Dragon patch.
 pub struct ByzantiumPatch;
+
+#[rustfmt::skip]
 impl Patch for ByzantiumPatch {
     type Account = StateClearingAccountPatch;
 

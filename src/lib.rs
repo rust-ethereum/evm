@@ -99,11 +99,16 @@
 //! EVM implementations, will not handle transaction-level gas
 //! reductions.
 
-#![deny(unused_import_braces, unused_imports,
-        unused_comparisons, unused_must_use,
-        unused_variables, non_shorthand_field_patterns,
-        unreachable_code, missing_docs)]
-
+#![deny(
+    unused_import_braces,
+    unused_imports,
+    unused_comparisons,
+    unused_must_use,
+    unused_variables,
+    non_shorthand_field_patterns,
+    unreachable_code,
+    missing_docs
+)]
 #![cfg_attr(not(feature = "std"), no_std)]
 #![cfg_attr(not(feature = "std"), feature(alloc))]
 
@@ -122,38 +127,43 @@ extern crate secp256k1;
 #[cfg(feature = "std")]
 extern crate block;
 
-mod util;
-mod memory;
-mod stack;
-mod pc;
-mod params;
-mod eval;
 mod commit;
-mod patch;
-mod transaction;
 pub mod errors;
+mod eval;
+mod memory;
+mod params;
+mod patch;
+mod pc;
+mod stack;
+mod transaction;
+mod util;
 
+pub use crate::commit::{AccountChange, AccountCommitment, AccountState, BlockhashState, Storage};
+pub use crate::errors::{CommitError, NotSupportedError, OnChainError, PreExecutionError, RequireError};
+pub use crate::eval::{Machine, MachineStatus, Runtime, State};
 pub use crate::memory::{Memory, SeqMemory};
-pub use crate::stack::Stack;
-pub use crate::pc::{PC, PCMut, Instruction, Valids};
 pub use crate::params::*;
 pub use crate::patch::*;
-pub use crate::eval::{State, Machine, Runtime, MachineStatus};
-pub use crate::commit::{AccountCommitment, AccountChange, AccountState, BlockhashState, Storage};
-pub use crate::transaction::{ValidTransaction, TransactionVM, UntrustedTransaction};
-pub use crate::errors::{OnChainError, NotSupportedError, RequireError, CommitError, PreExecutionError};
+pub use crate::pc::{Instruction, PCMut, Valids, PC};
+pub use crate::stack::Stack;
+pub use crate::transaction::{TransactionVM, UntrustedTransaction, ValidTransaction};
 pub use crate::util::opcode::Opcode;
 pub use block_core::TransactionAction;
 
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-#[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
-#[cfg(not(feature = "std"))] use alloc::{collections::BTreeSet as Set, collections::btree_map as map};
-#[cfg(not(feature = "std"))] use alloc::boxed::Box;
-#[cfg(feature = "std")] use std::cmp::min;
-#[cfg(not(feature = "std"))] use core::cmp::min;
-use bigint::{U256, H256, Gas, Address};
+#[cfg(not(feature = "std"))]
+use alloc::boxed::Box;
+#[cfg(not(feature = "std"))]
+use alloc::{collections::btree_map as map, collections::BTreeSet as Set};
+use bigint::{Address, Gas, H256, U256};
+#[cfg(not(feature = "std"))]
+use core::cmp::min;
+#[cfg(feature = "std")]
+use std::cmp::min;
+#[cfg(feature = "std")]
+use std::collections::{hash_map as map, HashSet as Set};
 
 use log::debug;
 
@@ -202,8 +212,9 @@ pub trait VM {
         loop {
             match self.status() {
                 VMStatus::Running => self.step()?,
-                VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
-                VMStatus::ExitedNotSupported(_) => return Ok(()),
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) | VMStatus::ExitedNotSupported(_) => {
+                    return Ok(());
+                }
             }
         }
     }
@@ -256,8 +267,12 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     }
 
     /// Create a new VM with the given account state and blockhash state.
-    pub fn with_states(context: Context, block: HeaderParams,
-                       account_state: AccountState<P::Account>, blockhash_state: BlockhashState) -> Self {
+    pub fn with_states(
+        context: Context,
+        block: HeaderParams,
+        account_state: AccountState<P::Account>,
+        blockhash_state: BlockhashState,
+    ) -> Self {
         let mut machines = Vec::new();
         machines.push(Machine::with_states(context, 1, account_state.clone()));
         ContextVM {
@@ -269,9 +284,12 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
 
     /// Create a new VM with customized initialization code.
     pub fn with_init<F: FnOnce(&mut ContextVM<M, P>)>(
-        context: Context, block: HeaderParams,
-        account_state: AccountState<P::Account>, blockhash_state: BlockhashState,
-        f: F) -> Self {
+        context: Context,
+        block: HeaderParams,
+        account_state: AccountState<P::Account>,
+        blockhash_state: BlockhashState,
+        f: F,
+    ) -> Self {
         let mut vm = Self::with_states(context, block, account_state, blockhash_state);
         f(&mut vm);
         vm.fresh_account_state = vm.machines[0].state().account_state.clone();
@@ -281,9 +299,12 @@ impl<M: Memory + Default, P: Patch> ContextVM<M, P> {
     /// Create a new VM with the result of the previous VM. This is
     /// usually used by transaction for chainning them.
     pub fn with_previous(context: Context, block: HeaderParams, vm: &ContextVM<M, P>) -> Self {
-        Self::with_states(context, block,
-                          vm.machines[0].state().account_state.clone(),
-                          vm.runtime.blockhash_state.clone())
+        Self::with_states(
+            context,
+            block,
+            vm.machines[0].state().account_state.clone(),
+            vm.runtime.blockhash_state.clone(),
+        )
     }
 
     /// Returns the current state of the VM.
@@ -326,7 +347,9 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         }
 
         match self.machines[0].status() {
-            MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => VMStatus::Running,
+            MachineStatus::Running | MachineStatus::InvokeCreate(_) | MachineStatus::InvokeCall(_, _) => {
+                VMStatus::Running
+            }
             MachineStatus::ExitedOk => VMStatus::ExitedOk,
             MachineStatus::ExitedErr(err) => VMStatus::ExitedErr(err),
             MachineStatus::ExitedNotSupported(err) => VMStatus::ExitedNotSupported(err),
@@ -335,18 +358,14 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
 
     fn peek(&self) -> Option<Instruction> {
         match self.machines.last().unwrap().status().clone() {
-            MachineStatus::Running => {
-                self.machines.last().unwrap().peek()
-            },
+            MachineStatus::Running => self.machines.last().unwrap().peek(),
             _ => None,
         }
     }
 
     fn peek_opcode(&self) -> Option<Opcode> {
         match self.machines.last().unwrap().status().clone() {
-            MachineStatus::Running => {
-                self.machines.last().unwrap().peek_opcode()
-            },
+            MachineStatus::Running => self.machines.last().unwrap().peek_opcode(),
             _ => None,
         }
     }
@@ -357,13 +376,16 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                 self.machines.last_mut().unwrap().step(&self.runtime)?;
                 if self.machines.len() == 1 {
                     match self.machines.last().unwrap().status().clone() {
-                        MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) =>
-                            self.machines.last_mut().unwrap().finalize_context(&self.fresh_account_state),
+                        MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => self
+                            .machines
+                            .last_mut()
+                            .unwrap()
+                            .finalize_context(&self.fresh_account_state),
                         _ => (),
                     }
                 }
                 Ok(())
-            },
+            }
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => {
                 if self.machines.is_empty() {
                     panic!()
@@ -374,10 +396,8 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                     self.machines.last_mut().unwrap().apply_sub(finished);
                     Ok(())
                 }
-            },
-            MachineStatus::ExitedNotSupported(_) => {
-                Ok(())
-            },
+            }
+            MachineStatus::ExitedNotSupported(_) => Ok(()),
             MachineStatus::InvokeCall(context, _) => {
                 for hook in &self.runtime.context_history_hooks {
                     hook(&context)
@@ -387,9 +407,9 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                 sub.invoke_call()?;
                 self.machines.push(sub);
                 Ok(())
-            },
+            }
             MachineStatus::InvokeCreate(context) => {
-               for hook in &self.runtime.context_history_hooks {
+                for hook in &self.runtime.context_history_hooks {
                     hook(&context)
                 }
 
@@ -397,7 +417,7 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
                 sub.invoke_create()?;
                 self.machines.push(sub);
                 Ok(())
-            },
+            }
         }
     }
 
@@ -405,12 +425,13 @@ impl<M: Memory + Default, P: Patch> VM for ContextVM<M, P> {
         loop {
             debug!("machines status:");
             for (n, machine) in self.machines.iter().enumerate() {
-               debug!("Machine {}: {:x?}", n, machine.status());
+                debug!("Machine {}: {:x?}", n, machine.status());
             }
             match self.status() {
                 VMStatus::Running => self.step()?,
-                VMStatus::ExitedOk | VMStatus::ExitedErr(_) |
-                VMStatus::ExitedNotSupported(_) => return Ok(()),
+                VMStatus::ExitedOk | VMStatus::ExitedErr(_) | VMStatus::ExitedNotSupported(_) => {
+                    return Ok(());
+                }
             }
         }
     }

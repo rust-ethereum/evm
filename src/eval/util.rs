@@ -3,11 +3,13 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use bigint::{U256, M256, Gas};
-use crate::{Memory, errors::OnChainError};
+use crate::{errors::OnChainError, Memory};
+use bigint::{Gas, M256, U256};
 
-#[cfg(feature = "std")] use std::cmp::min;
-#[cfg(not(feature = "std"))] use core::cmp::min;
+#[cfg(not(feature = "std"))]
+use core::cmp::min;
+#[cfg(feature = "std")]
+use std::cmp::min;
 
 pub fn l64(gas: Gas) -> Gas {
     gas - gas / Gas::from(64u64)

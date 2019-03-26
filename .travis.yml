@@ -1,4 +1,5 @@
 language: rust
+cache: cargo
 
 rust:
   - stable
@@ -9,9 +10,13 @@ os:
   - linux
   - osx
 
+before_script:
+  - if [ "$TRAVIS_RUST_VERSION" == "stable" ]; then rustup component add rustfmt; fi
+
 script:
   - cargo build --release --all --verbose
   - cargo test --release --all --verbose
+  - if [ "$TRAVIS_RUST_VERSION" == "stable" ]; then cargo fmt -- --check; fi
   - if [ "$TRAVIS_RUST_VERSION" == "nightly" ]; then cargo build --no-default-features --features rust-secp256k1; fi
 
 matrix:

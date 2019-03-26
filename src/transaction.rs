@@ -3,39 +3,45 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-#[cfg(not(feature = "std"))] use alloc::rc::Rc;
-#[cfg(feature = "std")] use std::rc::Rc;
+#[cfg(not(feature = "std"))]
+use alloc::rc::Rc;
+#[cfg(feature = "std")]
+use std::rc::Rc;
 
-#[cfg(feature = "std")] use std::collections::{HashSet as Set, hash_map as map};
-#[cfg(feature = "std")] use std::cmp::min;
-#[cfg(feature = "std")] use std::ops::Deref;
-#[cfg(not(feature = "std"))] use alloc::{collections::BTreeSet as Set, collections::btree_map as map};
-#[cfg(not(feature = "std"))] use core::cmp::min;
-#[cfg(not(feature = "std"))] use core::ops::Deref;
-use bigint::{U256, H256, Address, Gas};
+#[cfg(not(feature = "std"))]
+use alloc::{collections::btree_map as map, collections::BTreeSet as Set};
+use bigint::{Address, Gas, H256, U256};
+#[cfg(not(feature = "std"))]
+use core::cmp::min;
+#[cfg(not(feature = "std"))]
+use core::ops::Deref;
+#[cfg(feature = "std")]
+use std::cmp::min;
+#[cfg(feature = "std")]
+use std::collections::{hash_map as map, HashSet as Set};
+#[cfg(feature = "std")]
+use std::ops::Deref;
 
-use super::errors::{RequireError, CommitError, PreExecutionError};
-use super::{State, Machine, Context, ContextVM, VM, AccountState,
-            BlockhashState, Patch, HeaderParams, Memory, VMStatus,
-            AccountCommitment, Log, AccountChange,
-            Instruction, Opcode};
+use super::errors::{CommitError, PreExecutionError, RequireError};
+use super::{
+    AccountChange, AccountCommitment, AccountState, BlockhashState, Context, ContextVM, HeaderParams, Instruction, Log,
+    Machine, Memory, Opcode, Patch, State, VMStatus, VM,
+};
 
-use block_core::TransactionAction;
 #[cfg(feature = "std")]
 use block::Transaction;
+use block_core::TransactionAction;
 
 const G_TXDATAZERO: usize = 4;
 const G_TXDATANONZERO: usize = 68;
 const G_TRANSACTION: usize = 21000;
 
-static SYSTEM_ADDRESS: [u8; 20] = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                   0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-                                   0xff, 0xff, 0xff, 0xff];
+static SYSTEM_ADDRESS: [u8; 20] = [0xff; 20];
 
 macro_rules! system_address {
     () => {
         Address::from(SYSTEM_ADDRESS.as_ref())
-    }
+    };
 }
 
 /// Represents an Ethereum transaction.
@@ -73,9 +79,12 @@ impl UntrustedTransaction {
     pub fn to_valid<P: Patch>(&self) -> Result<ValidTransaction, PreExecutionError> {
         let valid = {
             let (nonce, balance, address) = match self.caller.clone() {
-                AccountCommitment::Full { nonce, balance, address, .. } => {
-                    (nonce, balance, address)
-                },
+                AccountCommitment::Full {
+                    nonce,
+                    balance,
+                    address,
+                    ..
+                } => (nonce, balance, address),
                 _ => return Err(PreExecutionError::InvalidCaller),
             };
 
@@ -150,7 +159,8 @@ impl ValidTransaction {
     /// Create a valid transaction from a block transaction. Caller is
     /// always Some.
     pub fn from_transaction<P: Patch>(
-        transaction: &Transaction, account_state: &AccountState<P::Account>
+        transaction: &Transaction,
+        account_state: &AccountState<P::Account>,
     ) -> Result<Result<ValidTransaction, PreExecutionError>, RequireError> {
         let caller = match transaction.caller() {
             Ok(val) => val,
@@ -198,7 +208,8 @@ impl ValidTransaction {
 impl ValidTransaction {
     /// To address of the transaction.
     pub fn address(&self) -> Address {
-        self.action.address(self.caller.unwrap_or(system_address!()), self.nonce)
+        self.action
+            .address(self.caller.unwrap_or(system_address!()), self.nonce)
     }
 
     /// Intrinsic gas to be paid in prior to this transaction
@@ -224,9 +235,13 @@ impl ValidTransaction {
     /// Convert this transaction into a context. Note that this will
     /// change the account state.
     pub fn into_context<P: Patch>(
-        self, upfront: Gas, origin: Option<Address>,
-        account_state: &mut AccountState<P::Account>, is_code: bool,
-        is_static: bool) -> Result<Context, RequireError> {
+        self,
+        upfront: Gas,
+        origin: Option<Address>,
+        account_state: &mut AccountState<P::Account>,
+        is_code: bool,
+        is_static: bool,
+    ) -> Result<Context, RequireError> {
         let address = self.address();
 
         match self.action {
@@ -238,7 +253,9 @@ impl ValidTransaction {
 
                 if self.caller.is_some() && !is_code {
                     let nonce = self.nonce;
-                    account_state.set_nonce(self.caller.unwrap(), nonce + U256::from(1u64)).unwrap();
+                    account_state
+                        .set_nonce(self.caller.unwrap(), nonce + U256::from(1u64))
+                        .unwrap();
                 }
 
                 Ok(Context {
@@ -252,14 +269,16 @@ impl ValidTransaction {
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                     is_system: self.caller.is_none(),
-                    is_static
+                    is_static,
                 })
-            },
+            }
             TransactionAction::Create | TransactionAction::Create2(..) => {
                 if self.caller.is_some() {
                     account_state.require(self.caller.unwrap())?;
                     let nonce = self.nonce;
-                    account_state.set_nonce(self.caller.unwrap(), nonce + U256::from(1u64)).unwrap();
+                    account_state
+                        .set_nonce(self.caller.unwrap(), nonce + U256::from(1u64))
+                        .unwrap();
                 }
 
                 Ok(Context {
@@ -273,9 +292,9 @@ impl ValidTransaction {
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
                     is_system: self.caller.is_none(),
-                    is_static
+                    is_static,
                 })
-            },
+            }
         }
     }
 
@@ -335,23 +354,19 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
 
     /// Create a new VM with the result of the previous VM. This is
     /// usually used by transaction for chaining them.
-    pub fn with_previous(
-        transaction: ValidTransaction, block: HeaderParams, vm: &TransactionVM<M, P>
-    ) -> Self {
+    pub fn with_previous(transaction: ValidTransaction, block: HeaderParams, vm: &TransactionVM<M, P>) -> Self {
         TransactionVM(TransactionVMState::Constructing {
             transaction,
             block,
             account_state: match vm.0 {
-                TransactionVMState::Constructing { ref account_state, .. } =>
-                    account_state.clone(),
-                TransactionVMState::Running { ref vm, .. } =>
-                    vm.machines[0].state().account_state.clone(),
+                TransactionVMState::Constructing { ref account_state, .. } => account_state.clone(),
+                TransactionVMState::Running { ref vm, .. } => vm.machines[0].state().account_state.clone(),
             },
             blockhash_state: match vm.0 {
-                TransactionVMState::Constructing { ref blockhash_state, .. } =>
-                    blockhash_state.clone(),
-                TransactionVMState::Running { ref vm, .. } =>
-                    vm.runtime.blockhash_state.clone(),
+                TransactionVMState::Constructing {
+                    ref blockhash_state, ..
+                } => blockhash_state.clone(),
+                TransactionVMState::Running { ref vm, .. } => vm.runtime.blockhash_state.clone(),
             },
         })
     }
@@ -364,9 +379,7 @@ impl<M: Memory + Default, P: Patch> TransactionVM<M, P> {
     /// Returns the current runtime machine.
     pub fn current_machine(&self) -> Option<&Machine<M, P>> {
         match self.0 {
-            TransactionVMState::Running { ref vm, .. } => {
-                Some(vm.current_machine())
-            }
+            TransactionVMState::Running { ref vm, .. } => Some(vm.current_machine()),
             TransactionVMState::Constructing { .. } => None,
         }
     }
@@ -376,14 +389,19 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
     fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         match self.0 {
             TransactionVMState::Running { ref mut vm, .. } => vm.commit_account(commitment),
-            TransactionVMState::Constructing { ref mut account_state, .. } => account_state.commit(commitment),
+            TransactionVMState::Constructing {
+                ref mut account_state, ..
+            } => account_state.commit(commitment),
         }
     }
 
     fn commit_blockhash(&mut self, number: U256, hash: H256) -> Result<(), CommitError> {
         match self.0 {
             TransactionVMState::Running { ref mut vm, .. } => vm.commit_blockhash(number, hash),
-            TransactionVMState::Constructing { ref mut blockhash_state, .. } => blockhash_state.commit(number, hash),
+            TransactionVMState::Constructing {
+                ref mut blockhash_state,
+                ..
+            } => blockhash_state.commit(number, hash),
         }
     }
 
@@ -395,7 +413,7 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 } else {
                     vm.status()
                 }
-            },
+            }
             TransactionVMState::Constructing { .. } => VMStatus::Running,
         }
     }
@@ -433,37 +451,40 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 ref fresh_account_state,
                 preclaimed_value,
                 ..
-            } => {
-                match vm.status() {
-                    VMStatus::Running => {
-                        return vm.step();
-                    },
-                    VMStatus::ExitedNotSupported(_) => {
-                        return Ok(());
-                    },
-                    _ => {
-                        if *code_deposit {
-                            vm.machines[0].code_deposit();
-                            *code_deposit = false;
-                            return Ok(());
-                        }
-
-                        if !*finalized {
-                            vm.machines[0].finalize_transaction(vm.runtime.block.beneficiary,
-                                                                real_used_gas, preclaimed_value,
-                                                                fresh_account_state)?;
-                            *finalized = true;
-                            return Ok(());
-                        }
-
-                        return vm.step();
-                    },
+            } => match vm.status() {
+                VMStatus::Running => {
+                    return vm.step();
                 }
-            }
-            TransactionVMState::Constructing {
-                ref transaction, ref block,
-                ref mut account_state, ref blockhash_state } => {
+                VMStatus::ExitedNotSupported(_) => {
+                    return Ok(());
+                }
+                _ => {
+                    if *code_deposit {
+                        vm.machines[0].code_deposit();
+                        *code_deposit = false;
+                        return Ok(());
+                    }
 
+                    if !*finalized {
+                        vm.machines[0].finalize_transaction(
+                            vm.runtime.block.beneficiary,
+                            real_used_gas,
+                            preclaimed_value,
+                            fresh_account_state,
+                        )?;
+                        *finalized = true;
+                        return Ok(());
+                    }
+
+                    return vm.step();
+                }
+            },
+            TransactionVMState::Constructing {
+                ref transaction,
+                ref block,
+                ref mut account_state,
+                ref blockhash_state,
+            } => {
                 let address = transaction.address();
                 account_state.require(address)?;
 
@@ -473,7 +494,9 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
                 };
                 cgas = transaction.intrinsic_gas::<P>();
                 cpreclaimed_value = transaction.preclaimed_value();
-                ccontext = transaction.clone().into_context::<P>(cgas, None, account_state, false, false)?;
+                ccontext = transaction
+                    .clone()
+                    .into_context::<P>(cgas, None, account_state, false, false)?;
                 cblock = block.clone();
                 caccount_state = account_state.clone();
                 cblockhash_state = blockhash_state.clone();
@@ -481,17 +504,13 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
         }
 
         let account_state = caccount_state;
-        let vm = ContextVM::with_init(
-            ccontext, cblock,
-            account_state.clone(),
-            cblockhash_state,
-            |vm| {
-                if ccode_deposit {
-                    vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
-                } else {
-                    vm.machines[0].initialize_call(cpreclaimed_value).unwrap();
-                }
-            });
+        let vm = ContextVM::with_init(ccontext, cblock, account_state.clone(), cblockhash_state, |vm| {
+            if ccode_deposit {
+                vm.machines[0].initialize_create(cpreclaimed_value).unwrap();
+            } else {
+                vm.machines[0].initialize_call(cpreclaimed_value).unwrap();
+            }
+        });
 
         self.0 = TransactionVMState::Running {
             fresh_account_state: account_state,
@@ -556,7 +575,9 @@ impl<M: Memory + Default, P: Patch> VM for TransactionVM<M, P> {
 
     fn used_gas(&self) -> Gas {
         match self.0 {
-            TransactionVMState::Running { ref vm, intrinsic_gas, .. } => {
+            TransactionVMState::Running {
+                ref vm, intrinsic_gas, ..
+            } => {
                 let total_used = vm.machines[0].state().total_used_gas() + intrinsic_gas;
                 let refund_cap = total_used / Gas::from(2u64);
                 let refunded = min(refund_cap, vm.machines[0].state().refunded_gas);
@@ -572,8 +593,8 @@ mod tests {
     use crate::*;
     use bigint::*;
     use block::TransactionAction;
-    use std::str::FromStr;
     use std::rc::Rc;
+    use std::str::FromStr;
 
     #[test]
     fn system_transaction() {
@@ -586,14 +607,18 @@ mod tests {
             input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         };
-        let mut vm = SeqTransactionVM::<EmbeddedPatch>::new(transaction, HeaderParams {
-            beneficiary: Address::default(),
-            timestamp: 0,
-            number: U256::zero(),
-            difficulty: U256::zero(),
-            gas_limit: Gas::zero(),
-        });
-        vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
+        let mut vm = SeqTransactionVM::<EmbeddedPatch>::new(
+            transaction,
+            HeaderParams {
+                beneficiary: Address::default(),
+                timestamp: 0,
+                number: U256::zero(),
+                difficulty: U256::zero(),
+                gas_limit: Gas::zero(),
+            },
+        );
+        vm.commit_account(AccountCommitment::Nonexist(Address::default()))
+            .unwrap();
         vm.fire().unwrap();
 
         let mut accounts: Vec<AccountChange> = Vec::new();
@@ -602,13 +627,11 @@ mod tests {
         }
         assert_eq!(accounts.len(), 1);
         match accounts[0] {
-            AccountChange::Create {
-                address, balance, ..
-            } => {
+            AccountChange::Create { address, balance, .. } => {
                 assert_eq!(address, Address::default());
                 assert_eq!(balance, U256::from_str("0xffffffffffffffff").unwrap());
-            },
-            _ => panic!()
+            }
+            _ => panic!(),
         }
     }
 
@@ -623,14 +646,18 @@ mod tests {
             input: Rc::new(Vec::new()),
             nonce: U256::zero(),
         };
-        let mut vm = SeqTransactionVM::<EmbeddedPatch>::new(transaction, HeaderParams {
-            beneficiary: Address::default(),
-            timestamp: 0,
-            number: U256::zero(),
-            difficulty: U256::zero(),
-            gas_limit: Gas::zero(),
-        });
-        vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
+        let mut vm = SeqTransactionVM::<EmbeddedPatch>::new(
+            transaction,
+            HeaderParams {
+                beneficiary: Address::default(),
+                timestamp: 0,
+                number: U256::zero(),
+                difficulty: U256::zero(),
+                gas_limit: Gas::zero(),
+            },
+        );
+        vm.commit_account(AccountCommitment::Nonexist(Address::default()))
+            .unwrap();
         vm.fire().unwrap();
 
         let mut accounts: Vec<AccountChange> = Vec::new();
@@ -639,49 +666,47 @@ mod tests {
         }
         assert_eq!(accounts.len(), 1);
         match accounts[0] {
-            AccountChange::Create {
-                address, balance, ..
-            } => {
+            AccountChange::Create { address, balance, .. } => {
                 assert_eq!(address, Address::default());
                 assert_eq!(balance, U256::from_str("0xffffffffffffffff").unwrap());
-            },
-            _ => panic!()
+            }
+            _ => panic!(),
         }
     }
-/*
-    #[test]
-    fn eip140_spec_test() {
-        let context = Context {
-            address: Address::default(),
-            caller: Address::default(),
-            code: Rc::new(read_hex("6c726576657274656420646174616000557f726576657274206d657373616765000000000000000000000000000000000000600052600e6000fd").unwrap()),
-            data: Rc::new(Vec::new()),
-            gas_limit: Gas::from(100000usize),
-            gas_price: Gas::from(0usize),
-            origin: Address::default(),
-            value: U256::zero(),
-            apprent_value: U256::zero(),
-            is_system: false,
-            is_static: false,
-        };
+    /*
+        #[test]
+        fn eip140_spec_test() {
+            let context = Context {
+                address: Address::default(),
+                caller: Address::default(),
+                code: Rc::new(read_hex("6c726576657274656420646174616000557f726576657274206d657373616765000000000000000000000000000000000000600052600e6000fd").unwrap()),
+                data: Rc::new(Vec::new()),
+                gas_limit: Gas::from(100000usize),
+                gas_price: Gas::from(0usize),
+                origin: Address::default(),
+                value: U256::zero(),
+                apprent_value: U256::zero(),
+                is_system: false,
+                is_static: false,
+            };
 
-        let header = HeaderParams {
-            beneficiary: Address::default(),
-            timestamp: 0,
-            number: U256::zero(),
-            difficulty: U256::zero(),
-            gas_limit: Gas::from(100000usize),
-        };
+            let header = HeaderParams {
+                beneficiary: Address::default(),
+                timestamp: 0,
+                number: U256::zero(),
+                difficulty: U256::zero(),
+                gas_limit: Gas::from(100000usize),
+            };
 
-        let mut vm = SeqContextVM::<EmbeddedByzantiumPatch>::new(context, header);
-        vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
-        vm.fire().unwrap();
+            let mut vm = SeqContextVM::<EmbeddedByzantiumPatch>::new(context, header);
+            vm.commit_account(AccountCommitment::Nonexist(Address::default())).unwrap();
+            vm.fire().unwrap();
 
-        assert_eq!(vm.used_gas(), Gas::from(20024usize));
-        let out: Vec<u8> = vm.out().into();
-        assert_eq!(out, read_hex("726576657274206d657373616765").unwrap());
-        println!("accounts: {:?}", vm.accounts());
-        assert_eq!(vm.accounts().len(), 0);
-    }
-*/
+            assert_eq!(vm.used_gas(), Gas::from(20024usize));
+            let out: Vec<u8> = vm.out().into();
+            assert_eq!(out, read_hex("726576657274206d657373616765").unwrap());
+            println!("accounts: {:?}", vm.accounts());
+            assert_eq!(vm.accounts().len(), 0);
+        }
+    */
 }

@@ -1,10 +1,12 @@
 //! Blockhash commitment management
 
-#[cfg(feature = "std")] use std::collections::HashMap as Map;
-#[cfg(not(feature = "std"))] use alloc::collections::BTreeMap as Map;
-use bigint::{U256, H256};
+#[cfg(not(feature = "std"))]
+use alloc::collections::BTreeMap as Map;
+use bigint::{H256, U256};
+#[cfg(feature = "std")]
+use std::collections::HashMap as Map;
 
-use crate::errors::{RequireError, CommitError};
+use crate::errors::{CommitError, RequireError};
 
 #[derive(Debug, Clone)]
 /// A struct that manages the current blockhash state for one EVM.

@@ -3,8 +3,8 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use bigint::M256;
 use super::errors::OnChainError;
+use bigint::M256;
 
 /// Represents an EVM stack.
 #[derive(Debug)]
@@ -14,9 +14,7 @@ pub struct Stack {
 
 impl Default for Stack {
     fn default() -> Stack {
-        Stack {
-            stack: Vec::new(),
-        }
+        Stack { stack: Vec::new() }
     }
 }
 
@@ -84,5 +82,7 @@ impl Stack {
 
     /// Returns true if stack is empty
     #[inline]
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }

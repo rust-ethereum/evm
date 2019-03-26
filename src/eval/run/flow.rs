@@ -1,8 +1,8 @@
 //! Flow control instructions.
 
-use bigint::{U256, M256};
-use crate::{Memory, Patch};
 use super::State;
+use crate::{Memory, Patch};
+use bigint::{M256, U256};
 
 pub fn sload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index: U256);
@@ -12,7 +12,10 @@ pub fn sload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
 
 pub fn sstore<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, index: U256, value: M256);
-    state.account_state.storage_write(state.context.address, index, value).unwrap();
+    state
+        .account_state
+        .storage_write(state.context.address, index, value)
+        .unwrap();
 }
 
 pub fn mload<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {

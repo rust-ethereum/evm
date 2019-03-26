@@ -2,8 +2,8 @@
 
 use bigint::{M256, U512};
 
-use crate::{Memory, Patch};
 use super::State;
+use crate::{Memory, Patch};
 
 pub fn addmod<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1: U512, op2: U512, op3: U512);
@@ -26,7 +26,6 @@ pub fn mulmod<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
         push!(state, v.into());
     }
 }
-
 
 pub fn exp<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1, op2);

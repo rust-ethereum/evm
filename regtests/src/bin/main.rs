@@ -1,17 +1,17 @@
-use std::fs::File;
-use std::str::FromStr;
-use std::rc::Rc;
 use std::collections::HashMap;
+use std::fs::File;
+use std::rc::Rc;
+use std::str::FromStr;
 
+use bigint::{Address, Gas, H256, M256, U256};
 use block::TransactionAction;
-use bigint::{Gas, Address, U256, M256, H256};
-use hexutil::*;
-use evm::{HeaderParams, SeqTransactionVM, ValidTransaction, VM, Log, Patch,
-          AccountCommitment, AccountChange};
-use evm_network_classic::{MainnetFrontierPatch, MainnetHomesteadPatch,
-                          MainnetEIP150Patch, MainnetEIP160Patch};
 use evm::errors::RequireError;
-use gethrpc::{GethRPCClient, NormalGethRPCClient, RecordGethRPCClient, CachedGethRPCClient, RPCBlock, RPCTransaction, RPCLog};
+use evm::{AccountChange, AccountCommitment, HeaderParams, Log, Patch, SeqTransactionVM, ValidTransaction, VM};
+use evm_network_classic::{MainnetEIP150Patch, MainnetEIP160Patch, MainnetFrontierPatch, MainnetHomesteadPatch};
+use gethrpc::{
+    CachedGethRPCClient, GethRPCClient, NormalGethRPCClient, RPCBlock, RPCLog, RPCTransaction, RecordGethRPCClient,
+};
+use hexutil::*;
 
 fn from_rpc_block(block: &RPCBlock) -> HeaderParams {
     HeaderParams {
@@ -58,15 +58,15 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
             Ok(()) => {
                 println!("VM exited with {:?}.", vm.status());
                 break;
-            },
+            }
             Err(RequireError::Account(address)) => {
                 println!("Feeding VM account at 0x{:x} ...", address);
-                let nonce = U256::from_str(&client.get_transaction_count(&format!("0x{:x}", address),
-                                                                         &last_block_number)).unwrap();
-                let balance = U256::from_str(&client.get_balance(&format!("0x{:x}", address),
-                                                                 &last_block_number)).unwrap();
-                let code = read_hex(&client.get_code(&format!("0x{:x}", address),
-                                                     &last_block_number)).unwrap();
+                let nonce =
+                    U256::from_str(&client.get_transaction_count(&format!("0x{:x}", address), &last_block_number))
+                        .unwrap();
+                let balance =
+                    U256::from_str(&client.get_balance(&format!("0x{:x}", address), &last_block_number)).unwrap();
+                let code = read_hex(&client.get_code(&format!("0x{:x}", address), &last_block_number)).unwrap();
                 if !client.account_exist(&format!("0x{:x}", address), last_block_id) {
                     vm.commit_account(AccountCommitment::Nonexist(address)).unwrap();
                 } else {
@@ -75,38 +75,45 @@ fn handle_fire<T: GethRPCClient, P: Patch>(client: &mut T, vm: &mut SeqTransacti
                         address,
                         balance,
                         code: Rc::new(code),
-                    }).unwrap();
+                    })
+                    .unwrap();
                 }
-            },
+            }
             Err(RequireError::AccountStorage(address, index)) => {
-                println!("Feeding VM account storage at 0x{:x} with index 0x{:x} ...", address, index);
-                let value = M256::from_str(&client.get_storage_at(&format!("0x{:x}", address),
-                                                                  &format!("0x{:x}", index),
-                                                                  &last_block_number)).unwrap();
-                vm.commit_account(AccountCommitment::Storage {
-                    address,
-                    index,
-                    value,
-                }).unwrap();
-            },
+                println!(
+                    "Feeding VM account storage at 0x{:x} with index 0x{:x} ...",
+                    address, index
+                );
+                let value = M256::from_str(&client.get_storage_at(
+                    &format!("0x{:x}", address),
+                    &format!("0x{:x}", index),
+                    &last_block_number,
+                ))
+                .unwrap();
+                vm.commit_account(AccountCommitment::Storage { address, index, value })
+                    .unwrap();
+            }
             Err(RequireError::AccountCode(address)) => {
                 println!("Feeding VM account code at 0x{:x} ...", address);
-                let code = read_hex(&client.get_code(&format!("0x{:x}", address),
-                                                     &last_block_number)).unwrap();
+                let code = read_hex(&client.get_code(&format!("0x{:x}", address), &last_block_number)).unwrap();
                 vm.commit_account(AccountCommitment::Code {
                     address,
                     code: Rc::new(code),
-                }).unwrap();
-            },
+                })
+                .unwrap();
+            }
             Err(RequireError::Blockhash(number)) => {
                 println!("Feeding blockhash with number 0x{:x} ...", number);
-                let hash = H256::from_str(&client.get_block_by_number(&format!("0x{:x}", number))
-                                            .unwrap()
-                                                .hash
-                                                .unwrap()
-                                         ).unwrap();
+                let hash = H256::from_str(
+                    &client
+                        .get_block_by_number(&format!("0x{:x}", number))
+                        .unwrap()
+                        .hash
+                        .unwrap(),
+                )
+                .unwrap();
                 vm.commit_blockhash(number, hash).unwrap();
-            },
+            }
         }
     }
 }
@@ -120,9 +127,9 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
     }
     if !block.uncles.is_empty() {
         for i in 0..block.uncles.len() {
-            let uncle = client.get_uncle_by_block_number_and_index(block.number.as_ref().unwrap(),
-                                                                   &format!("0x{:x}", i))
-                                                                .unwrap();
+            let uncle = client
+                .get_uncle_by_block_number_and_index(block.number.as_ref().unwrap(), &format!("0x{:x}", i))
+                .unwrap();
             let uncle_miner = Address::from_str(&uncle.miner).unwrap();
             if uncle_miner == address {
                 return true;
@@ -135,7 +142,12 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
 
 fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str()).unwrap();
-    println!("block {} ({}), transaction count: {}", number, block.number.as_ref().unwrap(), block.transactions.len());
+    println!(
+        "block {} ({}), transaction count: {}",
+        number,
+        block.number.as_ref().unwrap(),
+        block.transactions.len()
+    );
     let last_id = number - 1;
     let last_number = format!("0x{:x}", last_id);
     let cur_number = block.number.clone().unwrap();
@@ -174,18 +186,16 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
                     ..
                 } => {
                     if !is_miner_or_uncle(client, address, &block) {
-                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                                  &cur_number);
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address), &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     }
                     let changing_storage: HashMap<U256, M256> = changing_storage.clone().into();
                     for (key, value) in changing_storage {
-                        let expected_value = client.get_storage_at(&format!("0x{:x}", address),
-                                                                   &format!("0x{:x}", key),
-                                                                   &cur_number);
+                        let expected_value =
+                            client.get_storage_at(&format!("0x{:x}", address), &format!("0x{:x}", key), &cur_number);
                         assert_eq!(M256::from_str(&expected_value).unwrap(), value);
                     }
-                },
+                }
                 AccountChange::Create {
                     address,
                     balance,
@@ -193,36 +203,33 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
                     ..
                 } => {
                     if !is_miner_or_uncle(client, address, &block) {
-                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                                  &cur_number);
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address), &cur_number);
                         assert!(U256::from_str(&expected_balance).unwrap() == balance);
                     }
                     let storage: HashMap<U256, M256> = storage.clone().into();
                     for (key, value) in storage {
-                        let expected_value = client.get_storage_at(&format!("0x{:x}", address),
-                                                                   &format!("0x{:x}", key),
-                                                                   &cur_number);
+                        let expected_value =
+                            client.get_storage_at(&format!("0x{:x}", address), &format!("0x{:x}", key), &cur_number);
                         assert_eq!(M256::from_str(&expected_value).unwrap(), value);
                     }
-                },
+                }
                 AccountChange::IncreaseBalance(address, balance) => {
                     if !is_miner_or_uncle(client, address, &block) {
-                        let last_balance = client.get_balance(&format!("0x{:x}", address),
-                                                              &last_number);
-                        let cur_balance = client.get_balance(&format!("0x{:x}", address),
-                                                             &cur_number);
+                        let last_balance = client.get_balance(&format!("0x{:x}", address), &last_number);
+                        let cur_balance = client.get_balance(&format!("0x{:x}", address), &cur_number);
 
-                        assert_eq!(U256::from_str(&last_balance).unwrap() + balance,
-                                   U256::from_str(&cur_balance).unwrap());
+                        assert_eq!(
+                            U256::from_str(&last_balance).unwrap() + balance,
+                            U256::from_str(&cur_balance).unwrap()
+                        );
                     }
-                },
+                }
                 AccountChange::Nonexist(address) => {
                     if !is_miner_or_uncle(client, address, &block) {
-                        let expected_balance = client.get_balance(&format!("0x{:x}", address),
-                                                                  &cur_number);
+                        let expected_balance = client.get_balance(&format!("0x{:x}", address), &cur_number);
                         assert_eq!(U256::from_str(&expected_balance).unwrap(), U256::zero());
                     }
-                },
+                }
             }
         }
     }
@@ -294,7 +301,7 @@ fn main() {
                 let mut client = RecordGethRPCClient::new(address);
                 test_blocks_patch(&mut client, number, patch);
                 serde_json::to_writer(&mut file, &client.to_value()).unwrap();
-            },
+            }
             None => {
                 let mut client = NormalGethRPCClient::new(address);
                 test_blocks_patch(&mut client, number, patch);

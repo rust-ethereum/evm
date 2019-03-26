@@ -3,25 +3,28 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-#[cfg(not(feature = "std"))] use alloc::rc::Rc;
-#[cfg(not(feature = "std"))] use alloc::boxed::Box;
-#[cfg(feature = "std")] use std::rc::Rc;
+#[cfg(not(feature = "std"))]
+use alloc::boxed::Box;
+#[cfg(not(feature = "std"))]
+use alloc::rc::Rc;
+#[cfg(feature = "std")]
+use std::rc::Rc;
 
-#[cfg(not(feature = "std"))] use core::ops::AddAssign;
-#[cfg(feature = "std")] use std::ops::AddAssign;
+#[cfg(not(feature = "std"))]
+use core::ops::AddAssign;
+#[cfg(feature = "std")]
+use std::ops::AddAssign;
 
-use log::{debug, trace};
-use bigint::{M256, U256, Gas, Address};
-use super::pc::Instruction;
 use super::commit::{AccountState, BlockhashState};
-use super::errors::{RequireError, RuntimeError, CommitError, EvalOnChainError,
-                    OnChainError, NotSupportedError};
-use super::{Stack, Context, HeaderParams, Patch, PC, PCMut, Valids, Memory,
-            AccountCommitment, Log, Opcode};
+use super::errors::{CommitError, EvalOnChainError, NotSupportedError, OnChainError, RequireError, RuntimeError};
+use super::pc::Instruction;
+use super::{AccountCommitment, Context, HeaderParams, Log, Memory, Opcode, PCMut, Patch, Stack, Valids, PC};
+use bigint::{Address, Gas, M256, U256};
+use log::{debug, trace};
 
 use self::check::{check_opcode, check_static, check_support, extra_check_opcode};
+use self::cost::{gas_cost, gas_refund, gas_stipend, memory_cost, memory_gas, AddRefund};
 use self::run::run_opcode;
-use self::cost::{gas_refund, AddRefund, gas_stipend, gas_cost, memory_cost, memory_gas};
 
 macro_rules! reset_error_hard {
     ($self: expr, $err: expr) => {
@@ -30,13 +33,13 @@ macro_rules! reset_error_hard {
         $self.state.refunded_gas = Gas::zero();
         $self.state.logs = Vec::new();
         $self.state.out = Rc::new(Vec::new());
-    }
+    };
 }
 
 macro_rules! reset_error_revert {
     ($self: expr) => {
         $self.status = MachineStatus::ExitedErr(OnChainError::Revert);
-    }
+    };
 }
 
 macro_rules! reset_error_not_supported {
@@ -46,14 +49,14 @@ macro_rules! reset_error_not_supported {
         $self.state.refunded_gas = Gas::zero();
         $self.state.logs = Vec::new();
         $self.state.out = Rc::new(Vec::new());
-    }
+    };
 }
 
-mod cost;
-mod run;
 mod check;
-mod util;
+mod cost;
 mod lifecycle;
+mod run;
+mod util;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GasUsage {
@@ -151,8 +154,8 @@ impl Runtime {
     /// Create the runtime with the given blockhash state.
     pub fn with_states(block: HeaderParams, blockhash_state: BlockhashState) -> Self {
         Runtime {
-            block, blockhash_state,
-
+            block,
+            blockhash_state,
             context_history_hooks: Vec::new(),
         }
     }
@@ -209,13 +212,11 @@ pub enum Control {
 impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// Create a new runtime.
     pub fn new(context: Context, depth: usize) -> Self {
-        Self::with_states(context, depth,
-                          AccountState::default())
+        Self::with_states(context, depth, AccountState::default())
     }
 
     /// Create a new runtime with the given states.
-    pub fn with_states(context: Context,
-                       depth: usize, account_state: AccountState<P::Account>) -> Self {
+    pub fn with_states(context: Context, depth: usize, account_state: AccountState<P::Account>) -> Self {
         Machine {
             status: MachineStatus::Running,
             state: State {
@@ -284,17 +285,17 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// false with state unchanged.
     pub fn step_precompiled(&mut self) -> bool {
         for precompiled in P::precompileds() {
-            if self.state.context.address == precompiled.0 &&
-                (precompiled.1.is_none() || precompiled.1.unwrap() == self.state.context.code.as_slice())
+            if self.state.context.address == precompiled.0
+                && (precompiled.1.is_none() || precompiled.1.unwrap() == self.state.context.code.as_slice())
             {
                 let data = &self.state.context.data;
                 match precompiled.2.gas_and_step(data, self.state.context.gas_limit) {
                     Err(RuntimeError::OnChain(err)) => {
                         reset_error_hard!(self, err);
-                    },
+                    }
                     Err(RuntimeError::NotSupported(err)) => {
                         reset_error_not_supported!(self, err);
-                    },
+                    }
                     Ok((gas, ret)) => {
                         assert!(gas <= self.state.context.gas_limit);
                         self.state.used_gas = GasUsage::Some(gas);
@@ -310,8 +311,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Peek the next instruction.
     pub fn peek(&self) -> Option<Instruction> {
-        let pc = PC::<P>::new(&self.state.context.code,
-                              &self.state.valids, &self.state.position);
+        let pc = PC::<P>::new(&self.state.context.code, &self.state.valids, &self.state.position);
         match pc.peek() {
             Ok(val) => Some(val),
             Err(_) => None,
@@ -320,8 +320,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Peek the next opcode.
     pub fn peek_opcode(&self) -> Option<Opcode> {
-        let pc = PC::<P>::new(&self.state.context.code,
-                              &self.state.valids, &self.state.position);
+        let pc = PC::<P>::new(&self.state.context.code, &self.state.valids, &self.state.position);
         match pc.peek_opcode() {
             Ok(val) => Some(val),
             Err(_) => None,
@@ -358,11 +357,14 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
 
         let Precheck {
-            position, memory_cost,
-            gas_cost, gas_stipend, gas_refund, after_gas
+            position,
+            memory_cost,
+            gas_cost,
+            gas_stipend,
+            gas_refund,
+            after_gas,
         } = {
-            let pc = PC::<P>::new(&self.state.context.code,
-                                  &self.state.valids, &self.state.position);
+            let pc = PC::<P>::new(&self.state.context.code, &self.state.valids, &self.state.position);
 
             if pc.is_end() {
                 debug!("reached code EOF");
@@ -374,19 +376,17 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 Ok(val) => val,
                 Err(err) => {
                     reset_error_hard!(self, err);
-                    return Ok(())
-                },
+                    return Ok(());
+                }
             };
 
-            match check_opcode(instruction, &self.state, runtime).and_then(|v| {
-                match v {
-                    None => Ok(()),
-                    Some(ControlCheck::Jump(dest)) => {
-                        if dest <= M256::from(usize::max_value()) && pc.is_valid(dest.as_usize()) {
-                            Ok(())
-                        } else {
-                            Err(OnChainError::BadJumpDest.into())
-                        }
+            match check_opcode(instruction, &self.state, runtime).and_then(|v| match v {
+                None => Ok(()),
+                Some(ControlCheck::Jump(dest)) => {
+                    if dest <= M256::from(usize::max_value()) && pc.is_valid(dest.as_usize()) {
+                        Ok(())
+                    } else {
+                        Err(OnChainError::BadJumpDest.into())
                     }
                 }
             }) {
@@ -394,10 +394,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 Err(EvalOnChainError::OnChain(error)) => {
                     reset_error_hard!(self, error);
                     return Ok(());
-                },
+                }
                 Err(EvalOnChainError::Require(error)) => {
                     return Err(error);
-                },
+                }
             }
 
             if self.state.context.is_static {
@@ -406,10 +406,10 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                     Err(EvalOnChainError::OnChain(error)) => {
                         reset_error_hard!(self, error);
                         return Ok(());
-                    },
+                    }
                     Err(EvalOnChainError::Require(error)) => {
                         return Err(error);
-                    },
+                    }
                 }
             }
 
@@ -418,7 +418,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 GasUsage::All => {
                     reset_error_hard!(self, OnChainError::EmptyGas);
                     return Ok(());
-                },
+                }
             };
 
             let position = pc.position();
@@ -439,7 +439,7 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 Err(err) => {
                     reset_error_not_supported!(self, err);
                     return Ok(());
-                },
+                }
             };
 
             let after_gas = self.state.context.gas_limit - all_gas_cost;
@@ -449,12 +449,16 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
                 Err(err) => {
                     reset_error_hard!(self, err);
                     return Ok(());
-                },
+                }
             }
 
             Precheck {
-                position, memory_cost,
-                gas_cost, gas_stipend, gas_refund, after_gas
+                position,
+                memory_cost,
+                gas_cost,
+                gas_stipend,
+                gas_refund,
+                after_gas,
             }
         };
 
@@ -465,12 +469,17 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         trace!("gas_refund:  {:x}", gas_refund);
         trace!("after_gas:   {:x?}", after_gas);
 
-        let instruction = PCMut::<P>::new(&self.state.context.code,
-                                          &self.state.valids, &mut self.state.position)
-            .read().unwrap();
+        let instruction = PCMut::<P>::new(&self.state.context.code, &self.state.valids, &mut self.state.position)
+            .read()
+            .unwrap();
 
-        let result = run_opcode::<M, P>((instruction, position),
-                                        &mut self.state, runtime, gas_stipend, after_gas);
+        let result = run_opcode::<M, P>(
+            (instruction, position),
+            &mut self.state,
+            runtime,
+            gas_stipend,
+            after_gas,
+        );
 
         self.state.used_gas += gas_cost - gas_stipend;
         self.state.memory_cost = memory_cost;
@@ -483,27 +492,27 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         match result {
             None => Ok(()),
             Some(Control::Jump(dest)) => {
-                PCMut::<P>::new(&self.state.context.code,
-                                &self.state.valids, &mut self.state.position)
-                    .jump(dest.as_usize()).unwrap();
+                PCMut::<P>::new(&self.state.context.code, &self.state.valids, &mut self.state.position)
+                    .jump(dest.as_usize())
+                    .unwrap();
                 Ok(())
-            },
+            }
             Some(Control::InvokeCall(context, (from, len))) => {
                 self.status = MachineStatus::InvokeCall(context, (from, len));
                 Ok(())
-            },
+            }
             Some(Control::InvokeCreate(context)) => {
                 self.status = MachineStatus::InvokeCreate(context);
                 Ok(())
-            },
+            }
             Some(Control::Stop) => {
                 self.status = MachineStatus::ExitedOk;
                 Ok(())
-            },
+            }
             Some(Control::Revert) => {
                 reset_error_revert!(self);
                 Ok(())
-            },
+            }
         }
     }
 

@@ -1,16 +1,16 @@
-use std::rc::Rc;
 use bigint::{Gas, U256};
+use std::rc::Rc;
 
+use evm::errors::{NotSupportedError, OnChainError, RuntimeError};
 use evm::Precompiled;
-use evm::errors::{OnChainError, RuntimeError, NotSupportedError};
 
 pub static MODEXP_PRECOMPILED: ModexpPrecompiled = ModexpPrecompiled;
 
 pub struct ModexpPrecompiled;
 impl Precompiled for ModexpPrecompiled {
     fn gas_and_step(&self, data: &[u8], gas_limit: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
-        use std::cmp;
         use num_bigint::BigUint;
+        use std::cmp;
 
         fn adjusted_exponent_length(exponent_length: U256, base_length: U256, data: &[u8]) -> U256 {
             let mut exp32_arr = Vec::new();
@@ -60,7 +60,8 @@ impl Precompiled for ModexpPrecompiled {
         let modulus_length = U256::from(&data[64..96]);
 
         let op1 = mult_complexity(cmp::max(modulus_length, base_length))?;
-        let op2 = cmp::max(adjusted_exponent_length(exponent_length, base_length, &data), U256::from(1)) / U256::from(20);
+        let ael = adjusted_exponent_length(exponent_length, base_length, &data);
+        let op2 = cmp::max(ael, U256::from(1)) / U256::from(20);
         let (r, o) = op1.overflowing_mul(op2);
         if o {
             return Err(RuntimeError::OnChain(OnChainError::EmptyGas));
@@ -71,9 +72,9 @@ impl Precompiled for ModexpPrecompiled {
             return Err(RuntimeError::OnChain(OnChainError::EmptyGas));
         }
 
-        if base_length > U256::from(usize::max_value()) ||
-            exponent_length > U256::from(usize::max_value()) ||
-            modulus_length > U256::from(usize::max_value())
+        if base_length > U256::from(usize::max_value())
+            || exponent_length > U256::from(usize::max_value())
+            || modulus_length > U256::from(usize::max_value())
         {
             return Err(RuntimeError::NotSupported(NotSupportedError::MemoryIndexNotSupported));
         }
@@ -130,7 +131,9 @@ mod tests {
     #[test]
     fn spec_test1() {
         let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002003fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").unwrap();
-        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED
+            .gas_and_step(&input, Gas::from(10000000usize))
+            .unwrap();
         let expected = read_hex("0000000000000000000000000000000000000000000000000000000000000001").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
@@ -138,7 +141,9 @@ mod tests {
     #[test]
     fn spec_test2() {
         let input = read_hex("000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000020fffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2efffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f").unwrap();
-        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED
+            .gas_and_step(&input, Gas::from(10000000usize))
+            .unwrap();
         let expected = read_hex("0000000000000000000000000000000000000000000000000000000000000000").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
@@ -155,7 +160,9 @@ mod tests {
     #[test]
     fn spec_test4() {
         let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002003ffff800000000000000000000000000000000000000000000000000000000000000007").unwrap();
-        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED
+            .gas_and_step(&input, Gas::from(10000000usize))
+            .unwrap();
         let expected = read_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }
@@ -163,7 +170,9 @@ mod tests {
     #[test]
     fn sepc_test5() {
         let input = read_hex("00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000002003ffff80").unwrap();
-        let (_, output) = MODEXP_PRECOMPILED.gas_and_step(&input, Gas::from(10000000usize)).unwrap();
+        let (_, output) = MODEXP_PRECOMPILED
+            .gas_and_step(&input, Gas::from(10000000usize))
+            .unwrap();
         let expected = read_hex("3b01b01ac41f2d6e917c6d6a221ce793802469026d9ab7578fa2e79e4da6aaab").unwrap();
         assert_eq!(expected, Rc::try_unwrap(output).unwrap());
     }

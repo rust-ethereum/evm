@@ -38,6 +38,8 @@ struct EIP1014;
 struct EIP1283;
 
 struct EIP1283Patch;
+
+#[rustfmt::skip]
 impl Patch for EIP1283Patch {
     type Account = EmbeddedAccountPatch;
 

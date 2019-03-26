@@ -1,12 +1,15 @@
-use std::marker::PhantomData;
-use bigint::{Gas, U256, H160, Address};
-use evm::{Precompiled, AccountPatch, Patch,
-          ID_PRECOMPILED, ECREC_PRECOMPILED, SHA256_PRECOMPILED, RIP160_PRECOMPILED};
-use evm_precompiled_modexp::MODEXP_PRECOMPILED;
+use bigint::{Address, Gas, H160, U256};
+use evm::{
+    AccountPatch, Patch, Precompiled, ECREC_PRECOMPILED, ID_PRECOMPILED, RIP160_PRECOMPILED, SHA256_PRECOMPILED,
+};
 use evm_precompiled_bn128::{BN128_ADD_PRECOMPILED, BN128_MUL_PRECOMPILED, BN128_PAIRING_PRECOMPILED};
+use evm_precompiled_modexp::MODEXP_PRECOMPILED;
+use std::marker::PhantomData;
 
 /// Mainnet account patch
 pub struct MainnetAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for MainnetAccountPatch {
     fn initial_nonce() -> U256 { U256::zero() }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() }
@@ -14,12 +17,15 @@ impl AccountPatch for MainnetAccountPatch {
 }
 
 pub struct MordenAccountPatch;
+
+#[rustfmt::skip]
 impl AccountPatch for MordenAccountPatch {
     fn initial_nonce() -> U256 { U256::from(1048576) }
     fn initial_create_nonce() -> U256 { Self::initial_nonce() }
     fn empty_considered_exists() -> bool { true }
 }
 
+#[rustfmt::skip]
 pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 4] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -35,6 +41,7 @@ pub static ETC_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompi
      &ID_PRECOMPILED),
 ];
 
+#[rustfmt::skip]
 pub static BYZANTIUM_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Precompiled); 8] = [
     (H160([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0x01]),
      None,
@@ -66,6 +73,8 @@ pub static BYZANTIUM_PRECOMPILEDS: [(Address, Option<&'static [u8]>, &'static Pr
 pub struct FrontierPatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetFrontierPatch = FrontierPatch<MainnetAccountPatch>;
 pub type MordenFrontierPatch = FrontierPatch<MordenAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for FrontierPatch<A> {
     type Account = A;
 
@@ -99,6 +108,8 @@ impl<A: AccountPatch> Patch for FrontierPatch<A> {
 pub struct HomesteadPatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetHomesteadPatch = HomesteadPatch<MainnetAccountPatch>;
 pub type MordenHomesteadPatch = HomesteadPatch<MordenAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for HomesteadPatch<A> {
     type Account = A;
 
@@ -132,6 +143,8 @@ impl<A: AccountPatch> Patch for HomesteadPatch<A> {
 pub struct EIP150Patch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetEIP150Patch = EIP150Patch<MainnetAccountPatch>;
 pub type MordenEIP150Patch = EIP150Patch<MordenAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for EIP150Patch<A> {
     type Account = A;
 
@@ -165,6 +178,8 @@ impl<A: AccountPatch> Patch for EIP150Patch<A> {
 pub struct EIP160Patch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetEIP160Patch = EIP160Patch<MainnetAccountPatch>;
 pub type MordenEIP160Patch = EIP160Patch<MordenAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for EIP160Patch<A> {
     type Account = A;
 
@@ -198,6 +213,8 @@ impl<A: AccountPatch> Patch for EIP160Patch<A> {
 pub struct ByzantiumPatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetByzantiumPatch = ByzantiumPatch<MainnetAccountPatch>;
 pub type MordenByzantiumPatch = ByzantiumPatch<MordenAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for ByzantiumPatch<A> {
     type Account = A;
 
@@ -227,11 +244,12 @@ impl<A: AccountPatch> Patch for ByzantiumPatch<A> {
         &BYZANTIUM_PRECOMPILEDS }
 }
 
-
 /// Constantinople patch (includes Byzantium changes)
 pub struct ConstantinoplePatch<A: AccountPatch>(PhantomData<A>);
 pub type MainnetConstantinoplePatch = ConstantinoplePatch<MainnetAccountPatch>;
 pub type MordenConstantinoplePatch = ConstantinoplePatch<MordenAccountPatch>;
+
+#[rustfmt::skip]
 impl<A: AccountPatch> Patch for ConstantinoplePatch<A> {
     type Account = A;
 

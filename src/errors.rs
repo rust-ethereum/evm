@@ -97,10 +97,8 @@ pub enum RuntimeError {
 impl From<RuntimeError> for EvalError {
     fn from(val: RuntimeError) -> EvalError {
         match val {
-            RuntimeError::OnChain(err) =>
-                EvalError::OnChain(err),
-            RuntimeError::NotSupported(err) =>
-                EvalError::NotSupported(err),
+            RuntimeError::OnChain(err) => EvalError::OnChain(err),
+            RuntimeError::NotSupported(err) => EvalError::NotSupported(err),
         }
     }
 }
@@ -118,10 +116,8 @@ pub enum EvalOnChainError {
 impl From<EvalOnChainError> for EvalError {
     fn from(val: EvalOnChainError) -> EvalError {
         match val {
-            EvalOnChainError::OnChain(err) =>
-                EvalError::OnChain(err),
-            EvalOnChainError::Require(err) =>
-                EvalError::Require(err),
+            EvalOnChainError::OnChain(err) => EvalError::OnChain(err),
+            EvalOnChainError::Require(err) => EvalError::Require(err),
         }
     }
 }

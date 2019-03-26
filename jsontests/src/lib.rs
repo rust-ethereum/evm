@@ -1,26 +1,26 @@
 #![cfg_attr(feature = "bench", feature(test))]
-extern crate evm;
-extern crate serde_json;
-extern crate hexutil;
 extern crate bigint;
-extern crate env_logger;
-extern crate sha3;
-extern crate rlp;
 extern crate criterion;
+extern crate env_logger;
+extern crate evm;
+extern crate hexutil;
+extern crate rlp;
+extern crate serde_json;
+extern crate sha3;
 
 mod blockchain;
 pub mod util;
 
-pub use self::blockchain::{JSONBlock, create_block, create_context};
+pub use self::blockchain::{create_block, create_context, JSONBlock};
 
-use serde_json::Value;
-use std::str::FromStr;
-use std::ops::Deref;
-use std::sync::{Arc, Mutex};
-use bigint::{Gas, M256, U256, H256, Address};
-use hexutil::*;
+use bigint::{Address, Gas, H256, M256, U256};
 use evm::errors::RequireError;
-use evm::{VM, SeqContextVM, Context, VMStatus, Patch};
+use evm::{Context, Patch, SeqContextVM, VMStatus, VM};
+use hexutil::*;
+use serde_json::Value;
+use std::ops::Deref;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 
 pub fn fire_with_block<P: Patch>(machine: &mut SeqContextVM<P>, block: &JSONBlock) {
     loop {
@@ -28,21 +28,24 @@ pub fn fire_with_block<P: Patch>(machine: &mut SeqContextVM<P>, block: &JSONBloc
             Err(RequireError::Account(address)) => {
                 let account = block.request_account(address);
                 machine.commit_account(account).unwrap();
-            },
+            }
             Err(RequireError::AccountCode(address)) => {
                 let account = block.request_account_code(address);
                 machine.commit_account(account).unwrap();
-            },
+            }
             Err(RequireError::AccountStorage(address, index)) => {
                 let account = block.request_account_storage(address, index);
                 machine.commit_account(account).unwrap();
-            },
+            }
             Err(RequireError::Blockhash(number)) => {
                 // The test JSON file doesn't expose any block
                 // information. So those numbers are crafted by hand.
-                let hash1 = H256::from_str("0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6").unwrap();
-                let hash2 = H256::from_str("0xad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5").unwrap();
-                let hash256 = H256::from_str("0x6ca54da2c4784ea43fd88b3402de07ae4bced597cbb19f323b7595857a6720ae").unwrap();
+                let hash1 =
+                    H256::from_str("0xc89efdaa54c0f20c7adf612882df0950f5a951637e0307cdcb4c672f298b8bc6").unwrap();
+                let hash2 =
+                    H256::from_str("0xad7c5bef027816a800da1736444fb58a807ef4c9603b7848673f7e3a68eb14a5").unwrap();
+                let hash256 =
+                    H256::from_str("0x6ca54da2c4784ea43fd88b3402de07ae4bced597cbb19f323b7595857a6720ae").unwrap();
 
                 let hash = if number == U256::from(1u64) {
                     hash1
@@ -55,7 +58,7 @@ pub fn fire_with_block<P: Patch>(machine: &mut SeqContextVM<P>, block: &JSONBloc
                 };
 
                 machine.commit_blockhash(number, hash).unwrap();
-            },
+            }
             Ok(()) => return,
         }
     }
@@ -81,7 +84,13 @@ pub fn create_machine<P: Patch>(v: &Value, block: &JSONBlock) -> SeqContextVM<P>
 // TODO: consider refactoring
 #[cfg_attr(feature = "cargo-clippy", allow(cyclomatic_complexity))]
 #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
-pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSONBlock, history: &[Context], debug: bool) -> bool {
+pub fn test_machine<P: Patch>(
+    v: &Value,
+    machine: &SeqContextVM<P>,
+    block: &JSONBlock,
+    history: &[Context],
+    debug: bool,
+) -> bool {
     let callcreates = &v["callcreates"];
 
     if callcreates.as_array().is_some() {
@@ -110,12 +119,23 @@ pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSON
                 if transaction.address != destination.unwrap() {
                     if debug {
                         println!();
-                        println!("Transaction address mismatch. 0x{:x} != 0x{:x}.", transaction.address, destination.unwrap());
+                        println!(
+                            "Transaction address mismatch. 0x{:x} != 0x{:x}.",
+                            transaction.address,
+                            destination.unwrap()
+                        );
                     }
                     return false;
                 }
             }
-            if transaction.gas_limit != gas_limit || transaction.value != value || if destination.is_some() { transaction.data.deref() != &data } else { transaction.code.deref() != &data } {
+            if transaction.gas_limit != gas_limit
+                || transaction.value != value
+                || if destination.is_some() {
+                    transaction.data.deref() != &data
+                } else {
+                    transaction.code.deref() != &data
+                }
+            {
                 if debug {
                     println!();
                     println!("Transaction mismatch. gas limit 0x{:x} =?= 0x{:x}, value 0x{:x} =?= 0x{:x}, data {:?} =?= {:?}", transaction.gas_limit, gas_limit, transaction.value, value, transaction.data, data);
@@ -146,8 +166,11 @@ pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSON
         if machine.available_gas() != gas {
             if debug {
                 println!();
-                println!("Gas check failed, VM returned: 0x{:x}, expected: 0x{:x}",
-                         machine.available_gas(), gas);
+                println!(
+                    "Gas check failed, VM returned: 0x{:x}, expected: 0x{:x}",
+                    machine.available_gas(),
+                    gas
+                );
             }
 
             return false;
@@ -203,8 +226,10 @@ pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSON
             if value != block.account_storage(address, index) {
                 if debug {
                     println!();
-                    println!("Storage check failed for address 0x{:x} in storage index 0x{:x}",
-                             address, index);
+                    println!(
+                        "Storage check failed for address 0x{:x} in storage index 0x{:x}",
+                        address, index
+                    );
                     println!("Expected: 0x{:x}", value);
                     println!("Actual:   0x{:x}", block.account_storage(address, index));
                 }
@@ -226,8 +251,10 @@ pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSON
                 if value != block.account_storage(address, index) {
                     if debug {
                         println!();
-                        println!("Storage check (expect) failed for address 0x{:x} in storage index 0x{:x}",
-                                 address, index);
+                        println!(
+                            "Storage check (expect) failed for address 0x{:x} in storage index 0x{:x}",
+                            address, index
+                        );
                         println!("Expected: 0x{:x}", value);
                         println!("Actual:   0x{:x}", block.account_storage(address, index));
                     }
@@ -236,7 +263,6 @@ pub fn test_machine<P: Patch>(v: &Value, machine: &SeqContextVM<P>, block: &JSON
             }
         }
     }
-
 
     let logs_hash = v["logs"].as_str().map(read_u256);
 
@@ -303,18 +329,21 @@ use criterion::Criterion;
 
 pub fn bench_transaction<P: Patch>(_name: &str, v: Value, c: &mut Criterion) {
     c.bench_function(_name, move |b| {
-        b.iter_with_large_setup(|| {
-            let block = create_block(&v);
-            let history: Arc<Mutex<Vec<Context>>> = Arc::new(Mutex::new(Vec::new()));
-            let history_closure = history.clone();
-            let mut machine = create_machine::<P>(&v, &block);
-            machine.add_context_history_hook(move |context| {
-                history_closure.lock().unwrap().push(context.clone());
-            });
-            (machine, block)
-        }, |(mut machine, block)| {
-            fire_with_block(&mut machine, &block);
-        })
+        b.iter_with_large_setup(
+            || {
+                let block = create_block(&v);
+                let history: Arc<Mutex<Vec<Context>>> = Arc::new(Mutex::new(Vec::new()));
+                let history_closure = history.clone();
+                let mut machine = create_machine::<P>(&v, &block);
+                machine.add_context_history_hook(move |context| {
+                    history_closure.lock().unwrap().push(context.clone());
+                });
+                (machine, block)
+            },
+            |(mut machine, block)| {
+                fire_with_block(&mut machine, &block);
+            },
+        )
     });
 }
 

@@ -1,0 +1,4 @@
+max_width = 120
+newline_style = "Unix"
+use_try_shorthand = true
+

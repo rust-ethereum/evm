@@ -3,13 +3,15 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use bigint::{U256, M256};
+use bigint::{M256, U256};
 
 use super::errors::NotSupportedError;
 use super::Patch;
 
-#[cfg(feature = "std")] use std::marker::PhantomData;
-#[cfg(not(feature = "std"))] use core::marker::PhantomData;
+#[cfg(not(feature = "std"))]
+use core::marker::PhantomData;
+#[cfg(feature = "std")]
+use std::marker::PhantomData;
 
 /// Represent a memory in EVM. Read should always succeed. Write can
 /// fall.
@@ -58,7 +60,9 @@ impl<P: Patch> SeqMemory<P> {
 
     /// Return true if current effective memory range is zero
     #[inline]
-    pub fn is_empty(&self) -> bool { self.len() == 0 }
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 }
 
 impl<P: Patch> Memory for SeqMemory<P> {
