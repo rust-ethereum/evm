@@ -47,6 +47,8 @@ pub struct Context {
     pub address: Address,
     /// Caller of the runtime.
     pub caller: Address,
+    /// Actual call target. The same as address unless for CALLCODE.
+    pub callee: Address,
     /// Code to be executed.
     pub code: Rc<Vec<u8>>,
     /// Data associated with this execution.
