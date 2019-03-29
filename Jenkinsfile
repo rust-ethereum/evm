@@ -117,6 +117,7 @@ pipeline {
                 sh 'cargo check 2>&1 | tee rustc.build_log'
                 sh 'cargo clean'
                 sh 'cargo clippy 2>&1 | tee clippy.build_log'
+                sh 'if grep -q "^error" clippy.build_log; then echo "clippy found a severe error"; exit 1; fi'
             }
             post {
                 always {
@@ -132,7 +133,6 @@ pipeline {
                 }
             }
         }
-        // Disable rustfmt stage until formatting scheme is undefined
         stage('Rustfmt') {
             agent {
                 label 'macos'
