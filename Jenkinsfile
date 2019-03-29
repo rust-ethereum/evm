@@ -133,8 +133,6 @@ pipeline {
             }
         }
         // Disable rustfmt stage until formatting scheme is undefined
-        // TODO: setup rustfmt
-        /*
         stage('Rustfmt') {
             agent {
                 label 'macos'
@@ -143,6 +141,5 @@ pipeline {
                 sh 'cargo fmt -- --check'
             }
         }
-        */
     }
 }
