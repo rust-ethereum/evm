@@ -80,10 +80,7 @@ pub fn sar<M: Memory, P: Patch>(state: &mut State<M, P>) {
         let shift: u64 = shift.into();
 
         match value.0 {
-            Sign::Plus | Sign::NoSign => {
-                let shifted = value.1 >> shift as usize;
-                shifted
-            }
+            Sign::Plus | Sign::NoSign => value.1 >> shift as usize,
             Sign::Minus => {
                 let shifted = ((value.1 - M256::one()) >> shift as usize) + M256::one();
                 MI256(Sign::Minus, shifted).into()

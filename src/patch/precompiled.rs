@@ -169,9 +169,7 @@ fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
 #[cfg(feature = "rust-secp256k1")]
 fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
     let mut message_raw = [0u8; 32];
-    for i in 0..32 {
-        message_raw[i] = data[i];
-    }
+    message_raw[..32].clone_from_slice(&data[..32]);
     let message = Message::parse(&message_raw);
     let recid_raw = match data[63] {
         27 | 28 if data[32..63] == [0; 31] => data[63] - 27,
@@ -179,9 +177,7 @@ fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
     };
     let recid = RecoveryId::parse(recid_raw)?;
     let mut sig_raw = [0u8; 64];
-    for i in 0..64 {
-        sig_raw[i] = data[64 + i];
-    }
+    sig_raw[..64].clone_from_slice(&data[64..128]);
     let sig = Signature::parse(&sig_raw);
     let recovered = recover(&message, &sig, &recid)?;
     let key = recovered.serialize();
@@ -189,9 +185,7 @@ fn kececrec(data: &[u8]) -> Result<[u8; 32], Error> {
     let ret_generic = Keccak256::digest(&key[1..65]);
     let mut ret = [0u8; 32];
 
-    for i in 0..32 {
-        ret[i] = ret_generic[i];
-    }
+    ret[..32].clone_from_slice(&ret_generic[..32]);
 
     Ok(ret)
 }

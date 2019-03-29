@@ -410,7 +410,7 @@ impl<'a, A: AccountPatch> AccountState<'a, A> {
                 self.orig_storage
                     .borrow_mut()
                     .entry(address)
-                    .or_insert(Storage::new(address, true))
+                    .or_insert_with(|| Storage::new(address, true))
                     .commit(index, value)?
             }
             AccountCommitment::Nonexist(address) => {
@@ -554,8 +554,9 @@ impl<'a, A: AccountPatch> AccountState<'a, A> {
     /// Read an original (pre-execution) value from an account storage
     pub fn storage_read_orig(&self, address: Address, index: U256) -> Result<M256, RequireError> {
         let mut orig_storage = self.orig_storage.borrow_mut();
-        let orig_account_storage = orig_storage.entry(address).or_insert(Storage::new(address, true));
-
+        let orig_account_storage = orig_storage
+            .entry(address)
+            .or_insert_with(|| Storage::new(address, true));
         orig_account_storage.read(index)
     }
 
