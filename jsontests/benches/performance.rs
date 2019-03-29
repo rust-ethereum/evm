@@ -2,10 +2,10 @@
 
 #[macro_use]
 extern crate jsontests_derive;
+extern crate evm;
 extern crate jsontests;
 #[macro_use]
 extern crate criterion;
-extern crate evm;
 
 use criterion::Criterion;
 use std::time::Duration;

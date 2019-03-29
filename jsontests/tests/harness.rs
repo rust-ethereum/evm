@@ -3,8 +3,6 @@
 
 #[macro_use]
 extern crate jsontests_derive;
-extern crate evm;
-extern crate jsontests;
 
 #[derive(JsonTests)]
 #[directory = "jsontests/res/files/HarnessCorrectnessTests"]

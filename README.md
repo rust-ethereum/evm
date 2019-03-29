@@ -53,19 +53,16 @@ The core library has the initial four precompiled contracts embedded. To use the
 
 ## Related projects
 
-<<<<<<< HEAD
 * [ethereum-rs](https://github.com/etclabscore/ethereum-rs) -
   common traits and structs for Ethereum. 
 * [etclient](https://source.that.world/source/etclient) -
   bare-minimal Ethereum client written in Rust.
-=======
- * [SputnikVM Dev](https://github.com/ETCDEVTeam/sputnikvm-dev) - SputnikVM instance for Smart Contract development, 
+ * [SputnikVM Dev](https://github.com/etclabscore/sputnikvm-dev) - SputnikVM instance for Smart Contract development, 
     provides testing environment and mock for JSON RPC API
  * [SputnikVM in Browser](https://github.com/sorpaas/sputnikvm-in-browser) - experimental version of SputnikVM 
     compiled into WebAssembly, therefore can be launched in a browser on Node.js
  * [SputnikVM for embedded devices](https://github.com/sorpaas/sputnikvm-on-rux) - experimental project to run on 
     full functional EVM on embedded devices       
->>>>>>> Fixed all github links, Fixed the travis badge
 
 ## Dependencies
 
@@ -106,11 +103,11 @@ aligns with other Ethereum Virtual Machine implementations:
   Ethereum Classic mainnet from genesis block to block 4 million. Some
   of the previously failed tests are also integrated into Rust's test
   system. See
-  [wiki](https://github.com/ETCDEVTeam/sputnikvm/wiki/Building-and-Testing)
+  [wiki](https://github.com/etclabscore/sputnikvm/wiki/Building-and-Testing)
   for how to reproduce the regression tests.
   
 To learn more about building SputnikVM from source please read wiki page
- [Building and Testing](https://github.com/ETCDEVTeam/sputnikvm/wiki/Building-and-Testing)  
+ [Building and Testing](https://github.com/etclabscore/sputnikvm/wiki/Building-and-Testing)  
 
 ## License
 

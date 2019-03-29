@@ -107,8 +107,9 @@ fn genesis_state_root() {
     for (key, value) in accounts {
         let address = Address::from_str(key).unwrap();
         let balance = U256::from_dec_str(&value.balance).unwrap();
-
-        let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.execute(
+        let patch = MainnetEIP160Patch::default();
+        let vm: SeqTransactionVM<_> = stateful.execute(
+            &patch,
             ValidTransaction {
                 caller: None,
                 gas_price: Gas::zero(),

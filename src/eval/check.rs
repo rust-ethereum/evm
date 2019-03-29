@@ -11,7 +11,7 @@ use crate::{
 use super::util::check_range;
 
 #[allow(unused_variables)]
-pub fn extra_check_opcode<M: Memory + Default, P: Patch>(
+pub fn extra_check_opcode<M: Memory, P: Patch>(
     instruction: Instruction,
     state: &State<M, P>,
     stipend_gas: Gas,
@@ -19,7 +19,7 @@ pub fn extra_check_opcode<M: Memory + Default, P: Patch>(
 ) -> Result<(), OnChainError> {
     match instruction {
         Instruction::CALL | Instruction::CALLCODE | Instruction::DELEGATECALL => {
-            if P::err_on_call_with_more_gas() && after_gas < state.stack.peek(0).unwrap().into() {
+            if state.patch.err_on_call_with_more_gas() && after_gas < state.stack.peek(0).unwrap().into() {
                 Err(OnChainError::EmptyGas)
             } else {
                 Ok(())
@@ -29,7 +29,7 @@ pub fn extra_check_opcode<M: Memory + Default, P: Patch>(
     }
 }
 
-pub fn check_support<M: Memory + Default, P: Patch>(
+pub fn check_support<M: Memory, P: Patch>(
     instruction: Instruction,
     state: &State<M, P>,
 ) -> Result<(), NotSupportedError> {
@@ -84,7 +84,7 @@ pub fn check_support<M: Memory + Default, P: Patch>(
 
 #[allow(unused_variables)]
 /// Check whether `run_opcode` would be static.
-pub fn check_static<M: Memory + Default, P: Patch>(
+pub fn check_static<M: Memory, P: Patch>(
     instruction: Instruction,
     state: &State<M, P>,
     runtime: &Runtime,
@@ -178,43 +178,117 @@ pub fn check_static<M: Memory + Default, P: Patch>(
 }
 
 #[allow(unused_variables)]
-#[rustfmt::skip]
 /// Check whether `run_opcode` would fail without mutating any of the
 /// machine state.
-pub fn check_opcode<M: Memory + Default, P: Patch>(
+pub fn check_opcode<M: Memory, P: Patch>(
     instruction: Instruction,
     state: &State<M, P>,
     runtime: &Runtime,
 ) -> Result<Option<ControlCheck>, EvalOnChainError> {
     match instruction {
         Instruction::STOP => Ok(None),
-        Instruction::ADD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::MUL => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SUB => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::DIV => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SDIV => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::MOD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SMOD => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::ADDMOD => { state.stack.check_pop_push(3, 1)?; Ok(None) },
-        Instruction::MULMOD => { state.stack.check_pop_push(3, 1)?; Ok(None) },
-        Instruction::EXP => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SIGNEXTEND => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+        Instruction::ADD => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::MUL => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SUB => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::DIV => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SDIV => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::MOD => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SMOD => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::ADDMOD => {
+            state.stack.check_pop_push(3, 1)?;
+            Ok(None)
+        }
+        Instruction::MULMOD => {
+            state.stack.check_pop_push(3, 1)?;
+            Ok(None)
+        }
+        Instruction::EXP => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SIGNEXTEND => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
 
-        Instruction::LT => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::GT => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SLT => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SGT => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::EQ => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::ISZERO => { state.stack.check_pop_push(1, 1)?; Ok(None) },
-        Instruction::AND => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::OR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::XOR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::NOT => { state.stack.check_pop_push(1, 1)?; Ok(None) },
-        Instruction::BYTE => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+        Instruction::LT => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::GT => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SLT => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SGT => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::EQ => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::ISZERO => {
+            state.stack.check_pop_push(1, 1)?;
+            Ok(None)
+        }
+        Instruction::AND => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::OR => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::XOR => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::NOT => {
+            state.stack.check_pop_push(1, 1)?;
+            Ok(None)
+        }
+        Instruction::BYTE => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
 
-        Instruction::SHL => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SHR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
-        Instruction::SAR => { state.stack.check_pop_push(2, 1)?; Ok(None) },
+        Instruction::SHL => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SHR => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
+        Instruction::SAR => {
+            state.stack.check_pop_push(2, 1)?;
+            Ok(None)
+        }
 
         Instruction::SHA3 => {
             state.stack.check_pop_push(2, 1)?;
@@ -222,29 +296,54 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(
             Ok(None)
         }
 
-        Instruction::ADDRESS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::ADDRESS => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
         Instruction::BALANCE => {
             state.stack.check_pop_push(1, 1)?;
             state.account_state.require(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         }
-        Instruction::ORIGIN => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::CALLER => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::CALLVALUE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::CALLDATALOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
-        Instruction::CALLDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::ORIGIN => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::CALLER => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::CALLVALUE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::CALLDATALOAD => {
+            state.stack.check_pop_push(1, 1)?;
+            Ok(None)
+        }
+        Instruction::CALLDATASIZE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
         Instruction::CALLDATACOPY => {
             state.stack.check_pop_push(3, 0)?;
             check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             Ok(None)
         }
-        Instruction::CODESIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::CODESIZE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
         Instruction::CODECOPY => {
             state.stack.check_pop_push(3, 0)?;
             check_range(state.stack.peek(0).unwrap().into(), state.stack.peek(2).unwrap().into())?;
             Ok(None)
         }
-        Instruction::GASPRICE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::GASPRICE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+
         Instruction::EXTCODESIZE => {
             state.stack.check_pop_push(1, 1)?;
             state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
@@ -261,7 +360,10 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(
             state.account_state.require_code(state.stack.peek(0).unwrap().into())?;
             Ok(None)
         }
-        Instruction::RETURNDATASIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::RETURNDATASIZE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
         Instruction::RETURNDATACOPY => {
             state.stack.check_pop_push(3, 0)?;
             let start = state.stack.peek(0).unwrap().into();
@@ -283,14 +385,35 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(
             }
             Ok(None)
         }
-        Instruction::COINBASE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::TIMESTAMP => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::NUMBER => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::DIFFICULTY => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::GASLIMIT => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::COINBASE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::TIMESTAMP => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::NUMBER => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::DIFFICULTY => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::GASLIMIT => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
 
-        Instruction::POP => { state.stack.check_pop_push(1, 0)?; Ok(None) },
-        Instruction::MLOAD => { state.stack.check_pop_push(1, 1)?; Ok(None) },
+        Instruction::POP => {
+            state.stack.check_pop_push(1, 0)?;
+            Ok(None)
+        }
+        Instruction::MLOAD => {
+            state.stack.check_pop_push(1, 1)?;
+            Ok(None)
+        }
         Instruction::MSTORE => {
             state.stack.check_pop_push(2, 0)?;
             Ok(None)
@@ -327,15 +450,33 @@ pub fn check_opcode<M: Memory + Default, P: Patch>(
                 Ok(None)
             }
         }
-        Instruction::PC => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::MSIZE => { state.stack.check_pop_push(0, 1)?; Ok(None) },
-        Instruction::GAS => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::PC => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::MSIZE => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
+        Instruction::GAS => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
         Instruction::JUMPDEST => Ok(None),
 
-        Instruction::PUSH(v) => { state.stack.check_pop_push(0, 1)?; Ok(None) },
+        Instruction::PUSH(v) => {
+            state.stack.check_pop_push(0, 1)?;
+            Ok(None)
+        }
 
-        Instruction::DUP(v) => { state.stack.check_pop_push(v, v+1)?; Ok(None) },
-        Instruction::SWAP(v) => { state.stack.check_pop_push(v+1, v+1)?; Ok(None) },
+        Instruction::DUP(v) => {
+            state.stack.check_pop_push(v, v + 1)?;
+            Ok(None)
+        }
+        Instruction::SWAP(v) => {
+            state.stack.check_pop_push(v + 1, v + 1)?;
+            Ok(None)
+        }
 
         Instruction::LOG(v) => {
             state.stack.check_pop_push(v + 2, 0)?;

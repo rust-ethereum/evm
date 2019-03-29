@@ -2,20 +2,15 @@
 
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
-
 use bigint::{M256, U256};
 
 use super::errors::NotSupportedError;
-use super::Patch;
-
-#[cfg(not(feature = "std"))]
-use core::marker::PhantomData;
-#[cfg(feature = "std")]
-use std::marker::PhantomData;
 
 /// Represent a memory in EVM. Read should always succeed. Write can
 /// fall.
-pub trait Memory {
+pub trait Memory: Sized {
+    /// Create new memory instance bounded my the limit
+    fn new(memory_limit: usize) -> Self;
     /// Check whether write on this index would result in an error. If
     /// this function returns Ok, then both `write` and `write_raw` on
     /// this index should succeed.
@@ -37,21 +32,12 @@ pub trait Memory {
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
-pub struct SeqMemory<P: Patch> {
+pub struct SeqMemory {
     memory: Vec<u8>,
-    _marker: PhantomData<P>,
+    memory_limit: usize,
 }
 
-impl<P: Patch> Default for SeqMemory<P> {
-    fn default() -> SeqMemory<P> {
-        SeqMemory {
-            memory: Vec::new(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-impl<P: Patch> SeqMemory<P> {
+impl SeqMemory {
     /// Get the length of the current effective memory range.
     #[inline]
     pub fn len(&self) -> usize {
@@ -65,10 +51,18 @@ impl<P: Patch> SeqMemory<P> {
     }
 }
 
-impl<P: Patch> Memory for SeqMemory<P> {
+impl Memory for SeqMemory {
+    /// Create new SeqMemory instance with supplied Patch
+    fn new(memory_limit: usize) -> Self {
+        SeqMemory {
+            memory: Vec::new(),
+            memory_limit,
+        }
+    }
+
     fn check_write(&self, index: U256) -> Result<(), NotSupportedError> {
         let end = index + 32.into();
-        if end > U256::from(P::memory_limit()) {
+        if end > U256::from(self.memory_limit) {
             Err(NotSupportedError::MemoryIndexNotSupported)
         } else {
             Ok(())
@@ -80,7 +74,7 @@ impl<P: Patch> Memory for SeqMemory<P> {
             return Ok(());
         }
 
-        if start.saturating_add(len) > U256::from(P::memory_limit()) {
+        if start.saturating_add(len) > U256::from(self.memory_limit) {
             Err(NotSupportedError::MemoryIndexNotSupported)
         } else {
             self.check_write(start + len - U256::from(1u64))
@@ -89,7 +83,7 @@ impl<P: Patch> Memory for SeqMemory<P> {
 
     fn write(&mut self, index: U256, value: M256) -> Result<(), NotSupportedError> {
         let end = M256::from(index) + 32.into();
-        if end > M256::from(P::memory_limit()) {
+        if end > M256::from(self.memory_limit) {
             return Err(NotSupportedError::MemoryIndexNotSupported);
         }
 
@@ -100,7 +94,7 @@ impl<P: Patch> Memory for SeqMemory<P> {
     }
 
     fn write_raw(&mut self, index: U256, value: u8) -> Result<(), NotSupportedError> {
-        if index > U256::from(P::memory_limit()) {
+        if index > U256::from(self.memory_limit) {
             return Err(NotSupportedError::MemoryIndexNotSupported);
         }
 

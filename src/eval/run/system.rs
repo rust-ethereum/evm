@@ -22,7 +22,7 @@ use std::cmp::min;
 
 use sha3::{Digest, Keccak256};
 
-pub fn suicide<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn suicide<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, address: Address);
     let balance = state.account_state.balance(state.context.address).unwrap();
     if !state.removed.contains(&state.context.address) {
@@ -34,7 +34,7 @@ pub fn suicide<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     state.account_state.decrease_balance(state.context.address, balance);
 }
 
-pub fn log<M: Memory + Default, P: Patch>(state: &mut State<M, P>, topic_len: usize) {
+pub fn log<M: Memory, P: Patch>(state: &mut State<M, P>, topic_len: usize) {
     pop!(state, index: U256, len: U256);
     let data = copy_from_memory(&state.memory, index, len);
     let mut topics = Vec::new();
@@ -49,7 +49,7 @@ pub fn log<M: Memory + Default, P: Patch>(state: &mut State<M, P>, topic_len: us
     });
 }
 
-pub fn sha3<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn sha3<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, from: U256, len: U256);
     let data = copy_from_memory(&state.memory, from, len);
     let ret = Keccak256::digest(data.as_slice());
@@ -57,8 +57,8 @@ pub fn sha3<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
 }
 
 macro_rules! try_callstack_limit {
-    ( $state:expr, $patch:tt ) => {
-        if $state.depth > $patch::callstack_limit() {
+    ( $state:expr, $patch:expr ) => {
+        if $state.depth > $patch.callstack_limit() {
             push!($state, M256::zero());
             return None;
         }
@@ -74,12 +74,8 @@ macro_rules! try_balance {
     };
 }
 
-pub fn create<M: Memory + Default, P: Patch>(
-    state: &mut State<M, P>,
-    after_gas: Gas,
-    is_create2: bool,
-) -> Option<Control> {
-    let l64_after_gas = if P::call_create_l64_after_gas() {
+pub fn create<M: Memory, P: Patch>(state: &mut State<M, P>, after_gas: Gas, is_create2: bool) -> Option<Control> {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas() {
         l64(after_gas)
     } else {
         after_gas
@@ -88,7 +84,7 @@ pub fn create<M: Memory + Default, P: Patch>(
     pop!(state, value: U256);
     pop!(state, init_start: U256, init_len: U256);
 
-    try_callstack_limit!(state, P);
+    try_callstack_limit!(state, state.patch);
     try_balance!(state, value, Gas::zero());
 
     let init = Rc::new(copy_from_memory(&state.memory, init_start, init_len));
@@ -131,13 +127,13 @@ pub fn create<M: Memory + Default, P: Patch>(
     Some(Control::InvokeCreate(context))
 }
 
-pub fn call<M: Memory + Default, P: Patch>(
+pub fn call<M: Memory, P: Patch>(
     state: &mut State<M, P>,
     stipend_gas: Gas,
     after_gas: Gas,
     as_self: bool,
 ) -> Option<Control> {
-    let l64_after_gas = if P::call_create_l64_after_gas() {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas() {
         l64(after_gas)
     } else {
         after_gas
@@ -147,7 +143,7 @@ pub fn call<M: Memory + Default, P: Patch>(
     pop!(state, in_start: U256, in_len: U256, out_start: U256, out_len: U256);
     let gas_limit = min(gas, l64_after_gas) + stipend_gas;
 
-    try_callstack_limit!(state, P);
+    try_callstack_limit!(state, state.patch);
     try_balance!(state, value, gas_limit);
 
     let input = Rc::new(copy_from_memory(&state.memory, in_start, in_len));
@@ -178,12 +174,8 @@ pub fn call<M: Memory + Default, P: Patch>(
     Some(Control::InvokeCall(context, (out_start, out_len)))
 }
 
-pub fn static_call<M: Memory + Default, P: Patch>(
-    state: &mut State<M, P>,
-    stipend_gas: Gas,
-    after_gas: Gas,
-) -> Option<Control> {
-    let l64_after_gas = if P::call_create_l64_after_gas() {
+pub fn static_call<M: Memory, P: Patch>(state: &mut State<M, P>, stipend_gas: Gas, after_gas: Gas) -> Option<Control> {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas() {
         l64(after_gas)
     } else {
         after_gas
@@ -193,7 +185,7 @@ pub fn static_call<M: Memory + Default, P: Patch>(
     pop!(state, in_start: U256, in_len: U256, out_start: U256, out_len: U256);
     let gas_limit = min(gas, l64_after_gas) + stipend_gas;
 
-    try_callstack_limit!(state, P);
+    try_callstack_limit!(state, state.patch);
 
     let input = Rc::new(copy_from_memory(&state.memory, in_start, in_len));
     let transaction = ValidTransaction {
@@ -220,8 +212,8 @@ pub fn static_call<M: Memory + Default, P: Patch>(
     Some(Control::InvokeCall(context, (out_start, out_len)))
 }
 
-pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, after_gas: Gas) -> Option<Control> {
-    let l64_after_gas = if P::call_create_l64_after_gas() {
+pub fn delegate_call<M: Memory, P: Patch>(state: &mut State<M, P>, after_gas: Gas) -> Option<Control> {
+    let l64_after_gas = if state.patch.call_create_l64_after_gas() {
         l64(after_gas)
     } else {
         after_gas
@@ -231,7 +223,7 @@ pub fn delegate_call<M: Memory + Default, P: Patch>(state: &mut State<M, P>, aft
     pop!(state, in_start: U256, in_len: U256, out_start: U256, out_len: U256);
     let gas_limit = min(gas, l64_after_gas);
 
-    try_callstack_limit!(state, P);
+    try_callstack_limit!(state, state.patch);
 
     let input = Rc::new(copy_from_memory(&state.memory, in_start, in_len));
     let transaction = ValidTransaction {

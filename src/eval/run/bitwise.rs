@@ -5,7 +5,7 @@ use bigint::{Sign, M256, MI256};
 use super::State;
 use crate::{Memory, Patch};
 
-pub fn iszero<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn iszero<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1);
 
     if op1 == M256::zero() {
@@ -15,12 +15,12 @@ pub fn iszero<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     }
 }
 
-pub fn not<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn not<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1);
     push!(state, !op1);
 }
 
-pub fn byte<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn byte<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, op1, op2);
 
     let mut ret = M256::zero();
@@ -38,7 +38,7 @@ pub fn byte<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     push!(state, ret);
 }
 
-pub fn shl<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn shl<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, shift, value);
 
     let result = if value == M256::zero() || shift >= M256::from(256) {
@@ -51,7 +51,7 @@ pub fn shl<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     push!(state, result);
 }
 
-pub fn shr<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn shr<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, shift, value);
 
     let result = if value == M256::zero() || shift >= M256::from(256) {
@@ -64,7 +64,7 @@ pub fn shr<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
     push!(state, result);
 }
 
-pub fn sar<M: Memory + Default, P: Patch>(state: &mut State<M, P>) {
+pub fn sar<M: Memory, P: Patch>(state: &mut State<M, P>) {
     pop!(state, shift, value);
     let value = MI256::from(value);
 

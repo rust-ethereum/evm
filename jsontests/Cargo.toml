@@ -10,7 +10,7 @@ name = "performance"
 harness = false
 
 [dependencies]
-evm = { path = '../' }
+evm = { path = '..' }
 jsontests-derive = { path = "./jsontests-derive" }
 ethereum-bigint = "0.2"
 ethereum-hexutil = "0.2"

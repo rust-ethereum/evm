@@ -4,8 +4,6 @@
 
 #[macro_use]
 extern crate jsontests_derive;
-extern crate evm;
-extern crate jsontests;
 
 #[cfg(feature = "bench")]
 extern crate test;

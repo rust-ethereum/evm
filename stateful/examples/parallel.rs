@@ -231,7 +231,8 @@ pub fn parallel_execute(
         let stateful = stateful.clone();
 
         threads.push(thread::spawn(move || {
-            let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.call(transaction.into(), &header, &[]);
+            let patch = MainnetEIP160Patch::default();
+            let vm: SeqTransactionVM<_> = stateful.call(&patch, transaction.into(), &header, &[]);
             let accounts: Vec<SendableAccountChange> =
                 vm.accounts().map(|v| SendableAccountChange::from(v.clone())).collect();
             (accounts, vm.used_addresses())
@@ -257,7 +258,8 @@ pub fn parallel_execute(
         let (accounts, used_addresses) = if is_modified(&modified_addresses, &accounts) {
             // Re-execute the transaction if conflict is detected.
             println!("Transaction index {}: conflict detected, re-execute.", index);
-            let vm: SeqTransactionVM<MainnetEIP160Patch> = stateful.call(transactions[index].clone(), &header, &[]);
+            let patch = MainnetEIP160Patch::default();
+            let vm: SeqTransactionVM<_> = stateful.call(&patch, transactions[index].clone(), &header, &[]);
             let accounts: Vec<AccountChange> = vm.accounts().map(|v| v.clone()).collect();
             (accounts, vm.used_addresses())
         } else {

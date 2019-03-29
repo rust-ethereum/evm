@@ -76,7 +76,9 @@ impl AddAssign<Gas> for GasUsage {
 }
 
 /// A VM state without PC.
-pub struct State<M, P: Patch> {
+pub struct State<'a, M, P: Patch> {
+    /// Current patch
+    pub patch: &'a P,
     /// Memory of this runtime.
     pub memory: M,
     /// Stack of this runtime.
@@ -99,7 +101,7 @@ pub struct State<M, P: Patch> {
     pub refunded_gas: Gas,
 
     /// The current account commitment states.
-    pub account_state: AccountState<P::Account>,
+    pub account_state: AccountState<'a, P::Account>,
     /// Logs appended.
     pub logs: Vec<Log>,
     /// All removed accounts using the SUICIDE opcode.
@@ -114,7 +116,7 @@ pub struct State<M, P: Patch> {
     pub position: usize,
 }
 
-impl<M, P: Patch> State<M, P> {
+impl<'a, M, P: Patch> State<'a, M, P> {
     /// Memory gas, part of total used gas.
     pub fn memory_gas(&self) -> Gas {
         memory_gas(self.memory_cost)
@@ -162,8 +164,8 @@ impl Runtime {
 }
 
 /// A VM state with PC.
-pub struct Machine<M, P: Patch> {
-    state: State<M, P>,
+pub struct Machine<'a, M, P: Patch> {
+    state: State<'a, M, P>,
     status: MachineStatus,
 }
 
@@ -209,40 +211,7 @@ pub enum Control {
     InvokeCall(Context, (U256, U256)),
 }
 
-impl<M: Memory + Default, P: Patch> Machine<M, P> {
-    /// Create a new runtime.
-    pub fn new(context: Context, depth: usize) -> Self {
-        Self::with_states(context, depth, AccountState::default())
-    }
-
-    /// Create a new runtime with the given states.
-    pub fn with_states(context: Context, depth: usize, account_state: AccountState<P::Account>) -> Self {
-        Machine {
-            status: MachineStatus::Running,
-            state: State {
-                memory: M::default(),
-                stack: Stack::default(),
-
-                out: Rc::new(Vec::new()),
-                ret: Rc::new(Vec::new()),
-
-                memory_cost: Gas::zero(),
-                used_gas: GasUsage::Some(Gas::zero()),
-                refunded_gas: Gas::zero(),
-
-                account_state,
-                logs: Vec::new(),
-                removed: Vec::new(),
-
-                depth,
-                position: 0,
-                valids: Valids::new(context.code.as_slice()),
-
-                context,
-            },
-        }
-    }
-
+impl<'a, M: Memory, P: Patch> Machine<'a, M, P> {
     /// Derive this runtime to create a sub runtime. This will not
     /// modify the current runtime, and it will have a chance to
     /// review whether it wants to accept the result of this sub
@@ -251,7 +220,8 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         Machine {
             status: MachineStatus::Running,
             state: State {
-                memory: M::default(),
+                patch: self.state.patch,
+                memory: M::new(self.state.patch.memory_limit()),
                 stack: Stack::default(),
 
                 out: Rc::new(Vec::new()),
@@ -275,6 +245,47 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         }
     }
 
+    /// Create a new runtime.
+    pub fn new(patch: &'a P, context: Context, depth: usize) -> Self {
+        let account_patch = patch.account_patch().clone();
+        Self::with_states(patch, context, depth, AccountState::new(account_patch))
+    }
+
+    /// Create a new runtime with the given states.
+    pub fn with_states(
+        patch: &'a P,
+        context: Context,
+        depth: usize,
+        account_state: AccountState<'a, P::Account>,
+    ) -> Self {
+        let memory_limit = patch.memory_limit();
+        Machine {
+            status: MachineStatus::Running,
+            state: State {
+                patch,
+                memory: M::new(memory_limit),
+                stack: Stack::default(),
+
+                out: Rc::new(Vec::new()),
+                ret: Rc::new(Vec::new()),
+
+                memory_cost: Gas::zero(),
+                used_gas: GasUsage::Some(Gas::zero()),
+                refunded_gas: Gas::zero(),
+
+                account_state,
+                logs: Vec::new(),
+                removed: Vec::new(),
+
+                depth,
+                position: 0,
+                valids: Valids::new(context.code.as_slice()),
+
+                context,
+            },
+        }
+    }
+
     /// Commit a new account into this runtime.
     pub fn commit_account(&mut self, commitment: AccountCommitment) -> Result<(), CommitError> {
         self.state.account_state.commit(commitment)
@@ -284,8 +295,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
     /// runtime is indeed a precompiled address. Otherwise return
     /// false with state unchanged.
     pub fn step_precompiled(&mut self) -> bool {
-        for precompiled in P::precompileds() {
+        for precompiled in self.state.patch.precompileds() {
             if self.state.context.address == precompiled.0
+                && self
+                    .state
+                    .patch
+                    .is_precompiled_contract_enabled(&self.state.context.address)
                 && (precompiled.1.is_none() || precompiled.1.unwrap() == self.state.context.code.as_slice())
             {
                 let data = &self.state.context.data;
@@ -311,7 +326,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Peek the next instruction.
     pub fn peek(&self) -> Option<Instruction> {
-        let pc = PC::<P>::new(&self.state.context.code, &self.state.valids, &self.state.position);
+        let pc = PC::<P>::new(
+            &self.state.patch,
+            &self.state.context.code,
+            &self.state.valids,
+            &self.state.position,
+        );
         match pc.peek() {
             Ok(val) => Some(val),
             Err(_) => None,
@@ -320,7 +340,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
 
     /// Peek the next opcode.
     pub fn peek_opcode(&self) -> Option<Opcode> {
-        let pc = PC::<P>::new(&self.state.context.code, &self.state.valids, &self.state.position);
+        let pc = PC::<P>::new(
+            &self.state.patch,
+            &self.state.context.code,
+            &self.state.valids,
+            &self.state.position,
+        );
         match pc.peek_opcode() {
             Ok(val) => Some(val),
             Err(_) => None,
@@ -364,7 +389,12 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
             gas_refund,
             after_gas,
         } = {
-            let pc = PC::<P>::new(&self.state.context.code, &self.state.valids, &self.state.position);
+            let pc = PC::<P>::new(
+                &self.state.patch,
+                &self.state.context.code,
+                &self.state.valids,
+                &self.state.position,
+            );
 
             if pc.is_end() {
                 debug!("reached code EOF");
@@ -469,9 +499,14 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         trace!("gas_refund:  {:x}", gas_refund);
         trace!("after_gas:   {:x?}", after_gas);
 
-        let instruction = PCMut::<P>::new(&self.state.context.code, &self.state.valids, &mut self.state.position)
-            .read()
-            .unwrap();
+        let instruction = PCMut::<P>::new(
+            &self.state.patch,
+            &self.state.context.code,
+            &self.state.valids,
+            &mut self.state.position,
+        )
+        .read()
+        .unwrap();
 
         let result = run_opcode::<M, P>(
             (instruction, position),
@@ -492,9 +527,15 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         match result {
             None => Ok(()),
             Some(Control::Jump(dest)) => {
-                PCMut::<P>::new(&self.state.context.code, &self.state.valids, &mut self.state.position)
-                    .jump(dest.as_usize())
-                    .unwrap();
+                PCMut::<P>::new(
+                    &self.state.patch,
+                    &self.state.context.code,
+                    &self.state.valids,
+                    &mut self.state.position,
+                )
+                .jump(dest.as_usize())
+                .unwrap();
+
                 Ok(())
             }
             Some(Control::InvokeCall(context, (from, len))) => {
@@ -521,9 +562,19 @@ impl<M: Memory + Default, P: Patch> Machine<M, P> {
         &self.state
     }
 
+    /// Take the runtime state
+    pub fn take_state(self) -> State<'a, M, P> {
+        self.state
+    }
+
     /// Get the runtime PC.
     pub fn pc(&self) -> PC<P> {
-        PC::new(&self.state.context.code, &self.state.valids, &self.state.position)
+        PC::new(
+            &self.state.patch,
+            &self.state.context.code,
+            &self.state.valids,
+            &self.state.position,
+        )
     }
 
     /// Get the current runtime status.

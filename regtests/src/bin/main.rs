@@ -140,7 +140,7 @@ fn is_miner_or_uncle<T: GethRPCClient>(client: &mut T, address: Address, block: 
     false
 }
 
-fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
+fn test_block<T: GethRPCClient, P: Patch + Default + Clone>(client: &mut T, number: usize) {
     let block = client.get_block_by_number(format!("0x{:x}", number).as_str()).unwrap();
     println!(
         "block {} ({}), transaction count: {}",
@@ -152,17 +152,17 @@ fn test_block<T: GethRPCClient, P: Patch>(client: &mut T, number: usize) {
     let last_number = format!("0x{:x}", last_id);
     let cur_number = block.number.clone().unwrap();
     let block_header = from_rpc_block(&block);
+    let patch = P::default();
 
     let mut last_vm: Option<SeqTransactionVM<P>> = None;
     for transaction_hash in &block.transactions {
         println!("\nworking on transaction {}", transaction_hash);
         let transaction = from_rpc_transaction(&client.get_transaction_by_hash(&transaction_hash).unwrap());
         let receipt = client.get_transaction_receipt(&transaction_hash).unwrap();
-
-        let mut vm = if last_vm.is_none() {
-            SeqTransactionVM::new(transaction, block_header.clone())
+        let mut vm = if let Some(last_vm) = last_vm.take() {
+            SeqTransactionVM::with_previous(transaction, block_header.clone(), &last_vm)
         } else {
-            SeqTransactionVM::with_previous(transaction, block_header.clone(), last_vm.as_ref().unwrap())
+            SeqTransactionVM::new(&patch, transaction, block_header.clone())
         };
 
         handle_fire(client, &mut vm, last_id);
@@ -245,7 +245,7 @@ fn test_blocks_patch<T: GethRPCClient>(client: &mut T, number: &str, patch: Opti
     }
 }
 
-fn test_blocks<T: GethRPCClient, P: Patch>(client: &mut T, number: &str) {
+fn test_blocks<T: GethRPCClient, P: Patch + Default + Clone>(client: &mut T, number: &str) {
     if number.contains(".json") {
         let file = File::open(number).unwrap();
         let numbers: Vec<usize> = serde_json::from_reader(file).unwrap();
