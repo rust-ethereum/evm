@@ -338,7 +338,7 @@ impl<'a, M: Memory, P: Patch> TransactionVM<'a, M, P> {
         block: HeaderParams,
     ) -> Result<Self, PreExecutionError> {
         let valid = transaction.to_valid(patch)?;
-        let account_patch = patch.account_patch().clone();
+        let account_patch = patch.account_patch();
         let mut vm = TransactionVM(TransactionVMState::Constructing {
             patch,
             transaction: valid,
@@ -353,7 +353,7 @@ impl<'a, M: Memory, P: Patch> TransactionVM<'a, M, P> {
     /// Create a new VM using the given transaction, block header and
     /// patch. This VM runs at the transaction level.
     pub fn new(patch: &'a P, transaction: ValidTransaction, block: HeaderParams) -> Self {
-        let account_patch = patch.account_patch().clone();
+        let account_patch = patch.account_patch();
         TransactionVM(TransactionVMState::Constructing {
             patch,
             transaction,
