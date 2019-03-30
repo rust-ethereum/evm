@@ -116,7 +116,7 @@ impl<'a, M: Memory, P: Patch> Machine<'a, M, P> {
     }
 
     /// Deposit code for a ContractCreation transaction or a CREATE opcode.
-    #[cfg_attr(feature = "cargo-clippy", allow(collapsible_if))]
+    #[allow(clippy::collapsible_if)]
     pub fn code_deposit(&mut self) {
         match self.status() {
             MachineStatus::ExitedOk | MachineStatus::ExitedErr(_) => (),

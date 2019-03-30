@@ -61,12 +61,10 @@ fn sstore_cost<M: Memory, P: Patch>(state: &State<M, P>) -> Gas {
                 G_SNOOP.into()
             }
         }
+    } else if value != M256::zero() && state.account_state.storage_read(address, index).unwrap() == M256::zero() {
+        G_SSET.into()
     } else {
-        if value != M256::zero() && state.account_state.storage_read(address, index).unwrap() == M256::zero() {
-            G_SSET.into()
-        } else {
-            G_SRESET.into()
-        }
+        G_SRESET.into()
     }
 }
 
@@ -379,12 +377,11 @@ pub fn gas_refund<M: Memory, P: Patch>(instruction: Instruction, state: &State<M
                 }
 
                 refund
+            } else if value == M256::zero() && state.account_state.storage_read(address, index).unwrap() != M256::zero()
+            {
+                R_SRESET
             } else {
-                if value == M256::zero() && state.account_state.storage_read(address, index).unwrap() != M256::zero() {
-                    R_SRESET
-                } else {
-                    0
-                }
+                0
             }
         }
         Instruction::SUICIDE => {

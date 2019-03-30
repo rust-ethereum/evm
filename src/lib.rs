@@ -350,7 +350,7 @@ impl<'a, M: Memory, P: Patch> VM for ContextVM<'a, M, P> {
         Ok(())
     }
 
-    #[cfg_attr(feature = "cargo-clippy", allow(single_match))]
+    #[allow(clippy::single_match)]
     fn status(&self) -> VMStatus {
         match self.machines.last().unwrap().status().clone() {
             MachineStatus::ExitedNotSupported(err) => return VMStatus::ExitedNotSupported(err),
