@@ -22,6 +22,8 @@ use std::collections::{hash_map as map, HashSet as Set};
 #[cfg(feature = "std")]
 use std::ops::Deref;
 
+use log::{debug, trace};
+
 use super::errors::{CommitError, PreExecutionError, RequireError};
 use super::{
     AccountChange, AccountCommitment, AccountState, BlockhashState, Context, ContextVM, HeaderParams, Instruction, Log,
