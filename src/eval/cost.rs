@@ -74,28 +74,33 @@ fn sstore_cost<M: Memory, P: Patch>(state: &State<M, P>) -> Gas {
 }
 
 fn call_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
-    machine.patch.gas_call() + xfer_cost(machine, instruction) + new_cost(machine, instruction)
+    let transfers_value = machine.stack.peek(2).unwrap() != M256::zero();
+    machine.patch.gas_call() + xfer_cost(instruction, transfers_value) + new_cost(machine, instruction, transfers_value)
 }
 
-fn xfer_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
-    if instruction == &Instruction::CALL || instruction == &Instruction::CALLCODE {
-        let val = machine.stack.peek(2).unwrap();
-        if val != M256::zero() {
-            G_CALLVALUE.into()
-        } else {
-            Gas::zero()
-        }
+fn xfer_cost(instruction: &Instruction, transfers_value: bool) -> Gas {
+    if (instruction == &Instruction::CALL || instruction == &Instruction::CALLCODE) && transfers_value {
+        G_CALLVALUE.into()
     } else {
         Gas::zero()
     }
 }
 
-fn new_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
+fn new_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction, transfers_value: bool) -> Gas {
     let address: Address = machine.stack.peek(1).unwrap().into();
-    if (instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL)
-        && !machine.account_state.exists(address).unwrap()
-    {
-        Gas::from(G_NEWACCOUNT)
+    let eip161 = !machine.patch.account_patch().empty_considered_exists();
+    if instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL {
+        if eip161 {
+            if transfers_value && !machine.account_state.exists(address).unwrap() {
+                Gas::from(G_NEWACCOUNT)
+            } else {
+                Gas::zero()
+            }
+        } else if !machine.account_state.exists(address).unwrap() {
+            Gas::from(G_NEWACCOUNT)
+        } else {
+            Gas::zero()
+        }
     } else {
         Gas::zero()
     }
