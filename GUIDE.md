@@ -2,8 +2,11 @@
 
 ## Formatting conventions
 
-These formatting conventions are a work in progress, and may do anything they
-like, up to and including eating your laundry.
+Formatting conventions are defined in the [FORMATTING.md](./FORMATTING.md) document.
+
+Rules described below are enforced by the `rustfmt` tool and the [rustfmt.toml](./rustfmt.toml) by default.
+
+Please format your code with `cargo fmt --all` before pushing it to the repository.
 
 ### Function definitions
 
@@ -40,7 +43,6 @@ move |arg1: i32, arg2: i32| -> i32 { expr1; expr2 }
 ### Indentation
 
 Use spaces, not tabs.
-
 
 ### Expressions
 
