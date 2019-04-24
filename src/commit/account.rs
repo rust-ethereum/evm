@@ -450,7 +450,7 @@ impl<'a, A: AccountPatch> AccountState<'a, A> {
             }) => Ok(if self.account_patch.empty_considered_exists() {
                 true
             } else {
-                is_empty(nonce, balance, code)
+                !is_empty(nonce, balance, code)
             }),
             Some(&AccountChange::Full {
                 nonce,
@@ -460,7 +460,7 @@ impl<'a, A: AccountPatch> AccountState<'a, A> {
             }) => Ok(if self.account_patch.empty_considered_exists() {
                 true
             } else {
-                is_empty(nonce, balance, code)
+                !is_empty(nonce, balance, code)
             }),
             Some(&AccountChange::Nonexist(_)) => Ok(false),
             Some(&AccountChange::IncreaseBalance(address, topup)) => {

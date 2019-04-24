@@ -296,11 +296,11 @@ impl<'a, M: Memory, P: Patch> Machine<'a, M, P> {
     /// false with state unchanged.
     pub fn step_precompiled(&mut self) -> bool {
         for precompiled in self.state.patch.precompileds() {
-            if self.state.context.address == precompiled.0
+            if self.state.context.callee == precompiled.0
                 && self
                     .state
                     .patch
-                    .is_precompiled_contract_enabled(&self.state.context.address)
+                    .is_precompiled_contract_enabled(&self.state.context.callee)
                 && (precompiled.1.is_none() || precompiled.1.unwrap() == self.state.context.code.as_slice())
             {
                 let data = &self.state.context.data;

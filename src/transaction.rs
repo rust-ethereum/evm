@@ -22,6 +22,8 @@ use std::collections::{hash_map as map, HashSet as Set};
 #[cfg(feature = "std")]
 use std::ops::Deref;
 
+use log::{debug, trace};
+
 use super::errors::{CommitError, PreExecutionError, RequireError};
 use super::{
     AccountChange, AccountCommitment, AccountState, BlockhashState, Context, ContextVM, HeaderParams, Instruction, Log,
@@ -245,6 +247,18 @@ impl ValidTransaction {
     ) -> Result<Context, RequireError> {
         let address = self.address();
 
+        // Calculate gas with overflow checks
+        let gas_limit: U256 = self.gas_limit.into();
+        let upfront: U256 = upfront.into();
+        let new_gas_limit = gas_limit.saturating_sub(upfront);
+        trace!("gas_limit({}) - upfront({}) = {}", gas_limit, upfront, new_gas_limit);
+        let new_gas_limit = Gas::from(new_gas_limit);
+
+        // print a debug warning if gas limit have zeroed out
+        if new_gas_limit == Gas::zero() {
+            debug!("gas limit saturated to zero");
+        }
+
         match self.action {
             TransactionAction::Call(_) => {
                 if self.caller.is_some() {
@@ -262,10 +276,11 @@ impl ValidTransaction {
                 Ok(Context {
                     address,
                     caller: self.caller.unwrap_or(system_address!()),
+                    callee: address,
                     data: self.input,
                     gas_price: self.gas_price,
                     value: self.value,
-                    gas_limit: self.gas_limit - upfront,
+                    gas_limit: new_gas_limit,
                     code: account_state.code(address).unwrap(),
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),
                     apprent_value: self.value,
@@ -285,9 +300,10 @@ impl ValidTransaction {
                 Ok(Context {
                     address,
                     caller: self.caller.unwrap_or(system_address!()),
+                    callee: address,
                     gas_price: self.gas_price,
                     value: self.value,
-                    gas_limit: self.gas_limit - upfront,
+                    gas_limit: new_gas_limit,
                     data: Rc::new(Vec::new()),
                     code: self.input,
                     origin: origin.unwrap_or(self.caller.unwrap_or(system_address!())),

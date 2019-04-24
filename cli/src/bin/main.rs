@@ -220,6 +220,7 @@ fn main() {
         let context = Context {
             address,
             caller,
+            callee: address,
             gas_limit,
             gas_price,
             value,

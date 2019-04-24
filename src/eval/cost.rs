@@ -1,6 +1,7 @@
 //! Cost calculation logic
 
 use bigint::{Address, Gas, M256, U256};
+use log::{debug, trace};
 
 #[cfg(not(feature = "std"))]
 use core::cmp::max;
@@ -8,7 +9,7 @@ use core::cmp::max;
 use std::cmp::max;
 
 use super::State;
-use crate::{Instruction, Memory, Patch};
+use crate::{AccountPatch, Instruction, Memory, Patch};
 
 const G_ZERO: usize = 0;
 const G_BASE: usize = 2;
@@ -21,8 +22,9 @@ const G_SNOOP: usize = 200;
 const G_SSET: usize = 20000;
 const G_SRESET: usize = 5000;
 const R_SRESET: isize = 15000;
-const R_SCLEAR: isize = 19800;
-const R_SNOOP: isize = 4800;
+const R_NETSRESETCLEAR: isize = 19800;
+const R_NETSRESET: isize = 4800;
+const R_NETSCLEAR: isize = 15000;
 const R_SUICIDE: isize = 24000;
 const G_CREATE: usize = 32000;
 const G_CODEDEPOSIT: usize = 200;
@@ -44,39 +46,66 @@ fn sstore_cost<M: Memory, P: Patch>(state: &State<M, P>) -> Gas {
     let index: U256 = state.stack.peek(0).unwrap().into();
     let value = state.stack.peek(1).unwrap();
     let address = state.context.address;
+    let current = state.account_state.storage_read(address, index).unwrap();
 
-    if state.patch.has_reduced_sstore_gas_metering() {
-        let orig = state.account_state.storage_read_orig(address, index).unwrap();
-        let current = state.account_state.storage_read(address, index).unwrap();
-        if value == current {
-            G_SNOOP.into()
+    // The legacy gas metering only takes into consideration the current state
+    if !state.patch.has_reduced_sstore_gas_metering() {
+        if current == M256::zero() && value != M256::zero() {
+            return G_SSET.into();
         } else {
-            if orig == current {
-                if orig == M256::zero() {
-                    G_SSET.into()
-                } else {
-                    G_SRESET.into()
-                }
-            } else {
-                G_SNOOP.into()
-            }
+            return G_SRESET.into();
         }
-    } else if value != M256::zero() && state.account_state.storage_read(address, index).unwrap() == M256::zero() {
-        G_SSET.into()
+    }
+
+    // Modern gas metering scheme (EIP-1283)
+    trace!("using EIP1283 reduced SSTORE gas metering scheme");
+
+    if value == current {
+        return G_SNOOP.into();
+    }
+
+    // If RequireError is thrown here, that means that original storage was unset, hence defaulting to Zero.
+    let original = state
+        .account_state
+        .storage_read_orig(address, index)
+        .unwrap_or(M256::zero());
+
+    if original == current {
+        if original == M256::zero() {
+            G_SSET.into()
+        } else {
+            G_SRESET.into()
+        }
     } else {
-        G_SRESET.into()
+        G_SNOOP.into()
     }
 }
 
 fn call_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
-    machine.patch.gas_call() + xfer_cost(machine, instruction) + new_cost(machine, instruction)
+    let transfers_value = machine.stack.peek(2).unwrap() != M256::zero();
+    machine.patch.gas_call() + xfer_cost(instruction, transfers_value) + new_cost(machine, instruction, transfers_value)
 }
 
-fn xfer_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
-    if instruction == &Instruction::CALL || instruction == &Instruction::CALLCODE {
-        let val = machine.stack.peek(2).unwrap();
-        if val != M256::zero() {
-            G_CALLVALUE.into()
+fn xfer_cost(instruction: &Instruction, transfers_value: bool) -> Gas {
+    if (instruction == &Instruction::CALL || instruction == &Instruction::CALLCODE) && transfers_value {
+        G_CALLVALUE.into()
+    } else {
+        Gas::zero()
+    }
+}
+
+fn new_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction, transfers_value: bool) -> Gas {
+    let address: Address = machine.stack.peek(1).unwrap().into();
+    let eip161 = !machine.patch.account_patch().empty_considered_exists();
+    if instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL {
+        if eip161 {
+            if transfers_value && !machine.account_state.exists(address).unwrap() {
+                Gas::from(G_NEWACCOUNT)
+            } else {
+                Gas::zero()
+            }
+        } else if !machine.account_state.exists(address).unwrap() {
+            Gas::from(G_NEWACCOUNT)
         } else {
             Gas::zero()
         }
@@ -85,24 +114,40 @@ fn xfer_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instructi
     }
 }
 
-fn new_cost<M: Memory, P: Patch>(machine: &State<M, P>, instruction: &Instruction) -> Gas {
-    let address: Address = machine.stack.peek(1).unwrap().into();
-    if (instruction == &Instruction::CALL || instruction == &Instruction::STATICCALL)
-        && !machine.account_state.exists(address).unwrap()
-    {
-        Gas::from(G_NEWACCOUNT)
-    } else {
-        Gas::zero()
-    }
-}
-
 fn suicide_cost<M: Memory, P: Patch>(machine: &State<M, P>) -> Gas {
-    let address: Address = machine.stack.peek(0).unwrap().into();
-    let suicide_gas_topup = if !machine.account_state.exists(address).unwrap() {
+    let target_address: Address = machine.stack.peek(0).unwrap().into();
+    let current_balance = machine.account_state.balance(machine.context.address).unwrap();
+    let is_target_existing = machine.account_state.exists(target_address).unwrap();
+
+    // Whether the suicide gas topup should be levied:
+    // if before EIP161:
+    // - if target nonexistent
+    // if after EIP161:
+    // - if transfer balance != 0
+    // - if target account is dead
+    // defined by EIP161 (https://github.com/ethereum/EIPs/blob/master/EIPS/eip-161.md)
+    // AccountPatch::empty_considered_exists is set to false on State-Clearing ETH fork
+    let eip161 = !machine.patch.account_patch().empty_considered_exists();
+    let should_charge_topup = if eip161 {
+        current_balance != U256::zero() && !is_target_existing
+    } else {
+        !is_target_existing
+    };
+
+    debug!(
+        "suicide in favor of {}, exists: {}, on_eip161: {}",
+        target_address, is_target_existing, eip161
+    );
+    debug!("suicide transfer value: {}", current_balance);
+
+    let suicide_gas_topup = if should_charge_topup {
+        trace!("suicide with new account gas topup");
         machine.patch.gas_suicide_new_account()
     } else {
+        trace!("suicide with zero gas topup");
         Gas::zero()
     };
+
     machine.patch.gas_suicide() + suicide_gas_topup
 }
 
@@ -247,8 +292,10 @@ pub fn gas_cost<M: Memory, P: Patch>(instruction: Instruction, state: &State<M, 
         Instruction::CREATE => G_CREATE.into(),
         Instruction::CREATE2 => {
             let base = G_CREATE;
-            let init_code_len = state.stack.peek(2).unwrap().as_u64();
-            let sha_addup = G_SHA3WORD * (init_code_len as f32 / 32.0).ceil() as usize;
+            let init_code_len = state.stack.peek(2).unwrap().as_usize();
+            // ceil(init_code_len / 32.0)
+            let sha_addup_base = init_code_len / 32 + if init_code_len % 32 == 0 { 0 } else { 1 };
+            let sha_addup = G_SHA3WORD * sha_addup_base;
             (base + sha_addup).into()
         }
         Instruction::JUMPDEST => G_JUMPDEST.into(),
@@ -346,43 +393,52 @@ pub fn gas_refund<M: Memory, P: Patch>(instruction: Instruction, state: &State<M
             let index: U256 = state.stack.peek(0).unwrap().into();
             let value = state.stack.peek(1).unwrap();
             let address = state.context.address;
+            let current = state.account_state.storage_read(address, index).unwrap();
 
-            if state.patch.has_reduced_sstore_gas_metering() {
-                let orig = state.account_state.storage_read_orig(address, index).unwrap();
-                let current = state.account_state.storage_read(address, index).unwrap();
-                let mut refund = 0;
-
-                if value != current {
-                    if orig == current {
-                        if orig != M256::zero() {
-                            refund += R_SRESET;
-                        }
-                    } else {
-                        if orig != M256::zero() {
-                            if current == M256::zero() {
-                                refund -= R_SRESET;
-                            }
-                            if value == M256::zero() {
-                                refund += R_SRESET;
-                            }
-                        }
-                        if orig == value {
-                            if orig == M256::zero() {
-                                refund += R_SCLEAR;
-                            } else {
-                                refund += R_SNOOP;
-                            }
-                        }
-                    }
+            // The legacy gas metering only takes into consideration the current state
+            if !state.patch.has_reduced_sstore_gas_metering() {
+                if current != M256::zero() && value == M256::zero() {
+                    return R_SRESET;
+                } else {
+                    return 0;
                 }
-
-                refund
-            } else if value == M256::zero() && state.account_state.storage_read(address, index).unwrap() != M256::zero()
-            {
-                R_SRESET
-            } else {
-                0
             }
+
+            // Modern gas metering scheme (EIP-1283)
+            if current == value {
+                return 0;
+            }
+
+            // If RequireError is thrown here, that means that original storage was unset, hence defaulting to Zero.
+            let original = state
+                .account_state
+                .storage_read_orig(address, index)
+                .unwrap_or(M256::zero());
+
+            // Refund counter
+            let mut refund = 0;
+
+            if original == current && value == M256::zero() {
+                return R_NETSCLEAR;
+            }
+
+            if original != M256::zero() {
+                if current == M256::zero() {
+                    refund -= R_NETSCLEAR;
+                } else if value == M256::zero() {
+                    refund += R_NETSCLEAR;
+                }
+            }
+
+            if original == value {
+                if original == M256::zero() {
+                    refund += R_NETSRESETCLEAR
+                } else {
+                    refund += R_NETSRESET
+                }
+            }
+
+            refund
         }
         Instruction::SUICIDE => {
             if state.removed.contains(&state.context.address) {
