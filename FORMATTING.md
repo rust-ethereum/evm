@@ -41,7 +41,7 @@ impl AccountPatch for EmbeddedAccountPatch {
     }
 }
 ```
-Depending on the case, the readability of the code may decrease, like here (IMHO) since the expanded function body brings none value. 
+Depending on the case, the readability of the code may decrease, since the expanded function body brings no value. 
 While this would be possible to fix with **nightly** `rustfmt`, nightly version is still too unstable, so it’s encouraged to use manual formatting overrides where it is justified.
 ##### Manual override
 ```rust
