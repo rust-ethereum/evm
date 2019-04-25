@@ -89,7 +89,7 @@ pub struct DynamicPatch {
     /// Maximum size of the memory, in bytes.
     /// NOTE: **NOT** runtime-configurable by block number
     pub memory_limit: usize,
-    /// Check if precompiled contract is enabled
+    /// Array of addresses of enabled precompiled contracts
     pub enabled_precompileds: SmallVec<[Address; 8]>,
     /// Precompiled contracts at given address, with required code,
     /// and its definition.
