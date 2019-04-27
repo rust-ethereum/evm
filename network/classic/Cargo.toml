@@ -1,7 +1,7 @@
 [package]
 name = "evm-network-classic"
 version = "0.11.0-beta.0"
-description = "Ethereum Classic patches for SputnikVM."
+description = "Ethereum Classic patches for SputnikVM. Deprecated and will be dropped in future releases: use evm-network instead"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 repository = "https://github.com/etclabscore/sputnikvm"
