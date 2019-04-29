@@ -128,7 +128,7 @@ impl Precompiled for ECRECPrecompiled {
 #[cfg(all(not(feature = "c-secp256k1"), not(feature = "rust-secp256k1")))]
 impl Precompiled for ECRECPrecompiled {
     fn gas_and_step(&self, _: &[u8], _: Gas) -> Result<(Gas, Rc<Vec<u8>>), RuntimeError> {
-        use errors::NotSupportedError;
+        use crate::errors::NotSupportedError;
 
         Err(RuntimeError::NotSupported(NotSupportedError::PrecompiledNotSupported))
     }
