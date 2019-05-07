@@ -20,7 +20,6 @@ use super::errors::{CommitError, EvalOnChainError, NotSupportedError, OnChainErr
 use super::pc::Instruction;
 use super::{AccountCommitment, Context, HeaderParams, Log, Memory, Opcode, PCMut, Patch, Stack, Valids, PC};
 use bigint::{Address, Gas, M256, U256};
-use log::{debug, trace};
 
 use self::check::{check_opcode, check_static, check_support, extra_check_opcode};
 use self::cost::{gas_cost, gas_refund, gas_stipend, memory_cost, memory_gas, AddRefund};

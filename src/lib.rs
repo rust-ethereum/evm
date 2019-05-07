@@ -135,6 +135,10 @@ extern crate secp256k1;
 #[cfg(feature = "std")]
 extern crate block;
 
+// BUG: without old-style #[macro_use] extern crate, evm-rs cannot be compiled as a dependency.
+#[macro_use]
+extern crate log;
+
 mod commit;
 pub mod errors;
 mod eval;
@@ -172,8 +176,6 @@ use core::cmp::min;
 use std::cmp::min;
 #[cfg(feature = "std")]
 use std::collections::{hash_map as map, HashSet as Set};
-
-use log::debug;
 
 #[derive(Debug, Clone, PartialEq)]
 /// VM Status

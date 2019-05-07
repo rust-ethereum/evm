@@ -1,14 +1,14 @@
 [package]
 name = "evm-network-ellaism"
-version = "0.11.0-beta.0"
+version = "0.11.0"
 description = "Ellaism patches for SputnikVM. Deprecated and will be dropped in future releases: use evm-network instead"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
-repository = "https://github.com/etclabscore/sputnikvm"
+repository = "https://github.com/ethereumproject/evm-rs"
 edition = "2018"
 
 [dependencies]
-evm = { version = "0.11.0-beta", path = "../..", default-features = false }
+evm = { version = "0.11", path = "../..", default-features = false }
 ethereum-bigint = { version = "0.2", default-features = false }
 
 [features]

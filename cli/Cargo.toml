@@ -4,7 +4,7 @@ version = "0.0.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>"]
 description = "SputnikVM CLI"
-repository = "https://github.com/etclabscore/sputnikvm"
+repository = "https://github.com/ethereumproject/evm-rs"
 edition = "2018"
 
 # Since we have an explicit [[bin]] section below, we add the

@@ -10,10 +10,6 @@
 
 ## Features
 
-* **Partially verified (WIP)** - use various verification techniques to
-  partially verify the correctness of functions.
-* **Nightly** - take advantage of Rust nightly features, such as
-  compiler plugins
 * **Standalone** - can be launched as an independent process or integrated into other apps
 * **Universal** - supports different Ethereum chains, such as ETC, ETH or private ones
 * **Stateless** - only an execution environment connected to independent State storage

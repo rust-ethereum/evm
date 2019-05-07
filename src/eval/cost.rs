@@ -1,7 +1,6 @@
 //! Cost calculation logic
 
 use bigint::{Address, Gas, M256, U256};
-use log::{debug, trace};
 
 #[cfg(not(feature = "std"))]
 use core::cmp::max;
