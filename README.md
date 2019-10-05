@@ -1,6 +1,6 @@
 # SputnikVM: Rust Ethereum Virtual Machine Implementation
 
-[![Build Status](https://travis-ci.org/ethereumproject/evm-rs.svg?branch=master)](https://travis-ci.org/ethereumproject/evm-rs)
+[![Build Status](https://travis-ci.org/sorpaas/rust-evm.svg?branch=master)](https://travis-ci.org/sorpaas/rust-evm)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 | Name               | Description                                   | Crates.io                                                                                                           | Documentation                                                                                        |
@@ -51,13 +51,8 @@ The core library has the initial four precompiled contracts embedded. To use the
 
 ## Related projects
 
-* [ethereum-rs](https://github.com/etclabscore/ethereum-rs) -
-  common traits and structs for Ethereum. 
 * [etclient](https://source.that.world/source/etclient) -
   bare-minimal Ethereum client written in Rust.
-* [SputnikVM FFI](https://github.com/ethereumproject/evm-ffi) - SputnikVM C and Go FFI bindings
-* [SputnikVM Dev](https://github.com/ethereumproject/evm-dev) - SputnikVM instance for Smart Contract development, 
-   provides testing environment and mock for JSON RPC API
 * [SputnikVM in Browser](https://github.com/sorpaas/sputnikvm-in-browser) - experimental version of SputnikVM 
    compiled into WebAssembly, therefore can be launched in a browser on Node.js
 * [SputnikVM for embedded devices](https://github.com/sorpaas/sputnikvm-on-rux) - experimental project to run on 
@@ -84,8 +79,8 @@ To start working with SputnikVM you'll
 need to install [rustup](https://www.rustup.rs/), then you can do:
  
 ```bash
-$ git clone git@github.com:ethereumproject/evm-rs.git
-$ cd evm-rs
+$ git clone git@github.com:sorpaas/rust-evm.git
+$ cd rust-evm
 $ cargo build --release --all
 ```
 
@@ -94,19 +89,18 @@ $ cargo build --release --all
 We currently use two ways to test SputnikVM and ensure its execution
 aligns with other Ethereum Virtual Machine implementations:
 
-* [jsontests](/jsontests): This uses part of the Ethereum
-  [tests](https://github.com/etclabscore/tests). Those tests
-  currently do not have good coverage for system operation
-  opcodes. Besides, some tests are incorrect so they are disabled.
+* [jsontests](/jsontests): This uses part of the Ethereum tests. 
+  Those tests currently do not have good coverage for
+  system operation opcodes. Besides, some tests are incorrect so they are disabled.
 * [regtests](/regtests): A complete regression tests is done on the
   Ethereum Classic mainnet from genesis block to block 4 million. Some
   of the previously failed tests are also integrated into Rust's test
   system.
   
- To run all tests, execute the following command in the cloned repository:
- ```bash
- $ cargo test --all
- ```
+To run all tests, execute the following command in the cloned repository:
+```bash
+$ cargo test --all
+```
  
 ### Contribution
 
