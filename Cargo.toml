@@ -4,7 +4,7 @@ version = "0.11.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Mike Lubinets <public@mersinvald.me>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
-repository = "https://github.com/ethereumproject/evm-rs"
+repository = "https://github.com/sorpaas/rust-evm"
 keywords = ["no_std", "ethereum"]
 edition = "2018"
 
