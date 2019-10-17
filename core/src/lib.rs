@@ -9,6 +9,7 @@ mod valids;
 mod opcode;
 mod trap;
 mod eval;
+mod utils;
 
 pub use crate::memory::Memory;
 pub use crate::stack::Stack;
@@ -37,6 +38,14 @@ pub struct Core {
 }
 
 impl Core {
+    pub fn inspect(&self) -> Option<(Result<Opcode, ExternalOpcode>, &Stack)> {
+        let position = match self.position {
+            Ok(position) => position,
+            Err(_) => return None,
+        };
+        self.code.get(position).map(|v| (Opcode::parse(*v), &self.stack))
+    }
+
     pub fn step(&mut self) -> Result<(), Trap> {
         let position = self.position?;
 
@@ -67,8 +76,8 @@ impl Core {
                 Err(Trap::External(external))
             },
             None => {
-                self.position = Err(ExitReason::CodeEnded);
-                Err(Trap::Exit(ExitReason::CodeEnded))
+                self.position = Err(ExitReason::Stopped);
+                Err(Trap::Exit(ExitReason::Stopped))
             },
         }
     }

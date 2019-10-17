@@ -15,7 +15,7 @@ impl From<ExitReason> for Trap {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExitReason {
-    CodeEnded,
+    Stopped,
     Returned,
     Reverted,
     StackUnderflow,
