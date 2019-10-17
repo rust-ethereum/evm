@@ -4,7 +4,6 @@ use crate::ExternalOpcode;
 pub enum Trap {
     Exit(ExitReason),
     External(ExternalOpcode),
-    NotSupported,
 }
 
 impl From<ExitReason> for Trap {
@@ -21,8 +20,11 @@ pub enum ExitReason {
     StackUnderflow,
     StackOverflow,
     InvalidJump,
+    InvalidReturnRange,
     PCUnderflow,
+    DesignatedInvalid,
 
     OutOfGas,
+    NotSupported,
     Other(&'static str),
 }

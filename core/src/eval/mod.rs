@@ -2,6 +2,7 @@
 mod macros;
 mod arithmetic;
 mod bitwise;
+mod misc;
 
 use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::{H256, U256};
@@ -13,7 +14,7 @@ pub enum Control {
     Jump(usize),
 }
 
-pub fn eval(opcode: Opcode, position: usize, state: &mut Core) -> Control {
+pub fn eval(state: &mut Core, opcode: Opcode, position: usize) -> Control {
     match opcode {
         Opcode::Stop => Control::Exit(ExitReason::Stopped),
         Opcode::Add => op2_u256_tuple!(state, overflowing_add),
@@ -41,6 +42,22 @@ pub fn eval(opcode: Opcode, position: usize, state: &mut Core) -> Control {
         Opcode::Shl => op2_u256_fn!(state, self::bitwise::shl),
         Opcode::Shr => op2_u256_fn!(state, self::bitwise::shr),
         Opcode::Sar => op2_u256_fn!(state, self::bitwise::sar),
-        _ => unimplemented!(),
+        Opcode::CodeSize => self::misc::codesize(state),
+        Opcode::CodeCopy => self::misc::codecopy(state),
+        Opcode::Pop => self::misc::pop(state),
+        Opcode::MLoad => self::misc::mload(state),
+        Opcode::MStore => self::misc::mstore(state),
+        Opcode::MStore8 => self::misc::mstore8(state),
+        Opcode::Jump => self::misc::jump(state),
+        Opcode::JumpI => self::misc::jumpi(state),
+        Opcode::PC => self::misc::pc(state, position),
+        Opcode::MSize => self::misc::msize(state),
+        Opcode::JumpDest => Control::Continue(1),
+        Opcode::Push(n) => self::misc::push(state, n as usize, position),
+        Opcode::Dup(n) => self::misc::dup(state, n as usize),
+        Opcode::Swap(n) => self::misc::swap(state, n as usize),
+        Opcode::Return => self::misc::ret(state),
+        Opcode::Revert => self::misc::revert(state),
+        Opcode::Invalid => Control::Exit(ExitReason::DesignatedInvalid),
     }
 }

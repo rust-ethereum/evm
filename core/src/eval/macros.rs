@@ -119,3 +119,25 @@ macro_rules! op3_u256_fn {
         }
     )
 }
+
+macro_rules! as_usize_or_fail {
+    ( $v:expr ) => {
+        {
+            if $v > U256::from(usize::max_value()) {
+                return Control::Exit(ExitReason::NotSupported)
+            }
+
+            $v.as_usize()
+        }
+    };
+
+    ( $v:expr, $reason:expr ) => {
+        {
+            if $v > U256::from(usize::max_value()) {
+                return Control::Exit($reason)
+            }
+
+            $v.as_usize()
+        }
+    };
+}

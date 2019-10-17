@@ -19,6 +19,7 @@ pub use crate::trap::{Trap, ExitReason};
 
 use core::ops::Range;
 use alloc::rc::Rc;
+use primitive_types::U256;
 use crate::eval::{eval, Control};
 
 /// Core execution layer for EVM.
@@ -27,8 +28,8 @@ pub struct Core {
     code: Rc<Vec<u8>>,
     /// Program counter.
     position: Result<usize, ExitReason>,
-    /// Return value range.
-    return_range: Range<usize>,
+    /// Return value.
+    return_range: Range<U256>,
     /// Code validity maps.
     valids: Valids,
     /// Memory.
@@ -51,7 +52,7 @@ impl Core {
 
         match self.code.get(position).map(|v| Opcode::parse(*v)) {
             Some(Ok(opcode)) => {
-                match eval(opcode, position, self) {
+                match eval(self, opcode, position) {
                     Control::Continue(p) => {
                         self.position = Ok(position + p);
                         Ok(())
