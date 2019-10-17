@@ -1,4 +1,5 @@
 /// Opcode enum. One-to-one corresponding to an `u8` value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Opcode {
     Stop,
     Add,
@@ -212,6 +213,7 @@ impl Opcode {
 }
 
 /// External opcodes.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExternalOpcode {
     Sha3,
     Address,
