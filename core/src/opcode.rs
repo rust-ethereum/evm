@@ -1,0 +1,47 @@
+/// Opcode enum. One-to-one corresponding to an `u8` value.
+pub enum Opcode {
+    STOP,
+    ADD,
+    MUL,
+    SUB,
+    DIV,
+    SDIV,
+    MOD,
+    SMOD,
+    ADDMOD,
+    MULMOD,
+    EXP,
+    SIGNEXTEND,
+
+    LT,
+    GT,
+    SLT,
+    SGT,
+    EQ,
+    ISZERO,
+    AND,
+    OR,
+    XOR,
+    NOT,
+    BYTE,
+
+    SHL,
+    SHR,
+    SAR,
+
+    POP,
+    MLOAD,
+    MSTORE,
+    MSTORE8,
+    JUMP,
+    JUMPI,
+    PC,
+    MSIZE,
+    JUMPDEST,
+
+    PUSH(u8),
+    DUP(u8),
+    SWAP(u8),
+
+    INVALID,
+}

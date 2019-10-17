@@ -52,4 +52,5 @@ members = [
   "./network/musicoin",
   "./network/expanse",
   "./network/ubiq",
+  "core",
 ]
