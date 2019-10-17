@@ -46,6 +46,9 @@ pub enum Opcode {
     Dup(u8),
     Swap(u8),
 
+    Return,
+    Revert,
+
     Invalid,
 }
 
@@ -196,11 +199,11 @@ impl Opcode {
             0xf0 => Err(ExternalOpcode::Create),
             0xf1 => Err(ExternalOpcode::Call),
             0xf2 => Err(ExternalOpcode::CallCode),
-            0xf3 => Err(ExternalOpcode::Return),
+            0xf3 => Ok(Opcode::Return),
             0xf4 => Err(ExternalOpcode::DelegateCall),
             0xf5 => Err(ExternalOpcode::Create2),
             0xfa => Err(ExternalOpcode::StaticCall),
-            0xfd => Err(ExternalOpcode::Revert),
+            0xfd => Ok(Opcode::Revert),
 
             0xff => Err(ExternalOpcode::Suicide),
             other => Err(ExternalOpcode::Other(other)),
@@ -239,10 +242,8 @@ pub enum ExternalOpcode {
     Create2,
     Call,
     CallCode,
-    Return,
     DelegateCall,
     StaticCall,
-    Revert,
     Suicide,
     Other(u8),
 }
