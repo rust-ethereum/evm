@@ -12,6 +12,7 @@ use alloc::rc::Rc;
 use crate::memory::Memory;
 use crate::stack::Stack;
 use crate::valids::Valids;
+use crate::opcode::Opcode;
 
 /// Core execution layer for EVM.
 pub struct Core {
