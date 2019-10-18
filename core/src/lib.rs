@@ -24,6 +24,8 @@ use crate::eval::{eval, Control};
 
 /// Core execution layer for EVM.
 pub struct VM {
+    /// Program data.
+    data: Rc<Vec<u8>>,
     /// Program code.
     code: Rc<Vec<u8>>,
     /// Program counter.
@@ -39,10 +41,16 @@ pub struct VM {
 }
 
 impl VM {
-    pub fn new(code: Rc<Vec<u8>>, stack_limit: usize, memory_limit: usize) -> Self {
+    pub fn new(
+        code: Rc<Vec<u8>>,
+        data: Rc<Vec<u8>>,
+        stack_limit: usize,
+        memory_limit: usize
+    ) -> Self {
         let valids = Valids::new(&code[..]);
 
         Self {
+            data,
             code,
             position: Ok(0),
             return_range: U256::zero()..U256::zero(),

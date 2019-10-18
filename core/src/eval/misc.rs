@@ -12,20 +12,79 @@ pub fn codecopy(state: &mut VM) -> Control {
     pop_u256!(state, memory_offset, code_offset, len);
 
     let memory_offset = as_usize_or_fail!(memory_offset);
-    let code_offset = as_usize_or_fail!(code_offset);
-    let len = as_usize_or_fail!(len);
+    let ulen = as_usize_or_fail!(len);
 
     let code = if let Some(end) = code_offset.checked_add(len) {
-        if end > state.code.len() {
+        if end > U256::from(usize::max_value()) {
             &[]
         } else {
-            &state.code[code_offset..end]
+            let code_offset = code_offset.as_usize();
+            let end = end.as_usize();
+
+            if end > state.code.len() {
+                &[]
+            } else {
+                &state.code[code_offset..end]
+            }
         }
     } else {
         &[]
     };
 
-    match state.memory.set(memory_offset, code, Some(len)) {
+    match state.memory.set(memory_offset, code, Some(ulen)) {
+        Ok(()) => Control::Continue(1),
+        Err(e) => Control::Exit(e),
+    }
+}
+
+pub fn calldataload(state: &mut VM) -> Control {
+    pop_u256!(state, index);
+
+    let mut load = [0u8; 32];
+    for i in 0..32 {
+        if let Some(p) = index.checked_add(U256::from(i)) {
+            if p <= U256::from(usize::max_value()) {
+                let p = p.as_usize();
+                if p < state.data.len() {
+                    load[i] = state.data[p];
+                }
+            }
+        }
+    }
+
+    push!(state, H256::from(load));
+    Control::Continue(1)
+}
+
+pub fn calldatasize(state: &mut VM) -> Control {
+    push_u256!(state, U256::from(state.data.len()));
+    Control::Continue(1)
+}
+
+pub fn calldatacopy(state: &mut VM) -> Control {
+    pop_u256!(state, memory_offset, data_offset, len);
+
+    let memory_offset = as_usize_or_fail!(memory_offset);
+    let ulen = as_usize_or_fail!(len);
+
+    let data = if let Some(end) = data_offset.checked_add(len) {
+        if end > U256::from(usize::max_value()) {
+            &[]
+        } else {
+            let data_offset = data_offset.as_usize();
+            let end = end.as_usize();
+
+            if end > state.data.len() {
+                &[]
+            } else {
+                &state.data[data_offset..end]
+            }
+        }
+    } else {
+        &[]
+    };
+
+    match state.memory.set(memory_offset, data, Some(ulen)) {
         Ok(()) => Control::Continue(1),
         Err(e) => Control::Exit(e),
     }

@@ -26,6 +26,9 @@ pub enum Opcode {
     Not,
     Byte,
 
+    CallDataLoad,
+    CallDataSize,
+    CallDataCopy,
     CodeSize,
     CodeCopy,
 
@@ -92,9 +95,9 @@ impl Opcode {
             0x32 => Err(ExternalOpcode::Origin),
             0x33 => Err(ExternalOpcode::Caller),
             0x34 => Err(ExternalOpcode::CallValue),
-            0x35 => Err(ExternalOpcode::CallDataLoad),
-            0x36 => Err(ExternalOpcode::CallDataSize),
-            0x37 => Err(ExternalOpcode::CallDataCopy),
+            0x35 => Ok(Opcode::CallDataLoad),
+            0x36 => Ok(Opcode::CallDataSize),
+            0x37 => Ok(Opcode::CallDataCopy),
             0x38 => Ok(Opcode::CodeSize),
             0x39 => Ok(Opcode::CodeCopy),
             0x3a => Err(ExternalOpcode::GasPrice),
