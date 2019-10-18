@@ -11,6 +11,9 @@ edition = "2018"
 [dependencies]
 primitive-types = { version = "0.5", default-features = false }
 
+[dev-dependencies]
+hex = "0.4"
+
 [features]
 default = ["std"]
 std = ["primitive-types/std"]

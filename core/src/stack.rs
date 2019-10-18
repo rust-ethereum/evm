@@ -1,6 +1,7 @@
 use primitive_types::H256;
 use crate::ExitReason;
 
+#[derive(Clone, Debug)]
 pub struct Stack {
     data: Vec<H256>,
     limit: usize,

@@ -66,10 +66,10 @@ pub fn exp(op1: U256, op2: U256) -> U256 {
 
     while op2 != 0.into() {
         if op2 & 1.into() != 0.into() {
-            r = r.overflowing_add(op1).0;
+            r = r.overflowing_mul(op1).0;
         }
         op2 = op2 >> 1;
-        op1 = op1.overflowing_add(op1).0;
+        op1 = op1.overflowing_mul(op1).0;
     }
 
     r

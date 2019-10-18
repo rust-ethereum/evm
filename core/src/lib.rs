@@ -68,6 +68,22 @@ impl VM {
         self.code.get(position).map(|v| (Opcode::parse(*v), &self.stack))
     }
 
+    pub fn return_value(&self) -> Vec<u8> {
+        self.memory.get(
+            self.return_range.start.as_usize(),
+            self.return_range.end.as_usize() - self.return_range.start.as_usize(),
+        )
+    }
+
+    pub fn run(&mut self) -> Trap {
+        loop {
+            match self.step() {
+                Ok(()) => (),
+                Err(trap) => return trap,
+            }
+        }
+    }
+
     pub fn step(&mut self) -> Result<(), Trap> {
         let position = self.position?;
 
