@@ -1,4 +1,4 @@
-use crate::ExitReason;
+use crate::ExitError;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
@@ -27,7 +27,7 @@ impl Memory {
     }
 
     /// Resize the current memory range to given length, aligned to next 32.
-    pub fn resize(&mut self, mut size: usize) -> Result<(), ExitReason> {
+    pub fn resize(&mut self, mut size: usize) -> Result<(), ExitError> {
         if self.data.len() >= size {
             return Ok(())
         }
@@ -37,7 +37,7 @@ impl Memory {
         }
 
         if size > self.limit {
-            return Err(ExitReason::NotSupported)
+            return Err(ExitError::NotSupported)
         }
 
         self.data.resize(size, 0);
@@ -73,13 +73,13 @@ impl Memory {
         offset: usize,
         value: &[u8],
         target_size: Option<usize>
-    ) -> Result<(), ExitReason> {
+    ) -> Result<(), ExitError> {
         let target_size = target_size.unwrap_or(value.len());
 
         if offset.checked_add(target_size)
             .map(|pos| pos > self.limit).unwrap_or(true)
         {
-            return Err(ExitReason::NotSupported)
+            return Err(ExitError::NotSupported)
         }
 
         self.resize(offset + value.len())?;

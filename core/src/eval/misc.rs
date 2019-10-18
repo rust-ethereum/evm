@@ -1,6 +1,6 @@
 use primitive_types::{H256, U256};
 use super::Control;
-use crate::{VM, ExitReason};
+use crate::{VM, ExitReason, ExitError, ExitSucceed};
 
 pub fn codesize(state: &mut VM) -> Control {
     let size = U256::from(state.code.len());
@@ -33,7 +33,7 @@ pub fn codecopy(state: &mut VM) -> Control {
 
     match state.memory.set(memory_offset, code, Some(ulen)) {
         Ok(()) => Control::Continue(1),
-        Err(e) => Control::Exit(e),
+        Err(e) => Control::Exit(e.into()),
     }
 }
 
@@ -86,7 +86,7 @@ pub fn calldatacopy(state: &mut VM) -> Control {
 
     match state.memory.set(memory_offset, data, Some(ulen)) {
         Ok(()) => Control::Continue(1),
-        Err(e) => Control::Exit(e),
+        Err(e) => Control::Exit(e.into()),
     }
 }
 
@@ -109,7 +109,7 @@ pub fn mstore(state: &mut VM) -> Control {
     let index = as_usize_or_fail!(index);
     match state.memory.set(index, &value[..], Some(32)) {
         Ok(()) => Control::Continue(1),
-        Err(e) => Control::Exit(e),
+        Err(e) => Control::Exit(e.into()),
     }
 }
 
@@ -119,19 +119,19 @@ pub fn mstore8(state: &mut VM) -> Control {
     let value = (value.low_u32() & 0xff) as u8;
     match state.memory.set(index, &[value], Some(1)) {
         Ok(()) => Control::Continue(1),
-        Err(e) => Control::Exit(e),
+        Err(e) => Control::Exit(e.into()),
     }
 }
 
 pub fn jump(state: &mut VM) -> Control {
     pop_u256!(state, dest);
-    let dest = as_usize_or_fail!(dest, ExitReason::InvalidJump);
+    let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
     Control::Jump(dest)
 }
 
 pub fn jumpi(state: &mut VM) -> Control {
     pop_u256!(state, dest, value);
-    let dest = as_usize_or_fail!(dest, ExitReason::InvalidJump);
+    let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
     if value != U256::zero() {
         Control::Jump(dest)
     } else {
@@ -152,7 +152,7 @@ pub fn msize(state: &mut VM) -> Control {
 pub fn push(state: &mut VM, n: usize, position: usize) -> Control {
     let end = position + 1 + n;
     if end > state.code.len() {
-        return Control::Exit(ExitReason::PCUnderflow)
+        return Control::Exit(ExitError::PCUnderflow.into())
     }
 
     push_u256!(state, U256::from(&state.code[(position + 1)..(position + 1 + n)]));
@@ -162,7 +162,7 @@ pub fn push(state: &mut VM, n: usize, position: usize) -> Control {
 pub fn dup(state: &mut VM, n: usize) -> Control {
     let value = match state.stack.peek(n - 1) {
         Ok(value) => value,
-        Err(e) => return Control::Exit(e),
+        Err(e) => return Control::Exit(e.into()),
     };
     push!(state, value);
     Control::Continue(1)
@@ -171,19 +171,19 @@ pub fn dup(state: &mut VM, n: usize) -> Control {
 pub fn swap(state: &mut VM, n: usize) -> Control {
     let val1 = match state.stack.peek(0) {
         Ok(value) => value,
-        Err(e) => return Control::Exit(e),
+        Err(e) => return Control::Exit(e.into()),
     };
     let val2 = match state.stack.peek(n) {
         Ok(value) => value,
-        Err(e) => return Control::Exit(e),
+        Err(e) => return Control::Exit(e.into()),
     };
     match state.stack.set(0, val2) {
         Ok(()) => (),
-        Err(e) => return Control::Exit(e),
+        Err(e) => return Control::Exit(e.into()),
     }
     match state.stack.set(n, val1) {
         Ok(()) => (),
-        Err(e) => return Control::Exit(e),
+        Err(e) => return Control::Exit(e.into()),
     }
     Control::Continue(1)
 }
@@ -192,9 +192,9 @@ pub fn ret(state: &mut VM) -> Control {
     pop_u256!(state, start, len);
     if let Some(end) = start.checked_add(len) {
         state.return_range = start..end;
-        Control::Exit(ExitReason::Returned)
+        Control::Exit(ExitSucceed::Returned.into())
     } else {
-        Control::Exit(ExitReason::InvalidReturnRange)
+        Control::Exit(ExitError::InvalidReturnRange.into())
     }
 }
 
@@ -202,8 +202,8 @@ pub fn revert(state: &mut VM) -> Control {
     pop_u256!(state, start, len);
     if let Some(end) = start.checked_add(len) {
         state.return_range = start..end;
-        Control::Exit(ExitReason::Reverted)
+        Control::Exit(ExitError::Reverted.into())
     } else {
-        Control::Exit(ExitReason::InvalidReturnRange)
+        Control::Exit(ExitError::InvalidReturnRange.into())
     }
 }

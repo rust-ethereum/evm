@@ -15,7 +15,7 @@ pub use crate::memory::Memory;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 pub use crate::opcode::{Opcode, ExternalOpcode};
-pub use crate::trap::{Trap, ExitReason};
+pub use crate::trap::{Trap, ExitReason, ExitSucceed, ExitError};
 
 use core::ops::Range;
 use alloc::rc::Rc;
@@ -103,8 +103,8 @@ impl VM {
                             self.position = Ok(p);
                             Ok(())
                         } else {
-                            self.position = Err(ExitReason::InvalidJump);
-                            Err(Trap::Exit(ExitReason::InvalidJump))
+                            self.position = Err(ExitError::InvalidJump.into());
+                            Err(Trap::Exit(ExitError::InvalidJump.into()))
                         }
                     },
                 }
@@ -114,8 +114,8 @@ impl VM {
                 Err(Trap::External(external))
             },
             None => {
-                self.position = Err(ExitReason::Stopped);
-                Err(Trap::Exit(ExitReason::Stopped))
+                self.position = Err(ExitSucceed::Stopped.into());
+                Err(Trap::Exit(ExitSucceed::Stopped.into()))
             },
         }
     }

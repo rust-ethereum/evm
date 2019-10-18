@@ -1,0 +1,20 @@
+[package]
+name = "evm-gasometer"
+version = "0.12.0"
+license = "Apache-2.0"
+authors = ["Wei Tang <hi@that.world>"]
+description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
+repository = "https://github.com/sorpaas/rust-evm"
+keywords = ["no_std", "ethereum"]
+edition = "2018"
+
+[dependencies]
+primitive-types = { version = "0.5", default-features = false }
+evm-core = { version = "0.12", path = "../core", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+  "evm-core/std",
+  "primitive-types/std",
+]
