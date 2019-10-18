@@ -23,7 +23,7 @@ use primitive_types::U256;
 use crate::eval::{eval, Control};
 
 /// Core execution layer for EVM.
-pub struct Core {
+pub struct VM {
     /// Program code.
     code: Rc<Vec<u8>>,
     /// Program counter.
@@ -38,7 +38,7 @@ pub struct Core {
     stack: Stack,
 }
 
-impl Core {
+impl VM {
     pub fn inspect(&self) -> Option<(Result<Opcode, ExternalOpcode>, &Stack)> {
         let position = match self.position {
             Ok(position) => position,
