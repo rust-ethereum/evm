@@ -7,6 +7,13 @@ pub struct Stack {
 }
 
 impl Stack {
+    pub fn new(limit: usize) -> Self {
+        Self {
+            data: Vec::new(),
+            limit,
+        }
+    }
+
     pub fn pop(&mut self) -> Result<H256, ExitReason> {
         self.data.pop().ok_or(ExitReason::StackUnderflow)
     }

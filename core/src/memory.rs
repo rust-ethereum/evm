@@ -8,6 +8,13 @@ pub struct Memory {
 }
 
 impl Memory {
+    pub fn new(limit: usize) -> Self {
+        Self {
+            data: Vec::new(),
+            limit,
+        }
+    }
+
     /// Get the length of the current effective memory range.
     pub fn len(&self) -> usize {
         self.data.len()

@@ -39,6 +39,19 @@ pub struct VM {
 }
 
 impl VM {
+    pub fn new(code: Rc<Vec<u8>>, stack_limit: usize, memory_limit: usize) -> Self {
+        let valids = Valids::new(&code[..]);
+
+        Self {
+            code,
+            position: Ok(0),
+            return_range: U256::zero()..U256::zero(),
+            valids,
+            memory: Memory::new(memory_limit),
+            stack: Stack::new(stack_limit),
+        }
+    }
+
     pub fn inspect(&self) -> Option<(Result<Opcode, ExternalOpcode>, &Stack)> {
         let position = match self.position {
             Ok(position) => position,
