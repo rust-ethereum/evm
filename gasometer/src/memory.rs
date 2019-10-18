@@ -1,6 +1,7 @@
 use core::cmp::max;
 use primitive_types::{U256, H256};
 use evm_core::{Opcode, ExternalOpcode, ExitError, Stack};
+use crate::consts::*;
 
 fn memory_expand(
     current: usize,
@@ -25,6 +26,14 @@ fn memory_expand(
         end / 32 + 1
     };
     Ok(max(current, new))
+}
+
+pub fn memory_gas(a: usize) -> Result<usize, ExitError> {
+    G_MEMORY
+        .checked_mul(a).ok_or(ExitError::OutOfGas)?
+        .checked_add(
+            a.checked_mul(a).ok_or(ExitError::OutOfGas)? / 512
+        ).ok_or(ExitError::OutOfGas)
 }
 
 pub fn memory_cost(current: usize, opcode: Result<Opcode, ExternalOpcode>, stack: &Stack) -> Result<usize, ExitError> {
