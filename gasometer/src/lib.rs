@@ -1,20 +1,53 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod consts;
-mod memory;
 
+use core::cmp::max;
 use primitive_types::U256;
 use evm_core::{Opcode, ExternalOpcode, Stack, ExitError};
 
-pub struct Gasometer<'config> {
+pub struct Gasometer<'config>(Result<GasometerInner<'config>, ExitError>);
+
+struct GasometerInner<'config> {
     memory_cost: usize,
     used_gas: usize,
-    refunded_gas: isize,
+    refunded_gas: usize,
     gas_limit: usize,
-    config: &'config GasometerConfig,
+    config: &'config Config,
 }
 
-pub struct GasometerConfig {
+impl<'config> GasometerInner<'config> {
+    fn record_memory(
+        &mut self,
+        memory: MemoryCost,
+    ) -> Result<(), ExitError> {
+        let from = memory.offset;
+        let len = memory.len;
+
+        if len == U256::zero() {
+            return Ok(())
+        }
+
+        let end = from.checked_add(len).ok_or(ExitError::OutOfGas)?;
+
+        if end > U256::from(usize::max_value()) {
+            return Err(ExitError::OutOfGas)
+        }
+        let end = end.as_usize();
+
+        let rem = end % 32;
+        let new = if rem == 0 {
+            end / 32
+        } else {
+            end / 32 + 1
+        };
+
+        self.memory_cost = max(self.memory_cost, new);
+        Ok(())
+    }
+}
+
+pub struct Config {
     /// Gas paid for extcode.
     pub gas_extcode: usize,
     /// Gas paid for BALANCE opcode.
@@ -56,12 +89,54 @@ pub struct GasometerConfig {
     pub call_create_l64_after_gas: bool,
 }
 
+pub enum GasCost {
+    Zero,
+    Base,
+    VeryLow,
+    Low,
+    Mid,
+    High,
+
+    ExtCodeSize,
+    Balance,
+    BlockHash,
+    ExtCodeHash,
+
+    Call,
+    CallCode,
+    DelegateCall,
+    StaticCall,
+    Suicide,
+    SStore,
+    Sha3,
+    Log,
+    ExtCodeCopy,
+    CallDataCopy,
+    CodeCopy,
+    ReturnDataCopy,
+    Exp,
+    Create,
+    Create2,
+    JumpDest,
+    SLoad,
+}
+
+pub struct MemoryCost {
+    pub offset: U256,
+    pub len: U256,
+}
+
 impl<'config> Gasometer<'config> {
-    pub fn record(
+    pub fn record_memory(
         &mut self,
-        opcode: Result<Opcode, ExternalOpcode>,
-        stack: &Stack
+        memory: MemoryCost,
     ) -> Result<(), ExitError> {
-        unimplemented!()
+        match self.0.as_mut().map_err(|e| *e)?.record_memory(memory) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                self.0 = Err(e);
+                Err(e)
+            },
+        }
     }
 }
