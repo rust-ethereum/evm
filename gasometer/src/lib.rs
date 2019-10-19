@@ -4,7 +4,7 @@ mod consts;
 mod costs;
 
 use core::cmp::max;
-use primitive_types::U256;
+use primitive_types::{H256, U256};
 use evm_core::{Opcode, ExternalOpcode, Stack, ExitError};
 
 pub struct Gasometer<'config> {
@@ -51,19 +51,26 @@ impl<'config> Inner<'config> {
     fn gas_cost(
         &self,
         cost: GasCost,
-    ) -> usize {
-        match cost {
-            GasCost::Call(value, new_account) =>
-                costs::call_cost(value, true, true, new_account, self.config),
-            GasCost::CallCode(value, new_account) =>
-                costs::call_cost(value, true, false, new_account, self.config),
-            GasCost::DelegateCall(value, new_account) =>
-                costs::call_cost(value, false, false, new_account, self.config),
-            GasCost::StaticCall(value, new_account) =>
-                costs::call_cost(value, false, true, new_account, self.config),
+    ) -> Result<usize, ExitError> {
+        Ok(match cost {
+            GasCost::Call { value, target_exists } =>
+                costs::call_cost(value, true, true, !target_exists, self.config),
+            GasCost::CallCode { value, target_exists } =>
+                costs::call_cost(value, true, false, !target_exists, self.config),
+            GasCost::DelegateCall { value, target_exists } =>
+                costs::call_cost(value, false, false, !target_exists, self.config),
+            GasCost::StaticCall { value, target_exists } =>
+                costs::call_cost(value, false, true, !target_exists, self.config),
+            GasCost::Suicide { value, target_exists } =>
+                costs::suicide_cost(value, target_exists, self.config),
+            GasCost::SStore { original, current, new } =>
+                costs::sstore_cost(original, current, new, self.config),
+
+            GasCost::Sha3 { len } => costs::sha3_cost(len)?,
+            GasCost::Log { n, len } => costs::log_cost(n, len)?,
 
             _ => unimplemented!()
-        }
+        })
     }
 }
 
@@ -124,14 +131,14 @@ pub enum GasCost {
     BlockHash,
     ExtCodeHash,
 
-    Call(U256, bool),
-    CallCode(U256, bool),
-    DelegateCall(U256, bool),
-    StaticCall(U256, bool),
-    Suicide,
-    SStore,
-    Sha3,
-    Log,
+    Call { value: U256, target_exists: bool },
+    CallCode { value: U256, target_exists: bool },
+    DelegateCall { value: U256, target_exists: bool },
+    StaticCall { value: U256, target_exists: bool },
+    Suicide { value: U256, target_exists: bool },
+    SStore { original: H256, current: H256, new: H256 },
+    Sha3 { len: U256 },
+    Log { n: u8, len: U256 },
     ExtCodeCopy,
     CallDataCopy,
     CodeCopy,
