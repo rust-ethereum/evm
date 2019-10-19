@@ -1,31 +1,34 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 mod consts;
+mod costs;
 
 use core::cmp::max;
 use primitive_types::U256;
 use evm_core::{Opcode, ExternalOpcode, Stack, ExitError};
 
-pub struct Gasometer<'config>(Result<GasometerInner<'config>, ExitError>);
+pub struct Gasometer<'config> {
+    gas_limit: usize,
+    inner: Result<Inner<'config>, ExitError>
+}
 
-struct GasometerInner<'config> {
+struct Inner<'config> {
     memory_cost: usize,
     used_gas: usize,
     refunded_gas: usize,
-    gas_limit: usize,
     config: &'config Config,
 }
 
-impl<'config> GasometerInner<'config> {
-    fn record_memory(
-        &mut self,
+impl<'config> Inner<'config> {
+    fn memory_cost(
+        &self,
         memory: MemoryCost,
-    ) -> Result<(), ExitError> {
+    ) -> Result<usize, ExitError> {
         let from = memory.offset;
         let len = memory.len;
 
         if len == U256::zero() {
-            return Ok(())
+            return Ok(self.memory_cost)
         }
 
         let end = from.checked_add(len).ok_or(ExitError::OutOfGas)?;
@@ -42,8 +45,25 @@ impl<'config> GasometerInner<'config> {
             end / 32 + 1
         };
 
-        self.memory_cost = max(self.memory_cost, new);
-        Ok(())
+        Ok(max(self.memory_cost, new))
+    }
+
+    fn gas_cost(
+        &self,
+        cost: GasCost,
+    ) -> usize {
+        match cost {
+            GasCost::Call(value, new_account) =>
+                costs::call_cost(value, true, true, new_account, self.config),
+            GasCost::CallCode(value, new_account) =>
+                costs::call_cost(value, true, false, new_account, self.config),
+            GasCost::DelegateCall(value, new_account) =>
+                costs::call_cost(value, false, false, new_account, self.config),
+            GasCost::StaticCall(value, new_account) =>
+                costs::call_cost(value, false, true, new_account, self.config),
+
+            _ => unimplemented!()
+        }
     }
 }
 
@@ -87,6 +107,8 @@ pub struct Config {
     /// If true, only consume at maximum l64(after_gas) when
     /// CALL/CALLCODE/DELEGATECALL.
     pub call_create_l64_after_gas: bool,
+    /// Whether empty account is considered exists.
+    pub empty_considered_exists: bool,
 }
 
 pub enum GasCost {
@@ -102,10 +124,10 @@ pub enum GasCost {
     BlockHash,
     ExtCodeHash,
 
-    Call,
-    CallCode,
-    DelegateCall,
-    StaticCall,
+    Call(U256, bool),
+    CallCode(U256, bool),
+    DelegateCall(U256, bool),
+    StaticCall(U256, bool),
     Suicide,
     SStore,
     Sha3,
@@ -124,19 +146,4 @@ pub enum GasCost {
 pub struct MemoryCost {
     pub offset: U256,
     pub len: U256,
-}
-
-impl<'config> Gasometer<'config> {
-    pub fn record_memory(
-        &mut self,
-        memory: MemoryCost,
-    ) -> Result<(), ExitError> {
-        match self.0.as_mut().map_err(|e| *e)?.record_memory(memory) {
-            Ok(()) => Ok(()),
-            Err(e) => {
-                self.0 = Err(e);
-                Err(e)
-            },
-        }
-    }
 }
