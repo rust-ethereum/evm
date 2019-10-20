@@ -3,6 +3,14 @@ use evm_core::ExitError;
 use crate::Config;
 use crate::consts::*;
 
+pub fn call_extra_check(gas: U256, after_gas: usize, config: &Config) -> Result<(), ExitError> {
+    if config.err_on_call_with_more_gas && U256::from(after_gas) < gas {
+        Err(ExitError::OutOfGas)
+    } else {
+        Ok(())
+    }
+}
+
 pub fn suicide_refund(already_removed: bool) -> isize {
     if already_removed {
         0

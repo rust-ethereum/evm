@@ -2,20 +2,69 @@
 
 mod consts;
 mod costs;
+mod memory;
 
 use core::cmp::max;
 use primitive_types::{H256, U256};
-use evm_core::{Opcode, ExternalOpcode, Stack, ExitError};
+use evm_core::ExitError;
 
 pub struct Gasometer<'config> {
     gas_limit: usize,
     inner: Result<Inner<'config>, ExitError>
 }
 
+impl<'config> Gasometer<'config> {
+    fn inner_mut(
+        &mut self
+    ) -> Result<&mut Inner<'config>, ExitError> {
+        self.inner.as_mut().map_err(|e| *e)
+    }
+
+    pub fn record(
+        &mut self,
+        cost: GasCost,
+        memory: MemoryCost,
+    ) -> Result<(), ExitError> {
+        macro_rules! try_or_fail {
+            ( $e:expr ) => (
+                match $e {
+                    Ok(value) => value,
+                    Err(e) => {
+                        self.inner = Err(e);
+                        return Err(e)
+                    },
+                }
+            )
+        }
+
+        let memory_cost = try_or_fail!(self.inner_mut()?.memory_cost(memory));
+        let memory_gas = try_or_fail!(memory::memory_gas(memory_cost));
+        let gas_cost = try_or_fail!(self.inner_mut()?.gas_cost(cost.clone()));
+        let gas_stipend = self.inner_mut()?.gas_stipend(cost.clone());
+        let gas_refund = self.inner_mut()?.gas_refund(cost.clone());
+        let used_gas = self.inner_mut()?.used_gas;
+
+        let all_gas_cost = memory_gas + used_gas + gas_cost;
+        if self.gas_limit < all_gas_cost {
+            self.inner = Err(ExitError::OutOfGas);
+            return Err(ExitError::OutOfGas)
+        }
+
+        let after_gas = self.gas_limit - all_gas_cost;
+        try_or_fail!(self.inner_mut()?.extra_check(cost, after_gas));
+
+        self.inner_mut()?.used_gas += gas_cost - gas_stipend;
+        self.inner_mut()?.memory_cost = memory_cost;
+        self.inner_mut()?.refunded_gas += gas_refund;
+
+        Ok(())
+    }
+}
+
 struct Inner<'config> {
     memory_cost: usize,
     used_gas: usize,
-    refunded_gas: usize,
+    refunded_gas: isize,
     config: &'config Config,
 }
 
@@ -48,19 +97,33 @@ impl<'config> Inner<'config> {
         Ok(max(self.memory_cost, new))
     }
 
+    fn extra_check(
+        &self,
+        cost: GasCost,
+        after_gas: usize,
+    ) -> Result<(), ExitError> {
+        match cost {
+            GasCost::Call { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
+            GasCost::CallCode { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
+            GasCost::DelegateCall { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
+            GasCost::StaticCall { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
+            _ => Ok(()),
+        }
+    }
+
     fn gas_cost(
         &self,
         cost: GasCost,
     ) -> Result<usize, ExitError> {
         Ok(match cost {
-            GasCost::Call { value, target_exists } =>
+            GasCost::Call { value, target_exists, .. } =>
                 costs::call_cost(value, true, true, !target_exists, self.config),
-            GasCost::CallCode { value, target_exists } =>
+            GasCost::CallCode { value, target_exists, .. } =>
                 costs::call_cost(value, true, false, !target_exists, self.config),
-            GasCost::DelegateCall { value, target_exists } =>
+            GasCost::DelegateCall { value, target_exists, .. } =>
                 costs::call_cost(value, false, false, !target_exists, self.config),
-            GasCost::StaticCall { value, target_exists } =>
-                costs::call_cost(value, false, true, !target_exists, self.config),
+            GasCost::StaticCall { target_exists, .. } =>
+                costs::call_cost(U256::zero(), false, true, !target_exists, self.config),
             GasCost::Suicide { value, target_exists, .. } =>
                 costs::suicide_cost(value, target_exists, self.config),
             GasCost::SStore { original, current, new } =>
@@ -82,6 +145,7 @@ impl<'config> Inner<'config> {
             GasCost::Low => consts::G_LOW,
             GasCost::Mid => consts::G_MID,
             GasCost::High => consts::G_HIGH,
+            GasCost::Invalid => return Err(ExitError::OutOfGas),
 
             GasCost::ExtCodeSize => self.config.gas_extcode,
             GasCost::Balance => self.config.gas_balance,
@@ -132,33 +196,16 @@ pub struct Config {
     pub gas_expbyte: usize,
     /// Gas paid for a contract creation transaction.
     pub gas_transaction_create: usize,
-    /// Whether the EVM has DELEGATECALL opcode.
-    pub has_delegate_call: bool,
-    /// Whether the EVM has STATICCALL opcode.
-    pub has_static_call: bool,
-    /// Whether the EVM has REVERT opcode.
-    pub has_revert: bool,
-    /// Whether the EVM has RETURNDATASIZE and RETURNDATACOPY opcode.
-    pub has_return_data: bool,
-    /// Whether the EVM has SHL, SHR and SAR
-    pub has_bitwise_shift: bool,
-    /// Whether the EVM has EXTCODEHASH
-    pub has_extcodehash: bool,
-    /// Whether the EVM has CREATE2
-    pub has_create2: bool,
-    /// Whether EVM should implement the EIP1283 gas metering scheme for SSTORE opcode
     pub has_reduced_sstore_gas_metering: bool,
     /// Whether to throw out of gas error when
     /// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
     /// of gas.
     pub err_on_call_with_more_gas: bool,
-    /// If true, only consume at maximum l64(after_gas) when
-    /// CALL/CALLCODE/DELEGATECALL.
-    pub call_create_l64_after_gas: bool,
     /// Whether empty account is considered exists.
     pub empty_considered_exists: bool,
 }
 
+#[derive(Clone)]
 pub enum GasCost {
     Zero,
     Base,
@@ -166,16 +213,17 @@ pub enum GasCost {
     Low,
     Mid,
     High,
+    Invalid,
 
     ExtCodeSize,
     Balance,
     BlockHash,
     ExtCodeHash,
 
-    Call { value: U256, target_exists: bool },
-    CallCode { value: U256, target_exists: bool },
-    DelegateCall { value: U256, target_exists: bool },
-    StaticCall { value: U256, target_exists: bool },
+    Call { value: U256, gas: U256, target_exists: bool },
+    CallCode { value: U256, gas: U256, target_exists: bool },
+    DelegateCall { value: U256, gas: U256, target_exists: bool },
+    StaticCall { gas: U256, target_exists: bool },
     Suicide { value: U256, target_exists: bool, already_removed: bool },
     SStore { original: H256, current: H256, new: H256 },
     Sha3 { len: U256 },
