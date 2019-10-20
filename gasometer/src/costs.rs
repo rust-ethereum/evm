@@ -3,6 +3,84 @@ use evm_core::ExitError;
 use crate::Config;
 use crate::consts::*;
 
+pub fn create2_cost(len: U256) -> Result<usize, ExitError> {
+    let base = U256::from(G_CREATE);
+    // ceil(len / 32.0)
+    let sha_addup_base = len / U256::from(32) +
+        if len % U256::from(32) == U256::zero() { U256::zero() } else { U256::one() };
+    let sha_addup = U256::from(G_SHA3WORD).checked_mul(sha_addup_base)
+        .ok_or(ExitError::OutOfGas)?;
+    let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
+
+    if gas > U256::from(usize::max_value()) {
+        return Err(ExitError::OutOfGas)
+    }
+
+    Ok(gas.as_usize())
+}
+
+pub fn exp_cost(power: U256, config: &Config) -> Result<usize, ExitError> {
+    if power == U256::zero() {
+        Ok(G_EXP)
+    } else {
+        let gas = U256::from(G_EXP)
+            .checked_add(
+                U256::from(config.gas_expbyte)
+                    .checked_mul(power / U256::from(8) + U256::one())
+                    .ok_or(ExitError::OutOfGas)?
+            )
+            .ok_or(ExitError::OutOfGas)?;
+
+        if gas > U256::from(usize::max_value()) {
+            return Err(ExitError::OutOfGas)
+        }
+
+        Ok(gas.as_usize())
+    }
+}
+
+pub fn verylowcopy_cost(len: U256) -> Result<usize, ExitError> {
+    let wordd = len / U256::from(32);
+    let wordr = len % U256::from(32);
+
+    let gas = U256::from(G_VERYLOW).checked_add(
+        U256::from(G_COPY).checked_mul(
+            if wordr == U256::zero() {
+                wordd
+            } else {
+                wordd + U256::one()
+            }
+        ).ok_or(ExitError::OutOfGas)?
+    ).ok_or(ExitError::OutOfGas)?;
+
+    if gas > U256::from(usize::max_value()) {
+        return Err(ExitError::OutOfGas)
+    }
+
+    Ok(gas.as_usize())
+}
+
+pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<usize, ExitError> {
+    let wordd = len / U256::from(32);
+    let wordr = len % U256::from(32);
+
+    let gas = U256::from(config.gas_extcode).checked_add(
+        U256::from(G_COPY).checked_mul(
+            if wordr == U256::zero() {
+                wordd
+            } else {
+                wordd + U256::one()
+            }
+        ).ok_or(ExitError::OutOfGas)?
+    ).ok_or(ExitError::OutOfGas)?;
+
+    if gas > U256::from(usize::max_value()) {
+        return Err(ExitError::OutOfGas)
+    }
+
+    Ok(gas.as_usize())
+}
+
 pub fn log_cost(n: u8, len: U256) -> Result<usize, ExitError> {
     let gas = U256::from(G_LOG)
         .checked_add(U256::from(G_LOGDATA).checked_mul(len).ok_or(ExitError::OutOfGas)?)

@@ -68,8 +68,25 @@ impl<'config> Inner<'config> {
 
             GasCost::Sha3 { len } => costs::sha3_cost(len)?,
             GasCost::Log { n, len } => costs::log_cost(n, len)?,
+            GasCost::ExtCodeCopy { len } => costs::extcodecopy_cost(len, self.config)?,
+            GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
+            GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
+            GasCost::Create => consts::G_CREATE,
+            GasCost::Create2 { len } => costs::create2_cost(len)?,
+            GasCost::JumpDest => consts::G_JUMPDEST,
+            GasCost::SLoad => self.config.gas_sload,
 
-            _ => unimplemented!()
+            GasCost::Zero => consts::G_ZERO,
+            GasCost::Base => consts::G_BASE,
+            GasCost::VeryLow => consts::G_VERYLOW,
+            GasCost::Low => consts::G_LOW,
+            GasCost::Mid => consts::G_MID,
+            GasCost::High => consts::G_HIGH,
+
+            GasCost::ExtCodeSize => self.config.gas_extcode,
+            GasCost::Balance => self.config.gas_balance,
+            GasCost::BlockHash => consts::G_BLOCKHASH,
+            GasCost::ExtCodeHash => consts::G_EXTCODEHASH,
         })
     }
 }
@@ -139,13 +156,11 @@ pub enum GasCost {
     SStore { original: H256, current: H256, new: H256 },
     Sha3 { len: U256 },
     Log { n: u8, len: U256 },
-    ExtCodeCopy,
-    CallDataCopy,
-    CodeCopy,
-    ReturnDataCopy,
-    Exp,
+    ExtCodeCopy { len: U256 },
+    VeryLowCopy { len: U256 },
+    Exp { power: U256 },
     Create,
-    Create2,
+    Create2 { len: U256 },
     JumpDest,
     SLoad,
 }
