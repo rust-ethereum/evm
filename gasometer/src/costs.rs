@@ -3,6 +3,59 @@ use evm_core::ExitError;
 use crate::Config;
 use crate::consts::*;
 
+pub fn suicide_refund(already_removed: bool) -> isize {
+    if already_removed {
+        0
+    } else {
+        R_SUICIDE
+    }
+}
+
+pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> isize {
+    if !config.has_reduced_sstore_gas_metering {
+        if current != H256::default() && new == H256::default() {
+            R_SRESET
+        } else {
+            0
+        }
+    } else {
+        if current == new {
+            0
+        } else {
+            if original == current && new == H256::default() {
+                R_NETSCLEAR
+            } else {
+                let mut refund = 0;
+                if original != H256::default() {
+                    if current == H256::default() {
+                        refund -= R_NETSCLEAR;
+                    } else if new == H256::default() {
+                        refund += R_NETSCLEAR;
+                    }
+                }
+
+                if original == new {
+                    if original == H256::default() {
+                        refund += R_NETSRESETCLEAR
+                    } else {
+                        refund += R_NETSRESET
+                    }
+                }
+
+                refund
+            }
+        }
+    }
+}
+
+pub fn call_callcode_stipend(value: U256) -> usize {
+    if value != U256::zero() {
+        G_CALLSTIPEND
+    } else {
+        0
+    }
+}
+
 pub fn create2_cost(len: U256) -> Result<usize, ExitError> {
     let base = U256::from(G_CREATE);
     // ceil(len / 32.0)

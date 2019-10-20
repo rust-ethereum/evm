@@ -61,7 +61,7 @@ impl<'config> Inner<'config> {
                 costs::call_cost(value, false, false, !target_exists, self.config),
             GasCost::StaticCall { value, target_exists } =>
                 costs::call_cost(value, false, true, !target_exists, self.config),
-            GasCost::Suicide { value, target_exists } =>
+            GasCost::Suicide { value, target_exists, .. } =>
                 costs::suicide_cost(value, target_exists, self.config),
             GasCost::SStore { original, current, new } =>
                 costs::sstore_cost(original, current, new, self.config),
@@ -88,6 +88,30 @@ impl<'config> Inner<'config> {
             GasCost::BlockHash => consts::G_BLOCKHASH,
             GasCost::ExtCodeHash => consts::G_EXTCODEHASH,
         })
+    }
+
+    fn gas_stipend(
+        &self,
+        cost: GasCost
+    ) -> usize {
+        match cost {
+            GasCost::Call { value, .. } => costs::call_callcode_stipend(value),
+            GasCost::CallCode { value, .. } => costs::call_callcode_stipend(value),
+            _ => 0,
+        }
+    }
+
+    fn gas_refund(
+        &self,
+        cost: GasCost
+    ) -> isize {
+        match cost {
+            GasCost::SStore { original, current, new } =>
+                costs::sstore_refund(original, current, new, self.config),
+            GasCost::Suicide { already_removed, .. } =>
+                costs::suicide_refund(already_removed),
+            _ => 0,
+        }
     }
 }
 
@@ -152,7 +176,7 @@ pub enum GasCost {
     CallCode { value: U256, target_exists: bool },
     DelegateCall { value: U256, target_exists: bool },
     StaticCall { value: U256, target_exists: bool },
-    Suicide { value: U256, target_exists: bool },
+    Suicide { value: U256, target_exists: bool, already_removed: bool },
     SStore { original: H256, current: H256, new: H256 },
     Sha3 { len: U256 },
     Log { n: u8, len: U256 },
