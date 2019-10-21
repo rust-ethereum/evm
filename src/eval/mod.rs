@@ -24,6 +24,16 @@ pub fn eval(state: &mut Runtime, opcode: ExternalOpcode) -> Control {
 		ExternalOpcode::ExtCodeCopy => system::extcodecopy(state),
 		ExternalOpcode::ReturnDataSize => system::returndatasize(state),
 		ExternalOpcode::ReturnDataCopy => system::returndatacopy(state),
+		ExternalOpcode::BlockHash => system::blockhash(state),
+		ExternalOpcode::Coinbase => system::coinbase(state),
+		ExternalOpcode::Timestamp => system::timestamp(state),
+		ExternalOpcode::Number => system::number(state),
+		ExternalOpcode::Difficulty => system::difficulty(state),
+		ExternalOpcode::GasLimit => system::gaslimit(state),
+		ExternalOpcode::SLoad => system::sload(state),
+		ExternalOpcode::SStore => system::sstore(state),
+		ExternalOpcode::Gas => unimplemented!(),
+		ExternalOpcode::Log(n) => system::log(state, n),
 		_ => unimplemented!(),
 	}
 }
