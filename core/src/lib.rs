@@ -7,7 +7,7 @@ mod memory;
 mod stack;
 mod valids;
 mod opcode;
-mod trap;
+mod error;
 mod eval;
 mod utils;
 
@@ -15,7 +15,7 @@ pub use crate::memory::Memory;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 pub use crate::opcode::{Opcode, ExternalOpcode};
-pub use crate::trap::{Trap, ExitReason, ExitSucceed, ExitError};
+pub use crate::error::{Trap, ExitReason, ExitSucceed, ExitError};
 
 use core::ops::Range;
 use alloc::rc::Rc;
