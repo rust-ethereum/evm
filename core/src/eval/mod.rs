@@ -6,7 +6,7 @@ mod misc;
 
 use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::{H256, U256};
-use crate::{ExitReason, ExitSucceed, ExitError, VM, Opcode};
+use crate::{ExitReason, ExitSucceed, ExitError, Machine, Opcode};
 
 pub enum Control {
     Continue(usize),
@@ -14,7 +14,7 @@ pub enum Control {
     Jump(usize),
 }
 
-pub fn eval(state: &mut VM, opcode: Opcode, position: usize) -> Control {
+pub fn eval(state: &mut Machine, opcode: Opcode, position: usize) -> Control {
     match opcode {
         Opcode::Stop => Control::Exit(ExitSucceed::Stopped.into()),
         Opcode::Add => op2_u256_tuple!(state, overflowing_add),

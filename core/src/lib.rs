@@ -23,7 +23,7 @@ use primitive_types::U256;
 use crate::eval::{eval, Control};
 
 /// Core execution layer for EVM.
-pub struct VM {
+pub struct Machine {
     /// Program data.
     data: Rc<Vec<u8>>,
     /// Program code.
@@ -40,7 +40,7 @@ pub struct VM {
     stack: Stack,
 }
 
-impl VM {
+impl Machine {
     pub fn new(
         code: Rc<Vec<u8>>,
         data: Rc<Vec<u8>>,
