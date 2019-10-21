@@ -1,3 +1,4 @@
+use primitive_types::U256;
 use crate::ExitError;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
@@ -91,5 +92,44 @@ impl Memory {
 		}
 
 		Ok(())
+	}
+
+	pub fn copy_large(
+		&mut self,
+		memory_offset: U256,
+		data_offset: U256,
+		len: U256,
+		data: &[u8]
+	) -> Result<(), ExitError> {
+		let memory_offset = if memory_offset > U256::from(usize::max_value()) {
+			return Err(ExitError::NotSupported)
+		} else {
+			memory_offset.as_usize()
+		};
+
+		let ulen = if len > U256::from(usize::max_value()) {
+			return Err(ExitError::NotSupported)
+		} else {
+			len.as_usize()
+		};
+
+		let data = if let Some(end) = data_offset.checked_add(len) {
+			if end > U256::from(usize::max_value()) {
+				&[]
+			} else {
+				let data_offset = data_offset.as_usize();
+				let end = end.as_usize();
+
+				if end > data.len() {
+					&[]
+				} else {
+					&data[data_offset..end]
+				}
+			}
+		} else {
+			&[]
+		};
+
+		self.set(memory_offset, data, Some(ulen))
 	}
 }

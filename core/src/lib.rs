@@ -41,6 +41,11 @@ pub struct Machine {
 }
 
 impl Machine {
+	pub fn stack(&self) -> &Stack { &self.stack }
+	pub fn stack_mut(&mut self) -> &mut Stack { &mut self.stack }
+	pub fn memory(&self) -> &Memory { &self.memory }
+	pub fn memory_mut(&mut self) -> &mut Memory { &mut self.memory }
+
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
