@@ -6,7 +6,7 @@ use crate::{Interrupt, Runtime, ExitReason, ExternalOpcode};
 
 pub enum Control {
 	Continue,
-	Interrupt(Interrupt),
+	Interrupt(Vec<Interrupt>),
 	Exit(ExitReason)
 }
 
@@ -34,6 +34,7 @@ pub fn eval(state: &mut Runtime, opcode: ExternalOpcode) -> Control {
 		ExternalOpcode::SStore => system::sstore(state),
 		ExternalOpcode::Gas => unimplemented!(),
 		ExternalOpcode::Log(n) => system::log(state, n),
+		ExternalOpcode::Suicide => system::suicide(state),
 		_ => unimplemented!(),
 	}
 }

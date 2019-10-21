@@ -51,6 +51,7 @@ pub struct Config {
 pub struct Runtime<'block, 'action, 'config> {
 	machine: Machine,
 	status: Result<(), ExitReason>,
+	pending_interrupts: Vec<Interrupt>,
 	return_data_buffer: Vec<u8>,
 	block_context: &'block BlockContext,
 	action_context: &'action ActionContext,
@@ -61,6 +62,11 @@ impl<'block, 'action, 'config> Runtime<'block, 'action, 'config> {
 	pub fn step(
 		mut self
 	) -> Result<Self, Capture<(Self, ExitReason), Resolve<'block, 'action, 'config>>> {
+		if let Some(interrupt) = self.pending_interrupts.pop() {
+			let resolve = Resolve::from_interrupt(self, interrupt);
+			return Err(Capture::Trap(resolve))
+		}
+
 		match self.status.clone() {
 			Ok(()) => (),
 			Err(exit) => return Err(Capture::Exit((self, exit))),
@@ -77,9 +83,9 @@ impl<'block, 'action, 'config> Runtime<'block, 'action, 'config> {
 			Err(Capture::Trap(opcode)) => {
 				match eval::eval(&mut self, opcode) {
 					eval::Control::Continue => Ok(self),
-					eval::Control::Interrupt(interrupt) => {
-						let resolve = Resolve::from_interrupt(self, interrupt);
-						Err(Capture::Trap(resolve))
+					eval::Control::Interrupt(mut interrupts) => {
+						self.pending_interrupts.append(&mut interrupts);
+						Ok(self)
 					},
 					eval::Control::Exit(exit) => {
 						self.status = Err(exit);
@@ -120,6 +126,8 @@ pub enum Interrupt {
 	SLoad { index: H256 },
 	SStore { index: H256, value: H256 },
 	Log { topics: Vec<H256>, data: Vec<u8> },
+	Transfer { source: H160, target: H160, value: Option<U256> },
+	MarkDelete { address: H160 },
 }
 
 pub enum Resolve<'block, 'action, 'config> {
@@ -130,6 +138,7 @@ pub enum Resolve<'block, 'action, 'config> {
 	SLoad(ResolveSLoad<'block, 'action, 'config>),
 	SStore(ResolveSStore<'block, 'action, 'config>),
 	Log(ResolveLog<'block, 'action, 'config>),
+	Transfer(ResolveTransfer<'block, 'action, 'config>),
 }
 
 impl<'block, 'action, 'config> Resolve<'block, 'action, 'config> {

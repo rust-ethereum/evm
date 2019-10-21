@@ -25,7 +25,7 @@ pub fn balance(runtime: &mut Runtime) -> Control {
 	pop!(runtime, address);
 	push!(runtime, H256::default());
 
-	Control::Interrupt(Interrupt::ExtBalance { address: address.into() })
+	Control::Interrupt(vec![Interrupt::ExtBalance { address: address.into() }])
 }
 
 pub fn origin(runtime: &mut Runtime) -> Control {
@@ -62,14 +62,14 @@ pub fn extcodesize(runtime: &mut Runtime) -> Control {
 	pop!(runtime, address);
 	push!(runtime, H256::default());
 
-	Control::Interrupt(Interrupt::ExtCodeSize { address: address.into() })
+	Control::Interrupt(vec![Interrupt::ExtCodeSize { address: address.into() }])
 }
 
 pub fn extcodehash(runtime: &mut Runtime) -> Control {
 	pop!(runtime, address);
 	push!(runtime, H256::default());
 
-	Control::Interrupt(Interrupt::ExtCodeHash { address: address.into() })
+	Control::Interrupt(vec![Interrupt::ExtCodeHash { address: address.into() }])
 }
 
 pub fn extcodecopy(runtime: &mut Runtime) -> Control {
@@ -81,7 +81,7 @@ pub fn extcodecopy(runtime: &mut Runtime) -> Control {
 		Err(e) => return Control::Exit(e.into()),
 	};
 
-	Control::Interrupt(Interrupt::ExtCodeCopy { address: address.into(), memory_offset, code_offset, len })
+	Control::Interrupt(vec![Interrupt::ExtCodeCopy { address: address.into(), memory_offset, code_offset, len }])
 }
 
 pub fn returndatasize(runtime: &mut Runtime) -> Control {
@@ -143,12 +143,12 @@ pub fn sload(runtime: &mut Runtime) -> Control {
 	pop!(runtime, index);
 	push!(runtime, H256::default());
 
-	Control::Interrupt(Interrupt::SLoad { index })
+	Control::Interrupt(vec![Interrupt::SLoad { index }])
 }
 
 pub fn sstore(runtime: &mut Runtime) -> Control {
 	pop!(runtime, index, value);
-	Control::Interrupt(Interrupt::SStore { index, value })
+	Control::Interrupt(vec![Interrupt::SStore { index, value }])
 }
 
 pub fn log(runtime: &mut Runtime, n: u8) -> Control {
@@ -165,5 +165,16 @@ pub fn log(runtime: &mut Runtime, n: u8) -> Control {
 		}
 	}
 
-	Control::Interrupt(Interrupt::Log { topics, data })
+	Control::Interrupt(vec![Interrupt::Log { topics, data }])
+}
+
+pub fn suicide(runtime: &mut Runtime) -> Control {
+	pop!(runtime, target);
+
+	Control::Interrupt(vec![
+		Interrupt::MarkDelete { address: runtime.action_context.address },
+		Interrupt::Transfer {
+			source: runtime.action_context.address, target: target.into(), value: None,
+		}
+	])
 }
