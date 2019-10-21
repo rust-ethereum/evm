@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use evm_core::{VM, Trap, ExitReason};
+use evm_core::{Machine, Capture, ExitSucceed};
 
 macro_rules! ret_test {
 	( $name:ident, $code:expr, $data:expr, $ret:expr ) => (
@@ -8,8 +8,8 @@ macro_rules! ret_test {
 			let code = hex::decode($code).unwrap();
 			let data = hex::decode($data).unwrap();
 
-			let mut vm = VM::new(Rc::new(code), Rc::new(data), 1024, 10000);
-			assert_eq!(vm.run(), Trap::Exit(ExitReason::Returned));
+			let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000);
+			assert_eq!(vm.run(), Capture::Exit(ExitSucceed::Returned.into()));
 			assert_eq!(vm.return_value(), hex::decode($ret).unwrap());
 		}
 	);

@@ -15,7 +15,7 @@ pub use crate::memory::Memory;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 pub use crate::opcode::{Opcode, ExternalOpcode};
-pub use crate::error::{Trap, ExitReason, ExitSucceed, ExitError};
+pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError};
 
 use core::ops::Range;
 use alloc::rc::Rc;
@@ -75,17 +75,17 @@ impl Machine {
 		)
 	}
 
-	pub fn run(&mut self) -> Trap {
+	pub fn run(&mut self) -> Capture<ExitReason, Trap> {
 		loop {
 			match self.step() {
 				Ok(()) => (),
-				Err(trap) => return trap,
+				Err(res) => return res,
 			}
 		}
 	}
 
-	pub fn step(&mut self) -> Result<(), Trap> {
-		let position = self.position?;
+	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
+		let position = self.position.map_err(|reason| Capture::Exit(reason))?;
 
 		match self.code.get(position).map(|v| Opcode::parse(*v)) {
 			Some(Ok(opcode)) => {
@@ -96,7 +96,7 @@ impl Machine {
 					},
 					Control::Exit(e) => {
 						self.position = Err(e);
-						Err(Trap::Exit(e))
+						Err(Capture::Exit(e))
 					},
 					Control::Jump(p) => {
 						if self.valids.is_valid(p) {
@@ -104,18 +104,18 @@ impl Machine {
 							Ok(())
 						} else {
 							self.position = Err(ExitError::InvalidJump.into());
-							Err(Trap::Exit(ExitError::InvalidJump.into()))
+							Err(Capture::Exit(ExitError::InvalidJump.into()))
 						}
 					},
 				}
 			},
 			Some(Err(external)) => {
 				self.position = Ok(position + 1);
-				Err(Trap::External(external))
+				Err(Capture::Trap(external))
 			},
 			None => {
 				self.position = Err(ExitSucceed::Stopped.into());
-				Err(Trap::Exit(ExitSucceed::Stopped.into()))
+				Err(Capture::Exit(ExitSucceed::Stopped.into()))
 			},
 		}
 	}
