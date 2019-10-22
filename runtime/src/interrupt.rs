@@ -1,4 +1,4 @@
-use crate::{Runtime, Handler};
+use crate::{Runtime, Handler, ExitError};
 
 pub enum Resolve<'a, H: Handler> {
 	Create(H::CreateInterrupt, ResolveCreate<'a>),
@@ -15,6 +15,13 @@ impl<'a> ResolveCreate<'a> {
 	}
 }
 
+impl<'a> Drop for ResolveCreate<'a> {
+	fn drop(&mut self) {
+		self.runtime.status = Err(ExitError::Other("create interrupt dropped").into());
+		self.runtime.machine.exit(ExitError::Other("create interrupt dropped").into());
+	}
+}
+
 pub struct ResolveCall<'a> {
 	runtime: &'a mut Runtime,
 }
@@ -22,5 +29,12 @@ pub struct ResolveCall<'a> {
 impl<'a> ResolveCall<'a> {
 	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
 		Self { runtime }
+	}
+}
+
+impl<'a> Drop for ResolveCall<'a> {
+	fn drop(&mut self) {
+		self.runtime.status = Err(ExitError::Other("call interrupt dropped").into());
+		self.runtime.machine.exit(ExitError::Other("call interrupt dropped").into());
 	}
 }
