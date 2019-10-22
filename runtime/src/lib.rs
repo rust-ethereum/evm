@@ -9,18 +9,18 @@ pub use crate::context::{CreateScheme, CallScheme, Context};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 pub use crate::handler::Handler;
 
-pub struct Runtime<'context> {
+pub struct Runtime {
 	machine: Machine,
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
-	context: &'context Context,
+	context: Context,
 }
 
-impl<'context> Runtime<'context> {
+impl Runtime {
 	pub fn step<H: Handler>(
 		mut self,
 		handler: &mut H,
-	) -> Result<Self, Capture<(Self, ExitReason), Resolve<'context, H>>> {
+	) -> Result<Self, Capture<(Self, ExitReason), Resolve<H>>> {
 		if let Some((opcode, stack)) = self.machine.inspect() {
 			match handler.pre_validate(opcode, stack) {
 				Ok(()) => (),
@@ -46,12 +46,12 @@ impl<'context> Runtime<'context> {
 				match eval::eval(&mut self, opcode, handler) {
 					eval::Control::Continue => Ok(self),
 					eval::Control::CallInterrupt(interrupt) => {
-						let resolve = ResolveCall::new(self, interrupt);
-						Err(Capture::Trap(Resolve::Call(resolve)))
+						let resolve = ResolveCall::new(self);
+						Err(Capture::Trap(Resolve::Call(interrupt, resolve)))
 					},
 					eval::Control::CreateInterrupt(interrupt) => {
-						let resolve = ResolveCreate::new(self, interrupt);
-						Err(Capture::Trap(Resolve::Create(resolve)))
+						let resolve = ResolveCreate::new(self);
+						Err(Capture::Trap(Resolve::Create(interrupt, resolve)))
 					},
 					eval::Control::Exit(exit) => {
 						self.machine.exit(exit.into());
@@ -66,7 +66,7 @@ impl<'context> Runtime<'context> {
 	pub fn run<H: Handler>(
 		self,
 		handler: &mut H,
-	) -> Capture<(Self, ExitReason), Resolve<'context, H>> {
+	) -> Capture<(Self, ExitReason), Resolve<H>> {
 		let mut current = self;
 
 		loop {
