@@ -2,39 +2,40 @@
 mod macros;
 mod system;
 
-use crate::{Interrupt, Runtime, ExitReason, ExternalOpcode};
+use crate::{Handler, Runtime, ExitReason, ExternalOpcode};
 
-pub enum Control {
+pub enum Control<H: Handler> {
 	Continue,
-	Interrupt(Vec<Interrupt>),
+	CallInterrupt(H::CallInterrupt),
+	CreateInterrupt(H::CreateInterrupt),
 	Exit(ExitReason)
 }
 
-pub fn eval(state: &mut Runtime, opcode: ExternalOpcode) -> Control {
+pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &mut H) -> Control<H> {
 	match opcode {
 		ExternalOpcode::Sha3 => system::sha3(state),
 		ExternalOpcode::Address => system::address(state),
-		ExternalOpcode::Balance => system::balance(state),
+		ExternalOpcode::Balance => system::balance(state, handler),
 		ExternalOpcode::Origin => system::origin(state),
 		ExternalOpcode::Caller => system::caller(state),
 		ExternalOpcode::CallValue => system::callvalue(state),
 		ExternalOpcode::GasPrice => system::gasprice(state),
-		ExternalOpcode::ExtCodeSize => system::extcodesize(state),
-		ExternalOpcode::ExtCodeHash => system::extcodehash(state),
-		ExternalOpcode::ExtCodeCopy => system::extcodecopy(state),
+		ExternalOpcode::ExtCodeSize => system::extcodesize(state, handler),
+		ExternalOpcode::ExtCodeHash => system::extcodehash(state, handler),
+		ExternalOpcode::ExtCodeCopy => system::extcodecopy(state, handler),
 		ExternalOpcode::ReturnDataSize => system::returndatasize(state),
 		ExternalOpcode::ReturnDataCopy => system::returndatacopy(state),
-		ExternalOpcode::BlockHash => system::blockhash(state),
-		ExternalOpcode::Coinbase => system::coinbase(state),
-		ExternalOpcode::Timestamp => system::timestamp(state),
-		ExternalOpcode::Number => system::number(state),
-		ExternalOpcode::Difficulty => system::difficulty(state),
-		ExternalOpcode::GasLimit => system::gaslimit(state),
-		ExternalOpcode::SLoad => system::sload(state),
-		ExternalOpcode::SStore => system::sstore(state),
-		ExternalOpcode::Gas => unimplemented!(),
-		ExternalOpcode::Log(n) => system::log(state, n),
-		ExternalOpcode::Suicide => system::suicide(state),
+		ExternalOpcode::BlockHash => system::blockhash(state, handler),
+		ExternalOpcode::Coinbase => system::coinbase(state, handler),
+		ExternalOpcode::Timestamp => system::timestamp(state, handler),
+		ExternalOpcode::Number => system::number(state, handler),
+		ExternalOpcode::Difficulty => system::difficulty(state, handler),
+		ExternalOpcode::GasLimit => system::gaslimit(state, handler),
+		ExternalOpcode::SLoad => system::sload(state, handler),
+		ExternalOpcode::SStore => system::sstore(state, handler),
+		ExternalOpcode::Gas => system::gas(state, handler),
+		ExternalOpcode::Log(n) => system::log(state, n, handler),
+		ExternalOpcode::Suicide => system::suicide(state, handler),
 		_ => unimplemented!(),
 	}
 }

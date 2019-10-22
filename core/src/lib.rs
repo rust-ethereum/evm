@@ -65,6 +65,10 @@ impl Machine {
 		}
 	}
 
+	pub fn exit(&mut self, reason: ExitReason) {
+		self.position = Err(reason);
+	}
+
 	pub fn inspect(&self) -> Option<(Result<Opcode, ExternalOpcode>, &Stack)> {
 		let position = match self.position {
 			Ok(position) => position,
