@@ -83,9 +83,9 @@ impl Memory {
 			return Err(ExitError::NotSupported)
 		}
 
-		self.resize(offset + value.len())?;
+		self.resize(offset + target_size)?;
 
-		for index in 0..value.len() {
+		for index in 0..target_size {
 			if self.data.len() > offset + index {
 				self.data[offset + index] = value[index];
 			}

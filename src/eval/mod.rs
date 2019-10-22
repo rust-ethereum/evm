@@ -2,7 +2,7 @@
 mod macros;
 mod system;
 
-use crate::{Handler, Runtime, ExitReason, ExternalOpcode};
+use crate::{Handler, Runtime, ExitReason, ExternalOpcode, CallScheme};
 
 pub enum Control<H: Handler> {
 	Continue,
@@ -16,10 +16,10 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 		ExternalOpcode::Sha3 => system::sha3(state),
 		ExternalOpcode::Address => system::address(state),
 		ExternalOpcode::Balance => system::balance(state, handler),
-		ExternalOpcode::Origin => system::origin(state),
+		ExternalOpcode::Origin => system::origin(state, handler),
 		ExternalOpcode::Caller => system::caller(state),
 		ExternalOpcode::CallValue => system::callvalue(state),
-		ExternalOpcode::GasPrice => system::gasprice(state),
+		ExternalOpcode::GasPrice => system::gasprice(state, handler),
 		ExternalOpcode::ExtCodeSize => system::extcodesize(state, handler),
 		ExternalOpcode::ExtCodeHash => system::extcodehash(state, handler),
 		ExternalOpcode::ExtCodeCopy => system::extcodecopy(state, handler),
@@ -36,6 +36,20 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 		ExternalOpcode::Gas => system::gas(state, handler),
 		ExternalOpcode::Log(n) => system::log(state, n, handler),
 		ExternalOpcode::Suicide => system::suicide(state, handler),
-		_ => unimplemented!(),
+		ExternalOpcode::Create => system::create(state, false, handler),
+		ExternalOpcode::Create2 => system::create(state, true, handler),
+		ExternalOpcode::Call => system::call(state, CallScheme::Call, handler),
+		ExternalOpcode::CallCode => system::call(state, CallScheme::CallCode, handler),
+		ExternalOpcode::DelegateCall => system::call(state, CallScheme::DelegateCall, handler),
+		ExternalOpcode::StaticCall => system::call(state, CallScheme::StaticCall, handler),
+		ExternalOpcode::Other(opcode) => {
+			match handler.other(
+				opcode,
+				&mut state.machine
+			) {
+				Ok(()) => Control::Continue,
+				Err(e) => Control::Exit(e.into()),
+			}
+		},
 	}
 }

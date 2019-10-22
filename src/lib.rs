@@ -2,17 +2,13 @@ mod eval;
 mod context;
 mod interrupt;
 mod handler;
-mod error;
 
 pub use evm_core::*;
 pub use evm_gasometer::*;
 
-pub use crate::context::{CreateScheme, CallScheme, ActionValue, Context};
+pub use crate::context::{CreateScheme, CallScheme, Context};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 pub use crate::handler::Handler;
-pub use crate::error::MultiError;
-
-use primitive_types::{H256, H160, U256};
 
 pub struct Runtime<'context> {
 	machine: Machine,
@@ -59,6 +55,7 @@ impl<'context> Runtime<'context> {
 						Err(Capture::Trap(Resolve::Create(resolve)))
 					},
 					eval::Control::Exit(exit) => {
+						self.machine.exit(exit.into());
 						self.status = Err(exit);
 						Err(Capture::Exit((self, exit)))
 					},
@@ -68,7 +65,7 @@ impl<'context> Runtime<'context> {
 	}
 
 	pub fn run<H: Handler>(
-		mut self,
+		self,
 		handler: &mut H,
 	) -> Capture<(Self, ExitReason), Resolve<'context, H>> {
 		let mut current = self;

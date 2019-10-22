@@ -1,6 +1,7 @@
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
-use crate::{Runtime, ExitError, Handler};
+use crate::{Runtime, ExitError, Handler, Capture,
+			CreateScheme, CallScheme, Context};
 use super::Control;
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
@@ -28,8 +29,8 @@ pub fn balance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
-pub fn origin<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	let ret = H256::from(runtime.context.origin);
+pub fn origin<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	let ret = H256::from(handler.origin());
 	push!(runtime, ret);
 
 	Control::Continue
@@ -44,15 +45,15 @@ pub fn caller<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 pub fn callvalue<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	let mut ret = H256::default();
-	runtime.context.value.value().to_big_endian(&mut ret[..]);
+	runtime.context.apparent_value.to_big_endian(&mut ret[..]);
 	push!(runtime, ret);
 
 	Control::Continue
 }
 
-pub fn gasprice<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	let mut ret = H256::default();
-	runtime.context.gas_price.to_big_endian(&mut ret[..]);
+	handler.gas_price().to_big_endian(&mut ret[..]);
 	push!(runtime, ret);
 
 	Control::Continue
@@ -192,4 +193,171 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	}
 
 	Control::Continue
+}
+
+pub fn create<H: Handler>(
+	runtime: &mut Runtime,
+	is_create2: bool,
+	handler: &mut H,
+) -> Control<H> {
+	pop_u256!(runtime, value, code_offset, len);
+
+	let code_offset = as_usize_or_fail!(code_offset);
+	let len = as_usize_or_fail!(len);
+	let code = runtime.machine.memory().get(code_offset, len);
+
+	let scheme = if is_create2 {
+		pop!(runtime, salt);
+		let code_hash = H256::from_slice(Keccak256::digest(&code).as_slice());
+
+		let mut hasher = Keccak256::new();
+		hasher.input(&[0xff]);
+		hasher.input(&runtime.context.address[..]);
+		hasher.input(&salt[..]);
+		hasher.input(&code_hash[..]);
+
+		let target = H256::from_slice(hasher.result().as_slice());
+		CreateScheme::Fixed(target.into())
+	} else {
+		CreateScheme::Dynamic
+	};
+
+	let create_address = handler.create_address(runtime.context.address, scheme);
+	let context = Context {
+		address: create_address,
+		caller: runtime.context.address,
+		apparent_value: value,
+	};
+
+	match handler.transfer(runtime.context.address, create_address, Some(value)) {
+		Ok(()) => (),
+		Err(e) => {
+			push!(runtime, H256::default());
+
+			return if handler.is_recoverable() {
+				Control::Continue
+			} else {
+				Control::Exit(e.into())
+			}
+		},
+	}
+
+	match handler.create(create_address, code, None, context) {
+		Ok(Capture::Exit(address)) => {
+			push!(runtime, address.into());
+			Control::Continue
+		},
+		Ok(Capture::Trap(interrupt)) => {
+			push!(runtime, H256::default());
+			Control::CreateInterrupt(interrupt)
+		},
+		Err(e) => {
+			push!(runtime, H256::default());
+
+			if handler.is_recoverable() {
+				Control::Continue
+			} else {
+				Control::Exit(e.into())
+			}
+		},
+	}
+}
+
+pub fn call<H: Handler>(
+	runtime: &mut Runtime,
+	scheme: CallScheme,
+	handler: &mut H
+) -> Control<H> {
+	pop_u256!(runtime, gas);
+	pop!(runtime, to);
+	let gas = as_usize_or_fail!(gas);
+
+	let value = match scheme {
+		CallScheme::Call | CallScheme::CallCode => {
+			pop_u256!(runtime, value);
+			value
+		},
+		CallScheme::DelegateCall | CallScheme::StaticCall => {
+			U256::zero()
+		},
+	};
+
+	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
+
+	let in_offset = as_usize_or_fail!(in_offset);
+	let in_len = as_usize_or_fail!(in_len);
+	let out_offset = as_usize_or_fail!(out_offset);
+	let out_len = as_usize_or_fail!(out_len);
+
+	let input = runtime.machine.memory().get(in_offset, in_len);
+	let context = match scheme {
+		CallScheme::Call | CallScheme::StaticCall => Context {
+			address: to.into(),
+			caller: runtime.context.address,
+			apparent_value: value,
+		},
+		CallScheme::CallCode => Context {
+			address: runtime.context.address,
+			caller: runtime.context.address,
+			apparent_value: value,
+		},
+		CallScheme::DelegateCall => Context {
+			address: runtime.context.address,
+			caller: runtime.context.caller,
+			apparent_value: runtime.context.apparent_value,
+		},
+	};
+
+	if scheme == CallScheme::Call {
+		match handler.transfer(runtime.context.address, to.into(), Some(value)) {
+			Ok(()) => (),
+			Err(e) => {
+				push_u256!(runtime, U256::zero());
+
+				return if handler.is_recoverable() {
+					Control::Continue
+				} else {
+					Control::Exit(e.into())
+				}
+			},
+		}
+	}
+
+	match handler.call(to.into(), input, Some(gas), scheme == CallScheme::StaticCall, context) {
+		Ok(Capture::Exit(return_data)) => {
+			runtime.return_data_buffer = return_data;
+
+			match runtime.machine.memory_mut().set(
+				out_offset, &runtime.return_data_buffer[..], Some(out_len)
+			) {
+				Ok(()) => {
+					push_u256!(runtime, U256::one());
+					Control::Continue
+				},
+				Err(e) => {
+					push_u256!(runtime, U256::zero());
+
+					if handler.is_recoverable() {
+						Control::Continue
+					} else {
+						Control::Exit(e.into())
+					}
+				},
+			}
+
+		},
+		Ok(Capture::Trap(interrupt)) => {
+			push!(runtime, H256::default());
+			Control::CallInterrupt(interrupt)
+		},
+		Err(e) => {
+			push_u256!(runtime, U256::zero());
+
+			if handler.is_recoverable() {
+				Control::Continue
+			} else {
+				Control::Exit(e.into())
+			}
+		},
+	}
 }
