@@ -1,26 +1,26 @@
 use crate::{Runtime, Handler};
 
-pub enum Resolve<H: Handler> {
-	Create(H::CreateInterrupt, ResolveCreate),
-	Call(H::CallInterrupt, ResolveCall),
+pub enum Resolve<'a, H: Handler> {
+	Create(H::CreateInterrupt, ResolveCreate<'a>),
+	Call(H::CallInterrupt, ResolveCall<'a>),
 }
 
-pub struct ResolveCreate {
-	runtime: Runtime,
+pub struct ResolveCreate<'a> {
+	runtime: &'a mut Runtime,
 }
 
-impl ResolveCreate {
-	pub(crate) fn new(runtime: Runtime) -> Self {
+impl<'a> ResolveCreate<'a> {
+	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
 		Self { runtime }
 	}
 }
 
-pub struct ResolveCall {
-	runtime: Runtime,
+pub struct ResolveCall<'a> {
+	runtime: &'a mut Runtime,
 }
 
-impl ResolveCall {
-	pub(crate) fn new(runtime: Runtime) -> Self {
+impl<'a> ResolveCall<'a> {
+	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
 		Self { runtime }
 	}
 }

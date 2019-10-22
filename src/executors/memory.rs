@@ -36,9 +36,9 @@ pub struct MemoryExecutor<'ostate> {
 }
 
 impl<'ostate> MemoryExecutor<'ostate> {
-	pub fn execute(&mut self, mut runtime: Runtime) -> (Runtime, ExitReason) {
+	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		match runtime.run(self) {
-			Capture::Exit((runtime, reason)) => (runtime, reason),
+			Capture::Exit(reason) => reason,
 			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
 	}

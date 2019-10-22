@@ -9,6 +9,58 @@ pub use crate::context::{CreateScheme, CallScheme, Context};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 pub use crate::handler::Handler;
 
+macro_rules! step {
+	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
+		if let Some((opcode, stack)) = $self.machine.inspect() {
+			match $handler.pre_validate(opcode, stack) {
+				Ok(()) => (),
+				Err(error) => {
+					$self.machine.exit(error.into());
+					$self.status = Err(error.into());
+				},
+			}
+		}
+
+		match $self.status.clone() {
+			Ok(()) => (),
+			Err(exit) => {
+				#[allow(unused_parens)]
+				$return $($err)*(Capture::Exit(exit))
+			},
+		}
+
+		match $self.machine.step() {
+			Ok(()) => $($ok)?(()),
+			Err(Capture::Exit(exit)) => {
+				$self.status = Err(exit);
+				#[allow(unused_parens)]
+				$return $($err)*(Capture::Exit(exit))
+			},
+			Err(Capture::Trap(opcode)) => {
+				match eval::eval($self, opcode, $handler) {
+					eval::Control::Continue => $($ok)?(()),
+					eval::Control::CallInterrupt(interrupt) => {
+						let resolve = ResolveCall::new($self);
+						#[allow(unused_parens)]
+						$return $($err)*(Capture::Trap(Resolve::Call(interrupt, resolve)))
+					},
+					eval::Control::CreateInterrupt(interrupt) => {
+						let resolve = ResolveCreate::new($self);
+						#[allow(unused_parens)]
+						$return $($err)*(Capture::Trap(Resolve::Create(interrupt, resolve)))
+					},
+					eval::Control::Exit(exit) => {
+						$self.machine.exit(exit.into());
+						$self.status = Err(exit);
+						#[allow(unused_parens)]
+						$return $($err)*(Capture::Exit(exit))
+					},
+				}
+			},
+		}
+	});
+}
+
 pub struct Runtime {
 	machine: Machine,
 	status: Result<(), ExitReason>,
@@ -17,65 +69,19 @@ pub struct Runtime {
 }
 
 impl Runtime {
-	pub fn step<H: Handler>(
-		mut self,
+	pub fn step<'a, H: Handler>(
+		&'a mut self,
 		handler: &mut H,
-	) -> Result<Self, Capture<(Self, ExitReason), Resolve<H>>> {
-		if let Some((opcode, stack)) = self.machine.inspect() {
-			match handler.pre_validate(opcode, stack) {
-				Ok(()) => (),
-				Err(error) => {
-					self.machine.exit(error.into());
-					self.status = Err(error.into());
-				},
-			}
-		}
-
-		match self.status.clone() {
-			Ok(()) => (),
-			Err(exit) => return Err(Capture::Exit((self, exit))),
-		}
-
-		match self.machine.step() {
-			Ok(()) => Ok(self),
-			Err(Capture::Exit(exit)) => {
-				self.status = Err(exit);
-				Err(Capture::Exit((self, exit)))
-			},
-			Err(Capture::Trap(opcode)) => {
-				match eval::eval(&mut self, opcode, handler) {
-					eval::Control::Continue => Ok(self),
-					eval::Control::CallInterrupt(interrupt) => {
-						let resolve = ResolveCall::new(self);
-						Err(Capture::Trap(Resolve::Call(interrupt, resolve)))
-					},
-					eval::Control::CreateInterrupt(interrupt) => {
-						let resolve = ResolveCreate::new(self);
-						Err(Capture::Trap(Resolve::Create(interrupt, resolve)))
-					},
-					eval::Control::Exit(exit) => {
-						self.machine.exit(exit.into());
-						self.status = Err(exit);
-						Err(Capture::Exit((self, exit)))
-					},
-				}
-			},
-		}
+	) -> Result<(), Capture<ExitReason, Resolve<'a, H>>> {
+		step!(self, handler, return Err; Ok)
 	}
 
-	pub fn run<H: Handler>(
-		self,
+	pub fn run<'a, H: Handler>(
+		&'a mut self,
 		handler: &mut H,
-	) -> Capture<(Self, ExitReason), Resolve<H>> {
-		let mut current = self;
-
+	) -> Capture<ExitReason, Resolve<'a, H>> {
 		loop {
-			match current.step(handler) {
-				Ok(value) => {
-					current = value
-				},
-				Err(capture) => return capture,
-			}
+			step!(self, handler, return;)
 		}
 	}
 }
