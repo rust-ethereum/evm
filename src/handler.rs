@@ -4,7 +4,9 @@ use crate::{Capture, Stack, ExitError, Opcode, ExternalOpcode,
 
 pub trait Handler {
 	type CreateInterrupt;
+	type CreateFeedback;
 	type CallInterrupt;
+	type CallFeedback;
 
 	fn ext_balance(&self, address: H160) -> U256;
 	fn ext_code_size(&self, address: H160) -> U256;
@@ -35,6 +37,12 @@ pub trait Handler {
 		target_gas: Option<usize>,
 		context: Context,
 	) -> Result<Capture<H160, Self::CreateInterrupt>, ExitError>;
+	fn create_feedback(
+		&mut self,
+		_feedback: Self::CreateFeedback
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
 	fn call(
 		&mut self,
 		code_address: H160,
@@ -43,6 +51,12 @@ pub trait Handler {
 		is_static: bool,
 		context: Context,
 	) -> Result<Capture<Vec<u8>, Self::CallInterrupt>, ExitError>;
+	fn call_feedback(
+		&mut self,
+		_feedback: Self::CallFeedback
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
 
 	fn pre_validate(
 		&mut self,
