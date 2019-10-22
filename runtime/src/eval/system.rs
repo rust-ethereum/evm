@@ -24,7 +24,7 @@ pub fn address<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 pub fn balance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
-	push_u256!(runtime, handler.ext_balance(address.into()));
+	push_u256!(runtime, handler.balance(address.into()));
 
 	Control::Continue
 }
@@ -61,14 +61,14 @@ pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
-	push_u256!(runtime, handler.ext_code_size(address.into()));
+	push_u256!(runtime, handler.code_size(address.into()));
 
 	Control::Continue
 }
 
 pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
-	push!(runtime, handler.ext_code_hash(address.into()));
+	push!(runtime, handler.code_hash(address.into()));
 
 	Control::Continue
 }
@@ -81,7 +81,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 		memory_offset,
 		code_offset,
 		len,
-		&handler.ext_code(address.into())
+		&handler.code(address.into())
 	) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
@@ -140,14 +140,14 @@ pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, index);
-	push!(runtime, handler.storage(index));
+	push!(runtime, handler.storage(runtime.context.address, index));
 
 	Control::Continue
 }
 
 pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, index, value);
-	match handler.set_storage(index, value) {
+	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -173,7 +173,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 		}
 	}
 
-	match handler.log(topics, data) {
+	match handler.log(runtime.context.address, topics, data) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -182,7 +182,8 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, target);
 
-	match handler.transfer(runtime.context.address, target.into(), None) {
+	let balance = handler.balance(runtime.context.address);
+	match handler.transfer(runtime.context.address, target.into(), balance) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	}
@@ -229,7 +230,7 @@ pub fn create<H: Handler>(
 		apparent_value: value,
 	};
 
-	match handler.transfer(runtime.context.address, create_address, Some(value)) {
+	match handler.transfer(runtime.context.address, create_address, value) {
 		Ok(()) => (),
 		Err(e) => {
 			push!(runtime, H256::default());
@@ -309,7 +310,7 @@ pub fn call<H: Handler>(
 	};
 
 	if scheme == CallScheme::Call {
-		match handler.transfer(runtime.context.address, to.into(), Some(value)) {
+		match handler.transfer(runtime.context.address, to.into(), value) {
 			Ok(()) => (),
 			Err(e) => {
 				push_u256!(runtime, U256::zero());

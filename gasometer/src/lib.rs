@@ -5,8 +5,9 @@ mod costs;
 mod memory;
 
 use core::cmp::max;
-use primitive_types::{H256, U256};
-use evm_core::ExitError;
+use primitive_types::{H160, H256, U256};
+use evm_core::{ExternalOpcode, Opcode, ExitError, Stack};
+use evm_runtime::Handler;
 
 pub struct Gasometer<'config> {
 	gas_limit: usize,
@@ -23,7 +24,7 @@ impl<'config> Gasometer<'config> {
 	pub fn record(
 		&mut self,
 		cost: GasCost,
-		memory: MemoryCost,
+		memory: Option<MemoryCost>,
 	) -> Result<(), ExitError> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => (
@@ -37,7 +38,10 @@ impl<'config> Gasometer<'config> {
 			)
 		}
 
-		let memory_cost = try_or_fail!(self.inner_mut()?.memory_cost(memory));
+		let memory_cost = match memory {
+			Some(memory) => try_or_fail!(self.inner_mut()?.memory_cost(memory)),
+			None => self.inner_mut()?.memory_cost,
+		};
 		let memory_gas = try_or_fail!(memory::memory_gas(memory_cost));
 		let gas_cost = try_or_fail!(self.inner_mut()?.gas_cost(cost.clone()));
 		let gas_stipend = self.inner_mut()?.gas_stipend(cost.clone());
@@ -59,6 +63,161 @@ impl<'config> Gasometer<'config> {
 
 		Ok(())
 	}
+}
+
+pub fn cost<H: Handler>(
+	address: H160,
+	opcode: Result<Opcode, ExternalOpcode>,
+	stack: &Stack,
+	handler: &H
+) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
+	let gas_cost = match opcode {
+		Ok(Opcode::Stop) | Ok(Opcode::Return) | Ok(Opcode::Revert) => GasCost::Zero,
+
+		Err(ExternalOpcode::Address) | Err(ExternalOpcode::Origin) | Err(ExternalOpcode::Caller) |
+		Err(ExternalOpcode::CallValue) | Ok(Opcode::CallDataSize) |
+		Err(ExternalOpcode::ReturnDataSize) |
+		Ok(Opcode::CodeSize) | Err(ExternalOpcode::GasPrice) | Err(ExternalOpcode::Coinbase) |
+		Err(ExternalOpcode::Timestamp) | Err(ExternalOpcode::Number) |
+		Err(ExternalOpcode::Difficulty) |
+		Err(ExternalOpcode::GasLimit) | Ok(Opcode::Pop) | Ok(Opcode::PC) |
+		Ok(Opcode::MSize) | Err(ExternalOpcode::Gas) => GasCost::Base,
+
+		Ok(Opcode::Add) | Ok(Opcode::Sub) | Ok(Opcode::Not) | Ok(Opcode::Lt) |
+		Ok(Opcode::Gt) | Ok(Opcode::SLt) | Ok(Opcode::SGt) | Ok(Opcode::Eq) |
+		Ok(Opcode::IsZero) | Ok(Opcode::And) | Ok(Opcode::Or) | Ok(Opcode::Xor) |
+		Ok(Opcode::Byte) | Ok(Opcode::CallDataLoad) | Ok(Opcode::MLoad) |
+		Ok(Opcode::MStore) | Ok(Opcode::MStore8) | Ok(Opcode::Push(_)) |
+		Ok(Opcode::Dup(_)) | Ok(Opcode::Swap(_)) | Ok(Opcode::Shl) | Ok(Opcode::Shr) |
+		Ok(Opcode::Sar) => GasCost::VeryLow,
+
+		Ok(Opcode::Mul) | Ok(Opcode::Div) | Ok(Opcode::SDiv) | Ok(Opcode::Mod) |
+		Ok(Opcode::SMod) | Ok(Opcode::SignExtend) => GasCost::Low,
+
+		Ok(Opcode::AddMod) | Ok(Opcode::MulMod) | Ok(Opcode::Jump) => GasCost::Mid,
+
+		Ok(Opcode::JumpI) => GasCost::High,
+
+		Err(ExternalOpcode::ExtCodeSize) => GasCost::ExtCodeSize,
+		Err(ExternalOpcode::Balance) => GasCost::Balance,
+		Err(ExternalOpcode::BlockHash) => GasCost::BlockHash,
+		Err(ExternalOpcode::ExtCodeHash) => GasCost::ExtCodeHash,
+
+		Err(ExternalOpcode::Call) => GasCost::Call {
+			value: U256::from_big_endian(&stack.peek(2)?[..]),
+			gas: U256::from_big_endian(&stack.peek(0)?[..]),
+			target_exists: handler.exists(stack.peek(1)?.into()),
+		},
+		Err(ExternalOpcode::CallCode) => GasCost::CallCode {
+			value: U256::from_big_endian(&stack.peek(2)?[..]),
+			gas: U256::from_big_endian(&stack.peek(0)?[..]),
+			target_exists: handler.exists(stack.peek(1)?.into()),
+		},
+		Err(ExternalOpcode::DelegateCall) => GasCost::DelegateCall {
+			gas: U256::from_big_endian(&stack.peek(0)?[..]),
+			target_exists: handler.exists(stack.peek(1)?.into()),
+		},
+		Err(ExternalOpcode::StaticCall) => GasCost::StaticCall {
+			gas: U256::from_big_endian(&stack.peek(0)?[..]),
+			target_exists: handler.exists(stack.peek(1)?.into()),
+		},
+		Err(ExternalOpcode::Suicide) => GasCost::Suicide {
+			value: handler.balance(address),
+			target_exists: handler.exists(stack.peek(0)?.into()),
+			already_removed: handler.deleted(address),
+		},
+		Err(ExternalOpcode::SStore) => {
+			let index = stack.peek(0)?;
+			let value = stack.peek(1)?;
+
+			GasCost::SStore {
+				original: handler.original_storage(address, index),
+				current: handler.storage(address, index),
+				new: value,
+			}
+		},
+		Err(ExternalOpcode::Sha3) => GasCost::Sha3 {
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Log(n)) => GasCost::Log {
+			n,
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::ExtCodeCopy) => GasCost::ExtCodeCopy {
+			len: U256::from_big_endian(&stack.peek(3)?[..]),
+		},
+		Ok(Opcode::CallDataCopy) | Ok(Opcode::CodeCopy) |
+		Err(ExternalOpcode::ReturnDataCopy) => GasCost::VeryLowCopy {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
+		Ok(Opcode::Exp) => GasCost::Exp {
+			power: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Create) => GasCost::Create,
+		Err(ExternalOpcode::Create2) => GasCost::Create2 {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
+		Ok(Opcode::JumpDest) => GasCost::JumpDest,
+		Err(ExternalOpcode::SLoad) => GasCost::SLoad,
+
+		Ok(Opcode::Invalid) => GasCost::Invalid,
+		Err(ExternalOpcode::Other(_)) => GasCost::Invalid,
+	};
+
+	let memory_cost = match opcode {
+		Err(ExternalOpcode::Sha3) | Ok(Opcode::Return) | Ok(Opcode::Revert) |
+		Err(ExternalOpcode::Log(_)) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		}),
+
+		Ok(Opcode::CodeCopy) | Ok(Opcode::CallDataCopy) |
+		Err(ExternalOpcode::ReturnDataCopy) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		}),
+
+		Err(ExternalOpcode::ExtCodeCopy) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(3)?[..]),
+		}),
+
+		Ok(Opcode::MLoad) | Ok(Opcode::MStore) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			len: U256::from(32),
+		}),
+
+		Ok(Opcode::MStore8) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			len: U256::from(1),
+		}),
+
+		Err(ExternalOpcode::Create) | Err(ExternalOpcode::Create2) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		}),
+
+		Err(ExternalOpcode::Call) | Err(ExternalOpcode::CallCode) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(3)?[..]),
+			len: U256::from_big_endian(&stack.peek(4)?[..]),
+		}.join(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(5)?[..]),
+			len: U256::from_big_endian(&stack.peek(6)?[..]),
+		})),
+
+		Err(ExternalOpcode::DelegateCall) |
+		Err(ExternalOpcode::StaticCall) => Some(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: U256::from_big_endian(&stack.peek(3)?[..]),
+		}.join(MemoryCost {
+			offset: U256::from_big_endian(&stack.peek(4)?[..]),
+			len: U256::from_big_endian(&stack.peek(5)?[..]),
+		})),
+
+		_ => None,
+	};
+
+	Ok((gas_cost, memory_cost))
 }
 
 struct Inner<'config> {
@@ -120,8 +279,8 @@ impl<'config> Inner<'config> {
 				costs::call_cost(value, true, true, !target_exists, self.config),
 			GasCost::CallCode { value, target_exists, .. } =>
 				costs::call_cost(value, true, false, !target_exists, self.config),
-			GasCost::DelegateCall { value, target_exists, .. } =>
-				costs::call_cost(value, false, false, !target_exists, self.config),
+			GasCost::DelegateCall { target_exists, .. } =>
+				costs::call_cost(U256::zero(), false, false, !target_exists, self.config),
 			GasCost::StaticCall { target_exists, .. } =>
 				costs::call_cost(U256::zero(), false, true, !target_exists, self.config),
 			GasCost::Suicide { value, target_exists, .. } =>
@@ -222,7 +381,7 @@ pub enum GasCost {
 
 	Call { value: U256, gas: U256, target_exists: bool },
 	CallCode { value: U256, gas: U256, target_exists: bool },
-	DelegateCall { value: U256, gas: U256, target_exists: bool },
+	DelegateCall { gas: U256, target_exists: bool },
 	StaticCall { gas: U256, target_exists: bool },
 	Suicide { value: U256, target_exists: bool, already_removed: bool },
 	SStore { original: H256, current: H256, new: H256 },
@@ -240,4 +399,17 @@ pub enum GasCost {
 pub struct MemoryCost {
 	pub offset: U256,
 	pub len: U256,
+}
+
+impl MemoryCost {
+	pub fn join(self, other: MemoryCost) -> MemoryCost {
+		let self_end = self.offset.saturating_add(self.len);
+		let other_end = other.offset.saturating_add(other.len);
+
+		if self_end >= other_end {
+			self
+		} else {
+			other
+		}
+	}
 }

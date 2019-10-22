@@ -11,10 +11,12 @@ edition = "2018"
 [dependencies]
 primitive-types = { version = "0.5", default-features = false }
 evm-core = { version = "0.13", path = "../core", default-features = false }
+evm-runtime = { version = "0.13", path = "../runtime", default-features = false }
 
 [features]
 default = ["std"]
 std = [
   "evm-core/std",
+  "evm-runtime/std",
   "primitive-types/std",
 ]
