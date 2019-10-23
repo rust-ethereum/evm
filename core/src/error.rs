@@ -34,6 +34,7 @@ impl ExitReason {
 pub enum ExitSucceed {
 	Stopped,
 	Returned,
+	Suicided,
 
 	Other(&'static str),
 }

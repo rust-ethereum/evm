@@ -170,6 +170,7 @@ pub fn swap(state: &mut Machine, n: usize) -> Control {
 
 pub fn ret(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
+	println!("return start: {}, len: {}", start, len);
 	if let Some(end) = start.checked_add(len) {
 		state.return_range = start..end;
 		Control::Exit(ExitSucceed::Returned.into())

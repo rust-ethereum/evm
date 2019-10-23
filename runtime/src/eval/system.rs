@@ -1,7 +1,7 @@
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
 use crate::{Runtime, ExitError, Handler, Capture,
-			CreateScheme, CallScheme, Context};
+			CreateScheme, CallScheme, Context, ExitSucceed};
 use super::Control;
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
@@ -193,7 +193,7 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 		Err(e) => return Control::Exit(e.into()),
 	}
 
-	Control::Continue
+	Control::Exit(ExitSucceed::Suicided.into())
 }
 
 pub fn create<H: Handler>(

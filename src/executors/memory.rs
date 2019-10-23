@@ -1,12 +1,12 @@
 use core::convert::Infallible;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
 			Context, CreateScheme, Runtime, ExitReason, Resolve};
 use crate::gasometer::{self, Gasometer};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Account {
 	pub nonce: U256,
 	pub balance: U256,
@@ -38,6 +38,8 @@ pub struct Executor<'ostate, 'gconfig> {
 	gasometer: Gasometer<'gconfig>,
 	state: HashMap<H160, Account>,
 	vicinity: Vicinity,
+	deleted: HashSet<H160>,
+	logs: Vec<Log>,
 }
 
 impl<'ostate, 'gconfig> Executor<'ostate, 'gconfig> {
@@ -50,6 +52,8 @@ impl<'ostate, 'gconfig> Executor<'ostate, 'gconfig> {
 			state: original_state.clone(),
 			original_state,
 			vicinity,
+			deleted: HashSet::new(),
+			logs: Vec::new(),
 			gasometer: Gasometer::new(gas_limit, gasometer_config),
 		}
 	}
@@ -67,6 +71,14 @@ impl<'ostate, 'gconfig> Executor<'ostate, 'gconfig> {
 
 	pub fn state(&self) -> &HashMap<H160, Account> {
 		&self.state
+	}
+
+	pub fn finalize(&mut self) {
+		for address in &self.deleted {
+			self.state.remove(address);
+		}
+
+		self.deleted = HashSet::new();
 	}
 }
 
@@ -127,7 +139,7 @@ impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 
 	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 { unimplemented!() }
 	fn exists(&self, address: H160) -> bool { self.state.get(&address).is_some() }
-	fn deleted(&self, address: H160) -> bool { unimplemented!() }
+	fn deleted(&self, address: H160) -> bool { self.deleted.contains(&address) }
 
 	fn is_recoverable(&self) -> bool { true }
 
@@ -145,16 +157,41 @@ impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 		}
 	}
 
-	fn log(&mut self, address: H160, topcis: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
-		unimplemented!()
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
+		self.logs.push(Log {
+			address, topics, data
+		});
+
+		Ok(())
 	}
 
 	fn transfer(&mut self, source: H160, target: H160, value: U256) -> Result<(), ExitError> {
-		unimplemented!()
+		if value == U256::zero() {
+			return Ok(())
+		}
+
+		match self.state.get_mut(&source) {
+			Some(source) => {
+				if source.balance >= value {
+					source.balance -= value;
+				} else {
+					return Err(ExitError::Other("not enough fund"))
+				}
+			},
+			None => return Err(ExitError::Other("not enough fund"))
+		}
+
+		self.state.entry(target)
+			.or_insert(Default::default())
+			.balance += value;
+
+		Ok(())
 	}
 
 	fn mark_delete(&mut self, address: H160) -> Result<(), ExitError> {
-		unimplemented!()
+		self.deleted.insert(address);
+
+		Ok(())
 	}
 
 	fn create(
@@ -187,6 +224,8 @@ impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 		// TODO: Add opcode check.
 		let (gas_cost, memory_cost) = gasometer::cost(context.address, opcode, stack, self)?;
 		self.gasometer.record(gas_cost, memory_cost)?;
+
+		println!("opcode: {:?}, after_gas: {}", opcode, self.gasometer.gas());
 
 		Ok(())
 	}

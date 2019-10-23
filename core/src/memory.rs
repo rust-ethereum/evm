@@ -29,6 +29,10 @@ impl Memory {
 
 	/// Resize the current memory range to given length, aligned to next 32.
 	pub fn resize(&mut self, mut size: usize) -> Result<(), ExitError> {
+		if size == 0 {
+			size = 1;
+		}
+
 		if self.data.len() >= size {
 			return Ok(())
 		}
@@ -86,7 +90,7 @@ impl Memory {
 		self.resize(offset + target_size)?;
 
 		for index in 0..target_size {
-			if self.data.len() > offset + index {
+			if self.data.len() > offset + index && value.len() > index {
 				self.data[offset + index] = value[index];
 			}
 		}
