@@ -4,15 +4,18 @@ use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
 			Context, CreateScheme, Runtime, ExitReason, Resolve};
+use crate::gasometer::{self, Gasometer};
 
-pub struct MemoryAccount {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Account {
 	pub nonce: U256,
 	pub balance: U256,
 	pub storage: HashMap<H256, H256>,
 	pub code: Vec<u8>,
 }
 
-pub struct MemoryContext {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Vicinity {
 	pub gas_price: U256,
 	pub origin: H160,
 	pub block_hashes: Vec<H256>,
@@ -23,28 +26,51 @@ pub struct MemoryContext {
 	pub block_gas_limit: U256,
 }
 
-pub struct MemoryLog {
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Log {
 	pub address: H160,
 	pub topics: Vec<H256>,
 	pub data: Vec<u8>,
 }
 
-pub struct MemoryExecutor<'ostate> {
-	original_state: &'ostate HashMap<H160, MemoryAccount>,
-	state: HashMap<H160, MemoryAccount>,
-	context: MemoryContext,
+pub struct Executor<'ostate, 'gconfig> {
+	original_state: &'ostate HashMap<H160, Account>,
+	gasometer: Gasometer<'gconfig>,
+	state: HashMap<H160, Account>,
+	vicinity: Vicinity,
 }
 
-impl<'ostate> MemoryExecutor<'ostate> {
+impl<'ostate, 'gconfig> Executor<'ostate, 'gconfig> {
+	pub fn new(
+		original_state: &'ostate HashMap<H160, Account>,
+		vicinity: Vicinity,
+		gas_limit: usize,
+		gasometer_config: &'gconfig gasometer::Config) -> Self {
+		Self {
+			state: original_state.clone(),
+			original_state,
+			vicinity,
+			gasometer: Gasometer::new(gas_limit, gasometer_config),
+		}
+	}
+
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		match runtime.run(self) {
 			Capture::Exit(reason) => reason,
 			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
 	}
+
+	pub fn gas(&self) -> usize {
+		self.gasometer.gas()
+	}
+
+	pub fn state(&self) -> &HashMap<H160, Account> {
+		&self.state
+	}
 }
 
-impl<'ostate> Handler for MemoryExecutor<'ostate> {
+impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
@@ -80,24 +106,24 @@ impl<'ostate> Handler for MemoryExecutor<'ostate> {
 			.unwrap_or(H256::default())
 	}
 
-	fn gas_left(&self) -> U256 { unimplemented!() }
-	fn gas_price(&self) -> U256 { self.context.gas_price }
-	fn origin(&self) -> H160 { self.context.origin }
+	fn gas_left(&self) -> U256 { U256::from(self.gasometer.gas()) }
+	fn gas_price(&self) -> U256 { self.vicinity.gas_price }
+	fn origin(&self) -> H160 { self.vicinity.origin }
 	fn block_hash(&self, number: U256) -> H256 {
-		if number >= self.context.block_number ||
-			self.context.block_number - number - U256::one() >= U256::from(self.context.block_hashes.len())
+		if number >= self.vicinity.block_number ||
+			self.vicinity.block_number - number - U256::one() >= U256::from(self.vicinity.block_hashes.len())
 		{
 			H256::default()
 		} else {
-			let index = (self.context.block_number - number - U256::one()).as_usize();
-			self.context.block_hashes[index]
+			let index = (self.vicinity.block_number - number - U256::one()).as_usize();
+			self.vicinity.block_hashes[index]
 		}
 	}
-	fn block_number(&self) -> U256 { self.context.block_number }
-	fn block_coinbase(&self) -> H160 { self.context.block_coinbase }
-	fn block_timestamp(&self) -> U256 { self.context.block_timestamp }
-	fn block_difficulty(&self) -> U256 { self.context.block_difficulty }
-	fn block_gas_limit(&self) -> U256 { self.context.block_gas_limit }
+	fn block_number(&self) -> U256 { self.vicinity.block_number }
+	fn block_coinbase(&self) -> H160 { self.vicinity.block_coinbase }
+	fn block_timestamp(&self) -> U256 { self.vicinity.block_timestamp }
+	fn block_difficulty(&self) -> U256 { self.vicinity.block_difficulty }
+	fn block_gas_limit(&self) -> U256 { self.vicinity.block_gas_limit }
 
 	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 { unimplemented!() }
 	fn exists(&self, address: H160) -> bool { self.state.get(&address).is_some() }
@@ -106,7 +132,17 @@ impl<'ostate> Handler for MemoryExecutor<'ostate> {
 	fn is_recoverable(&self) -> bool { true }
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		unimplemented!()
+		match self.state.get_mut(&address) {
+			Some(entry) => {
+				if value == H256::default() {
+					entry.storage.remove(&index);
+				} else {
+					entry.storage.insert(index, value);
+				}
+				Ok(())
+			},
+			None => Err(ExitError::Other("logic error: set storage, but account does not exist")),
+		}
 	}
 
 	fn log(&mut self, address: H160, topcis: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
@@ -144,9 +180,14 @@ impl<'ostate> Handler for MemoryExecutor<'ostate> {
 
 	fn pre_validate(
 		&mut self,
+		context: &Context,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
-		unimplemented!()
+		// TODO: Add opcode check.
+		let (gas_cost, memory_cost) = gasometer::cost(context.address, opcode, stack, self)?;
+		self.gasometer.record(gas_cost, memory_cost)?;
+
+		Ok(())
 	}
 }

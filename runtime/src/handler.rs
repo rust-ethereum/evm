@@ -64,6 +64,7 @@ pub trait Handler {
 
 	fn pre_validate(
 		&mut self,
+		context: &Context,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError>;

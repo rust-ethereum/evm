@@ -14,6 +14,22 @@ pub enum ExitReason {
 	Error(ExitError),
 }
 
+impl ExitReason {
+	pub fn is_succeed(&self) -> bool {
+		match self {
+			ExitReason::Succeed(_) => true,
+			ExitReason::Error(_) => false,
+		}
+	}
+
+	pub fn is_error(&self) -> bool {
+		match self {
+			ExitReason::Succeed(_) => false,
+			ExitReason::Error(_) => true,
+		}
+	}
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExitSucceed {
 	Stopped,

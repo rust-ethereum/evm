@@ -27,10 +27,14 @@ pub fn rem(op1: U256, op2: U256) -> U256 {
 }
 
 pub fn srem(op1: U256, op2: U256) -> U256 {
-	let op1: I256 = op1.into();
-	let op2: I256 = op2.into();
-	let ret = op1.rem(op2);
-	ret.into()
+	if op2 == U256::zero() {
+		U256::zero()
+	} else {
+		let op1: I256 = op1.into();
+		let op2: I256 = op2.into();
+		let ret = op1.rem(op2);
+		ret.into()
+	}
 }
 
 pub fn addmod(op1: U256, op2: U256, op3: U256) -> U256 {

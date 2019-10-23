@@ -1,3 +1,6 @@
 [submodule "jsontests/res/files/eth"]
 	path = jsontests/res/files/eth
 	url = https://github.com/etclabscore/tests.git
+[submodule "jsontests/ethtests"]
+	path = jsontests/res/ethtests
+	url = https://github.com/ethereum/tests

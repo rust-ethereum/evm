@@ -87,7 +87,7 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<usize, ExitError> {
 		let gas = U256::from(G_EXP)
 			.checked_add(
 				U256::from(config.gas_expbyte)
-					.checked_mul(power / U256::from(8) + U256::one())
+					.checked_mul(U256::from(crate::utils::log2floor(power) / 8 + 1))
 					.ok_or(ExitError::OutOfGas)?
 			)
 			.ok_or(ExitError::OutOfGas)?;
@@ -178,7 +178,7 @@ pub fn sha3_cost(len: U256) -> Result<usize, ExitError> {
 }
 
 pub fn sstore_cost(original: H256, current: H256, new: H256, config: &Config) -> usize {
-	if config.has_reduced_sstore_gas_metering {
+	if !config.has_reduced_sstore_gas_metering {
 		if current == H256::zero() && new != H256::zero() {
 			G_SSET
 		} else {

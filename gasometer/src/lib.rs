@@ -3,6 +3,7 @@
 mod consts;
 mod costs;
 mod memory;
+mod utils;
 
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
@@ -15,10 +16,41 @@ pub struct Gasometer<'config> {
 }
 
 impl<'config> Gasometer<'config> {
+	pub fn new(gas_limit: usize, config: &'config Config) -> Self {
+		Self {
+			gas_limit,
+			inner: Ok(Inner {
+				memory_cost: 0,
+				used_gas: 0,
+				refunded_gas: 0,
+				config,
+			}),
+		}
+	}
+
 	fn inner_mut(
 		&mut self
 	) -> Result<&mut Inner<'config>, ExitError> {
 		self.inner.as_mut().map_err(|e| *e)
+	}
+
+	pub fn gas(&self) -> usize {
+		match self.inner.as_ref() {
+			Ok(inner) => {
+				self.gas_limit - inner.used_gas -
+					memory::memory_gas(inner.memory_cost).expect("Checked via record")
+			},
+			Err(_) => 0,
+		}
+	}
+
+	pub fn refunded_gas(&self) -> isize {
+		match self.inner.as_ref() {
+			Ok(inner) => {
+				inner.refunded_gas
+			},
+			Err(_) => 0,
+		}
 	}
 
 	pub fn record(
@@ -362,6 +394,24 @@ pub struct Config {
 	pub err_on_call_with_more_gas: bool,
 	/// Whether empty account is considered exists.
 	pub empty_considered_exists: bool,
+}
+
+impl Config {
+	pub fn frontier() -> Config {
+		Config {
+			gas_extcode: 20,
+			gas_balance: 20,
+			gas_sload: 50,
+			gas_suicide: 0,
+			gas_suicide_new_account: 0,
+			gas_call: 40,
+			gas_expbyte: 10,
+			gas_transaction_create: 0,
+			has_reduced_sstore_gas_metering: false,
+			err_on_call_with_more_gas: true,
+			empty_considered_exists: true,
+		}
+	}
 }
 
 #[derive(Clone)]

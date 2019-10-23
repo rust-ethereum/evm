@@ -24,4 +24,5 @@ members = [
   "core",
   "gasometer",
   "runtime",
+  "jsontests",
 ]

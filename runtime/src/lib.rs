@@ -1,3 +1,5 @@
+extern crate alloc;
+
 mod eval;
 mod context;
 mod interrupt;
@@ -9,10 +11,12 @@ pub use crate::context::{CreateScheme, CallScheme, Context};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 pub use crate::handler::Handler;
 
+use alloc::rc::Rc;
+
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
 		if let Some((opcode, stack)) = $self.machine.inspect() {
-			match $handler.pre_validate(opcode, stack) {
+			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
 				Err(error) => {
 					$self.machine.exit(error.into());
@@ -69,6 +73,25 @@ pub struct Runtime {
 }
 
 impl Runtime {
+	pub fn new(
+		code: Rc<Vec<u8>>,
+		data: Rc<Vec<u8>>,
+		stack_limit: usize,
+		memory_limit: usize,
+		context: Context,
+	) -> Self {
+		Self {
+			machine: Machine::new(code, data, stack_limit, memory_limit),
+			status: Ok(()),
+			return_data_buffer: Vec::new(),
+			context,
+		}
+	}
+
+	pub fn machine(&self) -> &Machine {
+		&self.machine
+	}
+
 	pub fn step<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
