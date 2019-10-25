@@ -244,8 +244,8 @@ pub fn create<H: Handler>(
 	}
 
 	match handler.create(create_address, code, None, context) {
-		Ok(Capture::Exit(address)) => {
-			push!(runtime, address.into());
+		Ok(Capture::Exit(())) => {
+			push!(runtime, create_address.into());
 			Control::Continue
 		},
 		Ok(Capture::Trap(interrupt)) => {

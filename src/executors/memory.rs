@@ -1,9 +1,11 @@
 use core::convert::Infallible;
+use core::cmp::min;
+use alloc::rc::Rc;
 use std::collections::{HashMap, HashSet};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
-			Context, CreateScheme, Runtime, ExitReason, Resolve};
+			Context, CreateScheme, Runtime, ExitReason};
 use crate::gasometer::{self, Gasometer};
 
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
@@ -33,19 +35,19 @@ pub struct Log {
 	pub data: Vec<u8>,
 }
 
-pub struct Executor<'ostate, 'gconfig> {
+pub struct Executor<'ostate, 'vicinity, 'gconfig> {
 	original_state: &'ostate HashMap<H160, Account>,
 	gasometer: Gasometer<'gconfig>,
 	state: HashMap<H160, Account>,
-	vicinity: Vicinity,
+	vicinity: &'vicinity Vicinity,
 	deleted: HashSet<H160>,
 	logs: Vec<Log>,
 }
 
-impl<'ostate, 'gconfig> Executor<'ostate, 'gconfig> {
+impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
 	pub fn new(
 		original_state: &'ostate HashMap<H160, Account>,
-		vicinity: Vicinity,
+		vicinity: &'vicinity Vicinity,
 		gas_limit: usize,
 		gasometer_config: &'gconfig gasometer::Config) -> Self {
 		Self {
@@ -80,9 +82,13 @@ impl<'ostate, 'gconfig> Executor<'ostate, 'gconfig> {
 
 		self.deleted = HashSet::new();
 	}
+
+	pub fn nonce(&self, address: H160) -> U256 {
+		self.state.get(&address).map(|v| v.nonce).unwrap_or(U256::zero())
+	}
 }
 
-impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
+impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gconfig> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
@@ -137,7 +143,18 @@ impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 	fn block_difficulty(&self) -> U256 { self.vicinity.block_difficulty }
 	fn block_gas_limit(&self) -> U256 { self.vicinity.block_gas_limit }
 
-	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 { unimplemented!() }
+	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 {
+		match scheme {
+			CreateScheme::Fixed(address) => address,
+			CreateScheme::Dynamic => {
+				let nonce = self.nonce(address);
+				let mut stream = rlp::RlpStream::new_list(2);
+				stream.append(&address);
+				stream.append(&nonce);
+				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+			},
+		}
+	}
 	fn exists(&self, address: H160) -> bool { self.state.get(&address).is_some() }
 	fn deleted(&self, address: H160) -> bool { self.deleted.contains(&address) }
 
@@ -200,8 +217,46 @@ impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
-	) -> Result<Capture<H160, Self::CreateInterrupt>, ExitError> {
-		unimplemented!()
+	) -> Result<Capture<(), Self::CreateInterrupt>, ExitError> {
+		let after_gas = self.gasometer.gas(); // TODO: support l64(after_gas)
+		let target_gas = target_gas.unwrap_or(after_gas);
+
+		let gas_limit = min(after_gas, target_gas);
+
+		let mut substate = Self::new(
+			self.original_state,
+			self.vicinity,
+			gas_limit,
+			self.gasometer.config()
+		);
+		substate.state.insert(address, Default::default());
+
+		let mut runtime = Runtime::new(
+			Rc::new(init_code),
+			Rc::new(Vec::new()),
+			1024,
+			usize::max_value(),
+			context,
+		);
+
+		let reason = substate.execute(&mut runtime);
+
+		self.gasometer.merge(substate.gasometer)?;
+		self.logs.append(&mut substate.logs);
+
+		match reason {
+			ExitReason::Succeed(_) => {
+				self.deleted.intersection(&substate.deleted);
+				self.state = substate.state;
+				self.state.entry(address).or_insert(Default::default())
+					.code = runtime.machine().return_value();
+
+				Ok(Capture::Exit(()))
+			},
+			ExitReason::Error(e) => {
+				Err(e)
+			},
+		}
 	}
 
 	fn call(
@@ -209,10 +264,44 @@ impl<'ostate, 'gconfig> Handler for Executor<'ostate, 'gconfig> {
 		code_address: H160,
 		input: Vec<u8>,
 		target_gas: Option<usize>,
-		is_static: bool,
+		_is_static: bool, // TODO: support this
 		context: Context,
 	) -> Result<Capture<Vec<u8>, Self::CallInterrupt>, ExitError> {
-		unimplemented!()
+		let after_gas = self.gasometer.gas(); // TODO: support l64(after_gas)
+		let target_gas = target_gas.unwrap_or(after_gas);
+		let code = self.code(code_address);
+
+		let gas_limit = min(after_gas, target_gas);
+		let mut substate = Self::new(
+			self.original_state,
+			self.vicinity,
+			gas_limit,
+			self.gasometer.config()
+		);
+		let mut runtime = Runtime::new(
+			Rc::new(code),
+			Rc::new(input),
+			1024,
+			usize::max_value(),
+			context,
+		);
+
+		let reason = substate.execute(&mut runtime);
+
+		self.gasometer.merge(substate.gasometer)?;
+		self.logs.append(&mut substate.logs);
+
+		match reason {
+			ExitReason::Succeed(_) => {
+				self.deleted.intersection(&substate.deleted);
+				self.state = substate.state;
+
+				Ok(Capture::Exit(runtime.machine().return_value()))
+			},
+			ExitReason::Error(e) => {
+				Err(e)
+			},
+		}
 	}
 
 	fn pre_validate(

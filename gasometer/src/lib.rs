@@ -12,6 +12,7 @@ use evm_runtime::Handler;
 
 pub struct Gasometer<'config> {
 	gas_limit: usize,
+	config: &'config Config,
 	inner: Result<Inner<'config>, ExitError>
 }
 
@@ -19,6 +20,7 @@ impl<'config> Gasometer<'config> {
 	pub fn new(gas_limit: usize, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
+			config,
 			inner: Ok(Inner {
 				memory_cost: 0,
 				used_gas: 0,
@@ -34,6 +36,26 @@ impl<'config> Gasometer<'config> {
 		self.inner.as_mut().map_err(|e| *e)
 	}
 
+	pub fn merge<'oconfig>(&mut self, other: Gasometer<'oconfig>) -> Result<(), ExitError> {
+		let other_refunded_gas = other.refunded_gas();
+		let other_total_used_gas = other.total_used_gas();
+
+		let all_gas_cost = self.total_used_gas() + other_total_used_gas;
+		if self.gas_limit < all_gas_cost {
+			self.inner = Err(ExitError::OutOfGas);
+			return Err(ExitError::OutOfGas)
+		}
+
+		self.inner_mut()?.used_gas += other_total_used_gas;
+		self.inner_mut()?.refunded_gas += other_refunded_gas;
+
+		Ok(())
+	}
+
+	pub fn config(&self) -> &'config Config {
+		self.config
+	}
+
 	pub fn gas(&self) -> usize {
 		match self.inner.as_ref() {
 			Ok(inner) => {
@@ -44,11 +66,17 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	pub fn total_used_gas(&self) -> usize {
+		match self.inner.as_ref() {
+			Ok(inner) => inner.used_gas +
+				memory::memory_gas(inner.memory_cost).expect("Checked via record"),
+			Err(_) => self.gas_limit,
+		}
+	}
+
 	pub fn refunded_gas(&self) -> isize {
 		match self.inner.as_ref() {
-			Ok(inner) => {
-				inner.refunded_gas
-			},
+			Ok(inner) => inner.refunded_gas,
 			Err(_) => 0,
 		}
 	}

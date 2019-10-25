@@ -40,7 +40,7 @@ pub trait Handler {
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
-	) -> Result<Capture<H160, Self::CreateInterrupt>, ExitError>;
+	) -> Result<Capture<(), Self::CreateInterrupt>, ExitError>;
 	fn create_feedback(
 		&mut self,
 		_feedback: Self::CreateFeedback

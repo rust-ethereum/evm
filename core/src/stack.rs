@@ -15,6 +15,10 @@ impl Stack {
 		}
 	}
 
+	pub fn limit(&self) -> usize {
+		self.limit
+	}
+
 	pub fn pop(&mut self) -> Result<H256, ExitError> {
 		self.data.pop().ok_or(ExitError::StackUnderflow)
 	}

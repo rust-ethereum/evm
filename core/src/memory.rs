@@ -17,6 +17,10 @@ impl Memory {
 		}
 	}
 
+	pub fn limit(&self) -> usize {
+		self.limit
+	}
+
 	/// Get the length of the current effective memory range.
 	pub fn len(&self) -> usize {
 		self.data.len()
