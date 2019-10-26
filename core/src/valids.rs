@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use crate::Opcode;
 
 /// Mapping of valid jump destination from code.

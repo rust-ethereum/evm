@@ -1,4 +1,5 @@
 use primitive_types::U256;
+use alloc::vec::Vec;
 use crate::ExitError;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal

@@ -18,6 +18,7 @@ pub use crate::opcode::{Opcode, ExternalOpcode};
 pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError};
 
 use core::ops::Range;
+use alloc::vec::Vec;
 use alloc::rc::Rc;
 use primitive_types::U256;
 use crate::eval::{eval, Control};

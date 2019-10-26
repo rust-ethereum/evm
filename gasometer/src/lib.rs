@@ -425,7 +425,7 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn frontier() -> Config {
+	pub const fn frontier() -> Config {
 		Config {
 			gas_extcode: 20,
 			gas_balance: 20,

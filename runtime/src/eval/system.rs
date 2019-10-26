@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
 use crate::{Runtime, ExitError, Handler, Capture,
@@ -223,7 +224,19 @@ pub fn create<H: Handler>(
 		CreateScheme::Dynamic
 	};
 
-	let create_address = handler.create_address(runtime.context.address, scheme);
+	let create_address = match handler.create_address(runtime.context.address, scheme) {
+		Ok(address) => address,
+		Err(e) => {
+			push!(runtime, H256::default());
+
+			return if handler.is_recoverable() {
+				Control::Continue
+			} else {
+				Control::Exit(e.into())
+			}
+		},
+	};
+
 	let context = Context {
 		address: create_address,
 		caller: runtime.context.address,

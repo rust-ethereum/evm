@@ -1,4 +1,5 @@
 use primitive_types::H256;
+use alloc::vec::Vec;
 use crate::ExitError;
 
 #[derive(Clone, Debug)]

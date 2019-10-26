@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 use crate::{Capture, Stack, ExitError, Opcode, ExternalOpcode,
 			CreateScheme, Context, Machine};
@@ -25,11 +26,12 @@ pub trait Handler {
 	fn block_difficulty(&self) -> U256;
 	fn block_gas_limit(&self) -> U256;
 
-	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160;
 	fn exists(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
 
 	fn is_recoverable(&self) -> bool;
+
+	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError>;
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	fn log(&mut self, address: H160, topcis: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	fn transfer(&mut self, source: H160, target: H160, value: U256) -> Result<(), ExitError>;

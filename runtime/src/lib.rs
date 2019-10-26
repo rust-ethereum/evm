@@ -1,3 +1,5 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
 extern crate alloc;
 
 mod eval;
@@ -11,6 +13,7 @@ pub use crate::context::{CreateScheme, CallScheme, Context};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 pub use crate::handler::Handler;
 
+use alloc::vec::Vec;
 use alloc::rc::Rc;
 
 macro_rules! step {

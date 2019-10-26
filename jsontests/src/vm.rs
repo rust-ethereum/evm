@@ -136,7 +136,7 @@ pub fn test(name: &str, test: Test) {
 	let gasometer_config = gasometer::Config::frontier();
 	let mut executor = memory::Executor::new(
 		&original_state,
-		vicinity,
+		&vicinity,
 		test.unwrap_to_gas_limit(),
 		&gasometer_config,
 	);

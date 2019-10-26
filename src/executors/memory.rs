@@ -1,7 +1,8 @@
 use core::convert::Infallible;
 use core::cmp::min;
 use alloc::rc::Rc;
-use std::collections::{HashMap, HashSet};
+use alloc::vec::Vec;
+use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
@@ -12,7 +13,7 @@ use crate::gasometer::{self, Gasometer};
 pub struct Account {
 	pub nonce: U256,
 	pub balance: U256,
-	pub storage: HashMap<H256, H256>,
+	pub storage: BTreeMap<H256, H256>,
 	pub code: Vec<u8>,
 }
 
@@ -36,17 +37,17 @@ pub struct Log {
 }
 
 pub struct Executor<'ostate, 'vicinity, 'gconfig> {
-	original_state: &'ostate HashMap<H160, Account>,
+	original_state: &'ostate BTreeMap<H160, Account>,
 	gasometer: Gasometer<'gconfig>,
-	state: HashMap<H160, Account>,
+	state: BTreeMap<H160, Account>,
 	vicinity: &'vicinity Vicinity,
-	deleted: HashSet<H160>,
+	deleted: BTreeSet<H160>,
 	logs: Vec<Log>,
 }
 
 impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
 	pub fn new(
-		original_state: &'ostate HashMap<H160, Account>,
+		original_state: &'ostate BTreeMap<H160, Account>,
 		vicinity: &'vicinity Vicinity,
 		gas_limit: usize,
 		gasometer_config: &'gconfig gasometer::Config) -> Self {
@@ -54,7 +55,7 @@ impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
 			state: original_state.clone(),
 			original_state,
 			vicinity,
-			deleted: HashSet::new(),
+			deleted: BTreeSet::new(),
 			logs: Vec::new(),
 			gasometer: Gasometer::new(gas_limit, gasometer_config),
 		}
@@ -71,7 +72,7 @@ impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
 		self.gasometer.gas()
 	}
 
-	pub fn state(&self) -> &HashMap<H160, Account> {
+	pub fn state(&self) -> &BTreeMap<H160, Account> {
 		&self.state
 	}
 
@@ -80,7 +81,7 @@ impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
 			self.state.remove(address);
 		}
 
-		self.deleted = HashSet::new();
+		self.deleted = BTreeSet::new();
 	}
 
 	pub fn nonce(&self, address: H160) -> U256 {
@@ -143,15 +144,17 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 	fn block_difficulty(&self) -> U256 { self.vicinity.block_difficulty }
 	fn block_gas_limit(&self) -> U256 { self.vicinity.block_gas_limit }
 
-	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 {
+	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError> {
 		match scheme {
-			CreateScheme::Fixed(address) => address,
+			CreateScheme::Fixed(address) => Ok(address),
 			CreateScheme::Dynamic => {
 				let nonce = self.nonce(address);
+				self.state.entry(address).or_insert(Default::default()).nonce += U256::one();
+
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(&address);
 				stream.append(&nonce);
-				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+				Ok(H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into())
 			},
 		}
 	}
@@ -313,8 +316,6 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 		// TODO: Add opcode check.
 		let (gas_cost, memory_cost) = gasometer::cost(context.address, opcode, stack, self)?;
 		self.gasometer.record(gas_cost, memory_cost)?;
-
-		println!("opcode: {:?}, after_gas: {}", opcode, self.gasometer.gas());
 
 		Ok(())
 	}
