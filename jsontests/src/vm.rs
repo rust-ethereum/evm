@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, BTreeMap};
 use std::rc::Rc;
 use serde::{Serialize, Deserialize};
 use primitive_types::{H160, H256};
@@ -18,13 +18,13 @@ pub struct Test {
 }
 
 impl Test {
-	pub fn unwrap_to_pre_state(&self) -> HashMap<H160, memory::Account> {
+	pub fn unwrap_to_pre_state(&self) -> BTreeMap<H160, memory::Account> {
 		self.pre.iter().map(|(k, v)| {
 			(unwrap_to_h160(&k), v.unwrap_to_account())
 		}).collect()
 	}
 
-	pub fn unwrap_to_post_state(&self) -> HashMap<H160, memory::Account> {
+	pub fn unwrap_to_post_state(&self) -> BTreeMap<H160, memory::Account> {
 		self.post.as_ref().unwrap().iter().map(|(k, v)| {
 			(unwrap_to_h160(&k), v.unwrap_to_account())
 		}).collect()
