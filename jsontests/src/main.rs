@@ -1,9 +1,7 @@
 use std::fs::File;
 use std::collections::HashMap;
-use std::io::{self, BufReader, Write};
+use std::io::BufReader;
 use clap::{App, Arg};
-use evm::gasometer;
-use evm::executors::memory;
 use evm_jsontests::vm as vmtests;
 
 fn main() {

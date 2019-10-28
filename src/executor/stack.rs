@@ -7,57 +7,37 @@ use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
 			Context, CreateScheme, Runtime, ExitReason};
+use crate::backend::{Log, Basic, Apply, Backend};
 use crate::gasometer::{self, Gasometer};
 
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub struct Account {
-	pub nonce: U256,
-	pub balance: U256,
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
+pub struct StackAccount {
+	pub basic: Basic,
+	pub code: Option<Vec<u8>>,
 	pub storage: BTreeMap<H256, H256>,
-	pub code: Vec<u8>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Vicinity {
-	pub gas_price: U256,
-	pub origin: H160,
-	pub block_hashes: Vec<H256>,
-	pub block_number: U256,
-	pub block_coinbase: H160,
-	pub block_timestamp: U256,
-	pub block_difficulty: U256,
-	pub block_gas_limit: U256,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Log {
-	pub address: H160,
-	pub topics: Vec<H256>,
-	pub data: Vec<u8>,
-}
-
-pub struct Executor<'ostate, 'vicinity, 'gconfig> {
-	original_state: &'ostate BTreeMap<H160, Account>,
+#[derive(Clone)]
+pub struct StackExecutor<'backend, 'gconfig, B> {
+	backend: &'backend B,
 	gasometer: Gasometer<'gconfig>,
-	state: BTreeMap<H160, Account>,
-	vicinity: &'vicinity Vicinity,
+	state: BTreeMap<H160, StackAccount>,
 	deleted: BTreeSet<H160>,
 	logs: Vec<Log>,
 }
 
-impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
+impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 	pub fn new(
-		original_state: &'ostate BTreeMap<H160, Account>,
-		vicinity: &'vicinity Vicinity,
+		backend: &'backend B,
 		gas_limit: usize,
-		gasometer_config: &'gconfig gasometer::Config) -> Self {
+		gasometer_config: &'gconfig gasometer::Config
+	) -> Self {
 		Self {
-			state: original_state.clone(),
-			original_state,
-			vicinity,
+			backend,
+			gasometer: Gasometer::new(gas_limit, gasometer_config),
+			state: BTreeMap::new(),
 			deleted: BTreeSet::new(),
 			logs: Vec::new(),
-			gasometer: Gasometer::new(gas_limit, gasometer_config),
 		}
 	}
 
@@ -72,84 +52,116 @@ impl<'ostate, 'vicinity, 'gconfig> Executor<'ostate, 'vicinity, 'gconfig> {
 		self.gasometer.gas()
 	}
 
-	pub fn state(&self) -> &BTreeMap<H160, Account> {
-		&self.state
-	}
+	#[must_use]
+	pub fn finalize(
+		self
+	) -> (usize,
+		  impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
+		  impl IntoIterator<Item=Log>)
+	{
+		let gas = self.gasometer.gas();
 
-	pub fn finalize(&mut self) {
-		for address in &self.deleted {
-			self.state.remove(address);
+		let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
+
+		for (address, account) in self.state {
+			if self.deleted.contains(&address) {
+				continue
+			}
+
+			applies.push(Apply::Modify {
+				address,
+				basic: account.basic,
+				code: account.code,
+				storage: account.storage,
+			});
 		}
 
-		self.deleted = BTreeSet::new();
+		for address in self.deleted {
+			applies.push(Apply::Delete { address });
+		}
+
+		let logs = self.logs;
+
+		(gas, applies, logs)
+	}
+
+	pub fn account_mut(&mut self, address: H160) -> &mut StackAccount {
+		self.state.entry(address).or_insert(StackAccount {
+			basic: self.backend.basic(address),
+			code: None,
+			storage: BTreeMap::new(),
+		})
 	}
 
 	pub fn nonce(&self, address: H160) -> U256 {
-		self.state.get(&address).map(|v| v.nonce).unwrap_or(U256::zero())
+		self.state.get(&address).map(|v| v.basic.nonce)
+			.unwrap_or(self.backend.basic(address).nonce)
 	}
 }
 
-impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gconfig> {
+impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfig, B> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
 	type CallFeedback = Infallible;
 
 	fn balance(&self, address: H160) -> U256 {
-		self.state.get(&address).map(|v| v.balance).unwrap_or(U256::zero())
+		self.state.get(&address).map(|v| v.basic.balance)
+			.unwrap_or(self.backend.basic(address).balance)
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		self.state.get(&address).map(|v| U256::from(v.code.len())).unwrap_or(U256::zero())
+		U256::from(
+			self.state.get(&address).and_then(|v| v.code.as_ref().map(|c| c.len()))
+				.unwrap_or(self.backend.code_size(address))
+		)
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
-		self.state.get(&address).map(|v| {
-			H256::from_slice(Keccak256::digest(&v.code).as_slice())
-		}).unwrap_or(H256::default())
+		self.state.get(&address).and_then(|v| {
+			v.code.as_ref().map(|c| {
+				H256::from_slice(Keccak256::digest(&c).as_slice())
+			})
+		}).unwrap_or(self.backend.code_hash(address))
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.state.get(&address).map(|v| v.code.clone()).unwrap_or(Vec::new())
+		self.state.get(&address).and_then(|v| {
+			v.code.clone()
+		}).unwrap_or(self.backend.code(address))
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state.get(&address)
-			.map(|v| v.storage.get(&index).cloned().unwrap_or(H256::default()))
-			.unwrap_or(H256::default())
+			.and_then(|v| v.storage.get(&index).cloned())
+			.unwrap_or(self.backend.storage(address, index))
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
-		self.original_state.get(&address)
-			.map(|v| v.storage.get(&index).cloned().unwrap_or(H256::default()))
-			.unwrap_or(H256::default())
+		self.backend.storage(address, index)
+	}
+
+	fn exists(&self, address: H160) -> bool {
+		self.state.get(&address).is_some() || self.backend.exists(address)
 	}
 
 	fn gas_left(&self) -> U256 { U256::from(self.gasometer.gas()) }
-	fn gas_price(&self) -> U256 { self.vicinity.gas_price }
-	fn origin(&self) -> H160 { self.vicinity.origin }
-	fn block_hash(&self, number: U256) -> H256 {
-		if number >= self.vicinity.block_number ||
-			self.vicinity.block_number - number - U256::one() >= U256::from(self.vicinity.block_hashes.len())
-		{
-			H256::default()
-		} else {
-			let index = (self.vicinity.block_number - number - U256::one()).as_usize();
-			self.vicinity.block_hashes[index]
-		}
-	}
-	fn block_number(&self) -> U256 { self.vicinity.block_number }
-	fn block_coinbase(&self) -> H160 { self.vicinity.block_coinbase }
-	fn block_timestamp(&self) -> U256 { self.vicinity.block_timestamp }
-	fn block_difficulty(&self) -> U256 { self.vicinity.block_difficulty }
-	fn block_gas_limit(&self) -> U256 { self.vicinity.block_gas_limit }
+
+	fn gas_price(&self) -> U256 { self.backend.gas_price() }
+	fn origin(&self) -> H160 { self.backend.origin() }
+	fn block_hash(&self, number: U256) -> H256 { self.backend.block_hash(number) }
+	fn block_number(&self) -> U256 { self.backend.block_number() }
+	fn block_coinbase(&self) -> H160 { self.backend.block_coinbase() }
+	fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
+	fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
+	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
 
 	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError> {
 		match scheme {
 			CreateScheme::Fixed(address) => Ok(address),
 			CreateScheme::Dynamic => {
 				let nonce = self.nonce(address);
-				self.state.entry(address).or_insert(Default::default()).nonce += U256::one();
+				self.account_mut(address).basic.nonce += U256::one();
 
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(&address);
@@ -158,23 +170,15 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 			},
 		}
 	}
-	fn exists(&self, address: H160) -> bool { self.state.get(&address).is_some() }
+
 	fn deleted(&self, address: H160) -> bool { self.deleted.contains(&address) }
 
 	fn is_recoverable(&self) -> bool { true }
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		match self.state.get_mut(&address) {
-			Some(entry) => {
-				if value == H256::default() {
-					entry.storage.remove(&index);
-				} else {
-					entry.storage.insert(index, value);
-				}
-				Ok(())
-			},
-			None => Err(ExitError::Other("logic error: set storage, but account does not exist")),
-		}
+		self.account_mut(address).storage.insert(index, value);
+
+		Ok(())
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
@@ -186,24 +190,18 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 	}
 
 	fn transfer(&mut self, source: H160, target: H160, value: U256) -> Result<(), ExitError> {
-		if value == U256::zero() {
-			return Ok(())
+		{
+			let source = self.account_mut(source);
+			if source.basic.balance < value {
+				return Err(ExitError::Other("not enough fund"))
+			}
+			source.basic.balance -= value;
 		}
 
-		match self.state.get_mut(&source) {
-			Some(source) => {
-				if source.balance >= value {
-					source.balance -= value;
-				} else {
-					return Err(ExitError::Other("not enough fund"))
-				}
-			},
-			None => return Err(ExitError::Other("not enough fund"))
+		{
+			let target = self.account_mut(target);
+			target.basic.balance += value;
 		}
-
-		self.state.entry(target)
-			.or_insert(Default::default())
-			.balance += value;
 
 		Ok(())
 	}
@@ -227,8 +225,7 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 		let gas_limit = min(after_gas, target_gas);
 
 		let mut substate = Self::new(
-			self.original_state,
-			self.vicinity,
+			self.backend,
 			gas_limit,
 			self.gasometer.config()
 		);
@@ -252,7 +249,7 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 				self.deleted.intersection(&substate.deleted);
 				self.state = substate.state;
 				self.state.entry(address).or_insert(Default::default())
-					.code = runtime.machine().return_value();
+					.code = Some(runtime.machine().return_value());
 
 				Ok(Capture::Exit(()))
 			},
@@ -276,8 +273,7 @@ impl<'ostate, 'vicinity, 'gconfig> Handler for Executor<'ostate, 'vicinity, 'gco
 
 		let gas_limit = min(after_gas, target_gas);
 		let mut substate = Self::new(
-			self.original_state,
-			self.vicinity,
+			self.backend,
 			gas_limit,
 			self.gasometer.config()
 		);

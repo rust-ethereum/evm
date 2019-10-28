@@ -3,7 +3,8 @@ use std::rc::Rc;
 use serde::{Serialize, Deserialize};
 use primitive_types::{H160, H256};
 use evm::gasometer;
-use evm::executors::memory;
+use evm::backend::{Backend, ApplyBackend, MemoryBackend, MemoryVicinity, MemoryAccount};
+use evm::executor::StackExecutor;
 use crate::utils::*;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -18,20 +19,20 @@ pub struct Test {
 }
 
 impl Test {
-	pub fn unwrap_to_pre_state(&self) -> BTreeMap<H160, memory::Account> {
+	pub fn unwrap_to_pre_state(&self) -> BTreeMap<H160, MemoryAccount> {
 		self.pre.iter().map(|(k, v)| {
 			(unwrap_to_h160(&k), v.unwrap_to_account())
 		}).collect()
 	}
 
-	pub fn unwrap_to_post_state(&self) -> BTreeMap<H160, memory::Account> {
+	pub fn unwrap_to_post_state(&self) -> BTreeMap<H160, MemoryAccount> {
 		self.post.as_ref().unwrap().iter().map(|(k, v)| {
 			(unwrap_to_h160(&k), v.unwrap_to_account())
 		}).collect()
 	}
 
-	pub fn unwrap_to_vicinity(&self) -> memory::Vicinity {
-		memory::Vicinity {
+	pub fn unwrap_to_vicinity(&self) -> MemoryVicinity {
+		MemoryVicinity {
 			gas_price: unwrap_to_u256(&self.exec.gas_price),
 			origin: unwrap_to_h160(&self.exec.origin),
 			block_hashes: Vec::new(),
@@ -105,8 +106,8 @@ pub struct Account {
 }
 
 impl Account {
-	pub fn unwrap_to_account(&self) -> memory::Account {
-		memory::Account {
+	pub fn unwrap_to_account(&self) -> MemoryAccount {
+		MemoryAccount {
 			balance: unwrap_to_u256(&self.balance),
 			code: unwrap_to_vec(&self.code),
 			nonce: unwrap_to_u256(&self.nonce),
@@ -134,9 +135,9 @@ pub fn test(name: &str, test: Test) {
 	let original_state = test.unwrap_to_pre_state();
 	let vicinity = test.unwrap_to_vicinity();
 	let gasometer_config = gasometer::Config::frontier();
-	let mut executor = memory::Executor::new(
-		&original_state,
-		&vicinity,
+	let mut backend = MemoryBackend::new(&vicinity, original_state);
+	let mut executor = StackExecutor::new(
+		&backend,
 		test.unwrap_to_gas_limit(),
 		&gasometer_config,
 	);
@@ -147,7 +148,8 @@ pub fn test(name: &str, test: Test) {
 	let mut runtime = evm::Runtime::new(code, data, 1024, 1000000, context);
 
 	let reason = executor.execute(&mut runtime);
-	executor.finalize();
+	let (gas, values, logs) = executor.finalize();
+	backend.apply(values, logs);
 
 	if test.out.is_none() {
 		print!("{:?} ", reason);
@@ -161,8 +163,8 @@ pub fn test(name: &str, test: Test) {
 		print!("{:?} ", reason);
 
 		assert_eq!(runtime.machine().return_value(), test.unwrap_to_return_value());
-		assert_eq!(executor.state(), &test.unwrap_to_post_state());
-		assert_eq!(executor.gas(), expected_post_gas);
+		assert_eq!(backend.state(), &test.unwrap_to_post_state());
+		assert_eq!(gas, expected_post_gas);
 		println!("succeed");
 	}
 }

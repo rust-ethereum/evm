@@ -10,6 +10,7 @@ use primitive_types::{H160, H256, U256};
 use evm_core::{ExternalOpcode, Opcode, ExitError, Stack};
 use evm_runtime::Handler;
 
+#[derive(Clone)]
 pub struct Gasometer<'config> {
 	gas_limit: usize,
 	config: &'config Config,
@@ -280,6 +281,7 @@ pub fn cost<H: Handler>(
 	Ok((gas_cost, memory_cost))
 }
 
+#[derive(Clone)]
 struct Inner<'config> {
 	memory_cost: usize,
 	used_gas: usize,
