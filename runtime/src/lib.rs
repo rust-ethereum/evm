@@ -22,8 +22,8 @@ macro_rules! step {
 			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
 				Err(error) => {
-					$self.machine.exit(error.into());
-					$self.status = Err(error.into());
+					$self.machine.exit(Err(error));
+					$self.status = Err(Err(error));
 				},
 			}
 		}

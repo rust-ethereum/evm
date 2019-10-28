@@ -85,7 +85,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 		&handler.code(address.into())
 	) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	};
 
 	Control::Continue
@@ -103,7 +103,7 @@ pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 	match runtime.machine.memory_mut().copy_large(memory_offset, data_offset, len, &runtime.return_data_buffer) {
 		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -150,7 +150,7 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 	pop!(runtime, index, value);
 	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -170,13 +170,13 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	for _ in 0..(n as usize) {
 		match runtime.machine.stack_mut().pop() {
 			Ok(value) => { topics.push(value); }
-			Err(e) => return Control::Exit(e.into()),
+			Err(e) => return Control::Exit(Err(e)),
 		}
 	}
 
 	match handler.log(runtime.context.address, topics, data) {
 		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -186,15 +186,15 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	let balance = handler.balance(runtime.context.address);
 	match handler.transfer(runtime.context.address, target.into(), balance) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	}
 
 	match handler.mark_delete(runtime.context.address) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	}
 
-	Control::Exit(ExitSucceed::Suicided.into())
+	Control::Exit(Ok(ExitSucceed::Suicided))
 }
 
 pub fn create<H: Handler>(
@@ -232,7 +232,7 @@ pub fn create<H: Handler>(
 			return if handler.is_recoverable() {
 				Control::Continue
 			} else {
-				Control::Exit(e.into())
+				Control::Exit(Err(e))
 			}
 		},
 	};
@@ -251,13 +251,13 @@ pub fn create<H: Handler>(
 			return if handler.is_recoverable() {
 				Control::Continue
 			} else {
-				Control::Exit(e.into())
+				Control::Exit(Err(e))
 			}
 		},
 	}
 
 	match handler.create(create_address, code, None, context) {
-		Ok(Capture::Exit(())) => {
+		Ok(Capture::Exit(_)) => {
 			push!(runtime, create_address.into());
 			Control::Continue
 		},
@@ -271,7 +271,7 @@ pub fn create<H: Handler>(
 			if handler.is_recoverable() {
 				Control::Continue
 			} else {
-				Control::Exit(e.into())
+				Control::Exit(Err(e))
 			}
 		},
 	}
@@ -331,14 +331,14 @@ pub fn call<H: Handler>(
 				return if handler.is_recoverable() {
 					Control::Continue
 				} else {
-					Control::Exit(e.into())
+					Control::Exit(Err(e))
 				}
 			},
 		}
 	}
 
 	match handler.call(to.into(), input, Some(gas), scheme == CallScheme::StaticCall, context) {
-		Ok(Capture::Exit(return_data)) => {
+		Ok(Capture::Exit((_, return_data))) => {
 			runtime.return_data_buffer = return_data;
 
 			match runtime.machine.memory_mut().set(
@@ -354,7 +354,7 @@ pub fn call<H: Handler>(
 					if handler.is_recoverable() {
 						Control::Continue
 					} else {
-						Control::Exit(e.into())
+						Control::Exit(Err(e))
 					}
 				},
 			}
@@ -370,7 +370,7 @@ pub fn call<H: Handler>(
 			if handler.is_recoverable() {
 				Control::Continue
 			} else {
-				Control::Exit(e.into())
+				Control::Exit(Err(e))
 			}
 		},
 	}

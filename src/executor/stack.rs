@@ -6,7 +6,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
-			Context, CreateScheme, Runtime, ExitReason};
+			Context, CreateScheme, Runtime, ExitReason, ExitSucceed};
 use crate::backend::{Log, Basic, Apply, Backend};
 use crate::gasometer::{self, Gasometer};
 
@@ -50,6 +50,52 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 
 	pub fn gas(&self) -> usize {
 		self.gasometer.gas()
+	}
+
+	pub fn transact_create(
+		&mut self,
+		caller: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		gas_limit: usize,
+	) -> ExitReason {
+		let address = self.create_address(caller, CreateScheme::Dynamic)?;
+		self.transfer(caller, address, value)?;
+
+		let context = Context {
+			caller,
+			address,
+			apparent_value: value,
+		};
+
+		match self.create(address, init_code, Some(gas_limit), context) {
+			Ok(Capture::Exit(s)) => Ok(s),
+			Ok(Capture::Trap(_)) => unreachable!(),
+			Err(e) => Err(e),
+		}
+	}
+
+	pub fn transact_call(
+		&mut self,
+		caller: H160,
+		address: H160,
+		value: U256,
+		data: Vec<u8>,
+		gas_limit: usize,
+	) -> ExitReason {
+		self.transfer(caller, address, value)?;
+
+		let context = Context {
+			caller,
+			address,
+			apparent_value: value,
+		};
+
+		match self.call(address, data, Some(gas_limit), false, context) {
+			Ok(Capture::Exit((s, _))) => Ok(s),
+			Ok(Capture::Trap(_)) => unreachable!(),
+			Err(e) => Err(e),
+		}
 	}
 
 	#[must_use]
@@ -218,7 +264,7 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
-	) -> Result<Capture<(), Self::CreateInterrupt>, ExitError> {
+	) -> Result<Capture<ExitSucceed, Self::CreateInterrupt>, ExitError> {
 		let after_gas = self.gasometer.gas(); // TODO: support l64(after_gas)
 		let target_gas = target_gas.unwrap_or(after_gas);
 
@@ -245,15 +291,15 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		self.logs.append(&mut substate.logs);
 
 		match reason {
-			ExitReason::Succeed(_) => {
+			Ok(s) => {
 				self.deleted.intersection(&substate.deleted);
 				self.state = substate.state;
 				self.state.entry(address).or_insert(Default::default())
 					.code = Some(runtime.machine().return_value());
 
-				Ok(Capture::Exit(()))
+				Ok(Capture::Exit(s))
 			},
-			ExitReason::Error(e) => {
+			Err(e) => {
 				Err(e)
 			},
 		}
@@ -266,7 +312,7 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		target_gas: Option<usize>,
 		_is_static: bool, // TODO: support this
 		context: Context,
-	) -> Result<Capture<Vec<u8>, Self::CallInterrupt>, ExitError> {
+	) -> Result<Capture<(ExitSucceed, Vec<u8>), Self::CallInterrupt>, ExitError> {
 		let after_gas = self.gasometer.gas(); // TODO: support l64(after_gas)
 		let target_gas = target_gas.unwrap_or(after_gas);
 		let code = self.code(code_address);
@@ -291,13 +337,13 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		self.logs.append(&mut substate.logs);
 
 		match reason {
-			ExitReason::Succeed(_) => {
+			Ok(s) => {
 				self.deleted.intersection(&substate.deleted);
 				self.state = substate.state;
 
-				Ok(Capture::Exit(runtime.machine().return_value()))
+				Ok(Capture::Exit((s, runtime.machine().return_value())))
 			},
-			ExitReason::Error(e) => {
+			Err(e) => {
 				Err(e)
 			},
 		}

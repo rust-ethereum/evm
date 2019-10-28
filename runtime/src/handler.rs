@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use crate::{Capture, Stack, ExitError, Opcode, ExternalOpcode,
+use crate::{Capture, Stack, ExitError, ExitSucceed, Opcode, ExternalOpcode,
 			CreateScheme, Context, Machine};
 
 pub trait Handler {
@@ -42,7 +42,7 @@ pub trait Handler {
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
-	) -> Result<Capture<(), Self::CreateInterrupt>, ExitError>;
+	) -> Result<Capture<ExitSucceed, Self::CreateInterrupt>, ExitError>;
 	fn create_feedback(
 		&mut self,
 		_feedback: Self::CreateFeedback
@@ -56,7 +56,7 @@ pub trait Handler {
 		target_gas: Option<usize>,
 		is_static: bool,
 		context: Context,
-	) -> Result<Capture<Vec<u8>, Self::CallInterrupt>, ExitError>;
+	) -> Result<Capture<(ExitSucceed, Vec<u8>), Self::CallInterrupt>, ExitError>;
 	fn call_feedback(
 		&mut self,
 		_feedback: Self::CallFeedback

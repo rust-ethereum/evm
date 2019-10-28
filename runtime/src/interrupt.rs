@@ -17,8 +17,8 @@ impl<'a> ResolveCreate<'a> {
 
 impl<'a> Drop for ResolveCreate<'a> {
 	fn drop(&mut self) {
-		self.runtime.status = Err(ExitError::Other("create interrupt dropped").into());
-		self.runtime.machine.exit(ExitError::Other("create interrupt dropped").into());
+		self.runtime.status = Err(Err(ExitError::Other("create interrupt dropped")));
+		self.runtime.machine.exit(Err(ExitError::Other("create interrupt dropped")));
 	}
 }
 
@@ -34,7 +34,7 @@ impl<'a> ResolveCall<'a> {
 
 impl<'a> Drop for ResolveCall<'a> {
 	fn drop(&mut self) {
-		self.runtime.status = Err(ExitError::Other("call interrupt dropped").into());
-		self.runtime.machine.exit(ExitError::Other("call interrupt dropped").into());
+		self.runtime.status = Err(Err(ExitError::Other("call interrupt dropped")));
+		self.runtime.machine.exit(Err(ExitError::Other("call interrupt dropped")));
 	}
 }

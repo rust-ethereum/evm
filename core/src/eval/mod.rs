@@ -16,7 +16,7 @@ pub enum Control {
 
 pub fn eval(state: &mut Machine, opcode: Opcode, position: usize) -> Control {
 	match opcode {
-	Opcode::Stop => Control::Exit(ExitSucceed::Stopped.into()),
+	Opcode::Stop => Control::Exit(Ok(ExitSucceed::Stopped)),
 	Opcode::Add => op2_u256_tuple!(state, overflowing_add),
 	Opcode::Mul => op2_u256_tuple!(state, overflowing_mul),
 	Opcode::Sub => op2_u256_tuple!(state, overflowing_sub),
@@ -61,6 +61,6 @@ pub fn eval(state: &mut Machine, opcode: Opcode, position: usize) -> Control {
 	Opcode::Swap(n) => self::misc::swap(state, n as usize),
 	Opcode::Return => self::misc::ret(state),
 	Opcode::Revert => self::misc::revert(state),
-	Opcode::Invalid => Control::Exit(ExitError::DesignatedInvalid.into()),
+	Opcode::Invalid => Control::Exit(Err(ExitError::DesignatedInvalid)),
 	}
 }

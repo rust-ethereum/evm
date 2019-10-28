@@ -113,8 +113,8 @@ impl Machine {
 							self.position = Ok(p);
 							Ok(())
 						} else {
-							self.position = Err(ExitError::InvalidJump.into());
-							Err(Capture::Exit(ExitError::InvalidJump.into()))
+							self.position = Err(Err(ExitError::InvalidJump));
+							Err(Capture::Exit(Err(ExitError::InvalidJump)))
 						}
 					},
 				}
@@ -124,8 +124,8 @@ impl Machine {
 				Err(Capture::Trap(external))
 			},
 			None => {
-				self.position = Err(ExitSucceed::Stopped.into());
-				Err(Capture::Exit(ExitSucceed::Stopped.into()))
+				self.position = Err(Ok(ExitSucceed::Stopped));
+				Err(Capture::Exit(Ok(ExitSucceed::Stopped)))
 			},
 		}
 	}

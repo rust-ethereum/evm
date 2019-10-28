@@ -13,7 +13,7 @@ pub fn codecopy(state: &mut Machine) -> Control {
 
 	match state.memory.copy_large(memory_offset, code_offset, len, &state.code) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -66,7 +66,7 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 
 	match state.memory.set(memory_offset, data, Some(ulen)) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -89,7 +89,7 @@ pub fn mstore(state: &mut Machine) -> Control {
 	let index = as_usize_or_fail!(index);
 	match state.memory.set(index, &value[..], Some(32)) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -99,7 +99,7 @@ pub fn mstore8(state: &mut Machine) -> Control {
 	let value = (value.low_u32() & 0xff) as u8;
 	match state.memory.set(index, &[value], Some(1)) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(e.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
 }
 
@@ -132,7 +132,7 @@ pub fn msize(state: &mut Machine) -> Control {
 pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 	let end = position + 1 + n;
 	if end > state.code.len() {
-		return Control::Exit(ExitError::PCUnderflow.into())
+		return Control::Exit(Err(ExitError::PCUnderflow))
 	}
 
 	push_u256!(state, U256::from(&state.code[(position + 1)..(position + 1 + n)]));
@@ -142,7 +142,7 @@ pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 pub fn dup(state: &mut Machine, n: usize) -> Control {
 	let value = match state.stack.peek(n - 1) {
 		Ok(value) => value,
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	};
 	push!(state, value);
 	Control::Continue(1)
@@ -151,19 +151,19 @@ pub fn dup(state: &mut Machine, n: usize) -> Control {
 pub fn swap(state: &mut Machine, n: usize) -> Control {
 	let val1 = match state.stack.peek(0) {
 		Ok(value) => value,
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	};
 	let val2 = match state.stack.peek(n) {
 		Ok(value) => value,
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	};
 	match state.stack.set(0, val2) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	}
 	match state.stack.set(n, val1) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+		Err(e) => return Control::Exit(Err(e)),
 	}
 	Control::Continue(1)
 }
@@ -172,9 +172,9 @@ pub fn ret(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
 	if let Some(end) = start.checked_add(len) {
 		state.return_range = start..end;
-		Control::Exit(ExitSucceed::Returned.into())
+		Control::Exit(Ok(ExitSucceed::Returned))
 	} else {
-		Control::Exit(ExitError::InvalidReturnRange.into())
+		Control::Exit(Err(ExitError::InvalidReturnRange))
 	}
 }
 
@@ -182,8 +182,8 @@ pub fn revert(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
 	if let Some(end) = start.checked_add(len) {
 		state.return_range = start..end;
-		Control::Exit(ExitError::Reverted.into())
+		Control::Exit(Err(ExitError::Reverted))
 	} else {
-		Control::Exit(ExitError::InvalidReturnRange.into())
+		Control::Exit(Err(ExitError::InvalidReturnRange))
 	}
 }
