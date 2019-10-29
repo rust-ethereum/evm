@@ -41,6 +41,16 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		}
 	}
 
+	pub fn substate(&self, gas_limit: usize) -> StackExecutor<'backend, 'gconfig, B> {
+		Self {
+			backend: self.backend,
+			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
+			state: self.state.clone(),
+			deleted: self.deleted.clone(),
+			logs: self.logs.clone(),
+		}
+	}
+
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		match runtime.run(self) {
 			Capture::Exit(reason) => reason,
@@ -59,6 +69,9 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		init_code: Vec<u8>,
 		gas_limit: usize,
 	) -> ExitReason {
+		let transaction_cost = gasometer::create_transaction_cost(&init_code);
+		self.gasometer.record_transaction(transaction_cost)?;
+
 		let address = self.create_address(caller, CreateScheme::Dynamic)?;
 		self.transfer(caller, address, value)?;
 
@@ -83,6 +96,9 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		data: Vec<u8>,
 		gas_limit: usize,
 	) -> ExitReason {
+		let transaction_cost = gasometer::call_transaction_cost(&data);
+		self.gasometer.record_transaction(transaction_cost)?;
+
 		self.transfer(caller, address, value)?;
 
 		let context = Context {
@@ -98,15 +114,28 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		}
 	}
 
+	pub fn pay_fee(
+		&mut self,
+		source: H160,
+		target: H160,
+		price: U256,
+	) -> Result<(), ExitError> {
+		let gas = self.gasometer.gas();
+		let used_gas = self.gasometer.total_used_gas() - self.gasometer.refunded_gas() as usize;
+		let fee = U256::from(used_gas) * price;
+
+		self.transfer(source, target, fee)?;
+		self.gasometer = Gasometer::new(gas, self.gasometer.config());
+
+		Ok(())
+	}
+
 	#[must_use]
-	pub fn finalize(
+	pub fn deconstruct(
 		self
-	) -> (usize,
-		  impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
+	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
 		  impl IntoIterator<Item=Log>)
 	{
-		let gas = self.gasometer.gas();
-
 		let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
 
 		for (address, account) in self.state {
@@ -128,7 +157,7 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 
 		let logs = self.logs;
 
-		(gas, applies, logs)
+		(applies, logs)
 	}
 
 	pub fn account_mut(&mut self, address: H160) -> &mut StackAccount {
@@ -270,12 +299,7 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 
 		let gas_limit = min(after_gas, target_gas);
 
-		let mut substate = Self::new(
-			self.backend,
-			gas_limit,
-			self.gasometer.config()
-		);
-		substate.state.insert(address, Default::default());
+		let mut substate = self.substate(gas_limit);
 
 		let mut runtime = Runtime::new(
 			Rc::new(init_code),
@@ -318,11 +342,7 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		let code = self.code(code_address);
 
 		let gas_limit = min(after_gas, target_gas);
-		let mut substate = Self::new(
-			self.backend,
-			gas_limit,
-			self.gasometer.config()
-		);
+		let mut substate = self.substate(gas_limit);
 		let mut runtime = Runtime::new(
 			Rc::new(code),
 			Rc::new(input),
@@ -356,8 +376,8 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		stack: &Stack
 	) -> Result<(), ExitError> {
 		// TODO: Add opcode check.
-		let (gas_cost, memory_cost) = gasometer::cost(context.address, opcode, stack, self)?;
-		self.gasometer.record(gas_cost, memory_cost)?;
+		let (gas_cost, memory_cost) = gasometer::opcode_cost(context.address, opcode, stack, self)?;
+		self.gasometer.record_opcode(gas_cost, memory_cost)?;
 
 		Ok(())
 	}

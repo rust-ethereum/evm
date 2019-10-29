@@ -10,6 +10,18 @@ use primitive_types::{H160, H256, U256};
 use evm_core::{ExternalOpcode, Opcode, ExitError, Stack};
 use evm_runtime::Handler;
 
+macro_rules! try_or_fail {
+	( $inner:expr, $e:expr ) => (
+		match $e {
+			Ok(value) => value,
+			Err(e) => {
+				$inner = Err(e);
+				return Err(e)
+			},
+		}
+	)
+}
+
 #[derive(Clone)]
 pub struct Gasometer<'config> {
 	gas_limit: usize,
@@ -82,29 +94,17 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
-	pub fn record(
+	pub fn record_opcode(
 		&mut self,
 		cost: GasCost,
 		memory: Option<MemoryCost>,
 	) -> Result<(), ExitError> {
-		macro_rules! try_or_fail {
-			( $e:expr ) => (
-				match $e {
-					Ok(value) => value,
-					Err(e) => {
-						self.inner = Err(e);
-						return Err(e)
-					},
-				}
-			)
-		}
-
 		let memory_cost = match memory {
-			Some(memory) => try_or_fail!(self.inner_mut()?.memory_cost(memory)),
+			Some(memory) => try_or_fail!(self.inner, self.inner_mut()?.memory_cost(memory)),
 			None => self.inner_mut()?.memory_cost,
 		};
-		let memory_gas = try_or_fail!(memory::memory_gas(memory_cost));
-		let gas_cost = try_or_fail!(self.inner_mut()?.gas_cost(cost.clone()));
+		let memory_gas = try_or_fail!(self.inner, memory::memory_gas(memory_cost));
+		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost.clone()));
 		let gas_stipend = self.inner_mut()?.gas_stipend(cost.clone());
 		let gas_refund = self.inner_mut()?.gas_refund(cost.clone());
 		let used_gas = self.inner_mut()?.used_gas;
@@ -116,7 +116,7 @@ impl<'config> Gasometer<'config> {
 		}
 
 		let after_gas = self.gas_limit - all_gas_cost;
-		try_or_fail!(self.inner_mut()?.extra_check(cost, after_gas));
+		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
 
 		self.inner_mut()?.used_gas += gas_cost - gas_stipend;
 		self.inner_mut()?.memory_cost = memory_cost;
@@ -124,9 +124,53 @@ impl<'config> Gasometer<'config> {
 
 		Ok(())
 	}
+
+	pub fn record_transaction(
+		&mut self,
+		cost: TransactionCost,
+	) -> Result<(), ExitError> {
+		let gas_cost = match cost {
+			TransactionCost::Call { zero_data_len, non_zero_data_len } => {
+				self.config.gas_transaction_call +
+					zero_data_len * self.config.gas_transaction_zero_data +
+					non_zero_data_len * self.config.gas_transaction_non_zero_data
+			},
+			TransactionCost::Create { zero_data_len, non_zero_data_len } => {
+				self.config.gas_transaction_create +
+					zero_data_len * self.config.gas_transaction_zero_data +
+					non_zero_data_len * self.config.gas_transaction_non_zero_data
+			},
+		};
+
+		if self.gas() < gas_cost {
+			self.inner = Err(ExitError::OutOfGas);
+			return Err(ExitError::OutOfGas);
+		}
+
+		self.inner_mut()?.used_gas += gas_cost;
+		Ok(())
+	}
 }
 
-pub fn cost<H: Handler>(
+pub fn call_transaction_cost(
+	data: &[u8]
+) -> TransactionCost {
+	let zero_data_len = data.iter().filter(|v| **v == 0).count();
+	let non_zero_data_len = data.len() - zero_data_len;
+
+	TransactionCost::Call { zero_data_len, non_zero_data_len }
+}
+
+pub fn create_transaction_cost(
+	data: &[u8]
+) -> TransactionCost {
+	let zero_data_len = data.iter().filter(|v| **v == 0).count();
+	let non_zero_data_len = data.len() - zero_data_len;
+
+	TransactionCost::Create { zero_data_len, non_zero_data_len }
+}
+
+pub fn opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Result<Opcode, ExternalOpcode>,
 	stack: &Stack,
@@ -417,6 +461,13 @@ pub struct Config {
 	pub gas_expbyte: usize,
 	/// Gas paid for a contract creation transaction.
 	pub gas_transaction_create: usize,
+	/// Gas paid for a message call transaction.
+	pub gas_transaction_call: usize,
+	/// Gas paid for zero data in a transaction.
+	pub gas_transaction_zero_data: usize,
+	/// Gas paid for non-zero data in a transaction.
+	pub gas_transaction_non_zero_data: usize,
+	/// EIP-1283.
 	pub has_reduced_sstore_gas_metering: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
@@ -436,10 +487,32 @@ impl Config {
 			gas_suicide_new_account: 0,
 			gas_call: 40,
 			gas_expbyte: 10,
-			gas_transaction_create: 0,
+			gas_transaction_create: 21000,
+			gas_transaction_call: 21000,
+			gas_transaction_zero_data: 4,
+			gas_transaction_non_zero_data: 68,
 			has_reduced_sstore_gas_metering: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
+		}
+	}
+
+	pub const fn istanbul() -> Config {
+		Config {
+			gas_extcode: 700,
+			gas_balance: 400,
+			gas_sload: 800,
+			gas_suicide: 5000,
+			gas_suicide_new_account: 25000,
+			gas_call: 700,
+			gas_expbyte: 50,
+			gas_transaction_create: 53000,
+			gas_transaction_call: 21000,
+			gas_transaction_zero_data: 4,
+			gas_transaction_non_zero_data: 16,
+			has_reduced_sstore_gas_metering: true,
+			err_on_call_with_more_gas: false,
+			empty_considered_exists: false,
 		}
 	}
 }
@@ -476,9 +549,16 @@ pub enum GasCost {
 	SLoad,
 }
 
+#[derive(Clone)]
 pub struct MemoryCost {
 	pub offset: U256,
 	pub len: U256,
+}
+
+#[derive(Clone)]
+pub enum TransactionCost {
+	Call { zero_data_len: usize, non_zero_data_len: usize },
+	Create { zero_data_len: usize, non_zero_data_len: usize },
 }
 
 impl MemoryCost {
