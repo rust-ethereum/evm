@@ -16,6 +16,12 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	Control::Continue
 }
 
+pub fn chainid<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	push_u256!(runtime, handler.chain_id());
+
+	Control::Continue
+}
+
 pub fn address<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	let ret = H256::from(runtime.context.address);
 	push!(runtime, ret);
@@ -26,6 +32,12 @@ pub fn address<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 pub fn balance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	push_u256!(runtime, handler.balance(address.into()));
+
+	Control::Continue
+}
+
+pub fn selfbalance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	push_u256!(runtime, handler.balance(runtime.context.address));
 
 	Control::Continue
 }

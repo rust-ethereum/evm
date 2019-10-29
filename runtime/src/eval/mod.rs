@@ -16,6 +16,7 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 		ExternalOpcode::Sha3 => system::sha3(state),
 		ExternalOpcode::Address => system::address(state),
 		ExternalOpcode::Balance => system::balance(state, handler),
+		ExternalOpcode::SelfBalance => system::selfbalance(state, handler),
 		ExternalOpcode::Origin => system::origin(state, handler),
 		ExternalOpcode::Caller => system::caller(state),
 		ExternalOpcode::CallValue => system::callvalue(state),
@@ -42,6 +43,7 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 		ExternalOpcode::CallCode => system::call(state, CallScheme::CallCode, handler),
 		ExternalOpcode::DelegateCall => system::call(state, CallScheme::DelegateCall, handler),
 		ExternalOpcode::StaticCall => system::call(state, CallScheme::StaticCall, handler),
+		ExternalOpcode::ChainId => system::chainid(state, handler),
 		ExternalOpcode::Other(opcode) => {
 			match handler.other(
 				opcode,

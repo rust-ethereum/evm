@@ -6,7 +6,7 @@ use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
-			Context, CreateScheme, Runtime, ExitReason, ExitSucceed};
+			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
 use crate::backend::{Log, Basic, Apply, Backend};
 use crate::gasometer::{self, Gasometer};
 
@@ -18,33 +18,36 @@ pub struct StackAccount {
 }
 
 #[derive(Clone)]
-pub struct StackExecutor<'backend, 'gconfig, B> {
+pub struct StackExecutor<'backend, 'config, B> {
 	backend: &'backend B,
-	gasometer: Gasometer<'gconfig>,
+	config: &'config Config,
+	gasometer: Gasometer<'config>,
 	state: BTreeMap<H160, StackAccount>,
 	deleted: BTreeSet<H160>,
 	logs: Vec<Log>,
 }
 
-impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
+impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	pub fn new(
 		backend: &'backend B,
 		gas_limit: usize,
-		gasometer_config: &'gconfig gasometer::Config
+		config: &'config Config,
 	) -> Self {
 		Self {
 			backend,
-			gasometer: Gasometer::new(gas_limit, gasometer_config),
+			gasometer: Gasometer::new(gas_limit, config),
 			state: BTreeMap::new(),
 			deleted: BTreeSet::new(),
+			config,
 			logs: Vec::new(),
 		}
 	}
 
-	pub fn substate(&self, gas_limit: usize) -> StackExecutor<'backend, 'gconfig, B> {
+	pub fn substate(&self, gas_limit: usize) -> StackExecutor<'backend, 'config, B> {
 		Self {
 			backend: self.backend,
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
+			config: self.config,
 			state: self.state.clone(),
 			deleted: self.deleted.clone(),
 			logs: self.logs.clone(),
@@ -62,6 +65,26 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		self.gasometer.gas()
 	}
 
+	pub fn merge_succeed<'obackend, 'oconfig, OB>(
+		&mut self,
+		mut substate: StackExecutor<'obackend, 'oconfig, OB>
+	) -> Result<(), ExitError> {
+		self.logs.append(&mut substate.logs);
+		self.deleted.intersection(&substate.deleted);
+		self.state = substate.state;
+
+		self.gasometer.merge(substate.gasometer)
+	}
+
+	pub fn merge_fail<'obackend, 'oconfig, OB>(
+		&mut self,
+		mut substate: StackExecutor<'obackend, 'oconfig, OB>
+	) -> Result<(), ExitError> {
+		self.logs.append(&mut substate.logs);
+
+		self.gasometer.merge(substate.gasometer)
+	}
+
 	pub fn transact_create(
 		&mut self,
 		caller: H160,
@@ -73,7 +96,9 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		self.gasometer.record_transaction(transaction_cost)?;
 
 		let address = self.create_address(caller, CreateScheme::Dynamic)?;
-		self.transfer(caller, address, value)?;
+
+		let mut substate = self.substate(self.gasometer.gas());
+		substate.transfer(caller, address, value)?;
 
 		let context = Context {
 			caller,
@@ -81,10 +106,16 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 			apparent_value: value,
 		};
 
-		match self.create(address, init_code, Some(gas_limit), context) {
-			Ok(Capture::Exit(s)) => Ok(s),
+		match substate.create(address, init_code, Some(gas_limit), context) {
+			Ok(Capture::Exit(s)) => {
+				self.merge_succeed(substate)?;
+				Ok(s)
+			},
 			Ok(Capture::Trap(_)) => unreachable!(),
-			Err(e) => Err(e),
+			Err(e) => {
+				self.merge_fail(substate)?;
+				Err(e)
+			},
 		}
 	}
 
@@ -99,7 +130,8 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 		let transaction_cost = gasometer::call_transaction_cost(&data);
 		self.gasometer.record_transaction(transaction_cost)?;
 
-		self.transfer(caller, address, value)?;
+		let mut substate = self.substate(self.gasometer.gas());
+		substate.transfer(caller, address, value)?;
 
 		let context = Context {
 			caller,
@@ -107,10 +139,16 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 			apparent_value: value,
 		};
 
-		match self.call(address, data, Some(gas_limit), false, context) {
-			Ok(Capture::Exit((s, _))) => Ok(s),
+		match substate.call(address, data, Some(gas_limit), false, context) {
+			Ok(Capture::Exit((s, _))) => {
+				self.merge_succeed(substate)?;
+				Ok(s)
+			},
 			Ok(Capture::Trap(_)) => unreachable!(),
-			Err(e) => Err(e),
+			Err(e) => {
+				self.merge_fail(substate)?;
+				Err(e)
+			},
 		}
 	}
 
@@ -174,7 +212,7 @@ impl<'backend, 'gconfig, B: Backend> StackExecutor<'backend, 'gconfig, B> {
 	}
 }
 
-impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfig, B> {
+impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config, B> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
@@ -230,10 +268,14 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 	fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
 	fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
 	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
+	fn chain_id(&self) -> U256 { self.backend.chain_id() }
 
 	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError> {
 		match scheme {
-			CreateScheme::Fixed(address) => Ok(address),
+			CreateScheme::Fixed(naddress) => {
+				self.account_mut(address).basic.nonce += U256::one();
+				Ok(naddress)
+			},
 			CreateScheme::Dynamic => {
 				let nonce = self.nonce(address);
 				self.account_mut(address).basic.nonce += U256::one();
@@ -300,30 +342,31 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		let gas_limit = min(after_gas, target_gas);
 
 		let mut substate = self.substate(gas_limit);
+		if self.config.create_increase_nonce {
+			substate.account_mut(address).basic.nonce += U256::one();
+		}
 
 		let mut runtime = Runtime::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
-			1024,
-			usize::max_value(),
+			self.config.stack_limit,
+			self.config.memory_limit,
 			context,
 		);
 
 		let reason = substate.execute(&mut runtime);
 
-		self.gasometer.merge(substate.gasometer)?;
-		self.logs.append(&mut substate.logs);
-
 		match reason {
 			Ok(s) => {
-				self.deleted.intersection(&substate.deleted);
-				self.state = substate.state;
+				let e = self.merge_succeed(substate);
 				self.state.entry(address).or_insert(Default::default())
 					.code = Some(runtime.machine().return_value());
+				e?;
 
 				Ok(Capture::Exit(s))
 			},
 			Err(e) => {
+				self.merge_fail(substate)?;
 				Err(e)
 			},
 		}
@@ -346,24 +389,20 @@ impl<'backend, 'gconfig, B: Backend> Handler for StackExecutor<'backend, 'gconfi
 		let mut runtime = Runtime::new(
 			Rc::new(code),
 			Rc::new(input),
-			1024,
-			usize::max_value(),
+			self.config.stack_limit,
+			self.config.memory_limit,
 			context,
 		);
 
 		let reason = substate.execute(&mut runtime);
 
-		self.gasometer.merge(substate.gasometer)?;
-		self.logs.append(&mut substate.logs);
-
 		match reason {
 			Ok(s) => {
-				self.deleted.intersection(&substate.deleted);
-				self.state = substate.state;
-
+				self.merge_succeed(substate)?;
 				Ok(Capture::Exit((s, runtime.machine().return_value())))
 			},
 			Err(e) => {
+				self.merge_fail(substate)?;
 				Err(e)
 			},
 		}

@@ -7,6 +7,7 @@ use super::{Basic, Backend, ApplyBackend, Apply, Log};
 pub struct MemoryVicinity {
 	pub gas_price: U256,
 	pub origin: H160,
+	pub chain_id: U256,
 	pub block_hashes: Vec<H256>,
 	pub block_number: U256,
 	pub block_coinbase: H160,
@@ -62,6 +63,8 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	fn block_timestamp(&self) -> U256 { self.vicinity.block_timestamp }
 	fn block_difficulty(&self) -> U256 { self.vicinity.block_difficulty }
 	fn block_gas_limit(&self) -> U256 { self.vicinity.block_gas_limit }
+
+	fn chain_id(&self) -> U256 { self.vicinity.chain_id }
 
 	fn exists(&self, address: H160) -> bool {
 		self.state.contains_key(&address)

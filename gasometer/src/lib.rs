@@ -8,7 +8,7 @@ mod utils;
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
 use evm_core::{ExternalOpcode, Opcode, ExitError, Stack};
-use evm_runtime::Handler;
+use evm_runtime::{Handler, Config};
 
 macro_rules! try_or_fail {
 	( $inner:expr, $e:expr ) => (
@@ -186,7 +186,7 @@ pub fn opcode_cost<H: Handler>(
 		Err(ExternalOpcode::Timestamp) | Err(ExternalOpcode::Number) |
 		Err(ExternalOpcode::Difficulty) |
 		Err(ExternalOpcode::GasLimit) | Ok(Opcode::Pop) | Ok(Opcode::PC) |
-		Ok(Opcode::MSize) | Err(ExternalOpcode::Gas) => GasCost::Base,
+		Ok(Opcode::MSize) | Err(ExternalOpcode::Gas) | Err(ExternalOpcode::ChainId) => GasCost::Base,
 
 		Ok(Opcode::Add) | Ok(Opcode::Sub) | Ok(Opcode::Not) | Ok(Opcode::Lt) |
 		Ok(Opcode::Gt) | Ok(Opcode::SLt) | Ok(Opcode::SGt) | Ok(Opcode::Eq) |
@@ -197,7 +197,7 @@ pub fn opcode_cost<H: Handler>(
 		Ok(Opcode::Sar) => GasCost::VeryLow,
 
 		Ok(Opcode::Mul) | Ok(Opcode::Div) | Ok(Opcode::SDiv) | Ok(Opcode::Mod) |
-		Ok(Opcode::SMod) | Ok(Opcode::SignExtend) => GasCost::Low,
+		Ok(Opcode::SMod) | Ok(Opcode::SignExtend) | Err(ExternalOpcode::SelfBalance) => GasCost::Low,
 
 		Ok(Opcode::AddMod) | Ok(Opcode::MulMod) | Ok(Opcode::Jump) => GasCost::Mid,
 
@@ -440,79 +440,6 @@ impl<'config> Inner<'config> {
 			GasCost::Suicide { already_removed, .. } =>
 				costs::suicide_refund(already_removed),
 			_ => 0,
-		}
-	}
-}
-
-pub struct Config {
-	/// Gas paid for extcode.
-	pub gas_extcode: usize,
-	/// Gas paid for BALANCE opcode.
-	pub gas_balance: usize,
-	/// Gas paid for SLOAD opcode.
-	pub gas_sload: usize,
-	/// Gas paid for SUICIDE opcode.
-	pub gas_suicide: usize,
-	/// Gas paid for SUICIDE opcode when it hits a new account.
-	pub gas_suicide_new_account: usize,
-	/// Gas paid for CALL opcode.
-	pub gas_call: usize,
-	/// Gas paid for EXP opcode for every byte.
-	pub gas_expbyte: usize,
-	/// Gas paid for a contract creation transaction.
-	pub gas_transaction_create: usize,
-	/// Gas paid for a message call transaction.
-	pub gas_transaction_call: usize,
-	/// Gas paid for zero data in a transaction.
-	pub gas_transaction_zero_data: usize,
-	/// Gas paid for non-zero data in a transaction.
-	pub gas_transaction_non_zero_data: usize,
-	/// EIP-1283.
-	pub has_reduced_sstore_gas_metering: bool,
-	/// Whether to throw out of gas error when
-	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
-	/// of gas.
-	pub err_on_call_with_more_gas: bool,
-	/// Whether empty account is considered exists.
-	pub empty_considered_exists: bool,
-}
-
-impl Config {
-	pub const fn frontier() -> Config {
-		Config {
-			gas_extcode: 20,
-			gas_balance: 20,
-			gas_sload: 50,
-			gas_suicide: 0,
-			gas_suicide_new_account: 0,
-			gas_call: 40,
-			gas_expbyte: 10,
-			gas_transaction_create: 21000,
-			gas_transaction_call: 21000,
-			gas_transaction_zero_data: 4,
-			gas_transaction_non_zero_data: 68,
-			has_reduced_sstore_gas_metering: false,
-			err_on_call_with_more_gas: true,
-			empty_considered_exists: true,
-		}
-	}
-
-	pub const fn istanbul() -> Config {
-		Config {
-			gas_extcode: 700,
-			gas_balance: 400,
-			gas_sload: 800,
-			gas_suicide: 5000,
-			gas_suicide_new_account: 25000,
-			gas_call: 700,
-			gas_expbyte: 50,
-			gas_transaction_create: 53000,
-			gas_transaction_call: 21000,
-			gas_transaction_zero_data: 4,
-			gas_transaction_non_zero_data: 16,
-			has_reduced_sstore_gas_metering: true,
-			err_on_call_with_more_gas: false,
-			empty_considered_exists: false,
 		}
 	}
 }

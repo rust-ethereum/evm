@@ -39,6 +39,7 @@ pub trait Backend {
 	fn block_timestamp(&self) -> U256;
 	fn block_difficulty(&self) -> U256;
 	fn block_gas_limit(&self) -> U256;
+	fn chain_id(&self) -> U256;
 
 	fn exists(&self, address: H160) -> bool;
 	fn basic(&self, address: H160) -> Basic;
