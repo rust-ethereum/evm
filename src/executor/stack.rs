@@ -5,7 +5,7 @@ use alloc::vec::Vec;
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
-use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler,
+use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
 			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
 use crate::backend::{Log, Basic, Apply, Backend};
 use crate::gasometer::{self, Gasometer};
@@ -25,6 +25,17 @@ pub struct StackExecutor<'backend, 'config, B> {
 	state: BTreeMap<H160, StackAccount>,
 	deleted: BTreeSet<H160>,
 	logs: Vec<Log>,
+	precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+	is_static: bool,
+	depth: usize,
+}
+
+fn no_precompile(
+	_address: H160,
+	_input: &[u8],
+	_target_gas: Option<usize>
+) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>> {
+	None
 }
 
 impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
@@ -33,6 +44,15 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		gas_limit: usize,
 		config: &'config Config,
 	) -> Self {
+		Self::new_with_precompile(backend, gas_limit, config, no_precompile)
+	}
+
+	pub fn new_with_precompile(
+		backend: &'backend B,
+		gas_limit: usize,
+		config: &'config Config,
+		precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+	) -> Self {
 		Self {
 			backend,
 			gasometer: Gasometer::new(gas_limit, config),
@@ -40,10 +60,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			deleted: BTreeSet::new(),
 			config,
 			logs: Vec::new(),
+			precompile: precompile,
+			is_static: false,
+			depth: 0,
 		}
 	}
 
-	pub fn substate(&self, gas_limit: usize) -> StackExecutor<'backend, 'config, B> {
+	pub fn substate(&self, gas_limit: usize, is_static: bool, depth: usize) -> StackExecutor<'backend, 'config, B> {
 		Self {
 			backend: self.backend,
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
@@ -51,12 +74,27 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			state: self.state.clone(),
 			deleted: self.deleted.clone(),
 			logs: self.logs.clone(),
+			precompile: self.precompile,
+			is_static: is_static || self.is_static,
+			depth,
+		}
+	}
+
+	pub fn apply(&mut self, runtime: &mut Runtime) -> ExitReason {
+		match runtime.run(self) {
+			Capture::Exit(Ok(succeed)) => Ok(succeed),
+			Capture::Exit(Err(err)) => {
+				self.gasometer.fail();
+				Err(err)
+			},
+			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
 	}
 
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		match runtime.run(self) {
-			Capture::Exit(reason) => reason,
+			Capture::Exit(Ok(succeed)) => Ok(succeed),
+			Capture::Exit(Err(err)) => Err(err),
 			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
 	}
@@ -70,7 +108,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		mut substate: StackExecutor<'obackend, 'oconfig, OB>
 	) -> Result<(), ExitError> {
 		self.logs.append(&mut substate.logs);
-		self.deleted.intersection(&substate.deleted);
+		self.deleted.append(&mut substate.deleted);
 		self.state = substate.state;
 
 		self.gasometer.merge(substate.gasometer)
@@ -97,23 +135,21 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 		let address = self.create_address(caller, CreateScheme::Dynamic)?;
 
-		let mut substate = self.substate(self.gasometer.gas());
-		substate.transfer(caller, address, value)?;
-
 		let context = Context {
 			caller,
 			address,
 			apparent_value: value,
 		};
 
-		match substate.create(address, init_code, Some(gas_limit), context) {
-			Ok(Capture::Exit(s)) => {
-				self.merge_succeed(substate)?;
-				Ok(s)
-			},
+		match self.create(address, Some(Transfer {
+			source: caller,
+			target: address,
+			value
+		}), init_code, Some(gas_limit), context) {
+			Ok(Capture::Exit(s)) => Ok(s),
 			Ok(Capture::Trap(_)) => unreachable!(),
 			Err(e) => {
-				self.merge_fail(substate)?;
+				self.gasometer.fail();
 				Err(e)
 			},
 		}
@@ -130,8 +166,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		let transaction_cost = gasometer::call_transaction_cost(&data);
 		self.gasometer.record_transaction(transaction_cost)?;
 
-		let mut substate = self.substate(self.gasometer.gas());
-		substate.transfer(caller, address, value)?;
+		self.account_mut(caller).basic.nonce += U256::one();
 
 		let context = Context {
 			caller,
@@ -139,14 +174,15 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			apparent_value: value,
 		};
 
-		match substate.call(address, data, Some(gas_limit), false, context) {
-			Ok(Capture::Exit((s, _))) => {
-				self.merge_succeed(substate)?;
-				Ok(s)
-			},
+		match self.call(address, Some(Transfer {
+			source: caller,
+			target: address,
+			value
+		}), data, Some(gas_limit), false, context) {
+			Ok(Capture::Exit((s, _))) => Ok(s),
 			Ok(Capture::Trap(_)) => unreachable!(),
 			Err(e) => {
-				self.merge_fail(substate)?;
+				self.gasometer.fail();
 				Err(e)
 			},
 		}
@@ -159,10 +195,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		price: U256,
 	) -> Result<(), ExitError> {
 		let gas = self.gasometer.gas();
-		let used_gas = self.gasometer.total_used_gas() - self.gasometer.refunded_gas() as usize;
+		let used_gas = self.gasometer.total_used_gas() -
+			min(self.gasometer.total_used_gas() / 2, self.gasometer.refunded_gas() as usize);
 		let fee = U256::from(used_gas) * price;
 
-		self.transfer(source, target, fee)?;
+		self.transfer(Transfer { source, target, value: fee })?;
 		self.gasometer = Gasometer::new(gas, self.gasometer.config());
 
 		Ok(())
@@ -306,18 +343,19 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		Ok(())
 	}
 
-	fn transfer(&mut self, source: H160, target: H160, value: U256) -> Result<(), ExitError> {
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
+
 		{
-			let source = self.account_mut(source);
-			if source.basic.balance < value {
+			let source = self.account_mut(transfer.source);
+			if source.basic.balance < transfer.value {
 				return Err(ExitError::Other("not enough fund"))
 			}
-			source.basic.balance -= value;
+			source.basic.balance -= transfer.value;
 		}
 
 		{
-			let target = self.account_mut(target);
-			target.basic.balance += value;
+			let target = self.account_mut(transfer.target);
+			target.basic.balance += transfer.value;
 		}
 
 		Ok(())
@@ -332,16 +370,32 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	fn create(
 		&mut self,
 		address: H160,
+		transfer: Option<Transfer>,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
 	) -> Result<Capture<ExitSucceed, Self::CreateInterrupt>, ExitError> {
-		let after_gas = self.gasometer.gas(); // TODO: support l64(after_gas)
+		fn l64(gas: usize) -> usize {
+			gas - gas / 64
+		}
+
+		if self.depth + 1 > self.config.call_limit {
+			return Err(ExitError::Other("call too depth"))
+		}
+
+		let after_gas = self.gasometer.gas();
 		let target_gas = target_gas.unwrap_or(after_gas);
 
-		let gas_limit = min(after_gas, target_gas);
+		let mut gas_limit = min(after_gas, target_gas);
+		if self.config.call_l64_after_gas {
+			gas_limit = l64(gas_limit);
+		}
 
-		let mut substate = self.substate(gas_limit);
+		let mut substate = self.substate(gas_limit, false, self.depth + 1);
+		if let Some(transfer) = transfer {
+			substate.transfer(transfer)?;
+		}
+
 		if self.config.create_increase_nonce {
 			substate.account_mut(address).basic.nonce += U256::one();
 		}
@@ -349,18 +403,19 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		let mut runtime = Runtime::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
-			self.config.stack_limit,
-			self.config.memory_limit,
 			context,
+			self.config,
 		);
 
-		let reason = substate.execute(&mut runtime);
+		let reason = substate.apply(&mut runtime);
 
 		match reason {
 			Ok(s) => {
 				let e = self.merge_succeed(substate);
+				let out = runtime.machine().return_value();
+				self.gasometer.record_deposit(out.len())?;
 				self.state.entry(address).or_insert(Default::default())
-					.code = Some(runtime.machine().return_value());
+					.code = Some(out);
 				e?;
 
 				Ok(Capture::Exit(s))
@@ -375,26 +430,50 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	fn call(
 		&mut self,
 		code_address: H160,
+		transfer: Option<Transfer>,
 		input: Vec<u8>,
 		target_gas: Option<usize>,
-		_is_static: bool, // TODO: support this
+		is_static: bool,
 		context: Context,
 	) -> Result<Capture<(ExitSucceed, Vec<u8>), Self::CallInterrupt>, ExitError> {
-		let after_gas = self.gasometer.gas(); // TODO: support l64(after_gas)
-		let target_gas = target_gas.unwrap_or(after_gas);
+		if self.depth + 1 > self.config.call_limit {
+			return Err(ExitError::Other("call too depth"))
+		}
+
+		let after_gas = self.gasometer.gas();
+		let target_gas = min(target_gas.unwrap_or(after_gas), after_gas);
+
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(target_gas)) {
+			return match ret {
+				Ok((s, out, cost)) => {
+					println!("call precompile succeeds");
+					self.gasometer.record_cost(cost)?;
+					Ok(Capture::Exit((s, out)))
+				},
+				Err(e) => {
+					println!("call precompile failed");
+					self.gasometer.record_cost(target_gas)?;
+					Err(e)
+				},
+			}
+		}
+
 		let code = self.code(code_address);
 
 		let gas_limit = min(after_gas, target_gas);
-		let mut substate = self.substate(gas_limit);
+		let mut substate = self.substate(gas_limit, is_static, self.depth + 1);
+		if let Some(transfer) = transfer {
+			substate.transfer(transfer)?;
+		}
+
 		let mut runtime = Runtime::new(
 			Rc::new(code),
 			Rc::new(input),
-			self.config.stack_limit,
-			self.config.memory_limit,
 			context,
+			self.config,
 		);
 
-		let reason = substate.execute(&mut runtime);
+		let reason = substate.apply(&mut runtime);
 
 		match reason {
 			Ok(s) => {
@@ -414,8 +493,12 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
+		let pre_gas = self.gasometer.gas();
+
 		// TODO: Add opcode check.
-		let (gas_cost, memory_cost) = gasometer::opcode_cost(context.address, opcode, stack, self)?;
+		let (gas_cost, memory_cost) = gasometer::opcode_cost(
+			context.address, opcode, stack, self.is_static, self
+		)?;
 		self.gasometer.record_opcode(gas_cost, memory_cost)?;
 
 		Ok(())

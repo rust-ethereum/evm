@@ -109,13 +109,8 @@ impl Machine {
 						Err(Capture::Exit(e))
 					},
 					Control::Jump(p) => {
-						if self.valids.is_valid(p) {
-							self.position = Ok(p);
-							Ok(())
-						} else {
-							self.position = Err(Err(ExitError::InvalidJump));
-							Err(Capture::Exit(Err(ExitError::InvalidJump)))
-						}
+						self.position = Ok(p);
+						Ok(())
 					},
 				}
 			},

@@ -94,6 +94,33 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	pub fn fail(&mut self) -> ExitError {
+		self.inner = Err(ExitError::OutOfGas);
+		ExitError::OutOfGas
+	}
+
+	pub fn record_cost(
+		&mut self,
+		cost: usize
+	) -> Result<(), ExitError> {
+		let all_gas_cost = self.total_used_gas() + cost;
+		if self.gas_limit < all_gas_cost {
+			self.inner = Err(ExitError::OutOfGas);
+			return Err(ExitError::OutOfGas)
+		}
+
+		self.inner_mut()?.used_gas += cost;
+		Ok(())
+	}
+
+	pub fn record_deposit(
+		&mut self,
+		len: usize
+	) -> Result<(), ExitError> {
+		let cost = len * consts::G_CODEDEPOSIT;
+		self.record_cost(cost)
+	}
+
 	pub fn record_opcode(
 		&mut self,
 		cost: GasCost,
@@ -174,6 +201,7 @@ pub fn opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Result<Opcode, ExternalOpcode>,
 	stack: &Stack,
+	is_static: bool,
 	handler: &H
 ) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
 	let gas_cost = match opcode {
@@ -208,11 +236,6 @@ pub fn opcode_cost<H: Handler>(
 		Err(ExternalOpcode::BlockHash) => GasCost::BlockHash,
 		Err(ExternalOpcode::ExtCodeHash) => GasCost::ExtCodeHash,
 
-		Err(ExternalOpcode::Call) => GasCost::Call {
-			value: U256::from_big_endian(&stack.peek(2)?[..]),
-			gas: U256::from_big_endian(&stack.peek(0)?[..]),
-			target_exists: handler.exists(stack.peek(1)?.into()),
-		},
 		Err(ExternalOpcode::CallCode) => GasCost::CallCode {
 			value: U256::from_big_endian(&stack.peek(2)?[..]),
 			gas: U256::from_big_endian(&stack.peek(0)?[..]),
@@ -226,26 +249,7 @@ pub fn opcode_cost<H: Handler>(
 			gas: U256::from_big_endian(&stack.peek(0)?[..]),
 			target_exists: handler.exists(stack.peek(1)?.into()),
 		},
-		Err(ExternalOpcode::Suicide) => GasCost::Suicide {
-			value: handler.balance(address),
-			target_exists: handler.exists(stack.peek(0)?.into()),
-			already_removed: handler.deleted(address),
-		},
-		Err(ExternalOpcode::SStore) => {
-			let index = stack.peek(0)?;
-			let value = stack.peek(1)?;
-
-			GasCost::SStore {
-				original: handler.original_storage(address, index),
-				current: handler.storage(address, index),
-				new: value,
-			}
-		},
 		Err(ExternalOpcode::Sha3) => GasCost::Sha3 {
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
-		},
-		Err(ExternalOpcode::Log(n)) => GasCost::Log {
-			n,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
 		Err(ExternalOpcode::ExtCodeCopy) => GasCost::ExtCodeCopy {
@@ -258,14 +262,47 @@ pub fn opcode_cost<H: Handler>(
 		Ok(Opcode::Exp) => GasCost::Exp {
 			power: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::Create) => GasCost::Create,
-		Err(ExternalOpcode::Create2) => GasCost::Create2 {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
-		},
 		Ok(Opcode::JumpDest) => GasCost::JumpDest,
 		Err(ExternalOpcode::SLoad) => GasCost::SLoad,
 
+		Err(ExternalOpcode::SStore) if !is_static => {
+			let index = stack.peek(0)?;
+			let value = stack.peek(1)?;
+
+			GasCost::SStore {
+				original: handler.original_storage(address, index),
+				current: handler.storage(address, index),
+				new: value,
+			}
+		},
+		Err(ExternalOpcode::Log(n)) if !is_static => GasCost::Log {
+			n,
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Create) if !is_static => GasCost::Create,
+		Err(ExternalOpcode::Create2) if !is_static => GasCost::Create2 {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
+		Err(ExternalOpcode::Suicide) if !is_static => GasCost::Suicide {
+			value: handler.balance(address),
+			target_exists: handler.exists(stack.peek(0)?.into()),
+			already_removed: handler.deleted(address),
+		},
+		Err(ExternalOpcode::Call)
+			if !is_static ||
+			(is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
+			GasCost::Call {
+				value: U256::from_big_endian(&stack.peek(2)?[..]),
+				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				target_exists: handler.exists(stack.peek(1)?.into()),
+			},
+
 		Ok(Opcode::Invalid) => GasCost::Invalid,
+
+		Err(ExternalOpcode::Create) | Err(ExternalOpcode::Create2) |
+		Err(ExternalOpcode::SStore) | Err(ExternalOpcode::Log(_)) |
+		Err(ExternalOpcode::Suicide) | Err(ExternalOpcode::Call) |
+
 		Err(ExternalOpcode::Other(_)) => GasCost::Invalid,
 	};
 
@@ -412,10 +449,10 @@ impl<'config> Inner<'config> {
 			GasCost::High => consts::G_HIGH,
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
-			GasCost::ExtCodeSize => self.config.gas_extcode,
+			GasCost::ExtCodeSize => self.config.gas_ext_code,
 			GasCost::Balance => self.config.gas_balance,
 			GasCost::BlockHash => consts::G_BLOCKHASH,
-			GasCost::ExtCodeHash => consts::G_EXTCODEHASH,
+			GasCost::ExtCodeHash => self.config.gas_ext_code_hash,
 		})
 	}
 
@@ -424,8 +461,8 @@ impl<'config> Inner<'config> {
 		cost: GasCost
 	) -> usize {
 		match cost {
-			GasCost::Call { value, .. } => costs::call_callcode_stipend(value),
-			GasCost::CallCode { value, .. } => costs::call_callcode_stipend(value),
+			GasCost::Call { value, .. } => costs::call_callcode_stipend(value, self.config),
+			GasCost::CallCode { value, .. } => costs::call_callcode_stipend(value, self.config),
 			_ => 0,
 		}
 	}

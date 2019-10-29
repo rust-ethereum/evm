@@ -2,6 +2,7 @@ use alloc::vec::Vec;
 use crate::Opcode;
 
 /// Mapping of valid jump destination from code.
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Valids(Vec<bool>);
 
 impl Valids {

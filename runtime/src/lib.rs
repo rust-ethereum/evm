@@ -11,7 +11,7 @@ pub use evm_core::*;
 
 pub use crate::context::{CreateScheme, CallScheme, Context};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
-pub use crate::handler::Handler;
+pub use crate::handler::{Transfer, Handler};
 
 use alloc::vec::Vec;
 use alloc::rc::Rc;
@@ -68,26 +68,27 @@ macro_rules! step {
 	});
 }
 
-pub struct Runtime {
+pub struct Runtime<'config> {
 	machine: Machine,
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
 	context: Context,
+	config: &'config Config,
 }
 
-impl Runtime {
+impl<'config> Runtime<'config> {
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
-		stack_limit: usize,
-		memory_limit: usize,
 		context: Context,
+		config: &'config Config,
 	) -> Self {
 		Self {
-			machine: Machine::new(code, data, stack_limit, memory_limit),
+			machine: Machine::new(code, data, config.stack_limit, config.memory_limit),
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
 			context,
+			config,
 		}
 	}
 
@@ -98,14 +99,14 @@ impl Runtime {
 	pub fn step<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
-	) -> Result<(), Capture<ExitReason, Resolve<'a, H>>> {
+	) -> Result<(), Capture<ExitReason, Resolve<'a, 'config, H>>> {
 		step!(self, handler, return Err; Ok)
 	}
 
 	pub fn run<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
-	) -> Capture<ExitReason, Resolve<'a, H>> {
+	) -> Capture<ExitReason, Resolve<'a, 'config, H>> {
 		loop {
 			step!(self, handler, return;)
 		}
@@ -114,7 +115,15 @@ impl Runtime {
 
 pub struct Config {
 	/// Gas paid for extcode.
-	pub gas_extcode: usize,
+	pub gas_ext_code: usize,
+	/// Gas paid for extcodehash.
+	pub gas_ext_code_hash: usize,
+	/// Gas paid for sstore set.
+	pub gas_sstore_set: usize,
+	/// Gas paid for sstore reset.
+	pub gas_sstore_reset: usize,
+	/// Gas paid for sstore refund.
+	pub refund_sstore_clears: isize,
 	/// Gas paid for BALANCE opcode.
 	pub gas_balance: usize,
 	/// Gas paid for SLOAD opcode.
@@ -141,6 +150,8 @@ pub struct Config {
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
 	pub err_on_call_with_more_gas: bool,
+	/// Take l64 for callcreate after gas.
+	pub call_l64_after_gas: bool,
 	/// Whether empty account is considered exists.
 	pub empty_considered_exists: bool,
 	/// Whether create transactions and create opcode increases nonce by one.
@@ -149,14 +160,22 @@ pub struct Config {
 	pub stack_limit: usize,
 	/// Memory limit.
 	pub memory_limit: usize,
+	/// Call limit.
+	pub call_limit: usize,
+	/// Call stipend.
+	pub call_stipend: usize,
 }
 
 impl Config {
-	pub const fn frontier() -> Config {
+	pub fn frontier() -> Config {
 		Config {
-			gas_extcode: 20,
+			gas_ext_code: 20,
+			gas_ext_code_hash: 20,
 			gas_balance: 20,
 			gas_sload: 50,
+			gas_sstore_set: 20000,
+			gas_sstore_reset: 5000,
+			refund_sstore_clears: 15000,
 			gas_suicide: 0,
 			gas_suicide_new_account: 0,
 			gas_call: 40,
@@ -169,16 +188,23 @@ impl Config {
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
+			call_l64_after_gas: false,
 			stack_limit: 1024,
 			memory_limit: usize::max_value(),
+			call_limit: 1024,
+			call_stipend: 2300,
 		}
 	}
 
-	pub const fn istanbul() -> Config {
+	pub fn istanbul() -> Config {
 		Config {
-			gas_extcode: 700,
-			gas_balance: 400,
+			gas_ext_code: 700,
+			gas_ext_code_hash: 700,
+			gas_balance: 700,
 			gas_sload: 800,
+			gas_sstore_set: 20000,
+			gas_sstore_reset: 5000,
+			refund_sstore_clears: 15000,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 700,
@@ -191,8 +217,11 @@ impl Config {
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
+			call_l64_after_gas: true,
 			stack_limit: 1024,
 			memory_limit: usize::max_value(),
+			call_limit: 1024,
+			call_stipend: 2300,
 		}
 	}
 }

@@ -1,38 +1,38 @@
 use crate::{Runtime, Handler, ExitError};
 
-pub enum Resolve<'a, H: Handler> {
-	Create(H::CreateInterrupt, ResolveCreate<'a>),
-	Call(H::CallInterrupt, ResolveCall<'a>),
+pub enum Resolve<'a, 'config, H: Handler> {
+	Create(H::CreateInterrupt, ResolveCreate<'a, 'config>),
+	Call(H::CallInterrupt, ResolveCall<'a, 'config>),
 }
 
-pub struct ResolveCreate<'a> {
-	runtime: &'a mut Runtime,
+pub struct ResolveCreate<'a, 'config> {
+	runtime: &'a mut Runtime<'config>,
 }
 
-impl<'a> ResolveCreate<'a> {
-	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
+impl<'a, 'config> ResolveCreate<'a, 'config> {
+	pub(crate) fn new(runtime: &'a mut Runtime<'config>) -> Self {
 		Self { runtime }
 	}
 }
 
-impl<'a> Drop for ResolveCreate<'a> {
+impl<'a, 'config> Drop for ResolveCreate<'a, 'config> {
 	fn drop(&mut self) {
 		self.runtime.status = Err(Err(ExitError::Other("create interrupt dropped")));
 		self.runtime.machine.exit(Err(ExitError::Other("create interrupt dropped")));
 	}
 }
 
-pub struct ResolveCall<'a> {
-	runtime: &'a mut Runtime,
+pub struct ResolveCall<'a, 'config> {
+	runtime: &'a mut Runtime<'config>,
 }
 
-impl<'a> ResolveCall<'a> {
-	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
+impl<'a, 'config> ResolveCall<'a, 'config> {
+	pub(crate) fn new(runtime: &'a mut Runtime<'config>) -> Self {
 		Self { runtime }
 	}
 }
 
-impl<'a> Drop for ResolveCall<'a> {
+impl<'a, 'config> Drop for ResolveCall<'a, 'config> {
 	fn drop(&mut self) {
 		self.runtime.status = Err(Err(ExitError::Other("call interrupt dropped")));
 		self.runtime.machine.exit(Err(ExitError::Other("call interrupt dropped")));

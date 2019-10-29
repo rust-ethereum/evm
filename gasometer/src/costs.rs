@@ -22,7 +22,7 @@ pub fn suicide_refund(already_removed: bool) -> isize {
 pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> isize {
 	if !config.has_reduced_sstore_gas_metering {
 		if current != H256::default() && new == H256::default() {
-			R_SRESET
+			config.refund_sstore_clears
 		} else {
 			0
 		}
@@ -31,22 +31,22 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 			0
 		} else {
 			if original == current && new == H256::default() {
-				R_NETSCLEAR
+				config.refund_sstore_clears
 			} else {
 				let mut refund = 0;
 				if original != H256::default() {
 					if current == H256::default() {
-						refund -= R_NETSCLEAR;
+						refund -= config.refund_sstore_clears;
 					} else if new == H256::default() {
-						refund += R_NETSCLEAR;
+						refund += config.refund_sstore_clears;
 					}
 				}
 
 				if original == new {
 					if original == H256::default() {
-						refund += R_NETSRESETCLEAR
+						refund += (config.gas_sstore_set - config.gas_sload) as isize;
 					} else {
-						refund += R_NETSRESET
+						refund += (config.gas_sstore_reset - config.gas_sload) as isize;
 					}
 				}
 
@@ -56,9 +56,9 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 	}
 }
 
-pub fn call_callcode_stipend(value: U256) -> usize {
+pub fn call_callcode_stipend(value: U256, config: &Config) -> usize {
 	if value != U256::zero() {
-		G_CALLSTIPEND
+		config.call_stipend
 	} else {
 		0
 	}
@@ -125,7 +125,7 @@ pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<usize, ExitError> 
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
 
-	let gas = U256::from(config.gas_extcode).checked_add(
+	let gas = U256::from(config.gas_ext_code).checked_add(
 		U256::from(G_COPY).checked_mul(
 			if wordr == U256::zero() {
 				wordd
@@ -180,22 +180,22 @@ pub fn sha3_cost(len: U256) -> Result<usize, ExitError> {
 pub fn sstore_cost(original: H256, current: H256, new: H256, config: &Config) -> usize {
 	if !config.has_reduced_sstore_gas_metering {
 		if current == H256::zero() && new != H256::zero() {
-			G_SSET
+			config.gas_sstore_set
 		} else {
-			G_SRESET
+			config.gas_sstore_reset
 		}
 	} else {
 		if new == current {
-			G_SNOOP
+			config.gas_sload
 		} else {
 			if original == current {
 				if original == H256::zero() {
-					G_SSET
+					config.gas_sstore_set
 				} else {
-					G_SRESET
+					config.gas_sstore_reset
 				}
 			} else {
-				G_SNOOP
+				config.gas_sload
 			}
 		}
 	}

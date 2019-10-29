@@ -54,6 +54,7 @@ pub trait ApplyBackend {
 		&mut self,
 		values: A,
 		logs: L,
+		delete_empty: bool,
 	) where
 		A: IntoIterator<Item=Apply<I>>,
 		I: IntoIterator<Item=(H256, H256)>,

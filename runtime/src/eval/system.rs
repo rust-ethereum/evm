@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
-use crate::{Runtime, ExitError, Handler, Capture,
+use crate::{Runtime, ExitError, Handler, Capture, Transfer,
 			CreateScheme, CallScheme, Context, ExitSucceed};
 use super::Control;
 
@@ -196,7 +196,11 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	pop!(runtime, target);
 
 	let balance = handler.balance(runtime.context.address);
-	match handler.transfer(runtime.context.address, target.into(), balance) {
+	match handler.transfer(Transfer {
+		source: runtime.context.address,
+		target: target.into(),
+		value: balance
+	}) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(Err(e)),
 	}
@@ -255,20 +259,13 @@ pub fn create<H: Handler>(
 		apparent_value: value,
 	};
 
-	match handler.transfer(runtime.context.address, create_address, value) {
-		Ok(()) => (),
-		Err(e) => {
-			push!(runtime, H256::default());
+	let transfer = Some(Transfer {
+		source: runtime.context.address,
+		target: create_address,
+		value
+	});
 
-			return if handler.is_recoverable() {
-				Control::Continue
-			} else {
-				Control::Exit(Err(e))
-			}
-		},
-	}
-
-	match handler.create(create_address, code, None, context) {
+	match handler.create(create_address, transfer, code, None, context) {
 		Ok(Capture::Exit(_)) => {
 			push!(runtime, create_address.into());
 			Control::Continue
@@ -289,14 +286,14 @@ pub fn create<H: Handler>(
 	}
 }
 
-pub fn call<H: Handler>(
+pub fn call<'config, H: Handler>(
 	runtime: &mut Runtime,
 	scheme: CallScheme,
-	handler: &mut H
+	handler: &mut H,
 ) -> Control<H> {
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
-	let gas = as_usize_or_fail!(gas);
+	let mut gas = as_usize_or_fail!(gas);
 
 	let value = match scheme {
 		CallScheme::Call | CallScheme::CallCode => {
@@ -307,6 +304,10 @@ pub fn call<H: Handler>(
 			U256::zero()
 		},
 	};
+
+	if value != U256::zero() {
+		gas += runtime.config.call_stipend;
+	}
 
 	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
 
@@ -334,22 +335,23 @@ pub fn call<H: Handler>(
 		},
 	};
 
-	if scheme == CallScheme::Call {
-		match handler.transfer(runtime.context.address, to.into(), value) {
-			Ok(()) => (),
-			Err(e) => {
-				push_u256!(runtime, U256::zero());
+	let transfer = if scheme == CallScheme::Call {
+		Some(Transfer {
+			source: runtime.context.address,
+			target: to.into(),
+			value: value.into()
+		})
+	} else if scheme == CallScheme::CallCode {
+		Some(Transfer {
+			source: runtime.context.address,
+			target: runtime.context.address,
+			value: value.into()
+		})
+	} else {
+		None
+	};
 
-				return if handler.is_recoverable() {
-					Control::Continue
-				} else {
-					Control::Exit(Err(e))
-				}
-			},
-		}
-	}
-
-	match handler.call(to.into(), input, Some(gas), scheme == CallScheme::StaticCall, context) {
+	match handler.call(to.into(), transfer, input, Some(gas), scheme == CallScheme::StaticCall, context) {
 		Ok(Capture::Exit((_, return_data))) => {
 			runtime.return_data_buffer = return_data;
 

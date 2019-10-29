@@ -3,6 +3,12 @@ use primitive_types::{H160, H256, U256};
 use crate::{Capture, Stack, ExitError, ExitSucceed, Opcode, ExternalOpcode,
 			CreateScheme, Context, Machine};
 
+pub struct Transfer {
+	pub source: H160,
+	pub target: H160,
+	pub value: U256,
+}
+
 pub trait Handler {
 	type CreateInterrupt;
 	type CreateFeedback;
@@ -35,11 +41,12 @@ pub trait Handler {
 	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError>;
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	fn log(&mut self, address: H160, topcis: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
-	fn transfer(&mut self, source: H160, target: H160, value: U256) -> Result<(), ExitError>;
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn mark_delete(&mut self, address: H160) -> Result<(), ExitError>;
 	fn create(
 		&mut self,
 		address: H160,
+		transfer: Option<Transfer>,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
@@ -53,6 +60,7 @@ pub trait Handler {
 	fn call(
 		&mut self,
 		code_address: H160,
+		transfer: Option<Transfer>,
 		input: Vec<u8>,
 		target_gas: Option<usize>,
 		is_static: bool,

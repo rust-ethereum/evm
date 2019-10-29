@@ -102,6 +102,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 		&mut self,
 		values: A,
 		logs: L,
+		delete_empty: bool,
 	) where
 		A: IntoIterator<Item=Apply<I>>,
 		I: IntoIterator<Item=(H256, H256)>,
@@ -112,18 +113,28 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 				Apply::Modify {
 					address, basic, code, storage
 				} => {
-					let account = self.state.entry(address).or_insert(Default::default());
-					account.balance = basic.balance;
-					account.nonce = basic.nonce;
-					if let Some(code) = code {
-						account.code = code;
-					}
-					for (index, value) in storage {
-						if value == H256::default() {
-							account.storage.remove(&index);
-						} else {
-							account.storage.insert(index, value);
+					let is_empty = {
+						let account = self.state.entry(address).or_insert(Default::default());
+						account.balance = basic.balance;
+						account.nonce = basic.nonce;
+						if let Some(code) = code {
+							account.code = code;
 						}
+						for (index, value) in storage {
+							if value == H256::default() {
+								account.storage.remove(&index);
+							} else {
+								account.storage.insert(index, value);
+							}
+						}
+
+						account.balance == U256::zero() &&
+							account.nonce == U256::zero() &&
+							account.code.len() == 0
+					};
+
+					if is_empty && delete_empty {
+						self.state.remove(&address);
 					}
 				},
 				Apply::Delete {
