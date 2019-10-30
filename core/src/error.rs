@@ -8,28 +8,82 @@ pub enum Capture<E, T> {
 	Trap(T),
 }
 
-pub type ExitReason = Result<ExitSucceed, ExitError>;
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExitReason {
+	Succeed(ExitSucceed),
+	Error(ExitError),
+	Revert(ExitRevert),
+	Fatal(ExitFatal),
+}
+
+impl ExitReason {
+	pub fn is_succeed(&self) -> bool {
+		match self {
+			Self::Succeed(_) => true,
+			_ => false,
+		}
+	}
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExitSucceed {
 	Stopped,
 	Returned,
 	Suicided,
+}
 
-	Other(&'static str),
+impl From<ExitSucceed> for ExitReason {
+	fn from(s: ExitSucceed) -> Self {
+		Self::Succeed(s)
+	}
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExitRevert {
+	Reverted,
+}
+
+impl From<ExitRevert> for ExitReason {
+	fn from(s: ExitRevert) -> Self {
+		Self::Revert(s)
+	}
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExitError {
-	Reverted,
 	StackUnderflow,
 	StackOverflow,
 	InvalidJump,
 	InvalidReturnRange,
 	PCUnderflow,
 	DesignatedInvalid,
+	CallTooDeep,
+	CreateCollision,
+	CreateEmpty,
 
 	OutOfGas,
-	NotSupported,
+	OutOfFund,
+
 	Other(&'static str),
+}
+
+impl From<ExitError> for ExitReason {
+	fn from(s: ExitError) -> Self {
+		Self::Error(s)
+	}
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExitFatal {
+	NotSupported,
+	UnhandledInterrupt,
+	CallErrorAsFatal(ExitError),
+
+	Other(&'static str),
+}
+
+impl From<ExitFatal> for ExitReason {
+	fn from(s: ExitFatal) -> Self {
+		Self::Fatal(s)
+	}
 }

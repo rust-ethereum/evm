@@ -49,7 +49,7 @@ impl<'config> Gasometer<'config> {
 		self.inner.as_mut().map_err(|e| *e)
 	}
 
-	pub fn merge<'oconfig>(&mut self, other: Gasometer<'oconfig>) -> Result<(), ExitError> {
+	pub fn merge_succeed<'oconfig>(&mut self, other: Gasometer<'oconfig>) -> Result<(), ExitError> {
 		let other_refunded_gas = other.refunded_gas();
 		let other_total_used_gas = other.total_used_gas();
 
@@ -61,6 +61,20 @@ impl<'config> Gasometer<'config> {
 
 		self.inner_mut()?.used_gas += other_total_used_gas;
 		self.inner_mut()?.refunded_gas += other_refunded_gas;
+
+		Ok(())
+	}
+
+	pub fn merge_fail<'oconfig>(&mut self, other: Gasometer<'oconfig>) -> Result<(), ExitError> {
+		let other_total_used_gas = other.total_used_gas();
+
+		let all_gas_cost = self.total_used_gas() + other_total_used_gas;
+		if self.gas_limit < all_gas_cost {
+			self.inner = Err(ExitError::OutOfGas);
+			return Err(ExitError::OutOfGas)
+		}
+
+		self.inner_mut()?.used_gas += other_total_used_gas;
 
 		Ok(())
 	}
@@ -126,12 +140,14 @@ impl<'config> Gasometer<'config> {
 		cost: GasCost,
 		memory: Option<MemoryCost>,
 	) -> Result<(), ExitError> {
+		let gas = self.gas();
+
 		let memory_cost = match memory {
 			Some(memory) => try_or_fail!(self.inner, self.inner_mut()?.memory_cost(memory)),
 			None => self.inner_mut()?.memory_cost,
 		};
 		let memory_gas = try_or_fail!(self.inner, memory::memory_gas(memory_cost));
-		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost.clone()));
+		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost.clone(), gas));
 		let gas_stipend = self.inner_mut()?.gas_stipend(cost.clone());
 		let gas_refund = self.inner_mut()?.gas_refund(cost.clone());
 		let used_gas = self.inner_mut()?.used_gas;
@@ -416,6 +432,7 @@ impl<'config> Inner<'config> {
 	fn gas_cost(
 		&self,
 		cost: GasCost,
+		gas: usize,
 	) -> Result<usize, ExitError> {
 		Ok(match cost {
 			GasCost::Call { value, target_exists, .. } =>
@@ -429,7 +446,7 @@ impl<'config> Inner<'config> {
 			GasCost::Suicide { value, target_exists, .. } =>
 				costs::suicide_cost(value, target_exists, self.config),
 			GasCost::SStore { original, current, new } =>
-				costs::sstore_cost(original, current, new, self.config),
+				costs::sstore_cost(original, current, new, gas, self.config)?,
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,

@@ -21,27 +21,27 @@ macro_rules! step {
 		if let Some((opcode, stack)) = $self.machine.inspect() {
 			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
-				Err(error) => {
-					$self.machine.exit(Err(error));
-					$self.status = Err(Err(error));
+				Err(e) => {
+					$self.machine.exit(e.into());
+					$self.status = Err(e.into());
 				},
 			}
 		}
 
 		match $self.status.clone() {
 			Ok(()) => (),
-			Err(exit) => {
+			Err(e) => {
 				#[allow(unused_parens)]
-				$return $($err)*(Capture::Exit(exit))
+				$return $($err)*(Capture::Exit(e))
 			},
 		}
 
 		match $self.machine.step() {
 			Ok(()) => $($ok)?(()),
-			Err(Capture::Exit(exit)) => {
-				$self.status = Err(exit);
+			Err(Capture::Exit(e)) => {
+				$self.status = Err(e);
 				#[allow(unused_parens)]
-				$return $($err)*(Capture::Exit(exit))
+				$return $($err)*(Capture::Exit(e))
 			},
 			Err(Capture::Trap(opcode)) => {
 				match eval::eval($self, opcode, $handler) {
@@ -113,6 +113,7 @@ impl<'config> Runtime<'config> {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct Config {
 	/// Gas paid for extcode.
 	pub gas_ext_code: usize,
@@ -145,7 +146,9 @@ pub struct Config {
 	/// Gas paid for non-zero data in a transaction.
 	pub gas_transaction_non_zero_data: usize,
 	/// EIP-1283.
-	pub has_reduced_sstore_gas_metering: bool,
+	pub sstore_gas_metering: bool,
+	/// EIP-1706.
+	pub sstore_revert_under_stipend: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -184,7 +187,8 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 68,
-			has_reduced_sstore_gas_metering: false,
+			sstore_gas_metering: false,
+			sstore_revert_under_stipend: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
@@ -213,7 +217,8 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
-			has_reduced_sstore_gas_metering: true,
+			sstore_gas_metering: true,
+			sstore_revert_under_stipend: true,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,

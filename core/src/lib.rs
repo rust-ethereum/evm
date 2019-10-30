@@ -15,7 +15,7 @@ pub use crate::memory::Memory;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 pub use crate::opcode::{Opcode, ExternalOpcode};
-pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError};
+pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError, ExitRevert, ExitFatal};
 
 use core::ops::Range;
 use alloc::vec::Vec;
@@ -119,8 +119,8 @@ impl Machine {
 				Err(Capture::Trap(external))
 			},
 			None => {
-				self.position = Err(Ok(ExitSucceed::Stopped));
-				Err(Capture::Exit(Ok(ExitSucceed::Stopped)))
+				self.position = Err(ExitSucceed::Stopped.into());
+				Err(Capture::Exit(ExitSucceed::Stopped.into()))
 			},
 		}
 	}

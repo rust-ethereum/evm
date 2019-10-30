@@ -3,7 +3,7 @@ macro_rules! pop {
 		$(
 			let $x = match $machine.machine.stack_mut().pop() {
 				Ok(value) => value,
-				Err(e) => return Control::Exit(Err(e)),
+				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
 	);
@@ -14,7 +14,7 @@ macro_rules! pop_u256 {
 		$(
 			let $x = match $machine.machine.stack_mut().pop() {
 				Ok(value) => U256::from_big_endian(&value[..]),
-				Err(e) => return Control::Exit(Err(e)),
+				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
 	);
@@ -25,7 +25,7 @@ macro_rules! push {
 		$(
 			match $machine.machine.stack_mut().push($x) {
 				Ok(()) => (),
-				Err(e) => return Control::Exit(Err(e)),
+				Err(e) => return Control::Exit(e.into()),
 			}
 		)*
 	)
@@ -38,7 +38,7 @@ macro_rules! push_u256 {
 			$x.to_big_endian(&mut value[..]);
 			match $machine.machine.stack_mut().push(value) {
 				Ok(()) => (),
-				Err(e) => return Control::Exit(Err(e)),
+				Err(e) => return Control::Exit(e.into()),
 			}
 		)*
 	)
@@ -48,7 +48,7 @@ macro_rules! as_usize_or_fail {
 	( $v:expr ) => {
 		{
 			if $v > U256::from(usize::max_value()) {
-				return Control::Exit(Err(ExitError::NotSupported))
+				return Control::Exit(ExitFatal::NotSupported.into())
 			}
 
 			$v.as_usize()
@@ -58,7 +58,7 @@ macro_rules! as_usize_or_fail {
 	( $v:expr, $reason:expr ) => {
 		{
 			if $v > U256::from(usize::max_value()) {
-				return Control::Exit(Err($reason))
+				return Control::Exit($reason.into())
 			}
 
 			$v.as_usize()

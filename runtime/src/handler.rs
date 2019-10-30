@@ -1,7 +1,7 @@
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 use crate::{Capture, Stack, ExitError, ExitSucceed, Opcode, ExternalOpcode,
-			CreateScheme, Context, Machine};
+			CreateScheme, Context, Machine, ExitReason};
 
 pub struct Transfer {
 	pub source: H160,
@@ -36,8 +36,6 @@ pub trait Handler {
 	fn exists(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
 
-	fn is_recoverable(&self) -> bool;
-
 	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError>;
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	fn log(&mut self, address: H160, topcis: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
@@ -50,7 +48,7 @@ pub trait Handler {
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
-	) -> Result<Capture<ExitSucceed, Self::CreateInterrupt>, ExitError>;
+	) -> Capture<ExitReason, Self::CreateInterrupt>;
 	fn create_feedback(
 		&mut self,
 		_feedback: Self::CreateFeedback
@@ -65,7 +63,7 @@ pub trait Handler {
 		target_gas: Option<usize>,
 		is_static: bool,
 		context: Context,
-	) -> Result<Capture<(ExitSucceed, Vec<u8>), Self::CallInterrupt>, ExitError>;
+	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
 	fn call_feedback(
 		&mut self,
 		_feedback: Self::CallFeedback

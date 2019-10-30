@@ -24,6 +24,7 @@ pub enum Apply<I> {
 		basic: Basic,
 		code: Option<Vec<u8>>,
 		storage: I,
+		reset_storage: bool,
 	},
 	Delete {
 		address: H160,

@@ -1,4 +1,4 @@
-use crate::{Runtime, Handler, ExitError};
+use crate::{Runtime, Handler, ExitError, ExitFatal};
 
 pub enum Resolve<'a, 'config, H: Handler> {
 	Create(H::CreateInterrupt, ResolveCreate<'a, 'config>),
@@ -17,8 +17,8 @@ impl<'a, 'config> ResolveCreate<'a, 'config> {
 
 impl<'a, 'config> Drop for ResolveCreate<'a, 'config> {
 	fn drop(&mut self) {
-		self.runtime.status = Err(Err(ExitError::Other("create interrupt dropped")));
-		self.runtime.machine.exit(Err(ExitError::Other("create interrupt dropped")));
+		self.runtime.status = Err(ExitFatal::UnhandledInterrupt.into());
+		self.runtime.machine.exit(ExitFatal::UnhandledInterrupt.into());
 	}
 }
 
@@ -34,7 +34,7 @@ impl<'a, 'config> ResolveCall<'a, 'config> {
 
 impl<'a, 'config> Drop for ResolveCall<'a, 'config> {
 	fn drop(&mut self) {
-		self.runtime.status = Err(Err(ExitError::Other("call interrupt dropped")));
-		self.runtime.machine.exit(Err(ExitError::Other("call interrupt dropped")));
+		self.runtime.status = Err(ExitFatal::UnhandledInterrupt.into());
+		self.runtime.machine.exit(ExitFatal::UnhandledInterrupt.into());
 	}
 }

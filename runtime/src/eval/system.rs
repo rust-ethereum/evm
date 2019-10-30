@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
-use crate::{Runtime, ExitError, Handler, Capture, Transfer,
-			CreateScheme, CallScheme, Context, ExitSucceed};
+use crate::{Runtime, ExitError, Handler, Capture, Transfer, ExitReason,
+			CreateScheme, CallScheme, Context, ExitSucceed, ExitFatal};
 use super::Control;
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
@@ -97,7 +97,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 		&handler.code(address.into())
 	) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	};
 
 	Control::Continue
@@ -115,7 +115,7 @@ pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 	match runtime.machine.memory_mut().copy_large(memory_offset, data_offset, len, &runtime.return_data_buffer) {
 		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -162,7 +162,7 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 	pop!(runtime, index, value);
 	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -182,13 +182,13 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	for _ in 0..(n as usize) {
 		match runtime.machine.stack_mut().pop() {
 			Ok(value) => { topics.push(value); }
-			Err(e) => return Control::Exit(Err(e)),
+			Err(e) => return Control::Exit(e.into()),
 		}
 	}
 
 	match handler.log(runtime.context.address, topics, data) {
 		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -202,15 +202,15 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 		value: balance
 	}) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	}
 
 	match handler.mark_delete(runtime.context.address) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	}
 
-	Control::Exit(Ok(ExitSucceed::Suicided))
+	Control::Exit(ExitSucceed::Suicided.into())
 }
 
 pub fn create<H: Handler>(
@@ -245,11 +245,7 @@ pub fn create<H: Handler>(
 		Err(e) => {
 			push!(runtime, H256::default());
 
-			return if handler.is_recoverable() {
-				Control::Continue
-			} else {
-				Control::Exit(Err(e))
-			}
+			return Control::Exit(e.into())
 		},
 	};
 
@@ -266,22 +262,29 @@ pub fn create<H: Handler>(
 	});
 
 	match handler.create(create_address, transfer, code, None, context) {
-		Ok(Capture::Exit(_)) => {
-			push!(runtime, create_address.into());
-			Control::Continue
+		Capture::Exit(reason) => {
+			match reason {
+				ExitReason::Succeed(_) => {
+					push!(runtime, create_address.into());
+					Control::Continue
+				},
+				ExitReason::Revert(_) => {
+					push!(runtime, H256::default());
+					Control::Continue
+				},
+				ExitReason::Error(_) => {
+					push!(runtime, H256::default());
+					Control::Continue
+				},
+				ExitReason::Fatal(e) => {
+					push!(runtime, H256::default());
+					Control::Exit(e.into())
+				},
+			}
 		},
-		Ok(Capture::Trap(interrupt)) => {
+		Capture::Trap(interrupt) => {
 			push!(runtime, H256::default());
 			Control::CreateInterrupt(interrupt)
-		},
-		Err(e) => {
-			push!(runtime, H256::default());
-
-			if handler.is_recoverable() {
-				Control::Continue
-			} else {
-				Control::Exit(Err(e))
-			}
 		},
 	}
 }
@@ -293,7 +296,11 @@ pub fn call<'config, H: Handler>(
 ) -> Control<H> {
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
-	let mut gas = as_usize_or_fail!(gas);
+	let mut gas = if gas > U256::from(usize::max_value()) {
+		None
+	} else {
+		Some(gas.as_usize())
+	};
 
 	let value = match scheme {
 		CallScheme::Call | CallScheme::CallCode => {
@@ -306,7 +313,7 @@ pub fn call<'config, H: Handler>(
 	};
 
 	if value != U256::zero() {
-		gas += runtime.config.call_stipend;
+		gas = gas.and_then(|g| g.checked_add(runtime.config.call_stipend));
 	}
 
 	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
@@ -351,41 +358,49 @@ pub fn call<'config, H: Handler>(
 		None
 	};
 
-	match handler.call(to.into(), transfer, input, Some(gas), scheme == CallScheme::StaticCall, context) {
-		Ok(Capture::Exit((_, return_data))) => {
+	match handler.call(to.into(), transfer, input, gas, scheme == CallScheme::StaticCall, context) {
+		Capture::Exit((reason, return_data)) => {
 			runtime.return_data_buffer = return_data;
 
-			match runtime.machine.memory_mut().set(
-				out_offset, &runtime.return_data_buffer[..], Some(out_len)
-			) {
-				Ok(()) => {
-					push_u256!(runtime, U256::one());
-					Control::Continue
-				},
-				Err(e) => {
-					push_u256!(runtime, U256::zero());
-
-					if handler.is_recoverable() {
-						Control::Continue
-					} else {
-						Control::Exit(Err(e))
+			match reason {
+				ExitReason::Succeed(_) => {
+					match runtime.machine.memory_mut().set(
+						out_offset, &runtime.return_data_buffer[..], Some(out_len)
+					) {
+						Ok(()) => {
+							push_u256!(runtime, U256::one());
+							Control::Continue
+						},
+						Err(_) => {
+							push_u256!(runtime, U256::zero());
+							Control::Continue
+						},
 					}
 				},
-			}
+				ExitReason::Revert(_) => {
+					push_u256!(runtime, U256::zero());
 
+					let _ = runtime.machine.memory_mut().set(
+						out_offset, &runtime.return_data_buffer[..], Some(out_len)
+					);
+
+					Control::Continue
+				},
+				ExitReason::Error(_) => {
+					push_u256!(runtime, U256::zero());
+
+					Control::Continue
+				},
+				ExitReason::Fatal(e) => {
+					push_u256!(runtime, U256::zero());
+
+					Control::Exit(e.into())
+				},
+			}
 		},
-		Ok(Capture::Trap(interrupt)) => {
+		Capture::Trap(interrupt) => {
 			push!(runtime, H256::default());
 			Control::CallInterrupt(interrupt)
-		},
-		Err(e) => {
-			push_u256!(runtime, U256::zero());
-
-			if handler.is_recoverable() {
-				Control::Continue
-			} else {
-				Control::Exit(Err(e))
-			}
 		},
 	}
 }

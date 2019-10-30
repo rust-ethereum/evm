@@ -1,6 +1,6 @@
 use primitive_types::{H256, U256};
 use super::Control;
-use crate::{Machine, ExitError, ExitSucceed};
+use crate::{Machine, ExitError, ExitSucceed, ExitFatal, ExitRevert};
 
 pub fn codesize(state: &mut Machine) -> Control {
 	let size = U256::from(state.code.len());
@@ -13,7 +13,7 @@ pub fn codecopy(state: &mut Machine) -> Control {
 
 	match state.memory.copy_large(memory_offset, code_offset, len, &state.code) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -66,7 +66,7 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 
 	match state.memory.set(memory_offset, data, Some(ulen)) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -89,7 +89,7 @@ pub fn mstore(state: &mut Machine) -> Control {
 	let index = as_usize_or_fail!(index);
 	match state.memory.set(index, &value[..], Some(32)) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -99,7 +99,7 @@ pub fn mstore8(state: &mut Machine) -> Control {
 	let value = (value.low_u32() & 0xff) as u8;
 	match state.memory.set(index, &[value], Some(1)) {
 		Ok(()) => Control::Continue(1),
-		Err(e) => Control::Exit(Err(e)),
+		Err(e) => Control::Exit(e.into()),
 	}
 }
 
@@ -110,7 +110,7 @@ pub fn jump(state: &mut Machine) -> Control {
 	if state.valids.is_valid(dest) {
 		Control::Jump(dest)
 	} else {
-		Control::Exit(Err(ExitError::InvalidJump))
+		Control::Exit(ExitError::InvalidJump.into())
 	}
 }
 
@@ -122,7 +122,7 @@ pub fn jumpi(state: &mut Machine) -> Control {
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
 		} else {
-			Control::Exit(Err(ExitError::InvalidJump))
+			Control::Exit(ExitError::InvalidJump.into())
 		}
 	} else {
 		Control::Continue(1)
@@ -142,7 +142,7 @@ pub fn msize(state: &mut Machine) -> Control {
 pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 	let end = position + 1 + n;
 	if end > state.code.len() {
-		return Control::Exit(Err(ExitError::PCUnderflow))
+		return Control::Exit(ExitError::PCUnderflow.into())
 	}
 
 	push_u256!(state, U256::from(&state.code[(position + 1)..(position + 1 + n)]));
@@ -152,7 +152,7 @@ pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 pub fn dup(state: &mut Machine, n: usize) -> Control {
 	let value = match state.stack.peek(n - 1) {
 		Ok(value) => value,
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	};
 	push!(state, value);
 	Control::Continue(1)
@@ -161,19 +161,19 @@ pub fn dup(state: &mut Machine, n: usize) -> Control {
 pub fn swap(state: &mut Machine, n: usize) -> Control {
 	let val1 = match state.stack.peek(0) {
 		Ok(value) => value,
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	};
 	let val2 = match state.stack.peek(n) {
 		Ok(value) => value,
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	};
 	match state.stack.set(0, val2) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	}
 	match state.stack.set(n, val1) {
 		Ok(()) => (),
-		Err(e) => return Control::Exit(Err(e)),
+		Err(e) => return Control::Exit(e.into()),
 	}
 	Control::Continue(1)
 }
@@ -182,9 +182,9 @@ pub fn ret(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
 	if let Some(end) = start.checked_add(len) {
 		state.return_range = start..end;
-		Control::Exit(Ok(ExitSucceed::Returned))
+		Control::Exit(ExitSucceed::Returned.into())
 	} else {
-		Control::Exit(Err(ExitError::InvalidReturnRange))
+		Control::Exit(ExitError::InvalidReturnRange.into())
 	}
 }
 
@@ -192,8 +192,8 @@ pub fn revert(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
 	if let Some(end) = start.checked_add(len) {
 		state.return_range = start..end;
-		Control::Exit(Err(ExitError::Reverted))
+		Control::Exit(ExitRevert::Reverted.into())
 	} else {
-		Control::Exit(Err(ExitError::InvalidReturnRange))
+		Control::Exit(ExitError::InvalidReturnRange.into())
 	}
 }

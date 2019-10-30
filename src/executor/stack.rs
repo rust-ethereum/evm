@@ -15,6 +15,7 @@ pub struct StackAccount {
 	pub basic: Basic,
 	pub code: Option<Vec<u8>>,
 	pub storage: BTreeMap<H256, H256>,
+	pub reset_storage: bool,
 }
 
 #[derive(Clone)]
@@ -27,7 +28,7 @@ pub struct StackExecutor<'backend, 'config, B> {
 	logs: Vec<Log>,
 	precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
 	is_static: bool,
-	depth: usize,
+	depth: Option<usize>,
 }
 
 fn no_precompile(
@@ -62,11 +63,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			logs: Vec::new(),
 			precompile: precompile,
 			is_static: false,
-			depth: 0,
+			depth: None,
 		}
 	}
 
-	pub fn substate(&self, gas_limit: usize, is_static: bool, depth: usize) -> StackExecutor<'backend, 'config, B> {
+	pub fn substate(&self, gas_limit: usize, is_static: bool) -> StackExecutor<'backend, 'config, B> {
 		Self {
 			backend: self.backend,
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
@@ -76,25 +77,16 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			logs: self.logs.clone(),
 			precompile: self.precompile,
 			is_static: is_static || self.is_static,
-			depth,
-		}
-	}
-
-	pub fn apply(&mut self, runtime: &mut Runtime) -> ExitReason {
-		match runtime.run(self) {
-			Capture::Exit(Ok(succeed)) => Ok(succeed),
-			Capture::Exit(Err(err)) => {
-				self.gasometer.fail();
-				Err(err)
+			depth: match self.depth {
+				None => Some(0),
+				Some(n) => Some(n + 1),
 			},
-			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
 	}
 
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		match runtime.run(self) {
-			Capture::Exit(Ok(succeed)) => Ok(succeed),
-			Capture::Exit(Err(err)) => Err(err),
+			Capture::Exit(s) => s,
 			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
 	}
@@ -111,7 +103,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		self.deleted.append(&mut substate.deleted);
 		self.state = substate.state;
 
-		self.gasometer.merge(substate.gasometer)
+		self.gasometer.merge_succeed(substate.gasometer)
 	}
 
 	pub fn merge_fail<'obackend, 'oconfig, OB>(
@@ -120,7 +112,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	) -> Result<(), ExitError> {
 		self.logs.append(&mut substate.logs);
 
-		self.gasometer.merge(substate.gasometer)
+		self.gasometer.merge_fail(substate.gasometer)
 	}
 
 	pub fn transact_create(
@@ -131,9 +123,15 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		gas_limit: usize,
 	) -> ExitReason {
 		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-		self.gasometer.record_transaction(transaction_cost)?;
+		match self.gasometer.record_transaction(transaction_cost) {
+			Ok(()) => (),
+			Err(e) => return e.into(),
+		}
 
-		let address = self.create_address(caller, CreateScheme::Dynamic)?;
+		let address = match self.create_address(caller, CreateScheme::Dynamic) {
+			Ok(a) => a,
+			Err(e) => return e.into(),
+		};
 
 		let context = Context {
 			caller,
@@ -141,17 +139,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			apparent_value: value,
 		};
 
-		match self.create(address, Some(Transfer {
+		match self.create_inner(address, Some(Transfer {
 			source: caller,
 			target: address,
 			value
-		}), init_code, Some(gas_limit), context) {
-			Ok(Capture::Exit(s)) => Ok(s),
-			Ok(Capture::Trap(_)) => unreachable!(),
-			Err(e) => {
-				self.gasometer.fail();
-				Err(e)
-			},
+		}), init_code, Some(gas_limit), false, context) {
+			Capture::Exit(s) => s,
+			Capture::Trap(_) => unreachable!(),
 		}
 	}
 
@@ -164,7 +158,10 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		gas_limit: usize,
 	) -> ExitReason {
 		let transaction_cost = gasometer::call_transaction_cost(&data);
-		self.gasometer.record_transaction(transaction_cost)?;
+		match self.gasometer.record_transaction(transaction_cost) {
+			Ok(()) => (),
+			Err(e) => return e.into(),
+		}
 
 		self.account_mut(caller).basic.nonce += U256::one();
 
@@ -174,17 +171,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			apparent_value: value,
 		};
 
-		match self.call(address, Some(Transfer {
+		match self.call_inner(address, Some(Transfer {
 			source: caller,
 			target: address,
 			value
-		}), data, Some(gas_limit), false, context) {
-			Ok(Capture::Exit((s, _))) => Ok(s),
-			Ok(Capture::Trap(_)) => unreachable!(),
-			Err(e) => {
-				self.gasometer.fail();
-				Err(e)
-			},
+		}), data, Some(gas_limit), false, false, context) {
+			Capture::Exit((s, _)) => s,
+			Capture::Trap(_) => unreachable!(),
 		}
 	}
 
@@ -223,6 +216,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 				basic: account.basic,
 				code: account.code,
 				storage: account.storage,
+				reset_storage: account.reset_storage,
 			});
 		}
 
@@ -240,12 +234,206 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			basic: self.backend.basic(address),
 			code: None,
 			storage: BTreeMap::new(),
+			reset_storage: false,
 		})
 	}
 
 	pub fn nonce(&self, address: H160) -> U256 {
 		self.state.get(&address).map(|v| v.basic.nonce)
 			.unwrap_or(self.backend.basic(address).nonce)
+	}
+
+	fn create_inner(
+		&mut self,
+		address: H160,
+		transfer: Option<Transfer>,
+		init_code: Vec<u8>,
+		target_gas: Option<usize>,
+		take_l64: bool,
+		context: Context,
+	) -> Capture<ExitReason, Infallible> {
+		macro_rules! try_or_fail {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(e) => return Capture::Exit(e.into()),
+				}
+			}
+		}
+
+		fn l64(gas: usize) -> usize {
+			gas - gas / 64
+		}
+
+		if let Some(depth) = self.depth {
+			if depth + 1 > self.config.call_limit {
+				return Capture::Exit(ExitError::CallTooDeep.into())
+			}
+		}
+
+		let mut after_gas = self.gasometer.gas();
+		if take_l64 && self.config.call_l64_after_gas {
+			after_gas = l64(after_gas);
+		}
+		let target_gas = target_gas.unwrap_or(after_gas);
+
+		let gas_limit = min(after_gas, target_gas);
+
+		let mut substate = self.substate(gas_limit, false);
+		{
+			if substate.account_mut(address).code.is_none() {
+				let code = substate.backend.code(address);
+				substate.account_mut(address).code = Some(code.clone());
+
+				if code.len() != 0 {
+					return Capture::Exit(ExitError::CreateCollision.into())
+				}
+			}
+
+			if substate.account_mut(address).basic.nonce != U256::zero() {
+				return Capture::Exit(ExitError::CreateCollision.into())
+			}
+
+			substate.account_mut(address).reset_storage = true;
+			substate.account_mut(address).storage = BTreeMap::new();
+		}
+
+
+		if let Some(transfer) = transfer {
+			try_or_fail!(substate.transfer(transfer));
+		}
+
+		if self.config.create_increase_nonce {
+			substate.account_mut(address).basic.nonce += U256::one();
+		}
+
+		let mut runtime = Runtime::new(
+			Rc::new(init_code),
+			Rc::new(Vec::new()),
+			context,
+			self.config,
+		);
+
+		let reason = substate.execute(&mut runtime);
+
+		match reason {
+			ExitReason::Succeed(s) => {
+				let out = runtime.machine().return_value();
+				match substate.gasometer.record_deposit(out.len()) {
+					Ok(()) => {
+						let e = self.merge_succeed(substate);
+						self.state.entry(address).or_insert(Default::default())
+							.code = Some(out);
+						try_or_fail!(e);
+						Capture::Exit(ExitReason::Succeed(s))
+					},
+					Err(e) => {
+						try_or_fail!(self.merge_fail(substate));
+						Capture::Exit(ExitReason::Error(e))
+					},
+				}
+			},
+			ExitReason::Error(e) => {
+				substate.gasometer.fail();
+				try_or_fail!(self.merge_fail(substate));
+				Capture::Exit(ExitReason::Error(e))
+			},
+			ExitReason::Revert(e) => {
+				try_or_fail!(self.merge_fail(substate));
+				Capture::Exit(ExitReason::Revert(e))
+			},
+			ExitReason::Fatal(e) => {
+				self.gasometer.fail();
+				Capture::Exit(ExitReason::Fatal(e))
+			},
+		}
+	}
+
+	fn call_inner(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: Vec<u8>,
+		target_gas: Option<usize>,
+		is_static: bool,
+		take_l64: bool,
+		context: Context,
+	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
+		macro_rules! try_or_fail {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(e) => return Capture::Exit((e.into(), Vec::new())),
+				}
+			}
+		}
+
+		fn l64(gas: usize) -> usize {
+			gas - gas / 64
+		}
+
+		if let Some(depth) = self.depth {
+			if depth + 1 > self.config.call_limit {
+				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
+			}
+		}
+
+		let mut after_gas = self.gasometer.gas();
+		if take_l64 && self.config.call_l64_after_gas {
+			after_gas = l64(after_gas);
+		}
+		let target_gas = min(target_gas.unwrap_or(after_gas), after_gas);
+
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(target_gas)) {
+			return match ret {
+				Ok((s, out, cost)) => {
+					try_or_fail!(self.gasometer.record_cost(cost));
+					Capture::Exit((ExitReason::Succeed(s), out))
+				},
+				Err(e) => {
+					try_or_fail!(self.gasometer.record_cost(target_gas));
+					Capture::Exit((ExitReason::Error(e), Vec::new()))
+				},
+			}
+		}
+
+		let code = self.code(code_address);
+
+		let gas_limit = min(after_gas, target_gas);
+
+		let mut substate = self.substate(gas_limit, is_static);
+		if let Some(transfer) = transfer {
+			try_or_fail!(substate.transfer(transfer));
+		}
+
+		let mut runtime = Runtime::new(
+			Rc::new(code),
+			Rc::new(input),
+			context,
+			self.config,
+		);
+
+		let reason = substate.execute(&mut runtime);
+
+		match reason {
+			ExitReason::Succeed(s) => {
+				try_or_fail!(self.merge_succeed(substate));
+				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
+			},
+			ExitReason::Error(e) => {
+				substate.gasometer.fail();
+				try_or_fail!(self.merge_fail(substate));
+				Capture::Exit((ExitReason::Error(e), Vec::new()))
+			},
+			ExitReason::Revert(e) => {
+				try_or_fail!(self.merge_fail(substate));
+				Capture::Exit((ExitReason::Revert(e), Vec::new()))
+			},
+			ExitReason::Fatal(e) => {
+				self.gasometer.fail();
+				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
+			},
+		}
 	}
 }
 
@@ -283,11 +471,25 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state.get(&address)
-			.and_then(|v| v.storage.get(&index).cloned())
+			.and_then(|v| {
+				let s = v.storage.get(&index).cloned();
+
+				if v.reset_storage {
+					Some(s.unwrap_or(H256::default()))
+				} else {
+					s
+				}
+
+			})
 			.unwrap_or(self.backend.storage(address, index))
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
+		if let Some(account) = self.state.get(&address) {
+			if account.reset_storage {
+				return H256::default()
+			}
+		}
 		self.backend.storage(address, index)
 	}
 
@@ -327,10 +529,16 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 
 	fn deleted(&self, address: H160) -> bool { self.deleted.contains(&address) }
 
-	fn is_recoverable(&self) -> bool { true }
-
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		self.account_mut(address).storage.insert(index, value);
+		if self.account_mut(address).reset_storage {
+			if value == H256::default() {
+				self.account_mut(address).storage.remove(&index);
+			} else {
+				self.account_mut(address).storage.insert(index, value);
+			}
+		} else {
+			self.account_mut(address).storage.insert(index, value);
+		}
 
 		Ok(())
 	}
@@ -344,7 +552,6 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-
 		{
 			let source = self.account_mut(transfer.source);
 			if source.basic.balance < transfer.value {
@@ -374,57 +581,8 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		context: Context,
-	) -> Result<Capture<ExitSucceed, Self::CreateInterrupt>, ExitError> {
-		fn l64(gas: usize) -> usize {
-			gas - gas / 64
-		}
-
-		if self.depth + 1 > self.config.call_limit {
-			return Err(ExitError::Other("call too depth"))
-		}
-
-		let after_gas = self.gasometer.gas();
-		let target_gas = target_gas.unwrap_or(after_gas);
-
-		let mut gas_limit = min(after_gas, target_gas);
-		if self.config.call_l64_after_gas {
-			gas_limit = l64(gas_limit);
-		}
-
-		let mut substate = self.substate(gas_limit, false, self.depth + 1);
-		if let Some(transfer) = transfer {
-			substate.transfer(transfer)?;
-		}
-
-		if self.config.create_increase_nonce {
-			substate.account_mut(address).basic.nonce += U256::one();
-		}
-
-		let mut runtime = Runtime::new(
-			Rc::new(init_code),
-			Rc::new(Vec::new()),
-			context,
-			self.config,
-		);
-
-		let reason = substate.apply(&mut runtime);
-
-		match reason {
-			Ok(s) => {
-				let e = self.merge_succeed(substate);
-				let out = runtime.machine().return_value();
-				self.gasometer.record_deposit(out.len())?;
-				self.state.entry(address).or_insert(Default::default())
-					.code = Some(out);
-				e?;
-
-				Ok(Capture::Exit(s))
-			},
-			Err(e) => {
-				self.merge_fail(substate)?;
-				Err(e)
-			},
-		}
+	) -> Capture<ExitReason, Self::CreateInterrupt> {
+		self.create_inner(address, transfer, init_code, target_gas, true, context)
 	}
 
 	fn call(
@@ -435,56 +593,8 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		target_gas: Option<usize>,
 		is_static: bool,
 		context: Context,
-	) -> Result<Capture<(ExitSucceed, Vec<u8>), Self::CallInterrupt>, ExitError> {
-		if self.depth + 1 > self.config.call_limit {
-			return Err(ExitError::Other("call too depth"))
-		}
-
-		let after_gas = self.gasometer.gas();
-		let target_gas = min(target_gas.unwrap_or(after_gas), after_gas);
-
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(target_gas)) {
-			return match ret {
-				Ok((s, out, cost)) => {
-					println!("call precompile succeeds");
-					self.gasometer.record_cost(cost)?;
-					Ok(Capture::Exit((s, out)))
-				},
-				Err(e) => {
-					println!("call precompile failed");
-					self.gasometer.record_cost(target_gas)?;
-					Err(e)
-				},
-			}
-		}
-
-		let code = self.code(code_address);
-
-		let gas_limit = min(after_gas, target_gas);
-		let mut substate = self.substate(gas_limit, is_static, self.depth + 1);
-		if let Some(transfer) = transfer {
-			substate.transfer(transfer)?;
-		}
-
-		let mut runtime = Runtime::new(
-			Rc::new(code),
-			Rc::new(input),
-			context,
-			self.config,
-		);
-
-		let reason = substate.apply(&mut runtime);
-
-		match reason {
-			Ok(s) => {
-				self.merge_succeed(substate)?;
-				Ok(Capture::Exit((s, runtime.machine().return_value())))
-			},
-			Err(e) => {
-				self.merge_fail(substate)?;
-				Err(e)
-			},
-		}
+	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
+		self.call_inner(code_address, transfer, input, target_gas, is_static, true, context)
 	}
 
 	fn pre_validate(
@@ -499,6 +609,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		let (gas_cost, memory_cost) = gasometer::opcode_cost(
 			context.address, opcode, stack, self.is_static, self
 		)?;
+
 		self.gasometer.record_opcode(gas_cost, memory_cost)?;
 
 		Ok(())

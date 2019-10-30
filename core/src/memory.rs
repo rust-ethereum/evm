@@ -1,6 +1,7 @@
 use primitive_types::U256;
+use core::cmp::min;
 use alloc::vec::Vec;
-use crate::ExitError;
+use crate::{ExitError, ExitFatal};
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
@@ -33,7 +34,7 @@ impl Memory {
 	}
 
 	/// Resize the current memory range to given length, aligned to next 32.
-	pub fn resize(&mut self, mut size: usize) -> Result<(), ExitError> {
+	pub fn resize(&mut self, mut size: usize) -> Result<(), ExitFatal> {
 		if size == 0 {
 			size = 1;
 		}
@@ -47,7 +48,7 @@ impl Memory {
 		}
 
 		if size > self.limit {
-			return Err(ExitError::NotSupported)
+			return Err(ExitFatal::NotSupported)
 		}
 
 		self.data.resize(size, 0);
@@ -83,13 +84,13 @@ impl Memory {
 		offset: usize,
 		value: &[u8],
 		target_size: Option<usize>
-	) -> Result<(), ExitError> {
+	) -> Result<(), ExitFatal> {
 		let target_size = target_size.unwrap_or(value.len());
 
 		if offset.checked_add(target_size)
 			.map(|pos| pos > self.limit).unwrap_or(true)
 		{
-			return Err(ExitError::NotSupported)
+			return Err(ExitFatal::NotSupported)
 		}
 
 		self.resize(offset + target_size)?;
@@ -97,6 +98,8 @@ impl Memory {
 		for index in 0..target_size {
 			if self.data.len() > offset + index && value.len() > index {
 				self.data[offset + index] = value[index];
+			} else {
+				self.data[offset + index] = 0;
 			}
 		}
 
@@ -109,15 +112,15 @@ impl Memory {
 		data_offset: U256,
 		len: U256,
 		data: &[u8]
-	) -> Result<(), ExitError> {
+	) -> Result<(), ExitFatal> {
 		let memory_offset = if memory_offset > U256::from(usize::max_value()) {
-			return Err(ExitError::NotSupported)
+			return Err(ExitFatal::NotSupported)
 		} else {
 			memory_offset.as_usize()
 		};
 
 		let ulen = if len > U256::from(usize::max_value()) {
-			return Err(ExitError::NotSupported)
+			return Err(ExitFatal::NotSupported)
 		} else {
 			len.as_usize()
 		};
@@ -129,10 +132,10 @@ impl Memory {
 				let data_offset = data_offset.as_usize();
 				let end = end.as_usize();
 
-				if end > data.len() {
+				if data_offset > data.len() {
 					&[]
 				} else {
-					&data[data_offset..end]
+					&data[data_offset..min(end, data.len())]
 				}
 			}
 		} else {

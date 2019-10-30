@@ -50,7 +50,7 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 				&mut state.machine
 			) {
 				Ok(()) => Control::Continue,
-				Err(e) => Control::Exit(Err(e)),
+				Err(e) => Control::Exit(e.into()),
 			}
 		},
 	}

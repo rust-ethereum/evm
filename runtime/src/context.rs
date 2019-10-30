@@ -14,6 +14,7 @@ pub enum CallScheme {
 	StaticCall,
 }
 
+#[derive(Clone, Debug)]
 pub struct Context {
 	pub address: H160,
 	pub caller: H160,

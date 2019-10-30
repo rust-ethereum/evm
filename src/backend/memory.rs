@@ -111,7 +111,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 		for apply in values {
 			match apply {
 				Apply::Modify {
-					address, basic, code, storage
+					address, basic, code, storage, reset_storage,
 				} => {
 					let is_empty = {
 						let account = self.state.entry(address).or_insert(Default::default());
@@ -120,11 +120,16 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 						if let Some(code) = code {
 							account.code = code;
 						}
-						for (index, value) in storage {
-							if value == H256::default() {
-								account.storage.remove(&index);
-							} else {
-								account.storage.insert(index, value);
+
+						if reset_storage {
+							account.storage = storage.into_iter().collect();
+						} else {
+							for (index, value) in storage {
+								if value == H256::default() {
+									account.storage.remove(&index);
+								} else {
+									account.storage.insert(index, value);
+								}
 							}
 						}
 
