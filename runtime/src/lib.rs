@@ -164,7 +164,9 @@ pub struct Config {
 	/// Memory limit.
 	pub memory_limit: usize,
 	/// Call limit.
-	pub call_limit: usize,
+	pub call_stack_limit: usize,
+	/// Create contract limit.
+	pub create_contract_limit: Option<usize>,
 	/// Call stipend.
 	pub call_stipend: usize,
 }
@@ -195,7 +197,8 @@ impl Config {
 			call_l64_after_gas: false,
 			stack_limit: 1024,
 			memory_limit: usize::max_value(),
-			call_limit: 1024,
+			call_stack_limit: 1024,
+			create_contract_limit: None,
 			call_stipend: 2300,
 		}
 	}
@@ -225,7 +228,8 @@ impl Config {
 			call_l64_after_gas: true,
 			stack_limit: 1024,
 			memory_limit: usize::max_value(),
-			call_limit: 1024,
+			call_stack_limit: 1024,
+			create_contract_limit: Some(0x6000),
 			call_stipend: 2300,
 		}
 	}

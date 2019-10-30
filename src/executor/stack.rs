@@ -266,7 +266,8 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 
 		if let Some(depth) = self.depth {
-			if depth + 1 > self.config.call_limit {
+			if depth + 1 > self.config.call_stack_limit {
+				self.gasometer.fail();
 				return Capture::Exit(ExitError::CallTooDeep.into())
 			}
 		}
@@ -286,11 +287,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 				substate.account_mut(address).code = Some(code.clone());
 
 				if code.len() != 0 {
+					self.gasometer.fail();
 					return Capture::Exit(ExitError::CreateCollision.into())
 				}
 			}
 
 			if substate.account_mut(address).basic.nonce != U256::zero() {
+				self.gasometer.fail();
 				return Capture::Exit(ExitError::CreateCollision.into())
 			}
 
@@ -319,6 +322,15 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		match reason {
 			ExitReason::Succeed(s) => {
 				let out = runtime.machine().return_value();
+
+				if let Some(limit) = self.config.create_contract_limit {
+					if out.len() > limit {
+						substate.gasometer.fail();
+						let _ = self.merge_fail(substate);
+						return Capture::Exit(ExitError::CreateContractLimit.into())
+					}
+				}
+
 				match substate.gasometer.record_deposit(out.len()) {
 					Ok(()) => {
 						let e = self.merge_succeed(substate);
@@ -328,18 +340,18 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 						Capture::Exit(ExitReason::Succeed(s))
 					},
 					Err(e) => {
-						try_or_fail!(self.merge_fail(substate));
+						let _ = self.merge_fail(substate);
 						Capture::Exit(ExitReason::Error(e))
 					},
 				}
 			},
 			ExitReason::Error(e) => {
 				substate.gasometer.fail();
-				try_or_fail!(self.merge_fail(substate));
+				let _ = self.merge_fail(substate);
 				Capture::Exit(ExitReason::Error(e))
 			},
 			ExitReason::Revert(e) => {
-				try_or_fail!(self.merge_fail(substate));
+				let _ = self.merge_fail(substate);
 				Capture::Exit(ExitReason::Revert(e))
 			},
 			ExitReason::Fatal(e) => {
@@ -373,7 +385,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 
 		if let Some(depth) = self.depth {
-			if depth + 1 > self.config.call_limit {
+			if depth + 1 > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
 			}
 		}
@@ -417,17 +429,17 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 		match reason {
 			ExitReason::Succeed(s) => {
-				try_or_fail!(self.merge_succeed(substate));
+				let _ = self.merge_succeed(substate);
 				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
 			},
 			ExitReason::Error(e) => {
 				substate.gasometer.fail();
-				try_or_fail!(self.merge_fail(substate));
+				let _ = self.merge_fail(substate);
 				Capture::Exit((ExitReason::Error(e), Vec::new()))
 			},
 			ExitReason::Revert(e) => {
-				try_or_fail!(self.merge_fail(substate));
-				Capture::Exit((ExitReason::Revert(e), Vec::new()))
+				let _ = self.merge_fail(substate);
+				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
 			},
 			ExitReason::Fatal(e) => {
 				self.gasometer.fail();
@@ -494,7 +506,20 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn exists(&self, address: H160) -> bool {
-		self.state.get(&address).is_some() || self.backend.exists(address)
+		if self.config.empty_considered_exists {
+			self.state.get(&address).is_some() || self.backend.exists(address)
+		} else {
+			if let Some(account) = self.state.get(&address) {
+				account.basic.nonce != U256::zero() ||
+					account.basic.balance != U256::zero() ||
+					account.code.as_ref().map(|c| c.len() != 0).unwrap_or(false) ||
+					self.backend.code(address).len() != 0
+			} else {
+				self.backend.basic(address).nonce != U256::zero() ||
+					self.backend.basic(address).balance != U256::zero() ||
+					self.backend.code(address).len() != 0
+			}
+		}
 	}
 
 	fn gas_left(&self) -> U256 { U256::from(self.gasometer.gas()) }

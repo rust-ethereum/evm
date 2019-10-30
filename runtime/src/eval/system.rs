@@ -1,3 +1,4 @@
+use core::cmp::min;
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
@@ -112,6 +113,13 @@ pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, memory_offset, data_offset, len);
+
+	if data_offset.checked_add(len)
+		.map(|l| l > U256::from(runtime.return_data_buffer.len()))
+		.unwrap_or(true)
+	{
+		return Control::Exit(ExitError::OutOfOffset.into())
+	}
 
 	match runtime.machine.memory_mut().copy_large(memory_offset, data_offset, len, &runtime.return_data_buffer) {
 		Ok(()) => Control::Continue,
@@ -240,6 +248,11 @@ pub fn create<H: Handler>(
 		CreateScheme::Dynamic
 	};
 
+	if value > handler.balance(runtime.context.address) {
+		push!(runtime, H256::default());
+		return Control::Continue
+	}
+
 	let create_address = match handler.create_address(runtime.context.address, scheme) {
 		Ok(address) => address,
 		Err(e) => {
@@ -361,11 +374,12 @@ pub fn call<'config, H: Handler>(
 	match handler.call(to.into(), transfer, input, gas, scheme == CallScheme::StaticCall, context) {
 		Capture::Exit((reason, return_data)) => {
 			runtime.return_data_buffer = return_data;
+			let target_len = min(out_len, runtime.return_data_buffer.len());
 
 			match reason {
 				ExitReason::Succeed(_) => {
 					match runtime.machine.memory_mut().set(
-						out_offset, &runtime.return_data_buffer[..], Some(out_len)
+						out_offset, &runtime.return_data_buffer[..], Some(target_len)
 					) {
 						Ok(()) => {
 							push_u256!(runtime, U256::one());
@@ -381,7 +395,7 @@ pub fn call<'config, H: Handler>(
 					push_u256!(runtime, U256::zero());
 
 					let _ = runtime.machine.memory_mut().set(
-						out_offset, &runtime.return_data_buffer[..], Some(out_len)
+						out_offset, &runtime.return_data_buffer[..], Some(target_len)
 					);
 
 					Control::Continue

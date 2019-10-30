@@ -60,7 +60,9 @@ pub enum ExitError {
 	CallTooDeep,
 	CreateCollision,
 	CreateEmpty,
+	CreateContractLimit,
 
+	OutOfOffset,
 	OutOfGas,
 	OutOfFund,
 
