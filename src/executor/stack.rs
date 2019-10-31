@@ -440,12 +440,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			gas - gas / 64
 		}
 
-		if let Some(depth) = self.depth {
-			if depth + 1 > self.config.call_stack_limit {
-				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
-			}
-		}
-
 		let mut after_gas = self.gasometer.gas();
 		if take_l64 && self.config.call_l64_after_gas {
 			after_gas = l64(after_gas);
@@ -462,6 +456,16 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}
 		}
 
+		let code = self.code(code_address);
+
+		let mut substate = self.substate(gas_limit, is_static);
+		if let Some(depth) = self.depth {
+			if depth + 1 > self.config.call_stack_limit {
+				let _ = self.merge_revert(substate);
+				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
+			}
+		}
+
 		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit)) {
 			return match ret {
 				Ok((s, out, cost)) => {
@@ -475,9 +479,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}
 		}
 
-		let code = self.code(code_address);
-
-		let mut substate = self.substate(gas_limit, is_static);
 		if let Some(transfer) = transfer {
 			match substate.transfer(transfer) {
 				Ok(()) => (),
