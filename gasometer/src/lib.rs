@@ -49,36 +49,6 @@ impl<'config> Gasometer<'config> {
 		self.inner.as_mut().map_err(|e| *e)
 	}
 
-	pub fn merge_succeed<'oconfig>(&mut self, other: Gasometer<'oconfig>) -> Result<(), ExitError> {
-		let other_refunded_gas = other.refunded_gas();
-		let other_total_used_gas = other.total_used_gas();
-
-		let all_gas_cost = self.total_used_gas() + other_total_used_gas;
-		if self.gas_limit < all_gas_cost {
-			self.inner = Err(ExitError::OutOfGas);
-			return Err(ExitError::OutOfGas)
-		}
-
-		self.inner_mut()?.used_gas += other_total_used_gas;
-		self.inner_mut()?.refunded_gas += other_refunded_gas;
-
-		Ok(())
-	}
-
-	pub fn merge_fail<'oconfig>(&mut self, other: Gasometer<'oconfig>) -> Result<(), ExitError> {
-		let other_total_used_gas = other.total_used_gas();
-
-		let all_gas_cost = self.total_used_gas() + other_total_used_gas;
-		if self.gas_limit < all_gas_cost {
-			self.inner = Err(ExitError::OutOfGas);
-			return Err(ExitError::OutOfGas)
-		}
-
-		self.inner_mut()?.used_gas += other_total_used_gas;
-
-		Ok(())
-	}
-
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
@@ -127,6 +97,14 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	pub fn record_refund(
+		&mut self,
+		refund: isize,
+	) -> Result<(), ExitError> {
+		self.inner_mut()?.refunded_gas += refund;
+		Ok(())
+	}
+
 	pub fn record_deposit(
 		&mut self,
 		len: usize
@@ -148,7 +126,7 @@ impl<'config> Gasometer<'config> {
 		};
 		let memory_gas = try_or_fail!(self.inner, memory::memory_gas(memory_cost));
 		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost.clone(), gas));
-		let gas_stipend = self.inner_mut()?.gas_stipend(cost.clone());
+		let gas_stipend = 0; // self.inner_mut()?.gas_stipend(cost.clone());
 		let gas_refund = self.inner_mut()?.gas_refund(cost.clone());
 		let used_gas = self.inner_mut()?.used_gas;
 
@@ -161,10 +139,18 @@ impl<'config> Gasometer<'config> {
 		let after_gas = self.gas_limit - all_gas_cost;
 		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
 
-		self.inner_mut()?.used_gas += gas_cost - gas_stipend;
+		self.inner_mut()?.used_gas += gas_cost + gas_stipend;
 		self.inner_mut()?.memory_cost = memory_cost;
 		self.inner_mut()?.refunded_gas += gas_refund;
 
+		Ok(())
+	}
+
+	pub fn record_stipend(
+		&mut self,
+		stipend: usize,
+	) -> Result<(), ExitError> {
+		self.inner_mut()?.used_gas -= stipend;
 		Ok(())
 	}
 

@@ -103,7 +103,19 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		self.deleted.append(&mut substate.deleted);
 		self.state = substate.state;
 
-		self.gasometer.merge_succeed(substate.gasometer)
+		self.gasometer.record_stipend(substate.gasometer.gas())?;
+		self.gasometer.record_refund(substate.gasometer.refunded_gas())?;
+		Ok(())
+	}
+
+	pub fn merge_revert<'obackend, 'oconfig, OB>(
+		&mut self,
+		mut substate: StackExecutor<'obackend, 'oconfig, OB>
+	) -> Result<(), ExitError> {
+		self.logs.append(&mut substate.logs);
+
+		self.gasometer.record_stipend(substate.gasometer.gas())?;
+		Ok(())
 	}
 
 	pub fn merge_fail<'obackend, 'oconfig, OB>(
@@ -112,7 +124,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	) -> Result<(), ExitError> {
 		self.logs.append(&mut substate.logs);
 
-		self.gasometer.merge_fail(substate.gasometer)
+		Ok(())
 	}
 
 	pub fn transact_create(
@@ -128,23 +140,18 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			Err(e) => return e.into(),
 		}
 
-		let address = match self.create_address(caller, CreateScheme::Dynamic) {
-			Ok(a) => a,
-			Err(e) => return e.into(),
-		};
+		self.account_mut(caller).basic.nonce += U256::one();
 
-		let context = Context {
+		match self.create_inner(
 			caller,
-			address,
-			apparent_value: value,
-		};
-
-		match self.create_inner(address, Some(Transfer {
-			source: caller,
-			target: address,
-			value
-		}), init_code, Some(gas_limit), false, context) {
-			Capture::Exit(s) => s,
+			CreateScheme::Dynamic,
+			value,
+			init_code,
+			Some(gas_limit),
+			false,
+			false,
+		) {
+			Capture::Exit((s, _)) => s,
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
@@ -175,27 +182,20 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			source: caller,
 			target: address,
 			value
-		}), data, Some(gas_limit), false, false, context) {
+		}), data, Some(gas_limit), false, false, false, context) {
 			Capture::Exit((s, _)) => s,
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
 
-	pub fn pay_fee(
-		&mut self,
-		source: H160,
-		target: H160,
+	pub fn fee(
+		&self,
 		price: U256,
-	) -> Result<(), ExitError> {
+	) -> U256 {
 		let gas = self.gasometer.gas();
 		let used_gas = self.gasometer.total_used_gas() -
 			min(self.gasometer.total_used_gas() / 2, self.gasometer.refunded_gas() as usize);
-		let fee = U256::from(used_gas) * price;
-
-		self.transfer(Transfer { source, target, value: fee })?;
-		self.gasometer = Gasometer::new(gas, self.gasometer.config());
-
-		Ok(())
+		U256::from(used_gas) * price
 	}
 
 	#[must_use]
@@ -243,20 +243,53 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			.unwrap_or(self.backend.basic(address).nonce)
 	}
 
+	pub fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
+		{
+			let source = self.account_mut(transfer.source);
+			if source.basic.balance < transfer.value {
+				return Err(ExitError::OutOfFund.into())
+			}
+			source.basic.balance -= transfer.value;
+		}
+
+		{
+			let target = self.account_mut(transfer.target);
+			target.basic.balance += transfer.value;
+		}
+
+		Ok(())
+	}
+
+	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 {
+		match scheme {
+			CreateScheme::Fixed(naddress) => {
+				naddress
+			},
+			CreateScheme::Dynamic => {
+				let nonce = self.nonce(address);
+				let mut stream = rlp::RlpStream::new_list(2);
+				stream.append(&address);
+				stream.append(&nonce);
+				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+			},
+		}
+	}
+
 	fn create_inner(
 		&mut self,
-		address: H160,
-		transfer: Option<Transfer>,
+		caller: H160,
+		scheme: CreateScheme,
+		value: U256,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		take_l64: bool,
-		context: Context,
-	) -> Capture<ExitReason, Infallible> {
+		increase_nonce: bool,
+	) -> Capture<(ExitReason, Option<H160>), Infallible> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit(e.into()),
+					Err(e) => return Capture::Exit((e.into(), None)),
 				}
 			}
 		}
@@ -268,8 +301,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		if let Some(depth) = self.depth {
 			if depth + 1 > self.config.call_stack_limit {
 				self.gasometer.fail();
-				return Capture::Exit(ExitError::CallTooDeep.into())
+				return Capture::Exit((ExitError::CallTooDeep.into(), None))
 			}
+		}
+
+		if self.balance(caller) < value {
+			return Capture::Exit((ExitError::OutOfFund.into(), None))
 		}
 
 		let mut after_gas = self.gasometer.gas();
@@ -279,31 +316,60 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		let target_gas = target_gas.unwrap_or(after_gas);
 
 		let gas_limit = min(after_gas, target_gas);
+		try_or_fail!(self.gasometer.record_cost(gas_limit));
+
+		let address = self.create_address(caller, scheme);
+
+
+		if increase_nonce {
+			self.account_mut(caller).basic.nonce += U256::one();
+		}
 
 		let mut substate = self.substate(gas_limit, false);
 		{
-			if substate.account_mut(address).code.is_none() {
+			if let Some(code) = substate.account_mut(address).code.as_ref() {
+				if code.len() != 0 {
+					let _ = self.merge_fail(substate);
+					return Capture::Exit((ExitError::CreateCollision.into(), None))
+				}
+			} else  {
 				let code = substate.backend.code(address);
 				substate.account_mut(address).code = Some(code.clone());
 
 				if code.len() != 0 {
-					self.gasometer.fail();
-					return Capture::Exit(ExitError::CreateCollision.into())
+					let _ = self.merge_fail(substate);
+					return Capture::Exit((ExitError::CreateCollision.into(), None))
 				}
 			}
 
-			if substate.account_mut(address).basic.nonce != U256::zero() {
-				self.gasometer.fail();
-				return Capture::Exit(ExitError::CreateCollision.into())
+			if increase_nonce && substate.account_mut(address).basic.nonce > U256::one() {
+				let _ = self.merge_fail(substate);
+				return Capture::Exit((ExitError::CreateCollision.into(), None))
+			} else if !increase_nonce && substate.account_mut(address).basic.nonce == U256::zero() {
+				let _ = self.merge_fail(substate);
+				return Capture::Exit((ExitError::CreateCollision.into(), None))
 			}
 
 			substate.account_mut(address).reset_storage = true;
 			substate.account_mut(address).storage = BTreeMap::new();
 		}
 
-
-		if let Some(transfer) = transfer {
-			try_or_fail!(substate.transfer(transfer));
+		let context = Context {
+			address,
+			caller,
+			apparent_value: value,
+		};
+		let transfer = Transfer {
+			source: caller,
+			target: address,
+			value,
+		};
+		match substate.transfer(transfer) {
+			Ok(()) => (),
+			Err(e) => {
+				let _ = self.merge_revert(substate);
+				return Capture::Exit((ExitReason::Error(e), None))
+			},
 		}
 
 		if self.config.create_increase_nonce {
@@ -327,7 +393,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 					if out.len() > limit {
 						substate.gasometer.fail();
 						let _ = self.merge_fail(substate);
-						return Capture::Exit(ExitError::CreateContractLimit.into())
+						return Capture::Exit((ExitError::CreateContractLimit.into(), None))
 					}
 				}
 
@@ -337,26 +403,26 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 						self.state.entry(address).or_insert(Default::default())
 							.code = Some(out);
 						try_or_fail!(e);
-						Capture::Exit(ExitReason::Succeed(s))
+						Capture::Exit((ExitReason::Succeed(s), Some(address)))
 					},
 					Err(e) => {
 						let _ = self.merge_fail(substate);
-						Capture::Exit(ExitReason::Error(e))
+						Capture::Exit((ExitReason::Error(e), None))
 					},
 				}
 			},
 			ExitReason::Error(e) => {
 				substate.gasometer.fail();
 				let _ = self.merge_fail(substate);
-				Capture::Exit(ExitReason::Error(e))
+				Capture::Exit((ExitReason::Error(e), None))
 			},
 			ExitReason::Revert(e) => {
-				let _ = self.merge_fail(substate);
-				Capture::Exit(ExitReason::Revert(e))
+				let _ = self.merge_revert(substate);
+				Capture::Exit((ExitReason::Revert(e), None))
 			},
 			ExitReason::Fatal(e) => {
 				self.gasometer.fail();
-				Capture::Exit(ExitReason::Fatal(e))
+				Capture::Exit((ExitReason::Fatal(e), None))
 			},
 		}
 	}
@@ -369,6 +435,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		target_gas: Option<usize>,
 		is_static: bool,
 		take_l64: bool,
+		take_stipend: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
 		macro_rules! try_or_fail {
@@ -394,16 +461,26 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		if take_l64 && self.config.call_l64_after_gas {
 			after_gas = l64(after_gas);
 		}
-		let target_gas = min(target_gas.unwrap_or(after_gas), after_gas);
 
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(target_gas)) {
+		let target_gas = target_gas.unwrap_or(after_gas);
+		let mut gas_limit = min(target_gas, after_gas);
+
+		try_or_fail!(self.gasometer.record_cost(gas_limit));
+
+		if let Some(transfer) = transfer.as_ref() {
+			if take_stipend && transfer.value != U256::zero() {
+				gas_limit = gas_limit.saturating_add(self.config.call_stipend);
+			}
+		}
+
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit)) {
 			return match ret {
 				Ok((s, out, cost)) => {
-					try_or_fail!(self.gasometer.record_cost(cost));
+					let stipend = gas_limit - cost;
+					let _ = self.gasometer.record_stipend(stipend);
 					Capture::Exit((ExitReason::Succeed(s), out))
 				},
 				Err(e) => {
-					try_or_fail!(self.gasometer.record_cost(target_gas));
 					Capture::Exit((ExitReason::Error(e), Vec::new()))
 				},
 			}
@@ -411,11 +488,15 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 		let code = self.code(code_address);
 
-		let gas_limit = min(after_gas, target_gas);
-
 		let mut substate = self.substate(gas_limit, is_static);
 		if let Some(transfer) = transfer {
-			try_or_fail!(substate.transfer(transfer));
+			match substate.transfer(transfer) {
+				Ok(()) => (),
+				Err(e) => {
+					let _ = self.merge_revert(substate);
+					return Capture::Exit((ExitReason::Error(e), Vec::new()))
+				},
+			}
 		}
 
 		let mut runtime = Runtime::new(
@@ -433,12 +514,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
 			},
 			ExitReason::Error(e) => {
-				substate.gasometer.fail();
 				let _ = self.merge_fail(substate);
 				Capture::Exit((ExitReason::Error(e), Vec::new()))
 			},
 			ExitReason::Revert(e) => {
-				let _ = self.merge_fail(substate);
+				let _ = self.merge_revert(substate);
 				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
 			},
 			ExitReason::Fatal(e) => {
@@ -534,36 +614,10 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
 	fn chain_id(&self) -> U256 { self.backend.chain_id() }
 
-	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError> {
-		match scheme {
-			CreateScheme::Fixed(naddress) => {
-				self.account_mut(address).basic.nonce += U256::one();
-				Ok(naddress)
-			},
-			CreateScheme::Dynamic => {
-				let nonce = self.nonce(address);
-				self.account_mut(address).basic.nonce += U256::one();
-
-				let mut stream = rlp::RlpStream::new_list(2);
-				stream.append(&address);
-				stream.append(&nonce);
-				Ok(H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into())
-			},
-		}
-	}
-
 	fn deleted(&self, address: H160) -> bool { self.deleted.contains(&address) }
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		if self.account_mut(address).reset_storage {
-			if value == H256::default() {
-				self.account_mut(address).storage.remove(&index);
-			} else {
-				self.account_mut(address).storage.insert(index, value);
-			}
-		} else {
-			self.account_mut(address).storage.insert(index, value);
-		}
+		self.account_mut(address).storage.insert(index, value);
 
 		Ok(())
 	}
@@ -576,24 +630,16 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		Ok(())
 	}
 
-	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-		{
-			let source = self.account_mut(transfer.source);
-			if source.basic.balance < transfer.value {
-				return Err(ExitError::Other("not enough fund"))
-			}
-			source.basic.balance -= transfer.value;
-		}
+	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
+		let balance = self.balance(address);
 
-		{
-			let target = self.account_mut(transfer.target);
-			target.basic.balance += transfer.value;
-		}
+		self.transfer(Transfer {
+			source: address,
+			target: target,
+			value: balance
+		})?;
+		self.account_mut(address).basic.balance = U256::zero();
 
-		Ok(())
-	}
-
-	fn mark_delete(&mut self, address: H160) -> Result<(), ExitError> {
 		self.deleted.insert(address);
 
 		Ok(())
@@ -601,13 +647,13 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 
 	fn create(
 		&mut self,
-		address: H160,
-		transfer: Option<Transfer>,
+		caller: H160,
+		scheme: CreateScheme,
+		value: U256,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
-		context: Context,
-	) -> Capture<ExitReason, Self::CreateInterrupt> {
-		self.create_inner(address, transfer, init_code, target_gas, true, context)
+	) -> Capture<(ExitReason, Option<H160>), Self::CreateInterrupt> {
+		self.create_inner(caller, scheme, value, init_code, target_gas, true, true)
 	}
 
 	fn call(
@@ -619,7 +665,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-		self.call_inner(code_address, transfer, input, target_gas, is_static, true, context)
+		self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
 	}
 
 	fn pre_validate(

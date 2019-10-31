@@ -122,14 +122,23 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 						}
 
 						if reset_storage {
-							account.storage = storage.into_iter().collect();
-						} else {
-							for (index, value) in storage {
-								if value == H256::default() {
-									account.storage.remove(&index);
-								} else {
-									account.storage.insert(index, value);
-								}
+							account.storage = BTreeMap::new();
+						}
+
+						let zeros = account.storage.iter()
+							.filter(|(_, v)| v == &&H256::default())
+							.map(|(k, _)| k.clone())
+							.collect::<Vec<H256>>();
+
+						for zero in zeros {
+							account.storage.remove(&zero);
+						}
+
+						for (index, value) in storage {
+							if value == H256::default() {
+								account.storage.remove(&index);
+							} else {
+								account.storage.insert(index, value);
 							}
 						}
 

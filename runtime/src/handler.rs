@@ -36,19 +36,17 @@ pub trait Handler {
 	fn exists(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
 
-	fn create_address(&mut self, address: H160, scheme: CreateScheme) -> Result<H160, ExitError>;
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	fn log(&mut self, address: H160, topcis: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
-	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
-	fn mark_delete(&mut self, address: H160) -> Result<(), ExitError>;
+	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
 	fn create(
 		&mut self,
-		address: H160,
-		transfer: Option<Transfer>,
+		caller: H160,
+		scheme: CreateScheme,
+		value: U256,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
-		context: Context,
-	) -> Capture<ExitReason, Self::CreateInterrupt>;
+	) -> Capture<(ExitReason, Option<H160>), Self::CreateInterrupt>;
 	fn create_feedback(
 		&mut self,
 		_feedback: Self::CreateFeedback

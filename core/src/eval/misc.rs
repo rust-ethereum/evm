@@ -44,6 +44,10 @@ pub fn calldatasize(state: &mut Machine) -> Control {
 pub fn calldatacopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, data_offset, len);
 
+	if len == U256::zero() {
+		return Control::Continue(1)
+	}
+
 	let memory_offset = as_usize_or_fail!(memory_offset);
 	let ulen = as_usize_or_fail!(len);
 
