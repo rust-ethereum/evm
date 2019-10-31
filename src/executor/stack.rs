@@ -140,15 +140,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			Err(e) => return e.into(),
 		}
 
-		self.account_mut(caller).basic.nonce += U256::one();
-
 		match self.create_inner(
 			caller,
 			CreateScheme::Dynamic,
 			value,
 			init_code,
 			Some(gas_limit),
-			false,
 			false,
 		) {
 			Capture::Exit((s, _)) => s,
@@ -283,7 +280,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		take_l64: bool,
-		increase_nonce: bool,
 	) -> Capture<(ExitReason, Option<H160>), Infallible> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
@@ -319,11 +315,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		try_or_fail!(self.gasometer.record_cost(gas_limit));
 
 		let address = self.create_address(caller, scheme);
-
-
-		if increase_nonce {
-			self.account_mut(caller).basic.nonce += U256::one();
-		}
+		self.account_mut(caller).basic.nonce += U256::one();
 
 		let mut substate = self.substate(gas_limit, false);
 		{
@@ -342,10 +334,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 				}
 			}
 
-			if increase_nonce && substate.account_mut(address).basic.nonce > U256::one() {
-				let _ = self.merge_fail(substate);
-				return Capture::Exit((ExitError::CreateCollision.into(), None))
-			} else if !increase_nonce && substate.account_mut(address).basic.nonce == U256::zero() {
+			if substate.account_mut(address).basic.nonce > U256::zero() {
 				let _ = self.merge_fail(substate);
 				return Capture::Exit((ExitError::CreateCollision.into(), None))
 			}
@@ -653,7 +642,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 	) -> Capture<(ExitReason, Option<H160>), Self::CreateInterrupt> {
-		self.create_inner(caller, scheme, value, init_code, target_gas, true, true)
+		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 
 	fn call(
