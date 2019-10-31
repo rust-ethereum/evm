@@ -188,7 +188,7 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn frontier() -> Config {
+	pub const fn frontier() -> Config {
 		Config {
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
@@ -227,7 +227,7 @@ impl Config {
 		}
 	}
 
-	pub fn istanbul() -> Config {
+	pub const fn istanbul() -> Config {
 		Config {
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
