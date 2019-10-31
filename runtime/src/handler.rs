@@ -3,6 +3,7 @@ use primitive_types::{H160, H256, U256};
 use crate::{Capture, Stack, ExitError, ExitSucceed, Opcode, ExternalOpcode,
 			CreateScheme, Context, Machine, ExitReason};
 
+#[derive(Clone, Debug)]
 pub struct Transfer {
 	pub source: H160,
 	pub target: H160,
@@ -46,7 +47,7 @@ pub trait Handler {
 		value: U256,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
-	) -> Capture<(ExitReason, Option<H160>), Self::CreateInterrupt>;
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
 	fn create_feedback(
 		&mut self,
 		_feedback: Self::CreateFeedback

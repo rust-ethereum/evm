@@ -1,3 +1,4 @@
+use core::cmp::min;
 use primitive_types::{H256, U256};
 use super::Control;
 use crate::{Machine, ExitError, ExitSucceed, ExitFatal, ExitRevert};
@@ -11,6 +12,7 @@ pub fn codesize(state: &mut Machine) -> Control {
 pub fn codecopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, code_offset, len);
 
+	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 	match state.memory.copy_large(memory_offset, code_offset, len, &state.code) {
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
@@ -44,35 +46,12 @@ pub fn calldatasize(state: &mut Machine) -> Control {
 pub fn calldatacopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, data_offset, len);
 
+	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 	if len == U256::zero() {
-		match state.memory.touch() {
-			Ok(()) => (),
-			Err(e) => return Control::Exit(e.into()),
-		}
 		return Control::Continue(1)
 	}
 
-	let memory_offset = as_usize_or_fail!(memory_offset);
-	let ulen = as_usize_or_fail!(len);
-
-	let data = if let Some(end) = data_offset.checked_add(len) {
-		if end > U256::from(usize::max_value()) {
-			&[]
-		} else {
-			let data_offset = data_offset.as_usize();
-			let end = end.as_usize();
-
-			if end > state.data.len() {
-				&[]
-			} else {
-				&state.data[data_offset..end]
-			}
-		}
-	} else {
-		&[]
-	};
-
-	match state.memory.set(memory_offset, data, Some(ulen)) {
+	match state.memory.copy_large(memory_offset, data_offset, len, &state.data) {
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -85,6 +64,7 @@ pub fn pop(state: &mut Machine) -> Control {
 
 pub fn mload(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
+	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
 	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
 	push!(state, value);
@@ -94,6 +74,7 @@ pub fn mload(state: &mut Machine) -> Control {
 pub fn mstore(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
 	pop!(state, value);
+	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
 	match state.memory.set(index, &value[..], Some(32)) {
 		Ok(()) => Control::Continue(1),
@@ -103,6 +84,7 @@ pub fn mstore(state: &mut Machine) -> Control {
 
 pub fn mstore8(state: &mut Machine) -> Control {
 	pop_u256!(state, index, value);
+	try_or_fail!(state.memory.resize_offset(index, U256::one()));
 	let index = as_usize_or_fail!(index);
 	let value = (value.low_u32() & 0xff) as u8;
 	match state.memory.set(index, &[value], Some(1)) {
@@ -143,17 +125,14 @@ pub fn pc(state: &mut Machine, position: usize) -> Control {
 }
 
 pub fn msize(state: &mut Machine) -> Control {
-	push_u256!(state, U256::from(state.memory.len()));
+	push_u256!(state, U256::from(state.memory.effective_len()));
 	Control::Continue(1)
 }
 
 pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
-	let end = position + 1 + n;
-	if end > state.code.len() {
-		return Control::Exit(ExitError::PCUnderflow.into())
-	}
+	let end = min(position + 1 + n, state.code.len());
 
-	push_u256!(state, U256::from(&state.code[(position + 1)..(position + 1 + n)]));
+	push_u256!(state, U256::from(&state.code[(position + 1)..end]));
 	Control::Continue(1 + n)
 }
 
@@ -188,20 +167,14 @@ pub fn swap(state: &mut Machine, n: usize) -> Control {
 
 pub fn ret(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
-	if let Some(end) = start.checked_add(len) {
-		state.return_range = start..end;
-		Control::Exit(ExitSucceed::Returned.into())
-	} else {
-		Control::Exit(ExitError::InvalidReturnRange.into())
-	}
+	try_or_fail!(state.memory.resize_offset(start, len));
+	state.return_range = start..(start + len);
+	Control::Exit(ExitSucceed::Returned.into())
 }
 
 pub fn revert(state: &mut Machine) -> Control {
 	pop_u256!(state, start, len);
-	if let Some(end) = start.checked_add(len) {
-		state.return_range = start..end;
-		Control::Exit(ExitRevert::Reverted.into())
-	} else {
-		Control::Exit(ExitError::InvalidReturnRange.into())
-	}
+	try_or_fail!(state.memory.resize_offset(start, len));
+	state.return_range = start..(start + len);
+	Control::Exit(ExitRevert::Reverted.into())
 }

@@ -1,3 +1,12 @@
+macro_rules! try_or_fail {
+	( $e:expr ) => {
+		match $e {
+			Ok(v) => v,
+			Err(e) => return Control::Exit(e.into())
+		}
+	}
+}
+
 macro_rules! pop {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(

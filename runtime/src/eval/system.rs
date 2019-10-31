@@ -9,16 +9,14 @@ use super::Control;
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from, len);
 
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
 	let data = if len == U256::zero() {
-		match runtime.machine.memory_mut().touch() {
-			Ok(()) => (),
-			Err(e) => return Control::Exit(e.into()),
-		}
 		Vec::new()
 	} else {
 		let from = as_usize_or_fail!(from);
 		let len = as_usize_or_fail!(len);
-		runtime.machine.memory().get(from, len)
+
+		runtime.machine.memory_mut().get(from, len)
 	};
 
 	let ret = Keccak256::digest(data.as_slice());
@@ -101,6 +99,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 	pop!(runtime, address);
 	pop_u256!(runtime, memory_offset, code_offset, len);
 
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(memory_offset, len));
 	match runtime.machine.memory_mut().copy_large(
 		memory_offset,
 		code_offset,
@@ -124,6 +123,7 @@ pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, memory_offset, data_offset, len);
 
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(memory_offset, len));
 	if data_offset.checked_add(len)
 		.map(|l| l > U256::from(runtime.return_data_buffer.len()))
 		.unwrap_or(true)
@@ -193,15 +193,13 @@ pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
 	pop_u256!(runtime, offset, len);
 
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
 	let data = if len == U256::zero() {
-		match runtime.machine.memory_mut().touch() {
-			Ok(()) => (),
-			Err(e) => return Control::Exit(e.into()),
-		}
 		Vec::new()
 	} else {
 		let offset = as_usize_or_fail!(offset);
 		let len = as_usize_or_fail!(len);
+
 		runtime.machine.memory().get(offset, len)
 	};
 
@@ -235,17 +233,17 @@ pub fn create<H: Handler>(
 	is_create2: bool,
 	handler: &mut H,
 ) -> Control<H> {
+	runtime.return_data_buffer = Vec::new();
+
 	pop_u256!(runtime, value, code_offset, len);
 
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(code_offset, len));
 	let code = if len == U256::zero() {
-		match runtime.machine.memory_mut().touch() {
-			Ok(()) => (),
-			Err(e) => return Control::Exit(e.into()),
-		}
 		Vec::new()
 	} else {
 		let code_offset = as_usize_or_fail!(code_offset);
 		let len = as_usize_or_fail!(len);
+
 		runtime.machine.memory().get(code_offset, len)
 	};
 
@@ -266,7 +264,8 @@ pub fn create<H: Handler>(
 	};
 
 	match handler.create(runtime.context.address, scheme, value, code, None) {
-		Capture::Exit((reason, address)) => {
+		Capture::Exit((reason, address, return_data)) => {
+			runtime.return_data_buffer = return_data;
 			let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
 
 			match reason {
@@ -300,6 +299,8 @@ pub fn call<'config, H: Handler>(
 	scheme: CallScheme,
 	handler: &mut H,
 ) -> Control<H> {
+	runtime.return_data_buffer = Vec::new();
+
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
 	let mut gas = if gas > U256::from(usize::max_value()) {
@@ -320,15 +321,15 @@ pub fn call<'config, H: Handler>(
 
 	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
 
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(in_offset, in_len));
+	try_or_fail!(runtime.machine.memory_mut().resize_offset(out_offset, out_len));
+
 	let input = if in_len == U256::zero() {
-		match runtime.machine.memory_mut().touch() {
-			Ok(()) => (),
-			Err(e) => return Control::Exit(e.into()),
-		}
 		Vec::new()
 	} else {
 		let in_offset = as_usize_or_fail!(in_offset);
 		let in_len = as_usize_or_fail!(in_len);
+
 		runtime.machine.memory().get(in_offset, in_len)
 	};
 

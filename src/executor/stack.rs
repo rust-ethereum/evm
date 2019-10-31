@@ -148,7 +148,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			Some(gas_limit),
 			false,
 		) {
-			Capture::Exit((s, _)) => s,
+			Capture::Exit((s, _, _)) => s,
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
@@ -189,7 +189,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		&self,
 		price: U256,
 	) -> U256 {
-		let gas = self.gasometer.gas();
 		let used_gas = self.gasometer.total_used_gas() -
 			min(self.gasometer.total_used_gas() / 2, self.gasometer.refunded_gas() as usize);
 		U256::from(used_gas) * price
@@ -240,19 +239,24 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			.unwrap_or(self.backend.basic(address).nonce)
 	}
 
-	pub fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-		{
-			let source = self.account_mut(transfer.source);
-			if source.basic.balance < transfer.value {
-				return Err(ExitError::OutOfFund.into())
-			}
-			source.basic.balance -= transfer.value;
+	pub fn withdraw(&mut self, address: H160, balance: U256) -> Result<(), ExitError> {
+		let source = self.account_mut(address);
+		if source.basic.balance < balance {
+			return Err(ExitError::OutOfFund.into())
 		}
+		source.basic.balance -= balance;
 
-		{
-			let target = self.account_mut(transfer.target);
-			target.basic.balance += transfer.value;
-		}
+		Ok(())
+	}
+
+	pub fn deposit(&mut self, address: H160, balance: U256) {
+		let target = self.account_mut(address);
+		target.basic.balance += balance;
+	}
+
+	pub fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
+		self.withdraw(transfer.source, transfer.value)?;
+		self.deposit(transfer.target, transfer.value);
 
 		Ok(())
 	}
@@ -280,12 +284,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
 		take_l64: bool,
-	) -> Capture<(ExitReason, Option<H160>), Infallible> {
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), None)),
+					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
 				}
 			}
 		}
@@ -297,12 +301,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		if let Some(depth) = self.depth {
 			if depth + 1 > self.config.call_stack_limit {
 				self.gasometer.fail();
-				return Capture::Exit((ExitError::CallTooDeep.into(), None))
+				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
 			}
 		}
 
 		if self.balance(caller) < value {
-			return Capture::Exit((ExitError::OutOfFund.into(), None))
+			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
 		}
 
 		let mut after_gas = self.gasometer.gas();
@@ -322,7 +326,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			if let Some(code) = substate.account_mut(address).code.as_ref() {
 				if code.len() != 0 {
 					let _ = self.merge_fail(substate);
-					return Capture::Exit((ExitError::CreateCollision.into(), None))
+					return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
 				}
 			} else  {
 				let code = substate.backend.code(address);
@@ -330,13 +334,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 				if code.len() != 0 {
 					let _ = self.merge_fail(substate);
-					return Capture::Exit((ExitError::CreateCollision.into(), None))
+					return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
 				}
 			}
 
 			if substate.account_mut(address).basic.nonce > U256::zero() {
 				let _ = self.merge_fail(substate);
-				return Capture::Exit((ExitError::CreateCollision.into(), None))
+				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
 			}
 
 			substate.account_mut(address).reset_storage = true;
@@ -357,7 +361,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			Ok(()) => (),
 			Err(e) => {
 				let _ = self.merge_revert(substate);
-				return Capture::Exit((ExitReason::Error(e), None))
+				return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 			},
 		}
 
@@ -382,7 +386,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 					if out.len() > limit {
 						substate.gasometer.fail();
 						let _ = self.merge_fail(substate);
-						return Capture::Exit((ExitError::CreateContractLimit.into(), None))
+						return Capture::Exit((ExitError::CreateContractLimit.into(), None, Vec::new()))
 					}
 				}
 
@@ -392,26 +396,26 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 						self.state.entry(address).or_insert(Default::default())
 							.code = Some(out);
 						try_or_fail!(e);
-						Capture::Exit((ExitReason::Succeed(s), Some(address)))
+						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
 					},
 					Err(e) => {
 						let _ = self.merge_fail(substate);
-						Capture::Exit((ExitReason::Error(e), None))
+						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 					},
 				}
 			},
 			ExitReason::Error(e) => {
 				substate.gasometer.fail();
 				let _ = self.merge_fail(substate);
-				Capture::Exit((ExitReason::Error(e), None))
+				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 			},
 			ExitReason::Revert(e) => {
 				let _ = self.merge_revert(substate);
-				Capture::Exit((ExitReason::Revert(e), None))
+				Capture::Exit((ExitReason::Revert(e), None, runtime.machine().return_value()))
 			},
 			ExitReason::Fatal(e) => {
 				self.gasometer.fail();
-				Capture::Exit((ExitReason::Fatal(e), None))
+				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
 			},
 		}
 	}
@@ -466,25 +470,26 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}
 		}
 
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit)) {
-			return match ret {
-				Ok((s, out, cost)) => {
-					let stipend = gas_limit - cost;
-					let _ = self.gasometer.record_stipend(stipend);
-					Capture::Exit((ExitReason::Succeed(s), out))
-				},
-				Err(e) => {
-					Capture::Exit((ExitReason::Error(e), Vec::new()))
-				},
-			}
-		}
-
 		if let Some(transfer) = transfer {
 			match substate.transfer(transfer) {
 				Ok(()) => (),
 				Err(e) => {
 					let _ = self.merge_revert(substate);
 					return Capture::Exit((ExitReason::Error(e), Vec::new()))
+				},
+			}
+		}
+
+		if let Some(ret) = (substate.precompile)(code_address, &input, Some(gas_limit)) {
+			return match ret {
+				Ok((s, out, cost)) => {
+					let _ = substate.gasometer.record_cost(cost);
+					let _ = self.merge_succeed(substate);
+					Capture::Exit((ExitReason::Succeed(s), out))
+				},
+				Err(e) => {
+					let _ = self.merge_fail(substate);
+					Capture::Exit((ExitReason::Error(e), Vec::new()))
 				},
 			}
 		}
@@ -538,11 +543,28 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
-		self.state.get(&address).and_then(|v| {
+		if !self.exists(address) {
+			return H256::default()
+		}
+
+		let (balance, nonce, code_size) = if let Some(account) = self.state.get(&address) {
+			(account.basic.balance, account.basic.nonce,
+			 account.code.as_ref().map(|c| U256::from(c.len())).unwrap_or(self.code_size(address)))
+		} else {
+			let basic = self.backend.basic(address);
+			(basic.balance, basic.nonce, U256::from(self.backend.code_size(address)))
+		};
+
+		if balance == U256::zero() && nonce == U256::zero() && code_size == U256::zero() {
+			return H256::default()
+		}
+
+		let value = self.state.get(&address).and_then(|v| {
 			v.code.as_ref().map(|c| {
 				H256::from_slice(Keccak256::digest(&c).as_slice())
 			})
-		}).unwrap_or(self.backend.code_hash(address))
+		}).unwrap_or(self.backend.code_hash(address));
+		value
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
@@ -642,7 +664,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		value: U256,
 		init_code: Vec<u8>,
 		target_gas: Option<usize>,
-	) -> Capture<(ExitReason, Option<H160>), Self::CreateInterrupt> {
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 
@@ -666,12 +688,16 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	) -> Result<(), ExitError> {
 		let pre_gas = self.gasometer.gas();
 
+		// println!("opcode: {:?}, gas: 0x{:x}", opcode, pre_gas);
+
 		// TODO: Add opcode check.
 		let (gas_cost, memory_cost) = gasometer::opcode_cost(
 			context.address, opcode, stack, self.is_static, self
 		)?;
 
 		self.gasometer.record_opcode(gas_cost, memory_cost)?;
+
+		// println!("gas cost: {}", pre_gas - self.gasometer.gas());
 
 		Ok(())
 	}

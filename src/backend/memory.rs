@@ -79,7 +79,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	fn code_hash(&self, address: H160) -> H256 {
 		self.state.get(&address).map(|v| {
 			H256::from_slice(Keccak256::digest(&v.code).as_slice())
-		}).unwrap_or(H256::default())
+		}).unwrap_or(H256::from_slice(Keccak256::digest(&[]).as_slice()))
 	}
 
 	fn code_size(&self, address: H160) -> usize {

@@ -54,7 +54,7 @@ pub enum ExitError {
 	StackUnderflow,
 	StackOverflow,
 	InvalidJump,
-	InvalidReturnRange,
+	InvalidRange,
 	PCUnderflow,
 	DesignatedInvalid,
 	CallTooDeep,

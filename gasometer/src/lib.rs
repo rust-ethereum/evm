@@ -126,7 +126,6 @@ impl<'config> Gasometer<'config> {
 		};
 		let memory_gas = try_or_fail!(self.inner, memory::memory_gas(memory_cost));
 		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost.clone(), gas));
-		let gas_stipend = 0; // self.inner_mut()?.gas_stipend(cost.clone());
 		let gas_refund = self.inner_mut()?.gas_refund(cost.clone());
 		let used_gas = self.inner_mut()?.used_gas;
 
@@ -139,7 +138,7 @@ impl<'config> Gasometer<'config> {
 		let after_gas = self.gas_limit - all_gas_cost;
 		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
 
-		self.inner_mut()?.used_gas += gas_cost + gas_stipend;
+		self.inner_mut()?.used_gas += gas_cost;
 		self.inner_mut()?.memory_cost = memory_cost;
 		self.inner_mut()?.refunded_gas += gas_refund;
 
@@ -459,17 +458,6 @@ impl<'config> Inner<'config> {
 		})
 	}
 
-	fn gas_stipend(
-		&self,
-		cost: GasCost
-	) -> usize {
-		match cost {
-			GasCost::Call { value, .. } => costs::call_callcode_stipend(value, self.config),
-			GasCost::CallCode { value, .. } => costs::call_callcode_stipend(value, self.config),
-			_ => 0,
-		}
-	}
-
 	fn gas_refund(
 		&self,
 		cost: GasCost
@@ -484,7 +472,7 @@ impl<'config> Inner<'config> {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum GasCost {
 	Zero,
 	Base,
@@ -516,13 +504,13 @@ pub enum GasCost {
 	SLoad,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct MemoryCost {
 	pub offset: U256,
 	pub len: U256,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum TransactionCost {
 	Call { zero_data_len: usize, non_zero_data_len: usize },
 	Create { zero_data_len: usize, non_zero_data_len: usize },
@@ -530,6 +518,14 @@ pub enum TransactionCost {
 
 impl MemoryCost {
 	pub fn join(self, other: MemoryCost) -> MemoryCost {
+		if self.len == U256::zero() {
+			return other
+		}
+
+		if other.len == U256::zero() {
+			return self
+		}
+
 		let self_end = self.offset.saturating_add(self.len);
 		let other_end = other.offset.saturating_add(other.len);
 

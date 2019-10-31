@@ -1,5 +1,5 @@
 use primitive_types::U256;
-use core::cmp::min;
+use core::cmp::{min, max};
 use alloc::vec::Vec;
 use crate::{ExitError, ExitFatal};
 
@@ -8,6 +8,7 @@ use crate::{ExitError, ExitFatal};
 #[derive(Clone, Debug)]
 pub struct Memory {
 	data: Vec<u8>,
+	effective_len: U256,
 	limit: usize,
 }
 
@@ -15,6 +16,7 @@ impl Memory {
 	pub fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
+			effective_len: U256::zero(),
 			limit,
 		}
 	}
@@ -23,9 +25,14 @@ impl Memory {
 		self.limit
 	}
 
-	/// Get the length of the current effective memory range.
+	/// Get the length of the current memory range.
 	pub fn len(&self) -> usize {
 		self.data.len()
+	}
+
+	/// Get the effective length.
+	pub fn effective_len(&self) -> U256 {
+		self.effective_len
 	}
 
 	/// Return true if current effective memory range is zero.
@@ -33,31 +40,28 @@ impl Memory {
 		self.len() == 0
 	}
 
-	/// Resize the current memory range to given length, aligned to next 32.
-	pub fn resize(&mut self, mut size: usize) -> Result<(), ExitFatal> {
-		if size == 0 {
-			size = 1;
-		}
-
-		if self.data.len() >= size {
+	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
+		if len == U256::zero() {
 			return Ok(())
 		}
 
-		while size % 32 != 0 {
-			size += 1;
+		if let Some(end) = offset.checked_add(len) {
+			self.resize_end(end)
+		} else {
+			Err(ExitError::InvalidRange)
 		}
-
-		if size > self.limit {
-			return Err(ExitFatal::NotSupported)
-		}
-
-		self.data.resize(size, 0);
-		Ok(())
 	}
 
-	/// Touch the memory.
-	pub fn touch(&mut self) -> Result<(), ExitFatal> {
-		self.resize(0)
+	pub fn resize_end(&mut self, mut end: U256) -> Result<(), ExitError> {
+		while end % U256::from(32) != U256::zero() {
+			end = match end.checked_add(U256::one()) {
+				Some(end) => end,
+				None => return Err(ExitError::InvalidRange)
+			};
+		}
+
+		self.effective_len = max(self.effective_len, end);
+		Ok(())
 	}
 
 	/// Get memory region at given offset.
@@ -98,7 +102,9 @@ impl Memory {
 			return Err(ExitFatal::NotSupported)
 		}
 
-		self.resize(offset + target_size)?;
+		if self.data.len() < offset + target_size {
+			self.data.resize(offset + target_size, 0);
+		}
 
 		for index in 0..target_size {
 			if self.data.len() > offset + index && value.len() > index {

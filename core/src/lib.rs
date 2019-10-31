@@ -79,10 +79,25 @@ impl Machine {
 	}
 
 	pub fn return_value(&self) -> Vec<u8> {
-		self.memory.get(
-			self.return_range.start.as_usize(),
-			self.return_range.end.as_usize() - self.return_range.start.as_usize(),
-		)
+		if self.return_range.start > U256::from(usize::max_value()) {
+			let mut ret = Vec::new();
+			ret.resize((self.return_range.end - self.return_range.start).as_usize(), 0);
+			ret
+		} else if self.return_range.end > U256::from(usize::max_value()) {
+			let mut ret = self.memory.get(
+				self.return_range.start.as_usize(),
+				usize::max_value() - self.return_range.start.as_usize(),
+			);
+			while ret.len() < (self.return_range.end - self.return_range.start).as_usize() {
+				ret.push(0);
+			}
+			ret
+		} else {
+			self.memory.get(
+				self.return_range.start.as_usize(),
+				(self.return_range.end - self.return_range.start).as_usize(),
+			)
+		}
 	}
 
 	pub fn run(&mut self) -> Capture<ExitReason, Trap> {
