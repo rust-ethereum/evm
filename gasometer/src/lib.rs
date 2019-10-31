@@ -203,30 +203,42 @@ pub fn opcode_cost<H: Handler>(
 	opcode: Result<Opcode, ExternalOpcode>,
 	stack: &Stack,
 	is_static: bool,
+	config: &Config,
 	handler: &H
 ) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
 	let gas_cost = match opcode {
-		Ok(Opcode::Stop) | Ok(Opcode::Return) | Ok(Opcode::Revert) => GasCost::Zero,
+		Ok(Opcode::Stop) | Ok(Opcode::Return) => GasCost::Zero,
+
+		Ok(Opcode::Revert) if config.has_revert => GasCost::Zero,
+		Ok(Opcode::Revert) => GasCost::Invalid,
 
 		Err(ExternalOpcode::Address) | Err(ExternalOpcode::Origin) | Err(ExternalOpcode::Caller) |
 		Err(ExternalOpcode::CallValue) | Ok(Opcode::CallDataSize) |
-		Err(ExternalOpcode::ReturnDataSize) |
 		Ok(Opcode::CodeSize) | Err(ExternalOpcode::GasPrice) | Err(ExternalOpcode::Coinbase) |
 		Err(ExternalOpcode::Timestamp) | Err(ExternalOpcode::Number) |
 		Err(ExternalOpcode::Difficulty) |
 		Err(ExternalOpcode::GasLimit) | Ok(Opcode::Pop) | Ok(Opcode::PC) |
-		Ok(Opcode::MSize) | Err(ExternalOpcode::Gas) | Err(ExternalOpcode::ChainId) => GasCost::Base,
+		Ok(Opcode::MSize) | Err(ExternalOpcode::Gas) => GasCost::Base,
+
+		Err(ExternalOpcode::ChainId) if config.has_chain_id => GasCost::Base,
+		Err(ExternalOpcode::ChainId) => GasCost::Invalid,
 
 		Ok(Opcode::Add) | Ok(Opcode::Sub) | Ok(Opcode::Not) | Ok(Opcode::Lt) |
 		Ok(Opcode::Gt) | Ok(Opcode::SLt) | Ok(Opcode::SGt) | Ok(Opcode::Eq) |
 		Ok(Opcode::IsZero) | Ok(Opcode::And) | Ok(Opcode::Or) | Ok(Opcode::Xor) |
 		Ok(Opcode::Byte) | Ok(Opcode::CallDataLoad) | Ok(Opcode::MLoad) |
 		Ok(Opcode::MStore) | Ok(Opcode::MStore8) | Ok(Opcode::Push(_)) |
-		Ok(Opcode::Dup(_)) | Ok(Opcode::Swap(_)) | Ok(Opcode::Shl) | Ok(Opcode::Shr) |
-		Ok(Opcode::Sar) => GasCost::VeryLow,
+		Ok(Opcode::Dup(_)) | Ok(Opcode::Swap(_)) => GasCost::VeryLow,
+
+		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) if config.has_bitwise_shifting =>
+			GasCost::VeryLow,
+		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) => GasCost::Invalid,
 
 		Ok(Opcode::Mul) | Ok(Opcode::Div) | Ok(Opcode::SDiv) | Ok(Opcode::Mod) |
-		Ok(Opcode::SMod) | Ok(Opcode::SignExtend) | Err(ExternalOpcode::SelfBalance) => GasCost::Low,
+		Ok(Opcode::SMod) | Ok(Opcode::SignExtend) => GasCost::Low,
+
+		Err(ExternalOpcode::SelfBalance) if config.has_self_balance => GasCost::Low,
+		Err(ExternalOpcode::SelfBalance) => GasCost::Invalid,
 
 		Ok(Opcode::AddMod) | Ok(Opcode::MulMod) | Ok(Opcode::Jump) => GasCost::Mid,
 
@@ -235,14 +247,12 @@ pub fn opcode_cost<H: Handler>(
 		Err(ExternalOpcode::ExtCodeSize) => GasCost::ExtCodeSize,
 		Err(ExternalOpcode::Balance) => GasCost::Balance,
 		Err(ExternalOpcode::BlockHash) => GasCost::BlockHash,
-		Err(ExternalOpcode::ExtCodeHash) => GasCost::ExtCodeHash,
+
+		Err(ExternalOpcode::ExtCodeHash) if config.has_ext_code_hash => GasCost::ExtCodeHash,
+		Err(ExternalOpcode::ExtCodeHash) => GasCost::Invalid,
 
 		Err(ExternalOpcode::CallCode) => GasCost::CallCode {
 			value: U256::from_big_endian(&stack.peek(2)?[..]),
-			gas: U256::from_big_endian(&stack.peek(0)?[..]),
-			target_exists: handler.exists(stack.peek(1)?.into()),
-		},
-		Err(ExternalOpcode::DelegateCall) => GasCost::DelegateCall {
 			gas: U256::from_big_endian(&stack.peek(0)?[..]),
 			target_exists: handler.exists(stack.peek(1)?.into()),
 		},
@@ -256,8 +266,7 @@ pub fn opcode_cost<H: Handler>(
 		Err(ExternalOpcode::ExtCodeCopy) => GasCost::ExtCodeCopy {
 			len: U256::from_big_endian(&stack.peek(3)?[..]),
 		},
-		Ok(Opcode::CallDataCopy) | Ok(Opcode::CodeCopy) |
-		Err(ExternalOpcode::ReturnDataCopy) => GasCost::VeryLowCopy {
+		Ok(Opcode::CallDataCopy) | Ok(Opcode::CodeCopy) => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
 		Ok(Opcode::Exp) => GasCost::Exp {
@@ -265,6 +274,18 @@ pub fn opcode_cost<H: Handler>(
 		},
 		Ok(Opcode::JumpDest) => GasCost::JumpDest,
 		Err(ExternalOpcode::SLoad) => GasCost::SLoad,
+
+		Err(ExternalOpcode::DelegateCall) if config.has_delegate_call => GasCost::DelegateCall {
+			gas: U256::from_big_endian(&stack.peek(0)?[..]),
+			target_exists: handler.exists(stack.peek(1)?.into()),
+		},
+		Err(ExternalOpcode::DelegateCall) => GasCost::Invalid,
+
+		Err(ExternalOpcode::ReturnDataSize) if config.has_return_data => GasCost::Base,
+		Err(ExternalOpcode::ReturnDataCopy) if config.has_return_data => GasCost::VeryLowCopy {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
+		Err(ExternalOpcode::ReturnDataSize) | Err(ExternalOpcode::ReturnDataCopy) => GasCost::Invalid,
 
 		Err(ExternalOpcode::SStore) if !is_static => {
 			let index = stack.peek(0)?;
@@ -281,7 +302,7 @@ pub fn opcode_cost<H: Handler>(
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
 		Err(ExternalOpcode::Create) if !is_static => GasCost::Create,
-		Err(ExternalOpcode::Create2) if !is_static => GasCost::Create2 {
+		Err(ExternalOpcode::Create2) if !is_static && config.has_create2 => GasCost::Create2 {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
 		Err(ExternalOpcode::Suicide) if !is_static => GasCost::Suicide {

@@ -169,6 +169,22 @@ pub struct Config {
 	pub create_contract_limit: Option<usize>,
 	/// Call stipend.
 	pub call_stipend: usize,
+	/// Has delegate call.
+	pub has_delegate_call: bool,
+	/// Has create2.
+	pub has_create2: bool,
+	/// Has revert.
+	pub has_revert: bool,
+	/// Has return data.
+	pub has_return_data: bool,
+	/// Has bitwise shifting.
+	pub has_bitwise_shifting: bool,
+	/// Has chain ID.
+	pub has_chain_id: bool,
+	/// Has self balance.
+	pub has_self_balance: bool,
+	/// Has ext code hash.
+	pub has_ext_code_hash: bool,
 }
 
 impl Config {
@@ -200,6 +216,14 @@ impl Config {
 			call_stack_limit: 1024,
 			create_contract_limit: None,
 			call_stipend: 2300,
+			has_delegate_call: false,
+			has_create2: false,
+			has_revert: false,
+			has_return_data: false,
+			has_bitwise_shifting: false,
+			has_chain_id: false,
+			has_self_balance: false,
+			has_ext_code_hash: false,
 		}
 	}
 
@@ -231,6 +255,14 @@ impl Config {
 			call_stack_limit: 1024,
 			create_contract_limit: Some(0x6000),
 			call_stipend: 2300,
+			has_delegate_call: true,
+			has_create2: true,
+			has_revert: true,
+			has_return_data: true,
+			has_bitwise_shifting: true,
+			has_chain_id: true,
+			has_self_balance: true,
+			has_ext_code_hash: true,
 		}
 	}
 }

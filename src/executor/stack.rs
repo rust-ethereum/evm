@@ -687,18 +687,11 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
-		let pre_gas = self.gasometer.gas();
-
-		// println!("opcode: {:?}, gas: 0x{:x}", opcode, pre_gas);
-
-		// TODO: Add opcode check.
 		let (gas_cost, memory_cost) = gasometer::opcode_cost(
-			context.address, opcode, stack, self.is_static, self
+			context.address, opcode, stack, self.is_static, &self.config, self
 		)?;
 
 		self.gasometer.record_opcode(gas_cost, memory_cost)?;
-
-		// println!("gas cost: {}", pre_gas - self.gasometer.gas());
 
 		Ok(())
 	}
