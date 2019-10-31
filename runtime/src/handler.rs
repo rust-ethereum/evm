@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use crate::{Capture, Stack, ExitError, ExitSucceed, Opcode, ExternalOpcode,
+use crate::{Capture, Stack, ExitError, Opcode, ExternalOpcode,
 			CreateScheme, Context, Machine, ExitReason};
 
 #[derive(Clone, Debug)]

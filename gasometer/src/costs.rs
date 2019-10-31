@@ -56,14 +56,6 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 	}
 }
 
-pub fn call_callcode_stipend(value: U256, config: &Config) -> usize {
-	if value != U256::zero() {
-		config.call_stipend
-	} else {
-		0
-	}
-}
-
 pub fn create2_cost(len: U256) -> Result<usize, ExitError> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)

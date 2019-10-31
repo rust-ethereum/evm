@@ -2,6 +2,7 @@ mod memory;
 
 pub use self::memory::{MemoryBackend, MemoryVicinity, MemoryAccount};
 
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Eq, PartialEq, Debug, Default)]

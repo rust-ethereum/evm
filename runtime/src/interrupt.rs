@@ -1,4 +1,4 @@
-use crate::{Runtime, Handler, ExitError, ExitFatal};
+use crate::{Runtime, Handler, ExitFatal};
 
 pub enum Resolve<'a, 'config, H: Handler> {
 	Create(H::CreateInterrupt, ResolveCreate<'a, 'config>),
