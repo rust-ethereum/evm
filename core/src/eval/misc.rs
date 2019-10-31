@@ -45,6 +45,10 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, data_offset, len);
 
 	if len == U256::zero() {
+		match state.memory.touch() {
+			Ok(()) => (),
+			Err(e) => return Control::Exit(e.into()),
+		}
 		return Control::Continue(1)
 	}
 

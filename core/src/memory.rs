@@ -55,6 +55,11 @@ impl Memory {
 		Ok(())
 	}
 
+	/// Touch the memory.
+	pub fn touch(&mut self) -> Result<(), ExitFatal> {
+		self.resize(0)
+	}
+
 	/// Get memory region at given offset.
 	///
 	/// ## Panics

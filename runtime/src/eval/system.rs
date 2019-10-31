@@ -10,6 +10,10 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from, len);
 
 	let data = if len == U256::zero() {
+		match runtime.machine.memory_mut().touch() {
+			Ok(()) => (),
+			Err(e) => return Control::Exit(e.into()),
+		}
 		Vec::new()
 	} else {
 		let from = as_usize_or_fail!(from);
@@ -190,6 +194,10 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	pop_u256!(runtime, offset, len);
 
 	let data = if len == U256::zero() {
+		match runtime.machine.memory_mut().touch() {
+			Ok(()) => (),
+			Err(e) => return Control::Exit(e.into()),
+		}
 		Vec::new()
 	} else {
 		let offset = as_usize_or_fail!(offset);
@@ -230,6 +238,10 @@ pub fn create<H: Handler>(
 	pop_u256!(runtime, value, code_offset, len);
 
 	let code = if len == U256::zero() {
+		match runtime.machine.memory_mut().touch() {
+			Ok(()) => (),
+			Err(e) => return Control::Exit(e.into()),
+		}
 		Vec::new()
 	} else {
 		let code_offset = as_usize_or_fail!(code_offset);
@@ -309,6 +321,10 @@ pub fn call<'config, H: Handler>(
 	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
 
 	let input = if in_len == U256::zero() {
+		match runtime.machine.memory_mut().touch() {
+			Ok(()) => (),
+			Err(e) => return Control::Exit(e.into()),
+		}
 		Vec::new()
 	} else {
 		let in_offset = as_usize_or_fail!(in_offset);
