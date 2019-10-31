@@ -300,7 +300,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 		if let Some(depth) = self.depth {
 			if depth + 1 > self.config.call_stack_limit {
-				self.gasometer.fail();
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
 			}
 		}
@@ -463,6 +462,8 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		let code = self.code(code_address);
 
 		let mut substate = self.substate(gas_limit, is_static);
+		substate.account_mut(context.address);
+
 		if let Some(depth) = self.depth {
 			if depth + 1 > self.config.call_stack_limit {
 				let _ = self.merge_revert(substate);
