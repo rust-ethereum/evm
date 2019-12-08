@@ -15,10 +15,12 @@ evm-runtime = { version = "0.14", path = "runtime", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 rlp = { version = "0.4", default-features = false }
 primitive-types = { version = "0.6", default-features = false, features = ["rlp"] }
+serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
 [features]
 default = ["std"]
-std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std"]
+with-serde = ["serde", "primitive-types/serde"]
+std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std"]
 
 [workspace]
 members = [

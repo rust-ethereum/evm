@@ -5,6 +5,7 @@ use sha3::{Digest, Keccak256};
 use super::{Basic, Backend, ApplyBackend, Apply, Log};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryVicinity {
 	pub gas_price: U256,
 	pub origin: H160,
@@ -18,6 +19,7 @@ pub struct MemoryVicinity {
 }
 
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryAccount {
 	pub nonce: U256,
 	pub balance: U256,
