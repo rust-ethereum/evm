@@ -261,7 +261,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
-	fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 {
+	pub fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 {
 		match scheme {
 			CreateScheme::Fixed(naddress) => {
 				naddress
