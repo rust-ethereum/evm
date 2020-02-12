@@ -1,8 +1,15 @@
-use primitive_types::{H160, U256};
+use primitive_types::{H160, U256, H256};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum CreateScheme {
-	Dynamic,
+	Legacy {
+		caller: H160,
+	},
+	Create2 {
+		caller: H160,
+		code_hash: H256,
+		salt: H256,
+	},
 	Fixed(H160),
 }
 

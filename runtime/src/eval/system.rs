@@ -250,17 +250,15 @@ pub fn create<H: Handler>(
 	let scheme = if is_create2 {
 		pop!(runtime, salt);
 		let code_hash = H256::from_slice(Keccak256::digest(&code).as_slice());
-
-		let mut hasher = Keccak256::new();
-		hasher.input(&[0xff]);
-		hasher.input(&runtime.context.address[..]);
-		hasher.input(&salt[..]);
-		hasher.input(&code_hash[..]);
-
-		let target = H256::from_slice(hasher.result().as_slice());
-		CreateScheme::Fixed(target.into())
+		CreateScheme::Create2 {
+			caller: runtime.context.address,
+			salt,
+			code_hash,
+		}
 	} else {
-		CreateScheme::Dynamic
+		CreateScheme::Legacy {
+			caller: runtime.context.address,
+		}
 	};
 
 	match handler.create(runtime.context.address, scheme, value, code, None) {

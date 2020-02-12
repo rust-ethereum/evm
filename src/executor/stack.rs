@@ -142,7 +142,35 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 		match self.create_inner(
 			caller,
-			CreateScheme::Dynamic,
+			CreateScheme::Legacy { caller },
+			value,
+			init_code,
+			Some(gas_limit),
+			false,
+		) {
+			Capture::Exit((s, _, _)) => s,
+			Capture::Trap(_) => unreachable!(),
+		}
+	}
+
+	pub fn transact_create2(
+		&mut self,
+		caller: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		salt: H256,
+		gas_limit: usize,
+	) -> ExitReason {
+		let transaction_cost = gasometer::create_transaction_cost(&init_code);
+		match self.gasometer.record_transaction(transaction_cost) {
+			Ok(()) => (),
+			Err(e) => return e.into(),
+		}
+		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
+
+		match self.create_inner(
+			caller,
+			CreateScheme::Create2 { caller, code_hash, salt },
 			value,
 			init_code,
 			Some(gas_limit),
@@ -261,17 +289,25 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
-	pub fn create_address(&self, address: H160, scheme: CreateScheme) -> H160 {
+	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
 		match scheme {
-			CreateScheme::Fixed(naddress) => {
-				naddress
+			CreateScheme::Create2 { caller, code_hash, salt } => {
+				let mut hasher = Keccak256::new();
+				hasher.input(&[0xff]);
+				hasher.input(&caller[..]);
+				hasher.input(&salt[..]);
+				hasher.input(&code_hash[..]);
+				H256::from_slice(hasher.result().as_slice()).into()
 			},
-			CreateScheme::Dynamic => {
-				let nonce = self.nonce(address);
+			CreateScheme::Legacy { caller } => {
+				let nonce = self.nonce(caller);
 				let mut stream = rlp::RlpStream::new_list(2);
-				stream.append(&address);
+				stream.append(&caller);
 				stream.append(&nonce);
 				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+			},
+			CreateScheme::Fixed(naddress) => {
+				naddress
 			},
 		}
 	}
@@ -317,7 +353,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		let gas_limit = min(after_gas, target_gas);
 		try_or_fail!(self.gasometer.record_cost(gas_limit));
 
-		let address = self.create_address(caller, scheme);
+		let address = self.create_address(scheme);
 		self.account_mut(caller).basic.nonce += U256::one();
 
 		let mut substate = self.substate(gas_limit, false);
