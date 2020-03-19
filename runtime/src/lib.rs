@@ -1,3 +1,5 @@
+//! Runtime layer for EVM.
+
 #![deny(warnings)]
 #![forbid(unsafe_code, missing_docs, unused_variables, unused_imports)]
 
@@ -71,6 +73,9 @@ macro_rules! step {
 	});
 }
 
+/// EVM runtime.
+///
+/// The runtime wraps an EVM `Machine` with support of return data and context.
 pub struct Runtime<'config> {
 	machine: Machine,
 	status: Result<(), ExitReason>,
@@ -80,6 +85,7 @@ pub struct Runtime<'config> {
 }
 
 impl<'config> Runtime<'config> {
+	/// Create a new runtime with given code and data.
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
@@ -95,10 +101,12 @@ impl<'config> Runtime<'config> {
 		}
 	}
 
+	/// Get a reference to the machine.
 	pub fn machine(&self) -> &Machine {
 		&self.machine
 	}
 
+	/// Step the runtime.
 	pub fn step<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
@@ -106,6 +114,7 @@ impl<'config> Runtime<'config> {
 		step!(self, handler, return Err; Ok)
 	}
 
+	/// Loop stepping the runtime until it stops.
 	pub fn run<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
@@ -116,6 +125,7 @@ impl<'config> Runtime<'config> {
 	}
 }
 
+/// Runtime configuration.
 #[derive(Clone, Debug)]
 pub struct Config {
 	/// Gas paid for extcode.
@@ -191,6 +201,7 @@ pub struct Config {
 }
 
 impl Config {
+	/// Frontier hard fork configuration.
 	pub const fn frontier() -> Config {
 		Config {
 			gas_ext_code: 20,
@@ -230,6 +241,7 @@ impl Config {
 		}
 	}
 
+	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
 		Config {
 			gas_ext_code: 700,

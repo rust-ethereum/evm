@@ -1,10 +1,14 @@
 use crate::{Runtime, Handler, ExitFatal};
 
+/// Interrupt resolution.
 pub enum Resolve<'a, 'config, H: Handler> {
+	/// Create interrupt resolution.
 	Create(H::CreateInterrupt, ResolveCreate<'a, 'config>),
+	/// Call interrupt resolution.
 	Call(H::CallInterrupt, ResolveCall<'a, 'config>),
 }
 
+/// Create interrupt resolution.
 pub struct ResolveCreate<'a, 'config> {
 	runtime: &'a mut Runtime<'config>,
 }
@@ -22,6 +26,7 @@ impl<'a, 'config> Drop for ResolveCreate<'a, 'config> {
 	}
 }
 
+/// Call interrupt resolution.
 pub struct ResolveCall<'a, 'config> {
 	runtime: &'a mut Runtime<'config>,
 }
