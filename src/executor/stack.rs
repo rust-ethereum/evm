@@ -10,11 +10,17 @@ use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer
 use crate::backend::{Log, Basic, Apply, Backend};
 use crate::gasometer::{self, Gasometer};
 
+/// Account definition for the stack-based executor.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
 pub struct StackAccount {
+	/// Basic account information, including nonce and balance.
 	pub basic: Basic,
+	/// Code. `None` means the code is currently unknown.
 	pub code: Option<Vec<u8>>,
+	/// Storage. Not inserted values mean it is currently known, but not empty.
 	pub storage: BTreeMap<H256, H256>,
+	/// Whether the storage in the database should be reset before storage
+	/// values are applied.
 	pub reset_storage: bool,
 }
 

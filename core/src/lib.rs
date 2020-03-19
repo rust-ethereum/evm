@@ -1,3 +1,8 @@
+//! Core layer for EVM.
+
+#![deny(warnings)]
+#![forbid(unsafe_code, missing_docs, unused_variables, unused_imports)]
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate core;
@@ -42,11 +47,16 @@ pub struct Machine {
 }
 
 impl Machine {
+	/// Reference of machine stack.
 	pub fn stack(&self) -> &Stack { &self.stack }
+	/// Mutable reference of machine stack.
 	pub fn stack_mut(&mut self) -> &mut Stack { &mut self.stack }
+	/// Reference of machine memory.
 	pub fn memory(&self) -> &Memory { &self.memory }
+	/// Mutable reference of machine memory.
 	pub fn memory_mut(&mut self) -> &mut Memory { &mut self.memory }
 
+	/// Create a new machine with given code and data.
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
@@ -66,10 +76,12 @@ impl Machine {
 		}
 	}
 
+	/// Explict exit of the machine. Further step will return error.
 	pub fn exit(&mut self, reason: ExitReason) {
 		self.position = Err(reason);
 	}
 
+	/// Inspect the machine's next opcode and current stack.
 	pub fn inspect(&self) -> Option<(Result<Opcode, ExternalOpcode>, &Stack)> {
 		let position = match self.position {
 			Ok(position) => position,
@@ -78,6 +90,7 @@ impl Machine {
 		self.code.get(position).map(|v| (Opcode::parse(*v), &self.stack))
 	}
 
+	/// Copy and get the return value of the machine, if any.
 	pub fn return_value(&self) -> Vec<u8> {
 		if self.return_range.start > U256::from(usize::max_value()) {
 			let mut ret = Vec::new();
@@ -100,6 +113,7 @@ impl Machine {
 		}
 	}
 
+	/// Loop stepping the machine, until it stops.
 	pub fn run(&mut self) -> Capture<ExitReason, Trap> {
 		loop {
 			match self.step() {
@@ -109,6 +123,7 @@ impl Machine {
 		}
 	}
 
+	/// Step the machine, executing one opcode. It then returns.
 	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
 		let position = self.position.map_err(|reason| Capture::Exit(reason))?;
 

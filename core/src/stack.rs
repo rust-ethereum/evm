@@ -2,6 +2,7 @@ use primitive_types::H256;
 use alloc::vec::Vec;
 use crate::ExitError;
 
+/// EVM stack.
 #[derive(Clone, Debug)]
 pub struct Stack {
 	data: Vec<H256>,
@@ -9,6 +10,7 @@ pub struct Stack {
 }
 
 impl Stack {
+	/// Create a new stack with given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
@@ -16,14 +18,19 @@ impl Stack {
 		}
 	}
 
+	/// Stack limit.
 	pub fn limit(&self) -> usize {
 		self.limit
 	}
 
+	/// Pop a value from the stack. If the stack is already empty, returns the
+	/// `StackUnderflow` error.
 	pub fn pop(&mut self) -> Result<H256, ExitError> {
 		self.data.pop().ok_or(ExitError::StackUnderflow)
 	}
 
+	/// Push a new value into the stack. If it will exceed the stack limit,
+	/// returns `StackOverflow` error and leaves the stack unchanged.
 	pub fn push(&mut self, value: H256) -> Result<(), ExitError> {
 		if self.data.len() + 1 > self.limit {
 			return Err(ExitError::StackOverflow)

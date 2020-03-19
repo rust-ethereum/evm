@@ -13,6 +13,7 @@ pub struct Memory {
 }
 
 impl Memory {
+	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
@@ -21,6 +22,7 @@ impl Memory {
 		}
 	}
 
+	/// Memory limit.
 	pub fn limit(&self) -> usize {
 		self.limit
 	}
@@ -40,6 +42,9 @@ impl Memory {
 		self.len() == 0
 	}
 
+	/// Resize the memory, making it cover the memory region of `offset..(offset
+	/// + len)`, with 32 bytes as the step. If the length is zero, this function
+	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
 		if len == U256::zero() {
 			return Ok(())
@@ -52,6 +57,7 @@ impl Memory {
 		}
 	}
 
+	/// Resize the memory, making it cover to `end`, with 32 bytes as the step.
 	pub fn resize_end(&mut self, mut end: U256) -> Result<(), ExitError> {
 		while end % U256::from(32) != U256::zero() {
 			end = match end.checked_add(U256::one()) {
@@ -117,6 +123,7 @@ impl Memory {
 		Ok(())
 	}
 
+	/// Copy `data` into the memory, of given `len`.
 	pub fn copy_large(
 		&mut self,
 		memory_offset: U256,

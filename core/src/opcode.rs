@@ -1,62 +1,109 @@
 /// Opcode enum. One-to-one corresponding to an `u8` value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Opcode {
+	/// `STOP`
 	Stop,
+	/// `ADD`
 	Add,
+	/// `MUL`
 	Mul,
+	/// `SUB`
 	Sub,
+	/// `DIV`
 	Div,
+	/// `SDIV`
 	SDiv,
+	/// `MOD`
 	Mod,
+	/// `SMOD`
 	SMod,
+	/// `ADDMOD`
 	AddMod,
+	/// `MULMOD`
 	MulMod,
+	/// `EXP`
 	Exp,
+	/// `SIGNEXTEND`
 	SignExtend,
 
+	/// `LT`
 	Lt,
+	/// `GT`
 	Gt,
+	/// `SLT`
 	SLt,
+	/// `SGT`
 	SGt,
+	/// `EQ`
 	Eq,
+	/// `ISZERO`
 	IsZero,
+	/// `AND`
 	And,
+	/// `OR`
 	Or,
+	/// `XOR`
 	Xor,
+	/// `NOT`
 	Not,
+	/// `BYTE`
 	Byte,
 
+	/// `CALLDATALOAD`
 	CallDataLoad,
+	/// `CALLDATASIZE`
 	CallDataSize,
+	/// `CALLDATACOPY`
 	CallDataCopy,
+	/// `CODESIZE`
 	CodeSize,
+	/// `CODECOPY`
 	CodeCopy,
 
+	/// `SHL`
 	Shl,
+	/// `SHR`
 	Shr,
+	/// `SAR`
 	Sar,
 
+	/// `POP`
 	Pop,
+	/// `MLOAD`
 	MLoad,
+	/// `MSTORE`
 	MStore,
+	/// `MSTORE8`
 	MStore8,
+	/// `JUMP`
 	Jump,
+	/// `JUMPI`
 	JumpI,
+	/// `PC`
 	PC,
+	/// `MSIZE`
 	MSize,
+	/// `JUMPDEST`
 	JumpDest,
 
+	/// `PUSHn`
 	Push(u8),
+	/// `DUPn`
 	Dup(u8),
+	/// `SWAPn`
 	Swap(u8),
 
+	/// `RETURN`
 	Return,
+	/// `REVERT`
 	Revert,
 
+	/// `INVALID`
 	Invalid,
 }
 
 impl Opcode {
+	/// Parse a byte into an opcode.
 	pub fn parse(opcode: u8) -> Result<Opcode, ExternalOpcode> {
 		match opcode {
 			0x00 => Ok(Opcode::Stop),
@@ -220,36 +267,68 @@ impl Opcode {
 /// External opcodes.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExternalOpcode {
+	/// `SHA3`
 	Sha3,
+	/// `ADDRESS`
 	Address,
+	/// `BALANCE`
 	Balance,
+	/// `SELFBALANCE`
 	SelfBalance,
+	/// `ORIGIN`
 	Origin,
+	/// `CALLER`
 	Caller,
+	/// `CALLVALUE`
 	CallValue,
+	/// `GASPRICE`
 	GasPrice,
+	/// `EXTCODESIZE`
 	ExtCodeSize,
+	/// `EXTCODECOPY`
 	ExtCodeCopy,
+	/// `EXTCODEHASH`
 	ExtCodeHash,
+	/// `RETURNDATASIZE`
 	ReturnDataSize,
+	/// `RETURNDATACOPY`
 	ReturnDataCopy,
+	/// `BLOCKHASH`
 	BlockHash,
+	/// `COINBASE`
 	Coinbase,
+	/// `TIMESTAMP`
 	Timestamp,
+	/// `NUMBER`
 	Number,
+	/// `DIFFICULTY`
 	Difficulty,
+	/// `GASLIMIT`
 	GasLimit,
+	/// `SLOAD`
 	SLoad,
+	/// `SSTORE`
 	SStore,
+	/// `GAS`
 	Gas,
+	/// `LOGn`
 	Log(u8),
+	/// `CREATE`
 	Create,
+	/// `CREATE2`
 	Create2,
+	/// `CALL`
 	Call,
+	/// `CALLCODE`
 	CallCode,
+	/// `DELEGATECALL`
 	DelegateCall,
+	/// `STATICCALL`
 	StaticCall,
+	/// `SUICIDE`
 	Suicide,
+	/// `CHAINID`
 	ChainId,
+	/// Other unknown opcodes.
 	Other(u8),
 }
