@@ -24,6 +24,7 @@ pub struct StackAccount {
 	pub reset_storage: bool,
 }
 
+/// Stack-based executor.
 #[derive(Clone)]
 pub struct StackExecutor<'backend, 'config, B> {
 	backend: &'backend B,
@@ -46,6 +47,7 @@ fn no_precompile(
 }
 
 impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
+	/// Create a new stack-based executor.
 	pub fn new(
 		backend: &'backend B,
 		gas_limit: usize,
@@ -54,6 +56,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Self::new_with_precompile(backend, gas_limit, config, no_precompile)
 	}
 
+	/// Create a new stack-based executor with given precompiles.
 	pub fn new_with_precompile(
 		backend: &'backend B,
 		gas_limit: usize,
@@ -73,6 +76,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	/// Create a substate executor from the current executor.
 	pub fn substate(&self, gas_limit: usize, is_static: bool) -> StackExecutor<'backend, 'config, B> {
 		Self {
 			backend: self.backend,
@@ -90,6 +94,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	/// Execute the runtime until it returns.
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		match runtime.run(self) {
 			Capture::Exit(s) => s,
@@ -97,10 +102,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	/// Get remaining gas.
 	pub fn gas(&self) -> usize {
 		self.gasometer.gas()
 	}
 
+	/// Merge a substate executor that succeeded.
 	pub fn merge_succeed<'obackend, 'oconfig, OB>(
 		&mut self,
 		mut substate: StackExecutor<'obackend, 'oconfig, OB>
@@ -114,6 +121,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
+	/// Merge a substate executor that reverted.
 	pub fn merge_revert<'obackend, 'oconfig, OB>(
 		&mut self,
 		mut substate: StackExecutor<'obackend, 'oconfig, OB>
@@ -124,6 +132,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
+	/// Merge a substate executor that failed.
 	pub fn merge_fail<'obackend, 'oconfig, OB>(
 		&mut self,
 		mut substate: StackExecutor<'obackend, 'oconfig, OB>
@@ -133,6 +142,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
+	/// Execute a `CREATE` transaction.
 	pub fn transact_create(
 		&mut self,
 		caller: H160,
@@ -159,6 +169,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	/// Execute a `CREATE2` transaction.
 	pub fn transact_create2(
 		&mut self,
 		caller: H160,
@@ -187,6 +198,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	/// Execute a `CALL` transaction.
 	pub fn transact_call(
 		&mut self,
 		caller: H160,
@@ -219,6 +231,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	/// Get fee needed for the current executor, given the price.
 	pub fn fee(
 		&self,
 		price: U256,
@@ -228,6 +241,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		U256::from(used_gas) * price
 	}
 
+	/// Deconstruct the executor, return state to be applied.
 	#[must_use]
 	pub fn deconstruct(
 		self
@@ -259,6 +273,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		(applies, logs)
 	}
 
+	/// Get mutable account reference.
 	pub fn account_mut(&mut self, address: H160) -> &mut StackAccount {
 		self.state.entry(address).or_insert(StackAccount {
 			basic: self.backend.basic(address),
@@ -268,11 +283,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		})
 	}
 
+	/// Get account nonce.
 	pub fn nonce(&self, address: H160) -> U256 {
 		self.state.get(&address).map(|v| v.basic.nonce)
 			.unwrap_or(self.backend.basic(address).nonce)
 	}
 
+	/// Withdraw balance from address.
 	pub fn withdraw(&mut self, address: H160, balance: U256) -> Result<(), ExitError> {
 		let source = self.account_mut(address);
 		if source.basic.balance < balance {
@@ -283,11 +300,13 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
+	/// Deposit balance to address.
 	pub fn deposit(&mut self, address: H160, balance: U256) {
 		let target = self.account_mut(address);
 		target.basic.balance += balance;
 	}
 
+	/// Transfer balance with the given struct.
 	pub fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
 		self.withdraw(transfer.source, transfer.value)?;
 		self.deposit(transfer.target, transfer.value);
@@ -295,6 +314,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		Ok(())
 	}
 
+	/// Get the create address from given scheme.
 	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
 		match scheme {
 			CreateScheme::Create2 { caller, code_hash, salt } => {

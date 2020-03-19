@@ -4,29 +4,45 @@ use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 use super::{Basic, Backend, ApplyBackend, Apply, Log};
 
+/// Vivinity value of a memory backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryVicinity {
+	/// Gas price.
 	pub gas_price: U256,
+	/// Origin.
 	pub origin: H160,
+	/// Chain ID.
 	pub chain_id: U256,
+	/// Environmental block hashes.
 	pub block_hashes: Vec<H256>,
+	/// Environmental block number.
 	pub block_number: U256,
+	/// Environmental coinbase.
 	pub block_coinbase: H160,
+	/// Environmental block timestamp.
 	pub block_timestamp: U256,
+	/// Environmental block difficulty.
 	pub block_difficulty: U256,
+	/// Environmental block gas limit.
 	pub block_gas_limit: U256,
 }
 
+/// Account information of a memory backend.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryAccount {
+	/// Account nonce.
 	pub nonce: U256,
+	/// Account balance.
 	pub balance: U256,
+	/// Full account storage.
 	pub storage: BTreeMap<H256, H256>,
+	/// Account code.
 	pub code: Vec<u8>,
 }
 
+/// Memory backend, storing all state values in a `BTreeMap` in memory.
 #[derive(Clone, Debug)]
 pub struct MemoryBackend<'vicinity> {
 	vicinity: &'vicinity MemoryVicinity,
@@ -35,6 +51,7 @@ pub struct MemoryBackend<'vicinity> {
 }
 
 impl<'vicinity> MemoryBackend<'vicinity> {
+	/// Create a new memory backend.
 	pub fn new(vicinity: &'vicinity MemoryVicinity, state: BTreeMap<H160, MemoryAccount>) -> Self {
 		Self {
 			vicinity,
@@ -43,6 +60,7 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 		}
 	}
 
+	/// Get the underlying `BTreeMap` storing the state.
 	pub fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
 		&self.state
 	}
