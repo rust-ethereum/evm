@@ -14,7 +14,7 @@ evm-gasometer = { version = "0.15", path = "gasometer", default-features = false
 evm-runtime = { version = "0.15", path = "runtime", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 rlp = { version = "0.4", default-features = false }
-primitive-types = { version = "0.6", default-features = false, features = ["rlp"] }
+primitive-types = { version = "0.7", default-features = false, features = ["rlp"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
 [features]
