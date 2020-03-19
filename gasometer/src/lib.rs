@@ -1,3 +1,5 @@
+//! EVM gasometer.
+
 #![deny(warnings)]
 #![forbid(unsafe_code, missing_docs, unused_variables, unused_imports)]
 
@@ -25,6 +27,7 @@ macro_rules! try_or_fail {
 	)
 }
 
+/// EVM gasometer.
 #[derive(Clone)]
 pub struct Gasometer<'config> {
 	gas_limit: usize,
@@ -33,6 +36,7 @@ pub struct Gasometer<'config> {
 }
 
 impl<'config> Gasometer<'config> {
+	/// Create a new gasometer with given gas limit and config.
 	pub fn new(gas_limit: usize, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
@@ -52,10 +56,12 @@ impl<'config> Gasometer<'config> {
 		self.inner.as_mut().map_err(|e| *e)
 	}
 
+	/// Reference of the config.
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
 
+	/// Remaining gas.
 	pub fn gas(&self) -> usize {
 		match self.inner.as_ref() {
 			Ok(inner) => {
@@ -66,6 +72,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	/// Total used gas.
 	pub fn total_used_gas(&self) -> usize {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.used_gas +
@@ -74,6 +81,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	/// Refunded gas.
 	pub fn refunded_gas(&self) -> isize {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.refunded_gas,
@@ -81,11 +89,13 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	/// Explictly fail the gasometer with out of gas. Return `OutOfGas` error.
 	pub fn fail(&mut self) -> ExitError {
 		self.inner = Err(ExitError::OutOfGas);
 		ExitError::OutOfGas
 	}
 
+	/// Record an explict cost.
 	pub fn record_cost(
 		&mut self,
 		cost: usize
@@ -100,6 +110,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	/// Record an explict refund.
 	pub fn record_refund(
 		&mut self,
 		refund: isize,
@@ -108,6 +119,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	/// Record `CREATE` code deposit.
 	pub fn record_deposit(
 		&mut self,
 		len: usize
@@ -116,6 +128,7 @@ impl<'config> Gasometer<'config> {
 		self.record_cost(cost)
 	}
 
+	/// Record opcode gas cost.
 	pub fn record_opcode(
 		&mut self,
 		cost: GasCost,
@@ -148,6 +161,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	/// Record opcode stipend.
 	pub fn record_stipend(
 		&mut self,
 		stipend: usize,
@@ -156,6 +170,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	/// Record transaction cost.
 	pub fn record_transaction(
 		&mut self,
 		cost: TransactionCost,
@@ -183,6 +198,7 @@ impl<'config> Gasometer<'config> {
 	}
 }
 
+/// Calculate the call transaction cost.
 pub fn call_transaction_cost(
 	data: &[u8]
 ) -> TransactionCost {
@@ -192,6 +208,7 @@ pub fn call_transaction_cost(
 	TransactionCost::Call { zero_data_len, non_zero_data_len }
 }
 
+/// Calculate the create transaction cost.
 pub fn create_transaction_cost(
 	data: &[u8]
 ) -> TransactionCost {
@@ -201,6 +218,7 @@ pub fn create_transaction_cost(
 	TransactionCost::Create { zero_data_len, non_zero_data_len }
 }
 
+/// Calculate the opcode cost.
 pub fn opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Result<Opcode, ExternalOpcode>,
@@ -496,51 +514,153 @@ impl<'config> Inner<'config> {
 	}
 }
 
+/// Gas cost.
 #[derive(Debug, Clone)]
 pub enum GasCost {
+	/// Zero gas cost.
 	Zero,
+	/// Base gas cost.
 	Base,
+	/// Very low gas cost.
 	VeryLow,
+	/// Low gas cost.
 	Low,
+	/// Mid gas cost.
 	Mid,
+	/// High gas cost.
 	High,
+	/// Fail the gasometer.
 	Invalid,
 
+	/// Gas cost for `EXTCODESIZE`.
 	ExtCodeSize,
+	/// Gas cost for `BALANCE`.
 	Balance,
+	/// Gas cost for `BLOCKHASH`.
 	BlockHash,
+	/// Gas cost for `EXTBLOCKHASH`.
 	ExtCodeHash,
 
-	Call { value: U256, gas: U256, target_exists: bool },
-	CallCode { value: U256, gas: U256, target_exists: bool },
-	DelegateCall { gas: U256, target_exists: bool },
-	StaticCall { gas: U256, target_exists: bool },
-	Suicide { value: U256, target_exists: bool, already_removed: bool },
-	SStore { original: H256, current: H256, new: H256 },
-	Sha3 { len: U256 },
-	Log { n: u8, len: U256 },
-	ExtCodeCopy { len: U256 },
-	VeryLowCopy { len: U256 },
-	Exp { power: U256 },
+	/// Gas cost for `CALL`.
+	Call {
+		/// Call value.
+		value: U256,
+		/// Call gas.
+		gas: U256,
+		/// Whether the target exists.
+		target_exists: bool
+	},
+	/// Gas cost for `CALLCODE.
+	CallCode {
+		/// Call value.
+		value: U256,
+		/// Call gas.
+		gas: U256,
+		/// Whether the target exists.
+		target_exists: bool
+	},
+	/// Gas cost for `DELEGATECALL`.
+	DelegateCall {
+		/// Call gas.
+		gas: U256,
+		/// Whether the target exists.
+		target_exists: bool
+	},
+	/// Gas cost for `STATICCALL`.
+	StaticCall {
+		/// Call gas.
+		gas: U256,
+		/// Whether the target exists.
+		target_exists: bool
+	},
+	/// Gas cost for `SUICIDE`.
+	Suicide {
+		/// Value.
+		value: U256,
+		/// Whether the target exists.
+		target_exists: bool,
+		/// Whether the target has already been removed.
+		already_removed: bool
+	},
+	/// Gas cost for `SSTORE`.
+	SStore {
+		/// Original value.
+		original: H256,
+		/// Current value.
+		current: H256,
+		/// New value.
+		new: H256
+	},
+	/// Gas cost for `SHA3`.
+	Sha3 {
+		/// Length of the data.
+		len: U256
+	},
+	/// Gas cost for `LOG`.
+	Log {
+		/// Topic length.
+		n: u8,
+		/// Data length.
+		len: U256
+	},
+	/// Gas cost for `EXTCODECOPY`.
+	ExtCodeCopy {
+		/// Length.
+		len: U256
+	},
+	/// Gas cost for some copy opcodes that is documented as `VERYLOW`.
+	VeryLowCopy {
+		/// Length.
+		len: U256
+	},
+	/// Gas cost for `EXP`.
+	Exp {
+		/// Power of `EXP`.
+		power: U256
+	},
+	/// Gas cost for `CREATE`.
 	Create,
-	Create2 { len: U256 },
+	/// Gas cost for `CREATE2`.
+	Create2 {
+		/// Length.
+		len: U256
+	},
+	/// Gas cost for `JUMPDEST`.
 	JumpDest,
+	/// Gas cost for `SLOAD`.
 	SLoad,
 }
 
+/// Memory cost.
 #[derive(Debug, Clone)]
 pub struct MemoryCost {
+	/// Affected memory offset.
 	pub offset: U256,
+	/// Affected length.
 	pub len: U256,
 }
 
+/// Transaction cost.
 #[derive(Debug, Clone)]
 pub enum TransactionCost {
-	Call { zero_data_len: usize, non_zero_data_len: usize },
-	Create { zero_data_len: usize, non_zero_data_len: usize },
+	/// Call transaction cost.
+	Call {
+		/// Length of zeros in transaction data.
+		zero_data_len: usize,
+		/// Length of non-zeros in transaction data.
+		non_zero_data_len: usize
+	},
+	/// Create transaction cost.
+	Create {
+		/// Length of zeros in transaction data.
+		zero_data_len: usize,
+		/// Length of non-zeros in transaction data.
+		non_zero_data_len: usize
+	},
 }
 
 impl MemoryCost {
+	/// Join two memory cost together.
 	pub fn join(self, other: MemoryCost) -> MemoryCost {
 		if self.len == U256::zero() {
 			return other
