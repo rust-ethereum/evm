@@ -1,6 +1,6 @@
 [package]
 name = "evm-gasometer"
-version = "0.16.0"
+version = "0.16.1"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
