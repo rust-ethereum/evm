@@ -84,7 +84,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			config: self.config,
 			state: self.state.clone(),
 			deleted: self.deleted.clone(),
-			logs: self.logs.clone(),
+			logs: Vec::new(),
 			precompile: self.precompile,
 			is_static: is_static || self.is_static,
 			depth: match self.depth {
