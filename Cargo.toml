@@ -9,6 +9,7 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
+log = "0.4"
 evm-core = { version = "0.17", path = "core", default-features = false }
 evm-gasometer = { version = "0.17", path = "gasometer", default-features = false }
 evm-runtime = { version = "0.17", path = "runtime", default-features = false }
