@@ -445,6 +445,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		);
 
 		let reason = substate.execute(&mut runtime);
+		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
 
 		match reason {
 			ExitReason::Succeed(s) => {
@@ -572,6 +573,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		);
 
 		let reason = substate.execute(&mut runtime);
+		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
 
 		match reason {
 			ExitReason::Succeed(s) => {
