@@ -9,7 +9,7 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-log = "0.4"
+log = { version = "0.4", default-features = false }
 evm-core = { version = "0.17", path = "core", default-features = false }
 evm-gasometer = { version = "0.17", path = "gasometer", default-features = false }
 evm-runtime = { version = "0.17", path = "runtime", default-features = false }
@@ -21,7 +21,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"], opti
 [features]
 default = ["std"]
 with-serde = ["serde", "primitive-types/serde"]
-std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std"]
+std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "log/std"]
 
 [workspace]
 members = [

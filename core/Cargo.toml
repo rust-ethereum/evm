@@ -9,7 +9,7 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-log = "0.4"
+log = { version = "0.4", default-features = false }
 primitive-types = { version = "0.7", default-features = false }
 
 [dev-dependencies]
@@ -17,4 +17,4 @@ hex = "0.4"
 
 [features]
 default = ["std"]
-std = ["primitive-types/std"]
+std = ["primitive-types/std", "log/std"]
