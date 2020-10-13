@@ -11,8 +11,8 @@ use primitive_types::{H160, H256, U256};
 
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
-#[cfg_attr(feature = "codec", derive(codec::Encode, codec::Decode))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Basic {
 	/// Account balance.
 	pub balance: U256,
@@ -22,8 +22,8 @@ pub struct Basic {
 
 /// Log information.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "codec", derive(codec::Encode, codec::Decode))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Log {
 	/// Source address.
 	pub address: H160,

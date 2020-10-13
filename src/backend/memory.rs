@@ -6,8 +6,8 @@ use super::{Basic, Backend, ApplyBackend, Apply, Log};
 
 /// Vivinity value of a memory backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "codec", derive(codec::Encode, codec::Decode))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryVicinity {
 	/// Gas price.
 	pub gas_price: U256,
@@ -31,8 +31,8 @@ pub struct MemoryVicinity {
 
 /// Account information of a memory backend.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "codec", derive(codec::Encode, codec::Decode))]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryAccount {
 	/// Account nonce.
 	pub nonce: U256,
