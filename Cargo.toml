@@ -1,6 +1,6 @@
 [package]
 name = "evm"
-version = "0.17.2"
+version = "0.17.3"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -18,12 +18,13 @@ rlp = { version = "0.4", default-features = false }
 primitive-types = { version = "0.7", default-features = false, features = ["rlp"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "1.3", default-features = false, features = ["derive"], optional = true }
+ethereum = { version = "0.4", default-features = false }
 
 [features]
 default = ["std"]
-with-codec = ["codec", "primitive-types/codec"]
-with-serde = ["serde", "primitive-types/serde"]
-std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std"]
+with-codec = ["codec", "primitive-types/codec", "ethereum/with-codec"]
+with-serde = ["serde", "primitive-types/serde", "ethereum/with-serde"]
+std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std"]
 
 [workspace]
 members = [

@@ -20,18 +20,7 @@ pub struct Basic {
 	pub nonce: U256,
 }
 
-/// Log information.
-#[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Log {
-	/// Source address.
-	pub address: H160,
-	/// Topics.
-	pub topics: Vec<H256>,
-	/// Log data.
-	pub data: Vec<u8>,
-}
+pub use ethereum::Log;
 
 /// Apply state operation.
 #[derive(Clone, Debug)]
