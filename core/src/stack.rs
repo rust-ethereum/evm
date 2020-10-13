@@ -23,6 +23,11 @@ impl Stack {
 		self.limit
 	}
 
+	/// Stack length.
+	pub fn len(&self) -> usize {
+		self.data.len()
+	}
+
 	/// Pop a value from the stack. If the stack is already empty, returns the
 	/// `StackUnderflow` error.
 	pub fn pop(&mut self) -> Result<H256, ExitError> {
