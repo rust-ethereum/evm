@@ -27,7 +27,7 @@ macro_rules! step {
 			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
 				Err(e) => {
-					$self.machine.exit(e.into());
+					$self.machine.exit(e.clone().into());
 					$self.status = Err(e.into());
 				},
 			}
@@ -44,7 +44,7 @@ macro_rules! step {
 		match $self.machine.step() {
 			Ok(()) => $($ok)?(()),
 			Err(Capture::Exit(e)) => {
-				$self.status = Err(e);
+				$self.status = Err(e.clone());
 				#[allow(unused_parens)]
 				$return $($err)*(Capture::Exit(e))
 			},
@@ -62,8 +62,8 @@ macro_rules! step {
 						$return $($err)*(Capture::Trap(Resolve::Create(interrupt, resolve)))
 					},
 					eval::Control::Exit(exit) => {
-						$self.machine.exit(exit.into());
-						$self.status = Err(exit);
+						$self.machine.exit(exit.clone().into());
+						$self.status = Err(exit.clone());
 						#[allow(unused_parens)]
 						$return $($err)*(Capture::Exit(exit))
 					},

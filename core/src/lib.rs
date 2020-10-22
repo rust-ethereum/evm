@@ -125,7 +125,7 @@ impl Machine {
 
 	/// Step the machine, executing one opcode. It then returns.
 	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
-		let position = self.position.map_err(|reason| Capture::Exit(reason))?;
+		let position = *self.position.as_ref().map_err(|reason| Capture::Exit(reason.clone()))?;
 
 		match self.code.get(position).map(|v| Opcode::parse(*v)) {
 			Some(Ok(opcode)) => {
@@ -135,7 +135,7 @@ impl Machine {
 						Ok(())
 					},
 					Control::Exit(e) => {
-						self.position = Err(e);
+						self.position = Err(e.clone());
 						Err(Capture::Exit(e))
 					},
 					Control::Jump(p) => {

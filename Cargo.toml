@@ -22,8 +22,8 @@ ethereum = { version = "0.4", default-features = false }
 
 [features]
 default = ["std"]
-with-codec = ["codec", "primitive-types/codec", "ethereum/with-codec"]
-with-serde = ["serde", "primitive-types/serde", "ethereum/with-serde"]
+with-codec = ["codec", "evm-core/with-codec", "primitive-types/codec", "ethereum/with-codec"]
+with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
 std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std"]
 
 [workspace]
