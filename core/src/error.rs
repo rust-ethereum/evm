@@ -38,6 +38,30 @@ impl ExitReason {
 			_ => false,
 		}
 	}
+
+	/// Whether the exit is error.
+	pub fn is_error(&self) -> bool {
+		match self {
+			Self::Error(_) => true,
+			_ => false,
+		}
+	}
+
+	/// Whether the exit is revert.
+	pub fn is_revert(&self) -> bool {
+		match self {
+			Self::Revert(_) => true,
+			_ => false,
+		}
+	}
+
+	/// Whether the exit is fatal.
+	pub fn is_fatal(&self) -> bool {
+		match self {
+			Self::Fatal(_) => true,
+			_ => false,
+		}
+	}
 }
 
 /// Exit succeed reason.
