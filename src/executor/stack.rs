@@ -1,8 +1,5 @@
-use core::convert::Infallible;
-use core::cmp::min;
-use alloc::rc::Rc;
-use alloc::vec::Vec;
-use alloc::collections::{BTreeMap, BTreeSet};
+use core::{convert::Infallible, cmp::min};
+use alloc::{rc::Rc, vec::Vec, collections::{BTreeMap, BTreeSet}};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
@@ -24,18 +21,27 @@ pub struct StackAccount {
 	pub reset_storage: bool,
 }
 
-/// Stack-based executor.
-#[derive(Clone)]
-pub struct StackExecutor<'backend, 'config, B> {
-	backend: &'backend B,
-	config: &'config Config,
+pub enum StackExitKind {
+	Succeeded,
+	Reverted,
+	Failed,
+}
+
+pub struct StackSubstate<'config> {
 	gasometer: Gasometer<'config>,
 	state: BTreeMap<H160, StackAccount>,
 	deleted: BTreeSet<H160>,
 	logs: Vec<Log>,
-	precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
 	is_static: bool,
 	depth: Option<usize>,
+}
+
+/// Stack-based executor.
+pub struct StackExecutor<'backend, 'config, B> {
+	backend: &'backend B,
+	config: &'config Config,
+	precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+	substates: Vec<StackSubstate<'config>>,
 }
 
 fn no_precompile(
@@ -65,33 +71,73 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	) -> Self {
 		Self {
 			backend,
-			gasometer: Gasometer::new(gas_limit, config),
-			state: BTreeMap::new(),
-			deleted: BTreeSet::new(),
 			config,
-			logs: Vec::new(),
-			precompile: precompile,
-			is_static: false,
-			depth: None,
+			precompile,
+			substates: vec![
+				StackSubstate {
+					gasometer: Gasometer::new(gas_limit, config),
+					state: BTreeMap::new(),
+					deleted: BTreeSet::new(),
+					logs: Vec::new(),
+					is_static: false,
+					depth: None,
+				}
+			],
 		}
 	}
 
 	/// Create a substate executor from the current executor.
-	pub fn substate(&self, gas_limit: usize, is_static: bool) -> StackExecutor<'backend, 'config, B> {
-		Self {
-			backend: self.backend,
-			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
-			config: self.config,
-			state: self.state.clone(),
-			deleted: self.deleted.clone(),
-			logs: self.logs.clone(),
-			precompile: self.precompile,
-			is_static: is_static || self.is_static,
-			depth: match self.depth {
+	pub fn enter_substate(
+		&mut self,
+		gas_limit: usize,
+		is_static: bool,
+	) {
+		let parent = self.substates.last()
+			.expect("substate vec always have length greater than one; qed");
+
+		let substate = StackSubstate {
+			gasometer: Gasometer::new(gas_limit, self.config),
+			state: BTreeMap::new(),
+			deleted: BTreeSet::new(),
+			logs: Vec::new(),
+			is_static: is_static || parent.is_static,
+			depth: match parent.depth {
 				None => Some(0),
 				Some(n) => Some(n + 1),
 			},
+		};
+
+		self.substates.push(substate);
+	}
+
+	/// Exit a substate. Panic if it results an empty substate stack.
+	pub fn exit_substate(
+		&mut self,
+		kind: StackExitKind,
+	) -> Result<(), ExitError> {
+		assert!(self.substates.len() > 1);
+
+		let mut exited = self.substates.pop()
+			.expect("checked above substate vec length greater than one; qed");
+		let parent = self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed");
+
+		parent.logs.append(&mut exited.logs);
+
+		match kind {
+			StackExitKind::Succeeded => {
+				parent.deleted.append(&mut exited.deleted);
+				parent.state.append(&mut exited.state);
+				parent.gasometer.record_stipend(exited.gasometer.gas())?;
+				parent.gasometer.record_refund(exited.gasometer.refunded_gas())?;
+			},
+			StackExitKind::Reverted => {
+				parent.gasometer.record_stipend(exited.gasometer.gas())?;
+			},
+			StackExitKind::Failed => (),
 		}
+
+		Ok(())
 	}
 
 	/// Execute the runtime until it returns.
@@ -104,42 +150,9 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 	/// Get remaining gas.
 	pub fn gas(&self) -> usize {
-		self.gasometer.gas()
-	}
-
-	/// Merge a substate executor that succeeded.
-	pub fn merge_succeed<'obackend, 'oconfig, OB>(
-		&mut self,
-		mut substate: StackExecutor<'obackend, 'oconfig, OB>
-	) -> Result<(), ExitError> {
-		self.logs.append(&mut substate.logs);
-		self.deleted.append(&mut substate.deleted);
-		self.state = substate.state;
-
-		self.gasometer.record_stipend(substate.gasometer.gas())?;
-		self.gasometer.record_refund(substate.gasometer.refunded_gas())?;
-		Ok(())
-	}
-
-	/// Merge a substate executor that reverted.
-	pub fn merge_revert<'obackend, 'oconfig, OB>(
-		&mut self,
-		mut substate: StackExecutor<'obackend, 'oconfig, OB>
-	) -> Result<(), ExitError> {
-		self.logs.append(&mut substate.logs);
-
-		self.gasometer.record_stipend(substate.gasometer.gas())?;
-		Ok(())
-	}
-
-	/// Merge a substate executor that failed.
-	pub fn merge_fail<'obackend, 'oconfig, OB>(
-		&mut self,
-		mut substate: StackExecutor<'obackend, 'oconfig, OB>
-	) -> Result<(), ExitError> {
-		self.logs.append(&mut substate.logs);
-
-		Ok(())
+		self.substates.last()
+			.expect("substate vec always have length greater than one; qed")
+			.gasometer.gas()
 	}
 
 	/// Execute a `CREATE` transaction.
@@ -150,8 +163,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		init_code: Vec<u8>,
 		gas_limit: usize,
 	) -> ExitReason {
+		let current = self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed");
+
 		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-		match self.gasometer.record_transaction(transaction_cost) {
+		match current.gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return e.into(),
 		}
@@ -178,8 +194,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		salt: H256,
 		gas_limit: usize,
 	) -> ExitReason {
+		let current = self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed");
+
 		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-		match self.gasometer.record_transaction(transaction_cost) {
+		match current.gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return e.into(),
 		}
@@ -207,8 +226,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		data: Vec<u8>,
 		gas_limit: usize,
 	) -> (ExitReason, Vec<u8>) {
+		let current = self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed");
+
 		let transaction_cost = gasometer::call_transaction_cost(&data);
-		match self.gasometer.record_transaction(transaction_cost) {
+		match current.gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return (e.into(), Vec::new()),
 		}
@@ -235,8 +257,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	pub fn used_gas(
 		&self,
 	) -> usize {
-		self.gasometer.total_used_gas() -
-			min(self.gasometer.total_used_gas() / 2, self.gasometer.refunded_gas() as usize)
+		let current = self.substates.last()
+			.expect("substate vec always have length greater than one; qed");
+
+		current.gasometer.total_used_gas() -
+			min(current.gasometer.total_used_gas() / 2, current.gasometer.refunded_gas() as usize)
 	}
 
 	/// Get fee needed for the current executor, given the price.
@@ -248,17 +273,23 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		U256::from(used_gas) * price
 	}
 
-	/// Deconstruct the executor, return state to be applied.
+	/// Deconstruct the executor, return state to be applied. Panic if the
+	/// executor is not in the top-level substate.
 	#[must_use]
 	pub fn deconstruct(
-		self
+		mut self
 	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
 		  impl IntoIterator<Item=Log>)
 	{
+		assert_eq!(self.substates.len(), 1);
+
+		let current = self.substates.pop()
+			.expect("substate vec always have length greater than one; qed");
+
 		let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
 
-		for (address, account) in self.state {
-			if self.deleted.contains(&address) {
+		for (address, account) in current.state {
+			if current.deleted.contains(&address) {
 				continue
 			}
 
@@ -271,29 +302,63 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			});
 		}
 
-		for address in self.deleted {
+		for address in current.deleted {
 			applies.push(Apply::Delete { address });
 		}
 
-		let logs = self.logs;
+		let logs = current.logs;
 
 		(applies, logs)
 	}
 
+	/// Get account reference.
+	pub fn account(&self, address: H160) -> Option<&StackAccount> {
+		for substate in self.substates.iter().rev() {
+			if let Some(account) = substate.state.get(&address) {
+				return Some(account)
+			}
+		}
+
+		None
+	}
+
 	/// Get mutable account reference.
 	pub fn account_mut(&mut self, address: H160) -> &mut StackAccount {
-		self.state.entry(address).or_insert(StackAccount {
-			basic: self.backend.basic(address),
-			code: None,
-			storage: BTreeMap::new(),
-			reset_storage: false,
-		})
+		if !self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed")
+			.state
+			.contains_key(&address)
+		{
+			let account = self.account(address)
+				.cloned()
+				.unwrap_or_else(|| StackAccount {
+					basic: self.backend.basic(address),
+					code: None,
+					storage: BTreeMap::new(),
+					reset_storage: false,
+				});
+			self.substates.last_mut()
+				.expect("substate vec always have length greater than one; qed")
+				.state
+				.insert(address, account);
+		}
+
+		self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed")
+			.state
+			.get_mut(&address)
+			.expect("contains_key is checked first so the key always exists; qed")
 	}
 
 	/// Get account nonce.
 	pub fn nonce(&self, address: H160) -> U256 {
-		self.state.get(&address).map(|v| v.basic.nonce)
-			.unwrap_or(self.backend.basic(address).nonce)
+		for substate in self.substates.iter().rev() {
+			if let Some(account) = substate.state.get(&address) {
+				return account.basic.nonce
+			}
+		}
+
+		self.backend.basic(address).nonce
 	}
 
 	/// Withdraw balance from address.
@@ -367,7 +432,10 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			gas - gas / 64
 		}
 
-		if let Some(depth) = self.depth {
+		if let Some(depth) = self.substates.last()
+			.expect("substate vec always have length greater than one; qed")
+			.depth
+		{
 			if depth + 1 > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
 			}
@@ -377,42 +445,49 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
 		}
 
-		let mut after_gas = self.gasometer.gas();
+		let mut after_gas = self.substates.last()
+			.expect("substate vec always have length greater than one; qed")
+			.gasometer.gas();
 		if take_l64 && self.config.call_l64_after_gas {
 			after_gas = l64(after_gas);
 		}
 		let target_gas = target_gas.unwrap_or(after_gas);
 
 		let gas_limit = min(after_gas, target_gas);
-		try_or_fail!(self.gasometer.record_cost(gas_limit));
+		try_or_fail!(
+			self.substates.last_mut()
+				.expect("substate vec always have length greater than one; qed")
+				.gasometer.record_cost(gas_limit)
+		);
 
 		let address = self.create_address(scheme);
 		self.account_mut(caller).basic.nonce += U256::one();
 
-		let mut substate = self.substate(gas_limit, false);
+		self.enter_substate(gas_limit, false);
+
 		{
-			if let Some(code) = substate.account_mut(address).code.as_ref() {
+			if let Some(code) = self.account_mut(address).code.as_ref() {
 				if code.len() != 0 {
-					let _ = self.merge_fail(substate);
+					let _ = self.exit_substate(StackExitKind::Failed);
 					return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
 				}
 			} else  {
-				let code = substate.backend.code(address);
-				substate.account_mut(address).code = Some(code.clone());
+				let code = self.backend.code(address);
+				self.account_mut(address).code = Some(code.clone());
 
 				if code.len() != 0 {
-					let _ = self.merge_fail(substate);
+					let _ = self.exit_substate(StackExitKind::Failed);
 					return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
 				}
 			}
 
-			if substate.account_mut(address).basic.nonce > U256::zero() {
-				let _ = self.merge_fail(substate);
+			if self.nonce(address) > U256::zero() {
+				let _ = self.exit_substate(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
 			}
 
-			substate.account_mut(address).reset_storage = true;
-			substate.account_mut(address).storage = BTreeMap::new();
+			self.account_mut(address).reset_storage = true;
+			self.account_mut(address).storage = BTreeMap::new();
 		}
 
 		let context = Context {
@@ -425,16 +500,16 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			target: address,
 			value,
 		};
-		match substate.transfer(transfer) {
+		match self.transfer(transfer) {
 			Ok(()) => (),
 			Err(e) => {
-				let _ = self.merge_revert(substate);
+				let _ = self.exit_substate(StackExitKind::Reverted);
 				return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 			},
 		}
 
 		if self.config.create_increase_nonce {
-			substate.account_mut(address).basic.nonce += U256::one();
+			self.account_mut(address).basic.nonce += U256::one();
 		}
 
 		let mut runtime = Runtime::new(
@@ -444,7 +519,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			self.config,
 		);
 
-		let reason = substate.execute(&mut runtime);
+		let reason = self.execute(&mut runtime);
 		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
 
 		match reason {
@@ -453,37 +528,50 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 				if let Some(limit) = self.config.create_contract_limit {
 					if out.len() > limit {
-						substate.gasometer.fail();
-						let _ = self.merge_fail(substate);
+						self.substates.last_mut()
+							.expect("substate vec always have length greater than one; qed")
+							.gasometer
+							.fail();
+						let _ = self.exit_substate(StackExitKind::Failed);
 						return Capture::Exit((ExitError::CreateContractLimit.into(), None, Vec::new()))
 					}
 				}
 
-				match substate.gasometer.record_deposit(out.len()) {
+				match self.substates.last_mut()
+					.expect("substate vec always have length greater than one; qed")
+					.gasometer
+					.record_deposit(out.len())
+				{
 					Ok(()) => {
-						let e = self.merge_succeed(substate);
-						self.state.entry(address).or_insert(Default::default())
-							.code = Some(out);
+						let e = self.exit_substate(StackExitKind::Succeeded);
+						self.account_mut(address).code = Some(out);
 						try_or_fail!(e);
 						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
 					},
 					Err(e) => {
-						let _ = self.merge_fail(substate);
+						let _ = self.exit_substate(StackExitKind::Failed);
 						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 					},
 				}
 			},
 			ExitReason::Error(e) => {
-				substate.gasometer.fail();
-				let _ = self.merge_fail(substate);
+				self.substates.last_mut()
+					.expect("substate vec always have length greater than one; qed")
+					.gasometer
+					.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 			},
 			ExitReason::Revert(e) => {
-				let _ = self.merge_revert(substate);
+				let _ = self.exit_substate(StackExitKind::Reverted);
 				Capture::Exit((ExitReason::Revert(e), None, runtime.machine().return_value()))
 			},
 			ExitReason::Fatal(e) => {
-				self.gasometer.fail();
+				self.substates.last_mut()
+					.expect("substate vec always have length greater than one; qed")
+					.gasometer
+					.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
 			},
 		}
@@ -513,7 +601,10 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			gas - gas / 64
 		}
 
-		let mut after_gas = self.gasometer.gas();
+		let mut after_gas = self.substates.last()
+			.expect("substate vec always have length greater than one; qed")
+			.gasometer
+			.gas();
 		if take_l64 && self.config.call_l64_after_gas {
 			after_gas = l64(after_gas);
 		}
@@ -521,7 +612,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		let target_gas = target_gas.unwrap_or(after_gas);
 		let mut gas_limit = min(target_gas, after_gas);
 
-		try_or_fail!(self.gasometer.record_cost(gas_limit));
+		try_or_fail!(
+			self.substates.last_mut()
+				.expect("substate vec always have length greater than one; qed")
+				.gasometer
+				.record_cost(gas_limit)
+		);
 
 		if let Some(transfer) = transfer.as_ref() {
 			if take_stipend && transfer.value != U256::zero() {
@@ -531,35 +627,41 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 
 		let code = self.code(code_address);
 
-		let mut substate = self.substate(gas_limit, is_static);
-		substate.account_mut(context.address);
+		self.enter_substate(gas_limit, is_static);
+		self.account_mut(context.address);
 
-		if let Some(depth) = self.depth {
+		if let Some(depth) = self.substates.last()
+			.expect("substate vec always have length greater than one; qed")
+			.depth
+		{
 			if depth + 1 > self.config.call_stack_limit {
-				let _ = self.merge_revert(substate);
+				let _ = self.exit_substate(StackExitKind::Reverted);
 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
 			}
 		}
 
 		if let Some(transfer) = transfer {
-			match substate.transfer(transfer) {
+			match self.transfer(transfer) {
 				Ok(()) => (),
 				Err(e) => {
-					let _ = self.merge_revert(substate);
+					let _ = self.exit_substate(StackExitKind::Reverted);
 					return Capture::Exit((ExitReason::Error(e), Vec::new()))
 				},
 			}
 		}
 
-		if let Some(ret) = (substate.precompile)(code_address, &input, Some(gas_limit)) {
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit)) {
 			return match ret {
 				Ok((s, out, cost)) => {
-					let _ = substate.gasometer.record_cost(cost);
-					let _ = self.merge_succeed(substate);
+					let _ = self.substates.last_mut()
+						.expect("substate vec always have length greater than one; qed")
+						.gasometer
+						.record_cost(cost);
+					let _ = self.exit_substate(StackExitKind::Succeeded);
 					Capture::Exit((ExitReason::Succeed(s), out))
 				},
 				Err(e) => {
-					let _ = self.merge_fail(substate);
+					let _ = self.exit_substate(StackExitKind::Failed);
 					Capture::Exit((ExitReason::Error(e), Vec::new()))
 				},
 			}
@@ -572,24 +674,28 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			self.config,
 		);
 
-		let reason = substate.execute(&mut runtime);
+		let reason = self.execute(&mut runtime);
 		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
 
 		match reason {
 			ExitReason::Succeed(s) => {
-				let _ = self.merge_succeed(substate);
+				let _ = self.exit_substate(StackExitKind::Succeeded);
 				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
 			},
 			ExitReason::Error(e) => {
-				let _ = self.merge_fail(substate);
+				let _ = self.exit_substate(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Error(e), Vec::new()))
 			},
 			ExitReason::Revert(e) => {
-				let _ = self.merge_revert(substate);
+				let _ = self.exit_substate(StackExitKind::Reverted);
 				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
 			},
 			ExitReason::Fatal(e) => {
-				self.gasometer.fail();
+				self.substates.last_mut()
+					.expect("substate vec always have length greater than one; qed")
+					.gasometer
+					.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
 			},
 		}
@@ -603,15 +709,26 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	type CallFeedback = Infallible;
 
 	fn balance(&self, address: H160) -> U256 {
-		self.state.get(&address).map(|v| v.basic.balance)
-			.unwrap_or(self.backend.basic(address).balance)
+		for substate in self.substates.iter().rev() {
+			if let Some(account) = substate.state.get(&address) {
+				return account.basic.balance
+			}
+		}
+
+		self.backend.basic(address).balance
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		U256::from(
-			self.state.get(&address).and_then(|v| v.code.as_ref().map(|c| c.len()))
-				.unwrap_or(self.backend.code_size(address))
-		)
+		for substate in self.substates.iter().rev() {
+			if let Some(account) = substate.state.get(&address) {
+				return U256::from(
+					account.code.as_ref().map(|v| v.len())
+						.unwrap_or_else(|| self.backend.code_size(address))
+				)
+			}
+		}
+
+		U256::from(self.backend.code_size(address))
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
@@ -619,7 +736,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 			return H256::default()
 		}
 
-		let (balance, nonce, code_size) = if let Some(account) = self.state.get(&address) {
+		let (balance, nonce, code_size) = if let Some(account) = self.account(address) {
 			(account.basic.balance, account.basic.nonce,
 			 account.code.as_ref().map(|c| U256::from(c.len())).unwrap_or(self.code_size(address)))
 		} else {
@@ -631,7 +748,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 			return H256::default()
 		}
 
-		let value = self.state.get(&address).and_then(|v| {
+		let value = self.account(address).and_then(|v| {
 			v.code.as_ref().map(|c| {
 				H256::from_slice(Keccak256::digest(&c).as_slice())
 			})
@@ -640,13 +757,13 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.state.get(&address).and_then(|v| {
+		self.account(address).and_then(|v| {
 			v.code.clone()
 		}).unwrap_or(self.backend.code(address))
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
-		self.state.get(&address)
+		self.account(address)
 			.and_then(|v| {
 				let s = v.storage.get(&index).cloned();
 
@@ -661,7 +778,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
-		if let Some(account) = self.state.get(&address) {
+		if let Some(account) = self.account(address) {
 			if account.reset_storage {
 				return H256::default()
 			}
@@ -671,9 +788,9 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 
 	fn exists(&self, address: H160) -> bool {
 		if self.config.empty_considered_exists {
-			self.state.get(&address).is_some() || self.backend.exists(address)
+			self.account(address).is_some() || self.backend.exists(address)
 		} else {
-			if let Some(account) = self.state.get(&address) {
+			if let Some(account) = self.account(address) {
 				account.basic.nonce != U256::zero() ||
 					account.basic.balance != U256::zero() ||
 					account.code.as_ref().map(|c| c.len() != 0).unwrap_or(false) ||
@@ -686,7 +803,11 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		}
 	}
 
-	fn gas_left(&self) -> U256 { U256::from(self.gasometer.gas()) }
+	fn gas_left(&self) -> U256 {
+		let current = self.substates.last()
+			.expect("substate vec always have length greater than one; qed");
+		U256::from(current.gasometer.gas())
+	}
 
 	fn gas_price(&self) -> U256 { self.backend.gas_price() }
 	fn origin(&self) -> H160 { self.backend.origin() }
@@ -698,7 +819,15 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
 	fn chain_id(&self) -> U256 { self.backend.chain_id() }
 
-	fn deleted(&self, address: H160) -> bool { self.deleted.contains(&address) }
+	fn deleted(&self, address: H160) -> bool {
+		for substate in self.substates.iter().rev() {
+			if substate.deleted.contains(&address) {
+				return true
+			}
+		}
+
+		false
+	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
 		self.account_mut(address).storage.insert(index, value);
@@ -707,7 +836,9 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
-		self.logs.push(Log {
+		let current = self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed");
+		current.logs.push(Log {
 			address, topics, data
 		});
 
@@ -724,7 +855,9 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		})?;
 		self.account_mut(address).basic.balance = U256::zero();
 
-		self.deleted.insert(address);
+		let current = self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed");
+		current.deleted.insert(address);
 
 		Ok(())
 	}
@@ -758,11 +891,17 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
+		let is_static = self.substates.last()
+			.expect("substate vec always have length greater than one; qed")
+			.is_static;
 		let (gas_cost, memory_cost) = gasometer::opcode_cost(
-			context.address, opcode, stack, self.is_static, &self.config, self
+			context.address, opcode, stack, is_static, &self.config, self
 		)?;
 
-		self.gasometer.record_opcode(gas_cost, memory_cost)?;
+		self.substates.last_mut()
+			.expect("substate vec always have length greater than one; qed")
+			.gasometer
+			.record_opcode(gas_cost, memory_cost)?;
 
 		Ok(())
 	}
