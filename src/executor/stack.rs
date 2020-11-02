@@ -436,7 +436,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			.expect("substate vec always have length greater than one; qed")
 			.depth
 		{
-			if depth + 1 > self.config.call_stack_limit {
+			if depth > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
 			}
 		}
@@ -634,7 +634,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			.expect("substate vec always have length greater than one; qed")
 			.depth
 		{
-			if depth + 1 > self.config.call_stack_limit {
+			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
 			}
@@ -891,8 +891,6 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
-		log::trace!(target: "evm", "Running opcode: {:?}", opcode);
-
 		let is_static = self.substates.last()
 			.expect("substate vec always have length greater than one; qed")
 			.is_static;
@@ -900,10 +898,13 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 			context.address, opcode, stack, is_static, &self.config, self
 		)?;
 
-		self.substates.last_mut()
+		let gasometer = &mut self.substates.last_mut()
 			.expect("substate vec always have length greater than one; qed")
-			.gasometer
-			.record_opcode(gas_cost, memory_cost)?;
+			.gasometer;
+
+		log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
+
+		gasometer.record_opcode(gas_cost, memory_cost)?;
 
 		Ok(())
 	}
