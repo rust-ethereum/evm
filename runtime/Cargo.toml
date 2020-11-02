@@ -1,6 +1,6 @@
 [package]
 name = "evm-runtime"
-version = "0.18.0"
+version = "0.18.3"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
