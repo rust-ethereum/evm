@@ -21,13 +21,15 @@ jobs:
   jsontests:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
+    - uses: actions/checkout@v2
+      repository: "rust-blockchain/evm-tests"
+      submodules: true
+    - name: Submodules
       run: |
-        git clone https://github.com/rust-blockchain/evm-tests
-        cd evm-tests/evm
+        cd evm
         git fetch
         git checkout $GITHUB_SHA
     - name: Run tests
       run: |
-        cd evm-tests/jsontests
+        cd jsontests
         cargo test --release --verbose
