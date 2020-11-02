@@ -145,7 +145,6 @@ impl Machine {
 				}
 			},
 			Some(Err(external)) => {
-				log::trace!(target: "evm", "OpCode External: {:?}", external);
 				self.position = Ok(position + 1);
 				Err(Capture::Trap(external))
 			},

@@ -1,6 +1,6 @@
 # SputnikVM: Rust Ethereum Virtual Machine Implementation
 
-[![Build Status](https://travis-ci.org/sorpaas/rust-evm.svg?branch=master)](https://travis-ci.org/sorpaas/rust-evm)
+[![Build Status](https://github.com/rust-blockchain/evm/workflows/Rust/badge.svg)](https://github.com/rust-blockchain/evm/actions?query=workflow%3ARust)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
 
 | Name          | Description                                                     | Crates.io                                                                                                 | Documentation                                                                              |
