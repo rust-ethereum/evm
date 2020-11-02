@@ -891,6 +891,8 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
+		log::trace!(target: "evm", "Running opcode: {:?}", opcode);
+
 		let is_static = self.substates.last()
 			.expect("substate vec always have length greater than one; qed")
 			.is_static;
