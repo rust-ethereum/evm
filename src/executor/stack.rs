@@ -1,5 +1,5 @@
 use core::{convert::Infallible, cmp::min};
-use alloc::{rc::Rc, vec::Vec, collections::{BTreeMap, BTreeSet}};
+use alloc::{rc::Rc, vec, vec::Vec, collections::{BTreeMap, BTreeSet}};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
