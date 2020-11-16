@@ -1,6 +1,6 @@
 [package]
 name = "evm"
-version = "0.18.4"
+version = "0.18.5"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -18,7 +18,7 @@ rlp = { version = "0.4", default-features = false }
 primitive-types = { version = "0.7", default-features = false, features = ["rlp"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "1.3", default-features = false, features = ["derive"], optional = true }
-ethereum = { version = "0.4", default-features = false }
+ethereum = { version = ">=0.4, <0.6", default-features = false }
 
 [features]
 default = ["std"]
