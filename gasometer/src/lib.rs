@@ -472,6 +472,7 @@ impl<'config> Inner<'config> {
 				costs::call_cost(U256::zero(), false, true, !target_exists, self.config),
 			GasCost::Suicide { value, target_exists, .. } =>
 				costs::suicide_cost(value, target_exists, self.config),
+			GasCost::SStore { .. } if self.config.estimate => self.config.gas_sstore_set,
 			GasCost::SStore { original, current, new } =>
 				costs::sstore_cost(original, current, new, gas, self.config)?,
 
@@ -505,6 +506,8 @@ impl<'config> Inner<'config> {
 		cost: GasCost
 	) -> isize {
 		match cost {
+			_ if self.config.estimate => 0,
+
 			GasCost::SStore { original, current, new } =>
 				costs::sstore_refund(original, current, new, self.config),
 			GasCost::Suicide { already_removed, .. } =>
