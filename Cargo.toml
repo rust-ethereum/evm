@@ -1,6 +1,6 @@
 [package]
 name = "evm"
-version = "0.19.0"
+version = "0.20.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -10,9 +10,9 @@ edition = "2018"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-evm-core = { version = "0.19", path = "core", default-features = false }
-evm-gasometer = { version = "0.19", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.19", path = "runtime", default-features = false }
+evm-core = { version = "0.20", path = "core", default-features = false }
+evm-gasometer = { version = "0.20", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.20", path = "runtime", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 rlp = { version = "0.4", default-features = false }
 primitive-types = { version = "0.7", default-features = false, features = ["rlp"] }
