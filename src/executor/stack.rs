@@ -40,14 +40,15 @@ pub struct StackSubstate<'config> {
 pub struct StackExecutor<'backend, 'config, B> {
 	backend: &'backend B,
 	config: &'config Config,
-	precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+	precompile: fn(H160, &[u8], Option<usize>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
 	substates: Vec<StackSubstate<'config>>,
 }
 
 fn no_precompile(
 	_address: H160,
 	_input: &[u8],
-	_target_gas: Option<usize>
+	_target_gas: Option<usize>,
+	_context: &Context,
 ) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>> {
 	None
 }
@@ -67,7 +68,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		backend: &'backend B,
 		gas_limit: usize,
 		config: &'config Config,
-		precompile: fn(H160, &[u8], Option<usize>) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+		precompile: fn(H160, &[u8], Option<usize>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
 	) -> Self {
 		Self {
 			backend,
@@ -650,7 +651,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}
 		}
 
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit)) {
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
 			return match ret {
 				Ok((s, out, cost)) => {
 					let _ = self.substates.last_mut()
