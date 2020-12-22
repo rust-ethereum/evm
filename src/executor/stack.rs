@@ -446,12 +446,25 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
 		}
 
-		let mut after_gas = self.substates.last()
-			.expect("substate vec always have length greater than one; qed")
-			.gasometer.gas();
-		if take_l64 && self.config.call_l64_after_gas {
-			after_gas = l64(after_gas);
-		}
+		let after_gas = if take_l64 && self.config.call_l64_after_gas {
+			if self.config.estimate {
+				let last_substate = self.substates.last_mut()
+					.expect("substate vec always have length greater than one; qed");
+				let initial_after_gas = last_substate.gasometer.gas();
+				let diff = initial_after_gas - l64(initial_after_gas);
+				try_or_fail!(last_substate.gasometer.record_cost(diff));
+				last_substate.gasometer.gas()
+			} else {
+				l64(self.substates.last()
+					.expect("substate vec always have length greater than one; qed")
+					.gasometer.gas())
+			}
+		} else {
+			self.substates.last()
+				.expect("substate vec always have length greater than one; qed")
+				.gasometer.gas()
+		};
+
 		let target_gas = target_gas.unwrap_or(after_gas);
 
 		let gas_limit = min(after_gas, target_gas);
@@ -602,13 +615,24 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			gas - gas / 64
 		}
 
-		let mut after_gas = self.substates.last()
-			.expect("substate vec always have length greater than one; qed")
-			.gasometer
-			.gas();
-		if take_l64 && self.config.call_l64_after_gas {
-			after_gas = l64(after_gas);
-		}
+		let after_gas = if take_l64 && self.config.call_l64_after_gas {
+			if self.config.estimate {
+				let last_substate = self.substates.last_mut()
+					.expect("substate vec always have length greater than one; qed");
+				let initial_after_gas = last_substate.gasometer.gas();
+				let diff = initial_after_gas - l64(initial_after_gas);
+				try_or_fail!(last_substate.gasometer.record_cost(diff));
+				last_substate.gasometer.gas()
+			} else {
+				l64(self.substates.last()
+					.expect("substate vec always have length greater than one; qed")
+					.gasometer.gas())
+			}
+		} else {
+			self.substates.last()
+				.expect("substate vec always have length greater than one; qed")
+				.gasometer.gas()
+		};
 
 		let target_gas = target_gas.unwrap_or(after_gas);
 		let mut gas_limit = min(target_gas, after_gas);
