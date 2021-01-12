@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 evm-core = { version = "0.20", path = "../core", default-features = false }
-primitive-types = { version = "0.7", default-features = false }
+primitive-types = { version = "0.8", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 
 [features]
