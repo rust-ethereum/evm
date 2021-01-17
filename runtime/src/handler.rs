@@ -77,7 +77,7 @@ pub trait Handler {
 		scheme: CreateScheme,
 		value: U256,
 		init_code: Vec<u8>,
-		target_gas: Option<usize>,
+		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
 	/// Feed in create feedback.
 	fn create_feedback(
@@ -92,7 +92,7 @@ pub trait Handler {
 		code_address: H160,
 		transfer: Option<Transfer>,
 		input: Vec<u8>,
-		target_gas: Option<usize>,
+		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;

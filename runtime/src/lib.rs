@@ -129,35 +129,35 @@ impl<'config> Runtime<'config> {
 #[derive(Clone, Debug)]
 pub struct Config {
 	/// Gas paid for extcode.
-	pub gas_ext_code: usize,
+	pub gas_ext_code: u64,
 	/// Gas paid for extcodehash.
-	pub gas_ext_code_hash: usize,
+	pub gas_ext_code_hash: u64,
 	/// Gas paid for sstore set.
-	pub gas_sstore_set: usize,
+	pub gas_sstore_set: u64,
 	/// Gas paid for sstore reset.
-	pub gas_sstore_reset: usize,
+	pub gas_sstore_reset: u64,
 	/// Gas paid for sstore refund.
-	pub refund_sstore_clears: isize,
+	pub refund_sstore_clears: i64,
 	/// Gas paid for BALANCE opcode.
-	pub gas_balance: usize,
+	pub gas_balance: u64,
 	/// Gas paid for SLOAD opcode.
-	pub gas_sload: usize,
+	pub gas_sload: u64,
 	/// Gas paid for SUICIDE opcode.
-	pub gas_suicide: usize,
+	pub gas_suicide: u64,
 	/// Gas paid for SUICIDE opcode when it hits a new account.
-	pub gas_suicide_new_account: usize,
+	pub gas_suicide_new_account: u64,
 	/// Gas paid for CALL opcode.
-	pub gas_call: usize,
+	pub gas_call: u64,
 	/// Gas paid for EXP opcode for every byte.
-	pub gas_expbyte: usize,
+	pub gas_expbyte: u64,
 	/// Gas paid for a contract creation transaction.
-	pub gas_transaction_create: usize,
+	pub gas_transaction_create: u64,
 	/// Gas paid for a message call transaction.
-	pub gas_transaction_call: usize,
+	pub gas_transaction_call: u64,
 	/// Gas paid for zero data in a transaction.
-	pub gas_transaction_zero_data: usize,
+	pub gas_transaction_zero_data: u64,
 	/// Gas paid for non-zero data in a transaction.
-	pub gas_transaction_non_zero_data: usize,
+	pub gas_transaction_non_zero_data: u64,
 	/// EIP-1283.
 	pub sstore_gas_metering: bool,
 	/// EIP-1706.
@@ -181,7 +181,7 @@ pub struct Config {
 	/// Create contract limit.
 	pub create_contract_limit: Option<usize>,
 	/// Call stipend.
-	pub call_stipend: usize,
+	pub call_stipend: u64,
 	/// Has delegate call.
 	pub has_delegate_call: bool,
 	/// Has create2.

@@ -301,10 +301,10 @@ pub fn call<'config, H: Handler>(
 
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
-	let gas = if gas > U256::from(usize::max_value()) {
+	let gas = if gas > U256::from(u64::max_value()) {
 		None
 	} else {
-		Some(gas.as_usize())
+		Some(gas.as_u64())
 	};
 
 	let value = match scheme {

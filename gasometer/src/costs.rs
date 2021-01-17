@@ -3,7 +3,7 @@ use evm_core::ExitError;
 use crate::Config;
 use crate::consts::*;
 
-pub fn call_extra_check(gas: U256, after_gas: usize, config: &Config) -> Result<(), ExitError> {
+pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitError> {
 	if config.err_on_call_with_more_gas && U256::from(after_gas) < gas {
 		Err(ExitError::OutOfGas)
 	} else {
@@ -11,7 +11,7 @@ pub fn call_extra_check(gas: U256, after_gas: usize, config: &Config) -> Result<
 	}
 }
 
-pub fn suicide_refund(already_removed: bool) -> isize {
+pub fn suicide_refund(already_removed: bool) -> i64 {
 	if already_removed {
 		0
 	} else {
@@ -19,7 +19,7 @@ pub fn suicide_refund(already_removed: bool) -> isize {
 	}
 }
 
-pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> isize {
+pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> i64 {
 	if config.sstore_gas_metering {
 		if current == new {
 			0
@@ -38,9 +38,9 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 
 				if original == new {
 					if original == H256::default() {
-						refund += (config.gas_sstore_set - config.gas_sload) as isize;
+						refund += (config.gas_sstore_set - config.gas_sload) as i64;
 					} else {
-						refund += (config.gas_sstore_reset - config.gas_sload) as isize;
+						refund += (config.gas_sstore_reset - config.gas_sload) as i64;
 					}
 				}
 
@@ -56,7 +56,7 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 	}
 }
 
-pub fn create2_cost(len: U256) -> Result<usize, ExitError> {
+pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)
 	let sha_addup_base = len / U256::from(32) +
@@ -65,14 +65,14 @@ pub fn create2_cost(len: U256) -> Result<usize, ExitError> {
 		.ok_or(ExitError::OutOfGas)?;
 	let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(usize::max_value()) {
+	if gas > U256::from(u64::max_value()) {
 		return Err(ExitError::OutOfGas)
 	}
 
-	Ok(gas.as_usize())
+	Ok(gas.as_u64())
 }
 
-pub fn exp_cost(power: U256, config: &Config) -> Result<usize, ExitError> {
+pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 	if power == U256::zero() {
 		Ok(G_EXP)
 	} else {
@@ -84,15 +84,15 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<usize, ExitError> {
 			)
 			.ok_or(ExitError::OutOfGas)?;
 
-		if gas > U256::from(usize::max_value()) {
+		if gas > U256::from(u64::max_value()) {
 			return Err(ExitError::OutOfGas)
 		}
 
-		Ok(gas.as_usize())
+		Ok(gas.as_u64())
 	}
 }
 
-pub fn verylowcopy_cost(len: U256) -> Result<usize, ExitError> {
+pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
 
@@ -106,14 +106,14 @@ pub fn verylowcopy_cost(len: U256) -> Result<usize, ExitError> {
 		).ok_or(ExitError::OutOfGas)?
 	).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(usize::max_value()) {
+	if gas > U256::from(u64::max_value()) {
 		return Err(ExitError::OutOfGas)
 	}
 
-	Ok(gas.as_usize())
+	Ok(gas.as_u64())
 }
 
-pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<usize, ExitError> {
+pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
 
@@ -127,28 +127,28 @@ pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<usize, ExitError> 
 		).ok_or(ExitError::OutOfGas)?
 	).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(usize::max_value()) {
+	if gas > U256::from(u64::max_value()) {
 		return Err(ExitError::OutOfGas)
 	}
 
-	Ok(gas.as_usize())
+	Ok(gas.as_u64())
 }
 
-pub fn log_cost(n: u8, len: U256) -> Result<usize, ExitError> {
+pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
 	let gas = U256::from(G_LOG)
 		.checked_add(U256::from(G_LOGDATA).checked_mul(len).ok_or(ExitError::OutOfGas)?)
 		.ok_or(ExitError::OutOfGas)?
-		.checked_add(U256::from(G_LOGTOPIC * n as usize))
+		.checked_add(U256::from(G_LOGTOPIC * n as u64))
 		.ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(usize::max_value()) {
+	if gas > U256::from(u64::max_value()) {
 		return Err(ExitError::OutOfGas)
 	}
 
-	Ok(gas.as_usize())
+	Ok(gas.as_u64())
 }
 
-pub fn sha3_cost(len: U256) -> Result<usize, ExitError> {
+pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
 
@@ -162,14 +162,14 @@ pub fn sha3_cost(len: U256) -> Result<usize, ExitError> {
 		).ok_or(ExitError::OutOfGas)?
 	).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(usize::max_value()) {
+	if gas > U256::from(u64::max_value()) {
 		return Err(ExitError::OutOfGas)
 	}
 
-	Ok(gas.as_usize())
+	Ok(gas.as_u64())
 }
 
-pub fn sstore_cost(original: H256, current: H256, new: H256, gas: usize, config: &Config) -> Result<usize, ExitError> {
+pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, config: &Config) -> Result<u64, ExitError> {
 	if config.sstore_gas_metering {
 		if config.sstore_revert_under_stipend {
 			if gas < config.call_stipend {
@@ -199,7 +199,7 @@ pub fn sstore_cost(original: H256, current: H256, new: H256, gas: usize, config:
 	}
 }
 
-pub fn suicide_cost(value: U256, target_exists: bool, config: &Config) -> usize {
+pub fn suicide_cost(value: U256, target_exists: bool, config: &Config) -> u64 {
 	let eip161 = !config.empty_considered_exists;
 	let should_charge_topup = if eip161 {
 		value != U256::zero() && !target_exists
@@ -222,7 +222,7 @@ pub fn call_cost(
 	is_call_or_staticcall: bool,
 	new_account: bool,
 	config: &Config,
-) -> usize {
+) -> u64 {
 	let transfers_value = value != U256::default();
 	config.gas_call +
 		xfer_cost(is_call_or_callcode, transfers_value) +
@@ -232,7 +232,7 @@ pub fn call_cost(
 fn xfer_cost(
 	is_call_or_callcode: bool,
 	transfers_value: bool
-) -> usize {
+) -> u64 {
 	if is_call_or_callcode && transfers_value {
 		G_CALLVALUE
 	} else {
@@ -245,7 +245,7 @@ fn new_cost(
 	new_account: bool,
 	transfers_value: bool,
 	config: &Config,
-) -> usize {
+) -> u64 {
 	let eip161 = !config.empty_considered_exists;
 	if is_call_or_staticcall {
 		if eip161 {

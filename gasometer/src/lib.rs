@@ -30,14 +30,14 @@ macro_rules! try_or_fail {
 /// EVM gasometer.
 #[derive(Clone)]
 pub struct Gasometer<'config> {
-	gas_limit: usize,
+	gas_limit: u64,
 	config: &'config Config,
 	inner: Result<Inner<'config>, ExitError>
 }
 
 impl<'config> Gasometer<'config> {
 	/// Create a new gasometer with given gas limit and config.
-	pub fn new(gas_limit: usize, config: &'config Config) -> Self {
+	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			config,
@@ -62,7 +62,7 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Remaining gas.
-	pub fn gas(&self) -> usize {
+	pub fn gas(&self) -> u64 {
 		match self.inner.as_ref() {
 			Ok(inner) => {
 				self.gas_limit - inner.used_gas -
@@ -73,7 +73,7 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Total used gas.
-	pub fn total_used_gas(&self) -> usize {
+	pub fn total_used_gas(&self) -> u64 {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.used_gas +
 				memory::memory_gas(inner.memory_cost).expect("Checked via record"),
@@ -82,7 +82,7 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Refunded gas.
-	pub fn refunded_gas(&self) -> isize {
+	pub fn refunded_gas(&self) -> i64 {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.refunded_gas,
 			Err(_) => 0,
@@ -98,7 +98,7 @@ impl<'config> Gasometer<'config> {
 	/// Record an explict cost.
 	pub fn record_cost(
 		&mut self,
-		cost: usize
+		cost: u64,
 	) -> Result<(), ExitError> {
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
@@ -113,7 +113,7 @@ impl<'config> Gasometer<'config> {
 	/// Record an explict refund.
 	pub fn record_refund(
 		&mut self,
-		refund: isize,
+		refund: i64,
 	) -> Result<(), ExitError> {
 		self.inner_mut()?.refunded_gas += refund;
 		Ok(())
@@ -122,9 +122,9 @@ impl<'config> Gasometer<'config> {
 	/// Record `CREATE` code deposit.
 	pub fn record_deposit(
 		&mut self,
-		len: usize
+		len: usize,
 	) -> Result<(), ExitError> {
-		let cost = len * consts::G_CODEDEPOSIT;
+		let cost = len as u64 * consts::G_CODEDEPOSIT;
 		self.record_cost(cost)
 	}
 
@@ -164,7 +164,7 @@ impl<'config> Gasometer<'config> {
 	/// Record opcode stipend.
 	pub fn record_stipend(
 		&mut self,
-		stipend: usize,
+		stipend: u64,
 	) -> Result<(), ExitError> {
 		self.inner_mut()?.used_gas -= stipend;
 		Ok(())
@@ -178,13 +178,13 @@ impl<'config> Gasometer<'config> {
 		let gas_cost = match cost {
 			TransactionCost::Call { zero_data_len, non_zero_data_len } => {
 				self.config.gas_transaction_call +
-					zero_data_len * self.config.gas_transaction_zero_data +
-					non_zero_data_len * self.config.gas_transaction_non_zero_data
+					zero_data_len as u64 * self.config.gas_transaction_zero_data +
+					non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
 			},
 			TransactionCost::Create { zero_data_len, non_zero_data_len } => {
 				self.config.gas_transaction_create +
-					zero_data_len * self.config.gas_transaction_zero_data +
-					non_zero_data_len * self.config.gas_transaction_non_zero_data
+					zero_data_len as u64 * self.config.gas_transaction_zero_data +
+					non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
 			},
 		};
 
@@ -408,8 +408,8 @@ pub fn opcode_cost<H: Handler>(
 #[derive(Clone)]
 struct Inner<'config> {
 	memory_cost: usize,
-	used_gas: usize,
-	refunded_gas: isize,
+	used_gas: u64,
+	refunded_gas: i64,
 	config: &'config Config,
 }
 
@@ -445,7 +445,7 @@ impl<'config> Inner<'config> {
 	fn extra_check(
 		&self,
 		cost: GasCost,
-		after_gas: usize,
+		after_gas: u64,
 	) -> Result<(), ExitError> {
 		match cost {
 			GasCost::Call { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
@@ -459,8 +459,8 @@ impl<'config> Inner<'config> {
 	fn gas_cost(
 		&self,
 		cost: GasCost,
-		gas: usize,
-	) -> Result<usize, ExitError> {
+		gas: u64,
+	) -> Result<u64, ExitError> {
 		Ok(match cost {
 			GasCost::Call { value, target_exists, .. } =>
 				costs::call_cost(value, true, true, !target_exists, self.config),
@@ -504,7 +504,7 @@ impl<'config> Inner<'config> {
 	fn gas_refund(
 		&self,
 		cost: GasCost
-	) -> isize {
+	) -> i64 {
 		match cost {
 			_ if self.config.estimate => 0,
 

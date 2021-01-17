@@ -40,16 +40,16 @@ pub struct StackSubstate<'config> {
 pub struct StackExecutor<'backend, 'config, B> {
 	backend: &'backend B,
 	config: &'config Config,
-	precompile: fn(H160, &[u8], Option<usize>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
 	substates: Vec<StackSubstate<'config>>,
 }
 
 fn no_precompile(
 	_address: H160,
 	_input: &[u8],
-	_target_gas: Option<usize>,
+	_target_gas: Option<u64>,
 	_context: &Context,
-) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>> {
+) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>> {
 	None
 }
 
@@ -57,7 +57,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	/// Create a new stack-based executor.
 	pub fn new(
 		backend: &'backend B,
-		gas_limit: usize,
+		gas_limit: u64,
 		config: &'config Config,
 	) -> Self {
 		Self::new_with_precompile(backend, gas_limit, config, no_precompile)
@@ -66,9 +66,9 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	/// Create a new stack-based executor with given precompiles.
 	pub fn new_with_precompile(
 		backend: &'backend B,
-		gas_limit: usize,
+		gas_limit: u64,
 		config: &'config Config,
-		precompile: fn(H160, &[u8], Option<usize>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, usize), ExitError>>,
+		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
 	) -> Self {
 		Self {
 			backend,
@@ -90,7 +90,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	/// Create a substate executor from the current executor.
 	pub fn enter_substate(
 		&mut self,
-		gas_limit: usize,
+		gas_limit: u64,
 		is_static: bool,
 	) {
 		let parent = self.substates.last()
@@ -150,7 +150,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	}
 
 	/// Get remaining gas.
-	pub fn gas(&self) -> usize {
+	pub fn gas(&self) -> u64 {
 		self.substates.last()
 			.expect("substate vec always have length greater than one; qed")
 			.gasometer.gas()
@@ -162,7 +162,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		caller: H160,
 		value: U256,
 		init_code: Vec<u8>,
-		gas_limit: usize,
+		gas_limit: u64,
 	) -> ExitReason {
 		let current = self.substates.last_mut()
 			.expect("substate vec always have length greater than one; qed");
@@ -193,7 +193,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		value: U256,
 		init_code: Vec<u8>,
 		salt: H256,
-		gas_limit: usize,
+		gas_limit: u64,
 	) -> ExitReason {
 		let current = self.substates.last_mut()
 			.expect("substate vec always have length greater than one; qed");
@@ -225,7 +225,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		address: H160,
 		value: U256,
 		data: Vec<u8>,
-		gas_limit: usize,
+		gas_limit: u64,
 	) -> (ExitReason, Vec<u8>) {
 		let current = self.substates.last_mut()
 			.expect("substate vec always have length greater than one; qed");
@@ -257,12 +257,12 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	/// Get used gas for the current executor, given the price.
 	pub fn used_gas(
 		&self,
-	) -> usize {
+	) -> u64 {
 		let current = self.substates.last()
 			.expect("substate vec always have length greater than one; qed");
 
 		current.gasometer.total_used_gas() -
-			min(current.gasometer.total_used_gas() / 2, current.gasometer.refunded_gas() as usize)
+			min(current.gasometer.total_used_gas() / 2, current.gasometer.refunded_gas() as u64)
 	}
 
 	/// Get fee needed for the current executor, given the price.
@@ -417,7 +417,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		scheme: CreateScheme,
 		value: U256,
 		init_code: Vec<u8>,
-		target_gas: Option<usize>,
+		target_gas: Option<u64>,
 		take_l64: bool,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> {
 		macro_rules! try_or_fail {
@@ -429,7 +429,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}
 		}
 
-		fn l64(gas: usize) -> usize {
+		fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
 
@@ -596,7 +596,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		code_address: H160,
 		transfer: Option<Transfer>,
 		input: Vec<u8>,
-		target_gas: Option<usize>,
+		target_gas: Option<u64>,
 		is_static: bool,
 		take_l64: bool,
 		take_stipend: bool,
@@ -611,7 +611,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}
 		}
 
-		fn l64(gas: usize) -> usize {
+		fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
 
@@ -893,7 +893,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		scheme: CreateScheme,
 		value: U256,
 		init_code: Vec<u8>,
-		target_gas: Option<usize>,
+		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
@@ -903,7 +903,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		code_address: H160,
 		transfer: Option<Transfer>,
 		input: Vec<u8>,
-		target_gas: Option<usize>,
+		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
