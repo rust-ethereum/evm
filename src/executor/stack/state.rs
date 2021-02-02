@@ -33,6 +33,14 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
+	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
+		&self.metadata
+	}
+
+	pub fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config> {
+		&mut self.metadata
+	}
+
 	// #[must_use]
 	// pub fn deconstruct(
 	// 	mut self
@@ -89,6 +97,10 @@ impl<'config> MemoryStackSubstate<'config> {
 		} else {
 			None
 		}
+	}
+
+	pub fn known_basic(&self, address: &H160) -> Option<Basic> {
+		self.known_account(address).map(|acc| acc.basic.clone())
 	}
 
 	fn account_mut<B: Backend>(&mut self, address: &H160, backend: &B) -> &mut MemoryStackAccount {

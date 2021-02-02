@@ -89,7 +89,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			}),
 		}
 	}
-}
 
 // 	/// Create a substate executor from the current executor.
 // 	pub fn enter_substate(
@@ -143,20 +142,19 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 		Ok(())
 // 	}
 
-// 	/// Execute the runtime until it returns.
-// 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
-// 		match runtime.run(self) {
-// 			Capture::Exit(s) => s,
-// 			Capture::Trap(_) => unreachable!("Trap is Infallible"),
-// 		}
-// 	}
+	/// Execute the runtime until it returns.
+	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
+		match runtime.run(self) {
+			Capture::Exit(s) => s,
+			Capture::Trap(_) => unreachable!("Trap is Infallible"),
+		}
+	}
 
-// 	/// Get remaining gas.
-// 	pub fn gas(&self) -> u64 {
-// 		self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed")
-// 			.gasometer.gas()
-// 	}
+	/// Get remaining gas.
+	pub fn gas(&self) -> u64 {
+		self.substate.metadata().gasometer.gas()
+	}
+}
 
 // 	/// Execute a `CREATE` transaction.
 // 	pub fn transact_create(
@@ -724,210 +722,212 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 	}
 // }
 
-// impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config, B> {
-// 	type CreateInterrupt = Infallible;
-// 	type CreateFeedback = Infallible;
-// 	type CallInterrupt = Infallible;
-// 	type CallFeedback = Infallible;
+impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config, B> {
+	type CreateInterrupt = Infallible;
+	type CreateFeedback = Infallible;
+	type CallInterrupt = Infallible;
+	type CallFeedback = Infallible;
 
-// 	fn balance(&self, address: H160) -> U256 {
-// 		for substate in self.substates.iter().rev() {
-// 			if let Some(account) = substate.state.get(&address) {
-// 				return account.basic.balance
-// 			}
-// 		}
+	fn balance(&self, address: H160) -> U256 {
+		self.substate.known_basic(&address).map(|basic| basic.balance).unwrap_or_else(|| {
+			self.backend.basic(address).balance
+		})
+	}
 
-// 		self.backend.basic(address).balance
-// 	}
+	fn code_size(&self, address: H160) -> U256 {
+		unimplemented!()
+		// for substate in self.substates.iter().rev() {
+		// 	if let Some(account) = substate.state.get(&address) {
+		// 		return U256::from(
+		// 			account.code.as_ref().map(|v| v.len())
+		// 				.unwrap_or_else(|| self.backend.code_size(address))
+		// 		)
+		// 	}
+		// }
 
-// 	fn code_size(&self, address: H160) -> U256 {
-// 		for substate in self.substates.iter().rev() {
-// 			if let Some(account) = substate.state.get(&address) {
-// 				return U256::from(
-// 					account.code.as_ref().map(|v| v.len())
-// 						.unwrap_or_else(|| self.backend.code_size(address))
-// 				)
-// 			}
-// 		}
+		// U256::from(self.backend.code_size(address))
+	}
 
-// 		U256::from(self.backend.code_size(address))
-// 	}
+	fn code_hash(&self, address: H160) -> H256 {
+		unimplemented!()
+		// if !self.exists(address) {
+		// 	return H256::default()
+		// }
 
-// 	fn code_hash(&self, address: H160) -> H256 {
-// 		if !self.exists(address) {
-// 			return H256::default()
-// 		}
+		// let (balance, nonce, code_size) = if let Some(account) = self.account(address) {
+		// 	(account.basic.balance, account.basic.nonce,
+		// 	 account.code.as_ref().map(|c| U256::from(c.len())).unwrap_or(self.code_size(address)))
+		// } else {
+		// 	let basic = self.backend.basic(address);
+		// 	(basic.balance, basic.nonce, U256::from(self.backend.code_size(address)))
+		// };
 
-// 		let (balance, nonce, code_size) = if let Some(account) = self.account(address) {
-// 			(account.basic.balance, account.basic.nonce,
-// 			 account.code.as_ref().map(|c| U256::from(c.len())).unwrap_or(self.code_size(address)))
-// 		} else {
-// 			let basic = self.backend.basic(address);
-// 			(basic.balance, basic.nonce, U256::from(self.backend.code_size(address)))
-// 		};
+		// if balance == U256::zero() && nonce == U256::zero() && code_size == U256::zero() {
+		// 	return H256::default()
+		// }
 
-// 		if balance == U256::zero() && nonce == U256::zero() && code_size == U256::zero() {
-// 			return H256::default()
-// 		}
+		// let value = self.account(address).and_then(|v| {
+		// 	v.code.as_ref().map(|c| {
+		// 		H256::from_slice(Keccak256::digest(&c).as_slice())
+		// 	})
+		// }).unwrap_or(self.backend.code_hash(address));
+		// value
+	}
 
-// 		let value = self.account(address).and_then(|v| {
-// 			v.code.as_ref().map(|c| {
-// 				H256::from_slice(Keccak256::digest(&c).as_slice())
-// 			})
-// 		}).unwrap_or(self.backend.code_hash(address));
-// 		value
-// 	}
+	fn code(&self, address: H160) -> Vec<u8> {
+		unimplemented!()
+		// self.account(address).and_then(|v| {
+		// 	v.code.clone()
+		// }).unwrap_or(self.backend.code(address))
+	}
 
-// 	fn code(&self, address: H160) -> Vec<u8> {
-// 		self.account(address).and_then(|v| {
-// 			v.code.clone()
-// 		}).unwrap_or(self.backend.code(address))
-// 	}
+	fn storage(&self, address: H160, index: H256) -> H256 {
+		unimplemented!()
+		// self.account(address)
+		// 	.and_then(|v| {
+		// 		let s = v.storage.get(&index).cloned();
 
-// 	fn storage(&self, address: H160, index: H256) -> H256 {
-// 		self.account(address)
-// 			.and_then(|v| {
-// 				let s = v.storage.get(&index).cloned();
+		// 		if v.reset_storage {
+		// 			Some(s.unwrap_or(H256::default()))
+		// 		} else {
+		// 			s
+		// 		}
 
-// 				if v.reset_storage {
-// 					Some(s.unwrap_or(H256::default()))
-// 				} else {
-// 					s
-// 				}
+		// 	})
+		// 	.unwrap_or(self.backend.storage(address, index))
+	}
 
-// 			})
-// 			.unwrap_or(self.backend.storage(address, index))
-// 	}
+	fn original_storage(&self, address: H160, index: H256) -> H256 {
+		unimplemented!()
+		// if let Some(account) = self.account(address) {
+		// 	if account.reset_storage {
+		// 		return H256::default()
+		// 	}
+		// }
+		// self.backend.storage(address, index)
+	}
 
-// 	fn original_storage(&self, address: H160, index: H256) -> H256 {
-// 		if let Some(account) = self.account(address) {
-// 			if account.reset_storage {
-// 				return H256::default()
-// 			}
-// 		}
-// 		self.backend.storage(address, index)
-// 	}
+	fn exists(&self, address: H160) -> bool {
+		unimplemented!()
+		// if self.config.empty_considered_exists {
+		// 	self.account(address).is_some() || self.backend.exists(address)
+		// } else {
+		// 	if let Some(account) = self.account(address) {
+		// 		account.basic.nonce != U256::zero() ||
+		// 			account.basic.balance != U256::zero() ||
+		// 			account.code.as_ref().map(|c| c.len() != 0).unwrap_or(false) ||
+		// 			self.backend.code(address).len() != 0
+		// 	} else {
+		// 		self.backend.basic(address).nonce != U256::zero() ||
+		// 			self.backend.basic(address).balance != U256::zero() ||
+		// 			self.backend.code(address).len() != 0
+		// 	}
+		// }
+	}
 
-// 	fn exists(&self, address: H160) -> bool {
-// 		if self.config.empty_considered_exists {
-// 			self.account(address).is_some() || self.backend.exists(address)
-// 		} else {
-// 			if let Some(account) = self.account(address) {
-// 				account.basic.nonce != U256::zero() ||
-// 					account.basic.balance != U256::zero() ||
-// 					account.code.as_ref().map(|c| c.len() != 0).unwrap_or(false) ||
-// 					self.backend.code(address).len() != 0
-// 			} else {
-// 				self.backend.basic(address).nonce != U256::zero() ||
-// 					self.backend.basic(address).balance != U256::zero() ||
-// 					self.backend.code(address).len() != 0
-// 			}
-// 		}
-// 	}
+	fn gas_left(&self) -> U256 {
+		U256::from(self.substate.metadata().gasometer.gas())
+	}
 
-// 	fn gas_left(&self) -> U256 {
-// 		let current = self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed");
-// 		U256::from(current.gasometer.gas())
-// 	}
+	fn gas_price(&self) -> U256 { self.backend.gas_price() }
+	fn origin(&self) -> H160 { self.backend.origin() }
+	fn block_hash(&self, number: U256) -> H256 { self.backend.block_hash(number) }
+	fn block_number(&self) -> U256 { self.backend.block_number() }
+	fn block_coinbase(&self) -> H160 { self.backend.block_coinbase() }
+	fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
+	fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
+	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
+	fn chain_id(&self) -> U256 { self.backend.chain_id() }
 
-// 	fn gas_price(&self) -> U256 { self.backend.gas_price() }
-// 	fn origin(&self) -> H160 { self.backend.origin() }
-// 	fn block_hash(&self, number: U256) -> H256 { self.backend.block_hash(number) }
-// 	fn block_number(&self) -> U256 { self.backend.block_number() }
-// 	fn block_coinbase(&self) -> H160 { self.backend.block_coinbase() }
-// 	fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
-// 	fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
-// 	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
-// 	fn chain_id(&self) -> U256 { self.backend.chain_id() }
+	fn deleted(&self, address: H160) -> bool {
+		unimplemented!()
+		// for substate in self.substates.iter().rev() {
+		// 	if substate.deleted.contains(&address) {
+		// 		return true
+		// 	}
+		// }
 
-// 	fn deleted(&self, address: H160) -> bool {
-// 		for substate in self.substates.iter().rev() {
-// 			if substate.deleted.contains(&address) {
-// 				return true
-// 			}
-// 		}
+		// false
+	}
 
-// 		false
-// 	}
+	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
+		unimplemented!()
+		// self.account_mut(address).storage.insert(index, value);
 
-// 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-// 		self.account_mut(address).storage.insert(index, value);
+		// Ok(())
+	}
 
-// 		Ok(())
-// 	}
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
+		unimplemented!()
+		// let current = self.substates.last_mut()
+		// 	.expect("substate vec always have length greater than one; qed");
+		// current.logs.push(Log {
+		// 	address, topics, data
+		// });
 
-// 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
-// 		let current = self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed");
-// 		current.logs.push(Log {
-// 			address, topics, data
-// 		});
+		// Ok(())
+	}
 
-// 		Ok(())
-// 	}
+	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
+		unimplemented!()
+		// let balance = self.balance(address);
 
-// 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
-// 		let balance = self.balance(address);
+		// self.transfer(Transfer {
+		// 	source: address,
+		// 	target: target,
+		// 	value: balance
+		// })?;
+		// self.account_mut(address).basic.balance = U256::zero();
 
-// 		self.transfer(Transfer {
-// 			source: address,
-// 			target: target,
-// 			value: balance
-// 		})?;
-// 		self.account_mut(address).basic.balance = U256::zero();
+		// let current = self.substates.last_mut()
+		// 	.expect("substate vec always have length greater than one; qed");
+		// current.deleted.insert(address);
 
-// 		let current = self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed");
-// 		current.deleted.insert(address);
+		// Ok(())
+	}
 
-// 		Ok(())
-// 	}
+	fn create(
+		&mut self,
+		caller: H160,
+		scheme: CreateScheme,
+		value: U256,
+		init_code: Vec<u8>,
+		target_gas: Option<u64>,
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
+		unimplemented!()
+		// self.create_inner(caller, scheme, value, init_code, target_gas, true)
+	}
 
-// 	fn create(
-// 		&mut self,
-// 		caller: H160,
-// 		scheme: CreateScheme,
-// 		value: U256,
-// 		init_code: Vec<u8>,
-// 		target_gas: Option<u64>,
-// 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
-// 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
-// 	}
+	fn call(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: Vec<u8>,
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: Context,
+	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
+		unimplemented!()
+		// self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
+	}
 
-// 	fn call(
-// 		&mut self,
-// 		code_address: H160,
-// 		transfer: Option<Transfer>,
-// 		input: Vec<u8>,
-// 		target_gas: Option<u64>,
-// 		is_static: bool,
-// 		context: Context,
-// 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-// 		self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
-// 	}
+	fn pre_validate(
+		&mut self,
+		context: &Context,
+		opcode: Result<Opcode, ExternalOpcode>,
+		stack: &Stack
+	) -> Result<(), ExitError> {
+		let is_static = self.substate.metadata().is_static;
+		let (gas_cost, memory_cost) = gasometer::opcode_cost(
+			context.address, opcode, stack, is_static, &self.config, self
+		)?;
 
-// 	fn pre_validate(
-// 		&mut self,
-// 		context: &Context,
-// 		opcode: Result<Opcode, ExternalOpcode>,
-// 		stack: &Stack
-// 	) -> Result<(), ExitError> {
-// 		let is_static = self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed")
-// 			.is_static;
-// 		let (gas_cost, memory_cost) = gasometer::opcode_cost(
-// 			context.address, opcode, stack, is_static, &self.config, self
-// 		)?;
+		let gasometer = &mut self.substate.metadata_mut().gasometer;
 
-// 		let gasometer = &mut self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed")
-// 			.gasometer;
+		log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
 
-// 		log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
+		gasometer.record_opcode(gas_cost, memory_cost)?;
 
-// 		gasometer.record_opcode(gas_cost, memory_cost)?;
-
-// 		Ok(())
-// 	}
-// }
+		Ok(())
+	}
+}
