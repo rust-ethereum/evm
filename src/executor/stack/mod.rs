@@ -44,22 +44,22 @@ impl<'config> StackSubstateMetadata<'config> {
 // 	depth: Option<usize>,
 // }
 
-// /// Stack-based executor.
-// pub struct StackExecutor<'backend, 'config, B> {
-// 	backend: &'backend B,
-// 	config: &'config Config,
-// 	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
-// 	substates: Vec<StackSubstate<'config>>,
-// }
+/// Stack-based executor.
+pub struct StackExecutor<'backend, 'config, B> {
+	backend: &'backend B,
+	config: &'config Config,
+	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
+	substate: MemoryStackSubstate<'config>,
+}
 
-// fn no_precompile(
-// 	_address: H160,
-// 	_input: &[u8],
-// 	_target_gas: Option<u64>,
-// 	_context: &Context,
-// ) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>> {
-// 	None
-// }
+fn no_precompile(
+	_address: H160,
+	_input: &[u8],
+	_target_gas: Option<u64>,
+	_context: &Context,
+) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>> {
+	None
+}
 
 // impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 	/// Create a new stack-based executor.
