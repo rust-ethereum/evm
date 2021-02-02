@@ -103,6 +103,24 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.known_account(address).map(|acc| acc.basic.clone())
 	}
 
+	pub fn known_code(&self, address: &H160) -> Option<Vec<u8>> {
+		self.known_account(address).and_then(|acc| acc.code.clone())
+	}
+
+	pub fn known_empty(&self, address: &H160) -> Option<bool> {
+		if let Some(account) = self.known_account(address) {
+			if let Some(code) = &account.code {
+				return Some(
+					account.basic.balance == U256::zero() &&
+						account.basic.nonce == U256::zero() &&
+						code.len() == 0
+				)
+			}
+		}
+
+		None
+	}
+
 	fn account_mut<B: Backend>(&mut self, address: &H160, backend: &B) -> &mut MemoryStackAccount {
 		if !self.accounts.contains_key(address) {
 			let account = self.known_account(address)

@@ -808,21 +808,23 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn exists(&self, address: H160) -> bool {
-		unimplemented!()
-		// if self.config.empty_considered_exists {
-		// 	self.account(address).is_some() || self.backend.exists(address)
-		// } else {
-		// 	if let Some(account) = self.account(address) {
-		// 		account.basic.nonce != U256::zero() ||
-		// 			account.basic.balance != U256::zero() ||
-		// 			account.code.as_ref().map(|c| c.len() != 0).unwrap_or(false) ||
-		// 			self.backend.code(address).len() != 0
-		// 	} else {
-		// 		self.backend.basic(address).nonce != U256::zero() ||
-		// 			self.backend.basic(address).balance != U256::zero() ||
-		// 			self.backend.code(address).len() != 0
-		// 	}
-		// }
+		if self.config.empty_considered_exists {
+			match self.substate.known_empty(&address) {
+				Some(true) => true,
+				Some(false) => true,
+				None => self.backend.exists(address),
+			}
+		} else {
+			match self.substate.known_empty(&address) {
+				Some(true) => false,
+				Some(false) => true,
+				None => !(
+					self.backend.basic(address).balance == U256::zero() &&
+						self.backend.basic(address).nonce == U256::zero() &&
+						self.backend.code(address).len() == 0
+				),
+			}
+		}
 	}
 
 	fn gas_left(&self) -> U256 {
