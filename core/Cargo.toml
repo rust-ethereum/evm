@@ -9,8 +9,8 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-primitive-types = { version = "0.8", default-features = false }
-codec = { package = "parity-scale-codec", version = "1.3", default-features = false, features = ["derive", "full"], optional = true }
+primitive-types = { version = "0.9", default-features = false }
+codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive", "full"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
 [dev-dependencies]
