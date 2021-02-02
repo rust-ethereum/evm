@@ -735,50 +735,23 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		unimplemented!()
-		// for substate in self.substates.iter().rev() {
-		// 	if let Some(account) = substate.state.get(&address) {
-		// 		return U256::from(
-		// 			account.code.as_ref().map(|v| v.len())
-		// 				.unwrap_or_else(|| self.backend.code_size(address))
-		// 		)
-		// 	}
-		// }
-
-		// U256::from(self.backend.code_size(address))
+		self.substate.known_code(&address).map(|code| U256::from(code.len())).unwrap_or_else(|| {
+			U256::from(self.backend.code_size(address))
+		})
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
-		unimplemented!()
-		// if !self.exists(address) {
-		// 	return H256::default()
-		// }
+		if self.code_size(address) == U256::zero() {
+			return H256::default()
+		}
 
-		// let (balance, nonce, code_size) = if let Some(account) = self.account(address) {
-		// 	(account.basic.balance, account.basic.nonce,
-		// 	 account.code.as_ref().map(|c| U256::from(c.len())).unwrap_or(self.code_size(address)))
-		// } else {
-		// 	let basic = self.backend.basic(address);
-		// 	(basic.balance, basic.nonce, U256::from(self.backend.code_size(address)))
-		// };
-
-		// if balance == U256::zero() && nonce == U256::zero() && code_size == U256::zero() {
-		// 	return H256::default()
-		// }
-
-		// let value = self.account(address).and_then(|v| {
-		// 	v.code.as_ref().map(|c| {
-		// 		H256::from_slice(Keccak256::digest(&c).as_slice())
-		// 	})
-		// }).unwrap_or(self.backend.code_hash(address));
-		// value
+		self.substate.known_code(&address).map(|code| H256::from_slice(Keccak256::digest(&code).as_slice()))
+			.unwrap_or_else(|| self.backend.code_hash(address))
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		unimplemented!()
-		// self.account(address).and_then(|v| {
-		// 	v.code.clone()
-		// }).unwrap_or(self.backend.code(address))
+		self.substate.known_code(&address).map(|code| code.clone())
+			.unwrap_or_else(|| self.backend.code(address))
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
