@@ -61,38 +61,35 @@ fn no_precompile(
 	None
 }
 
-// impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
-// 	/// Create a new stack-based executor.
-// 	pub fn new(
-// 		backend: &'backend B,
-// 		gas_limit: u64,
-// 		config: &'config Config,
-// 	) -> Self {
-// 		Self::new_with_precompile(backend, gas_limit, config, no_precompile)
-// 	}
+impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
+	/// Create a new stack-based executor.
+	pub fn new(
+		backend: &'backend B,
+		gas_limit: u64,
+		config: &'config Config,
+	) -> Self {
+		Self::new_with_precompile(backend, gas_limit, config, no_precompile)
+	}
 
-// 	/// Create a new stack-based executor with given precompiles.
-// 	pub fn new_with_precompile(
-// 		backend: &'backend B,
-// 		gas_limit: u64,
-// 		config: &'config Config,
-// 		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
-// 	) -> Self {
-// 		Self {
-// 			backend,
-// 			config,
-// 			precompile,
-// 			substates: vec![
-// 				StackSubstate {
-// 					gasometer: Gasometer::new(gas_limit, config),
-// 					state: MemoryStackState::default(),
-// 					logs: Vec::new(),
-// 					is_static: false,
-// 					depth: None,
-// 				}
-// 			],
-// 		}
-// 	}
+	/// Create a new stack-based executor with given precompiles.
+	pub fn new_with_precompile(
+		backend: &'backend B,
+		gas_limit: u64,
+		config: &'config Config,
+		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
+	) -> Self {
+		Self {
+			backend,
+			config,
+			precompile,
+			substate: MemoryStackSubstate::new(StackSubstateMetadata {
+				gasometer: Gasometer::new(gas_limit, config),
+				is_static: false,
+				depth: None,
+			}),
+		}
+	}
+}
 
 // 	/// Create a substate executor from the current executor.
 // 	pub fn enter_substate(

@@ -22,6 +22,17 @@ pub struct MemoryStackSubstate<'config> {
 }
 
 impl<'config> MemoryStackSubstate<'config> {
+	pub fn new(metadata: StackSubstateMetadata<'config>) -> Self {
+		Self {
+			metadata,
+			parent: None,
+			logs: Vec::new(),
+			accounts: BTreeMap::new(),
+			storages: BTreeMap::new(),
+			deletes: BTreeSet::new(),
+		}
+	}
+
 	// #[must_use]
 	// pub fn deconstruct(
 	// 	mut self
