@@ -8,7 +8,6 @@ use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
 			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
-use crate::backend::Backend;
 use crate::gasometer::{self, Gasometer};
 
 pub enum StackExitKind {
@@ -24,6 +23,17 @@ pub struct StackSubstateMetadata<'config> {
 }
 
 impl<'config> StackSubstateMetadata<'config> {
+	pub fn new(
+		gas_limit: u64,
+		config: &'config Config,
+	) -> Self {
+		Self {
+			gasometer: Gasometer::new(gas_limit, config),
+			is_static: false,
+			depth: None,
+		}
+	}
+
 	pub fn swallow_commit(&mut self, other: Self) -> Result<(), ExitError> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer.record_refund(other.gasometer.refunded_gas())?;
@@ -54,10 +64,10 @@ impl<'config> StackSubstateMetadata<'config> {
 }
 
 /// Stack-based executor.
-pub struct StackExecutor<'backend, 'config, B> {
+pub struct StackExecutor<'config, S> {
 	config: &'config Config,
 	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
-	state: MemoryStackState<'backend, 'config, B>,
+	state: S,
 }
 
 fn no_precompile(
@@ -69,43 +79,37 @@ fn no_precompile(
 	None
 }
 
-impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
+impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	/// Create a new stack-based executor.
 	pub fn new(
-		backend: &'backend B,
-		gas_limit: u64,
+		state: S,
 		config: &'config Config,
 	) -> Self {
-		Self::new_with_precompile(backend, gas_limit, config, no_precompile)
+		Self::new_with_precompile(state, config, no_precompile)
 	}
 
 	/// Create a new stack-based executor with given precompiles.
 	pub fn new_with_precompile(
-		backend: &'backend B,
-		gas_limit: u64,
+		state: S,
 		config: &'config Config,
 		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
 	) -> Self {
 		Self {
 			config,
 			precompile,
-			state: MemoryStackState::new(StackSubstateMetadata {
-				gasometer: Gasometer::new(gas_limit, config),
-				is_static: false,
-				depth: None,
-			}, backend),
+			state,
 		}
 	}
 
-	pub fn state(&self) -> &MemoryStackState<'backend, 'config, B> {
+	pub fn state(&self) -> &S {
 		&self.state
 	}
 
-	pub fn state_mut(&mut self) -> &mut MemoryStackState<'backend, 'config, B> {
+	pub fn state_mut(&mut self) -> &mut S {
 		&mut self.state
 	}
 
-	pub fn into_state(self) -> MemoryStackState<'backend, 'config, B> {
+	pub fn into_state(self) -> S {
 		self.state
 	}
 
@@ -542,7 +546,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	}
 }
 
-impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config, B> {
+impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
