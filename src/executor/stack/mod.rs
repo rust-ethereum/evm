@@ -160,37 +160,34 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
-// 	/// Execute a `CREATE2` transaction.
-// 	pub fn transact_create2(
-// 		&mut self,
-// 		caller: H160,
-// 		value: U256,
-// 		init_code: Vec<u8>,
-// 		salt: H256,
-// 		gas_limit: u64,
-// 	) -> ExitReason {
-// 		let current = self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed");
+	/// Execute a `CREATE2` transaction.
+	pub fn transact_create2(
+		&mut self,
+		caller: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		salt: H256,
+		gas_limit: u64,
+	) -> ExitReason {
+		let transaction_cost = gasometer::create_transaction_cost(&init_code);
+		match self.substate.metadata_mut().gasometer.record_transaction(transaction_cost) {
+			Ok(()) => (),
+			Err(e) => return e.into(),
+		}
+		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 
-// 		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-// 		match current.gasometer.record_transaction(transaction_cost) {
-// 			Ok(()) => (),
-// 			Err(e) => return e.into(),
-// 		}
-// 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
-
-// 		match self.create_inner(
-// 			caller,
-// 			CreateScheme::Create2 { caller, code_hash, salt },
-// 			value,
-// 			init_code,
-// 			Some(gas_limit),
-// 			false,
-// 		) {
-// 			Capture::Exit((s, _, _)) => s,
-// 			Capture::Trap(_) => unreachable!(),
-// 		}
-// 	}
+		match self.create_inner(
+			caller,
+			CreateScheme::Create2 { caller, code_hash, salt },
+			value,
+			init_code,
+			Some(gas_limit),
+			false,
+		) {
+			Capture::Exit((s, _, _)) => s,
+			Capture::Trap(_) => unreachable!(),
+		}
+	}
 
 // 	/// Execute a `CALL` transaction.
 // 	pub fn transact_call(
