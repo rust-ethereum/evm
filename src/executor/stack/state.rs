@@ -162,6 +162,14 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn known_empty(&self, address: H160) -> Option<bool> {
 		if let Some(account) = self.known_account(address) {
+			if account.basic.balance != U256::zero() {
+				return Some(false)
+			}
+
+			if account.basic.nonce != U256::zero() {
+				return Some(false)
+			}
+
 			if let Some(code) = &account.code {
 				return Some(
 					account.basic.balance == U256::zero() &&

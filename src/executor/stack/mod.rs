@@ -571,7 +571,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
-		if self.code_size(address) == U256::zero() {
+		if !self.exists(address) {
 			return H256::default()
 		}
 
