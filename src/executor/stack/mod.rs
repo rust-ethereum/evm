@@ -36,14 +36,6 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
-// pub struct StackSubstate<'config> {
-// 	gasometer: Gasometer<'config>,
-// 	state: MemoryStackState,
-// 	logs: Vec<Log>,
-// 	is_static: bool,
-// 	depth: Option<usize>,
-// }
-
 /// Stack-based executor.
 pub struct StackExecutor<'backend, 'config, B> {
 	backend: &'backend B,
