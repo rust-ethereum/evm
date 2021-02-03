@@ -71,10 +71,6 @@ pub trait Backend {
 	fn exists(&self, address: H160) -> bool;
 	/// Get basic account information.
 	fn basic(&self, address: H160) -> Basic;
-	/// Get account code hash.
-	fn code_hash(&self, address: H160) -> H256;
-	/// Get account code size.
-	fn code_size(&self, address: H160) -> usize;
 	/// Get account code.
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
