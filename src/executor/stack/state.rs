@@ -2,7 +2,7 @@ use core::mem;
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
 use crate::{ExitError, Transfer};
-use crate::backend::{Basic, Log, Backend};
+use crate::backend::{Basic, Log, Backend, Apply};
 use crate::executor::stack::StackSubstateMetadata;
 
 #[derive(Clone)]
@@ -41,32 +41,59 @@ impl<'config> MemoryStackSubstate<'config> {
 		&mut self.metadata
 	}
 
-	// #[must_use]
-	// pub fn deconstruct(
-	// 	mut self
-	// ) -> impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>> {
-	// 	let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
+	#[must_use]
+	pub fn deconstruct<B: Backend>(
+		mut self, backend: &B,
+	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
+ 		  impl IntoIterator<Item=Log>)
+	{
+		assert!(self.parent.is_none());
 
-	// 	for (address, account) in self.modified {
-	// 		if self.deleted.contains(&address) {
-	// 			continue
-	// 		}
+		let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
 
-	// 		applies.push(Apply::Modify {
-	// 			address,
-	// 			basic: account.basic,
-	// 			code: account.code,
-	// 			storage: account.storage,
-	// 			reset_storage: account.reset_storage,
-	// 		});
-	// 	}
+		let mut addresses = BTreeSet::new();
 
-	// 	for address in self.deleted {
-	// 		applies.push(Apply::Delete { address });
-	// 	}
+		for address in self.accounts.keys() {
+			addresses.insert(*address);
+		}
 
-	// 	applies
-	// }
+		for (address, _) in self.storages.keys() {
+			addresses.insert(*address);
+		}
+
+		for address in addresses {
+			if self.deletes.contains(&address) {
+				continue
+			}
+
+			let mut storage = BTreeMap::new();
+			for ((oa, ok), ov) in &self.storages {
+				if *oa == address {
+					storage.insert(*ok, *ov);
+				}
+			}
+
+			let apply = {
+				let account = self.account_mut(address, backend);
+
+				Apply::Modify {
+					address,
+					basic: account.basic.clone(),
+					code: account.code.clone(),
+					storage,
+					reset_storage: account.reset,
+				}
+			};
+
+			applies.push(apply);
+		}
+
+		for address in self.deletes {
+			applies.push(Apply::Delete { address });
+		}
+
+		(applies, self.logs)
+	}
 
 	pub fn enter(&mut self, gas_limit: u64, is_static: bool) {
 		let mut entering = Self {

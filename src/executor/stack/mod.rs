@@ -8,7 +8,7 @@ use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
 			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
-use crate::backend::Backend;
+use crate::backend::{Backend, Apply, Log};
 use crate::gasometer::{self, Gasometer};
 
 pub enum StackExitKind {
@@ -240,24 +240,16 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		U256::from(used_gas) * price
 	}
 
-// 	/// Deconstruct the executor, return state to be applied. Panic if the
-// 	/// executor is not in the top-level substate.
-// 	#[must_use]
-// 	pub fn deconstruct(
-// 		mut self
-// 	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
-// 		  impl IntoIterator<Item=Log>)
-// 	{
-// 		assert_eq!(self.substates.len(), 1);
-
-// 		let current = self.substates.pop()
-// 			.expect("substate vec always have length greater than one; qed");
-
-// 		let applies = current.state.deconstruct();
-// 		let logs = current.logs;
-
-// 		(applies, logs)
-// 	}
+	/// Deconstruct the executor, return state to be applied. Panic if the
+	/// executor is not in the top-level substate.
+	#[must_use]
+	pub fn deconstruct(
+		self
+	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
+		  impl IntoIterator<Item=Log>)
+	{
+		self.substate.deconstruct(self.backend)
+	}
 
 	/// Get account nonce.
 	pub fn nonce(&self, address: H160) -> U256 {
