@@ -298,185 +298,150 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
-// 	fn create_inner(
-// 		&mut self,
-// 		caller: H160,
-// 		scheme: CreateScheme,
-// 		value: U256,
-// 		init_code: Vec<u8>,
-// 		target_gas: Option<u64>,
-// 		take_l64: bool,
-// 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> {
-// 		macro_rules! try_or_fail {
-// 			( $e:expr ) => {
-// 				match $e {
-// 					Ok(v) => v,
-// 					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
-// 				}
-// 			}
-// 		}
+	fn create_inner(
+		&mut self,
+		caller: H160,
+		scheme: CreateScheme,
+		value: U256,
+		init_code: Vec<u8>,
+		target_gas: Option<u64>,
+		take_l64: bool,
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> {
+		macro_rules! try_or_fail {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
+				}
+			}
+		}
 
-// 		fn l64(gas: u64) -> u64 {
-// 			gas - gas / 64
-// 		}
+		fn l64(gas: u64) -> u64 {
+			gas - gas / 64
+		}
 
-// 		if let Some(depth) = self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed")
-// 			.depth
-// 		{
-// 			if depth > self.config.call_stack_limit {
-// 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
-// 			}
-// 		}
+		if let Some(depth) = self.substate.metadata().depth {
+			if depth > self.config.call_stack_limit {
+				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
+			}
+		}
 
-// 		if self.balance(caller) < value {
-// 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
-// 		}
+		if self.balance(caller) < value {
+			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
+		}
 
-// 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
-// 			if self.config.estimate {
-// 				let last_substate = self.substates.last_mut()
-// 					.expect("substate vec always have length greater than one; qed");
-// 				let initial_after_gas = last_substate.gasometer.gas();
-// 				let diff = initial_after_gas - l64(initial_after_gas);
-// 				try_or_fail!(last_substate.gasometer.record_cost(diff));
-// 				last_substate.gasometer.gas()
-// 			} else {
-// 				l64(self.substates.last()
-// 					.expect("substate vec always have length greater than one; qed")
-// 					.gasometer.gas())
-// 			}
-// 		} else {
-// 			self.substates.last()
-// 				.expect("substate vec always have length greater than one; qed")
-// 				.gasometer.gas()
-// 		};
+		let after_gas = if take_l64 && self.config.call_l64_after_gas {
+			if self.config.estimate {
+				let initial_after_gas = self.substate.metadata().gasometer.gas();
+				let diff = initial_after_gas - l64(initial_after_gas);
+				try_or_fail!(self.substate.metadata_mut().gasometer.record_cost(diff));
+				self.substate.metadata().gasometer.gas()
+			} else {
+				l64(self.substate.metadata().gasometer.gas())
+			}
+		} else {
+			self.substate.metadata().gasometer.gas()
+		};
 
-// 		let target_gas = target_gas.unwrap_or(after_gas);
+		let target_gas = target_gas.unwrap_or(after_gas);
 
-// 		let gas_limit = min(after_gas, target_gas);
-// 		try_or_fail!(
-// 			self.substates.last_mut()
-// 				.expect("substate vec always have length greater than one; qed")
-// 				.gasometer.record_cost(gas_limit)
-// 		);
+		let gas_limit = min(after_gas, target_gas);
+		try_or_fail!(
+			self.substate.metadata_mut().gasometer.record_cost(gas_limit)
+		);
 
-// 		let address = self.create_address(scheme);
-// 		self.account_mut(caller).basic.nonce += U256::one();
+		let address = self.create_address(scheme);
+		self.substate.inc_nonce(caller, self.backend);
 
-// 		self.enter_substate(gas_limit, false);
+		self.enter_substate(gas_limit, false);
 
-// 		{
-// 			if let Some(code) = self.account_mut(address).code.as_ref() {
-// 				if code.len() != 0 {
-// 					let _ = self.exit_substate(StackExitKind::Failed);
-// 					return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
-// 				}
-// 			} else  {
-// 				let code = self.backend.code(address);
-// 				self.account_mut(address).code = Some(code.clone());
+		{
+			if self.code_size(address) != U256::zero() {
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+			}
 
-// 				if code.len() != 0 {
-// 					let _ = self.exit_substate(StackExitKind::Failed);
-// 					return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
-// 				}
-// 			}
+			if self.nonce(address) > U256::zero() {
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+			}
 
-// 			if self.nonce(address) > U256::zero() {
-// 				let _ = self.exit_substate(StackExitKind::Failed);
-// 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
-// 			}
+			self.substate.reset_storage(address, self.backend);
+		}
 
-// 			self.account_mut(address).reset_storage = true;
-// 			self.account_mut(address).storage = BTreeMap::new();
-// 		}
+		let context = Context {
+			address,
+			caller,
+			apparent_value: value,
+		};
+		let transfer = Transfer {
+			source: caller,
+			target: address,
+			value,
+		};
+		match self.substate.transfer(transfer, self.backend) {
+			Ok(()) => (),
+			Err(e) => {
+				let _ = self.exit_substate(StackExitKind::Reverted);
+				return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+			},
+		}
 
-// 		let context = Context {
-// 			address,
-// 			caller,
-// 			apparent_value: value,
-// 		};
-// 		let transfer = Transfer {
-// 			source: caller,
-// 			target: address,
-// 			value,
-// 		};
-// 		match self.transfer(transfer) {
-// 			Ok(()) => (),
-// 			Err(e) => {
-// 				let _ = self.exit_substate(StackExitKind::Reverted);
-// 				return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-// 			},
-// 		}
+		if self.config.create_increase_nonce {
+			self.substate.inc_nonce(address, self.backend);
+		}
 
-// 		if self.config.create_increase_nonce {
-// 			self.account_mut(address).basic.nonce += U256::one();
-// 		}
+		let mut runtime = Runtime::new(
+			Rc::new(init_code),
+			Rc::new(Vec::new()),
+			context,
+			self.config,
+		);
 
-// 		let mut runtime = Runtime::new(
-// 			Rc::new(init_code),
-// 			Rc::new(Vec::new()),
-// 			context,
-// 			self.config,
-// 		);
+		let reason = self.execute(&mut runtime);
+		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
 
-// 		let reason = self.execute(&mut runtime);
-// 		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
+		match reason {
+			ExitReason::Succeed(s) => {
+				let out = runtime.machine().return_value();
 
-// 		match reason {
-// 			ExitReason::Succeed(s) => {
-// 				let out = runtime.machine().return_value();
+				if let Some(limit) = self.config.create_contract_limit {
+					if out.len() > limit {
+						self.substate.metadata_mut().gasometer.fail();
+						let _ = self.exit_substate(StackExitKind::Failed);
+						return Capture::Exit((ExitError::CreateContractLimit.into(), None, Vec::new()))
+					}
+				}
 
-// 				if let Some(limit) = self.config.create_contract_limit {
-// 					if out.len() > limit {
-// 						self.substates.last_mut()
-// 							.expect("substate vec always have length greater than one; qed")
-// 							.gasometer
-// 							.fail();
-// 						let _ = self.exit_substate(StackExitKind::Failed);
-// 						return Capture::Exit((ExitError::CreateContractLimit.into(), None, Vec::new()))
-// 					}
-// 				}
-
-// 				match self.substates.last_mut()
-// 					.expect("substate vec always have length greater than one; qed")
-// 					.gasometer
-// 					.record_deposit(out.len())
-// 				{
-// 					Ok(()) => {
-// 						let e = self.exit_substate(StackExitKind::Succeeded);
-// 						self.account_mut(address).code = Some(out);
-// 						try_or_fail!(e);
-// 						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
-// 					},
-// 					Err(e) => {
-// 						let _ = self.exit_substate(StackExitKind::Failed);
-// 						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-// 					},
-// 				}
-// 			},
-// 			ExitReason::Error(e) => {
-// 				self.substates.last_mut()
-// 					.expect("substate vec always have length greater than one; qed")
-// 					.gasometer
-// 					.fail();
-// 				let _ = self.exit_substate(StackExitKind::Failed);
-// 				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-// 			},
-// 			ExitReason::Revert(e) => {
-// 				let _ = self.exit_substate(StackExitKind::Reverted);
-// 				Capture::Exit((ExitReason::Revert(e), None, runtime.machine().return_value()))
-// 			},
-// 			ExitReason::Fatal(e) => {
-// 				self.substates.last_mut()
-// 					.expect("substate vec always have length greater than one; qed")
-// 					.gasometer
-// 					.fail();
-// 				let _ = self.exit_substate(StackExitKind::Failed);
-// 				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
-// 			},
-// 		}
-// 	}
+				match self.substate.metadata_mut().gasometer.record_deposit(out.len()) {
+					Ok(()) => {
+						let e = self.exit_substate(StackExitKind::Succeeded);
+						self.substate.set_code(address, out, self.backend);
+						try_or_fail!(e);
+						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
+					},
+					Err(e) => {
+						let _ = self.exit_substate(StackExitKind::Failed);
+						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+					},
+				}
+			},
+			ExitReason::Error(e) => {
+				self.substate.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+			},
+			ExitReason::Revert(e) => {
+				let _ = self.exit_substate(StackExitKind::Reverted);
+				Capture::Exit((ExitReason::Revert(e), None, runtime.machine().return_value()))
+			},
+			ExitReason::Fatal(e) => {
+				self.substate.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
+			},
+		}
+	}
 
 // 	fn call_inner(
 // 		&mut self,

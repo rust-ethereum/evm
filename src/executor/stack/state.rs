@@ -240,6 +240,10 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.deletes.insert(address);
 	}
 
+	pub fn set_code<B: Backend>(&mut self, address: H160, code: Vec<u8>, backend: &B) {
+		self.account_mut(address, backend).code = Some(code);
+	}
+
 	pub fn transfer<B: Backend>(&mut self, transfer: Transfer, backend: &B) -> Result<(), ExitError> {
 		{
 			let source = self.account_mut(transfer.source, backend);
