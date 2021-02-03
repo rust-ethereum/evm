@@ -649,7 +649,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 			source: address,
 			target: target,
 			value: balance,
-		}, self.backend);
+		}, self.backend)?;
 		self.substate.reset_balance(address, self.backend);
 		self.substate.set_deleted(address);
 
