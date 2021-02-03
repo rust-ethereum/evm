@@ -154,7 +154,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 	pub fn gas(&self) -> u64 {
 		self.substate.metadata().gasometer.gas()
 	}
-}
 
 // 	/// Execute a `CREATE` transaction.
 // 	pub fn transact_create(
@@ -346,41 +345,11 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 	// 		.expect("contains_key is checked first so the key always exists; qed")
 // 	// }
 
-// 	/// Get account nonce.
-// 	pub fn nonce(&self, address: H160) -> U256 {
-// 		for substate in self.substates.iter().rev() {
-// 			if let Some(account) = substate.state.get(&address) {
-// 				return account.basic.nonce
-// 			}
-// 		}
-
-// 		self.backend.basic(address).nonce
-// 	}
-
-// 	/// Withdraw balance from address.
-// 	pub fn withdraw(&mut self, address: H160, balance: U256) -> Result<(), ExitError> {
-// 		let source = self.account_mut(address);
-// 		if source.basic.balance < balance {
-// 			return Err(ExitError::OutOfFund.into())
-// 		}
-// 		source.basic.balance -= balance;
-
-// 		Ok(())
-// 	}
-
-// 	/// Deposit balance to address.
-// 	pub fn deposit(&mut self, address: H160, balance: U256) {
-// 		let target = self.account_mut(address);
-// 		target.basic.balance += balance;
-// 	}
-
-// 	/// Transfer balance with the given struct.
-// 	pub fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-// 		self.withdraw(transfer.source, transfer.value)?;
-// 		self.deposit(transfer.target, transfer.value);
-
-// 		Ok(())
-// 	}
+	/// Get account nonce.
+	pub fn nonce(&self, address: H160) -> U256 {
+		self.substate.known_basic(address).map(|acc| acc.nonce)
+			.unwrap_or_else(|| self.backend.basic(address).nonce)
+	}
 
 // 	/// Get the create address from given scheme.
 // 	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
@@ -720,7 +689,7 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 			},
 // 		}
 // 	}
-// }
+}
 
 impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config, B> {
 	type CreateInterrupt = Infallible;
@@ -813,21 +782,17 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
-		unimplemented!()
-		// let balance = self.balance(address);
+		let balance = self.balance(address);
 
-		// self.transfer(Transfer {
-		// 	source: address,
-		// 	target: target,
-		// 	value: balance
-		// })?;
-		// self.account_mut(address).basic.balance = U256::zero();
+		self.substate.transfer(Transfer {
+			source: address,
+			target: target,
+			value: balance,
+		}, self.backend);
+		self.substate.reset_balance(address, self.backend);
+		self.substate.set_deleted(address);
 
-		// let current = self.substates.last_mut()
-		// 	.expect("substate vec always have length greater than one; qed");
-		// current.deleted.insert(address);
-
-		// Ok(())
+		Ok(())
 	}
 
 	fn create(

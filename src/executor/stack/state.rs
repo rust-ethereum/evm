@@ -1,7 +1,7 @@
 use core::mem;
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
-use crate::ExitError;
+use crate::{ExitError, Transfer};
 use crate::backend::{Basic, Apply, Log, Backend};
 use crate::executor::stack::StackSubstateMetadata;
 
@@ -212,6 +212,27 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn set_deleted(&mut self, address: H160) {
 		self.deletes.insert(address);
+	}
+
+	pub fn transfer<B: Backend>(&mut self, transfer: Transfer, backend: &B) -> Result<(), ExitError> {
+		{
+			let source = self.account_mut(transfer.source, backend);
+			if source.basic.balance < transfer.value {
+				return Err(ExitError::OutOfFund)
+			}
+			source.basic.balance -= transfer.value;
+		}
+
+		{
+			let target = self.account_mut(transfer.target, backend);
+			target.basic.balance.saturating_add(transfer.value);
+		}
+
+		Ok(())
+	}
+
+	pub fn reset_balance<B: Backend>(&mut self, address: H160, backend: &B) {
+		self.account_mut(address, backend).basic.balance = U256::zero();
 	}
 }
 
