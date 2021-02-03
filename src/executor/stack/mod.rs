@@ -755,29 +755,13 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
-		unimplemented!()
-		// self.account(address)
-		// 	.and_then(|v| {
-		// 		let s = v.storage.get(&index).cloned();
-
-		// 		if v.reset_storage {
-		// 			Some(s.unwrap_or(H256::default()))
-		// 		} else {
-		// 			s
-		// 		}
-
-		// 	})
-		// 	.unwrap_or(self.backend.storage(address, index))
+		self.substate.known_storage(&address, &index)
+			.unwrap_or_else(|| self.backend.storage(address, index))
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
-		unimplemented!()
-		// if let Some(account) = self.account(address) {
-		// 	if account.reset_storage {
-		// 		return H256::default()
-		// 	}
-		// }
-		// self.backend.storage(address, index)
+		self.substate.known_original_storage(&address, &index)
+			.unwrap_or_else(|| self.backend.original_storage(address, index).unwrap_or_default())
 	}
 
 	fn exists(&self, address: H160) -> bool {

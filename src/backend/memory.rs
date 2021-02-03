@@ -118,6 +118,10 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 			.map(|v| v.storage.get(&index).cloned().unwrap_or(H256::default()))
 			.unwrap_or(H256::default())
 	}
+
+	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
+		Some(self.storage(address, index))
+	}
 }
 
 impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {

@@ -121,6 +121,38 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
+	pub fn known_storage(&self, address: &H160, key: &H256) -> Option<H256> {
+		if let Some(value) = self.storages.get(&(*address, *key)) {
+			return Some(*value)
+		}
+
+		if let Some(account) = self.accounts.get(address) {
+			if account.reset {
+				return Some(H256::default())
+			}
+		}
+
+		if let Some(parent) = self.parent.as_ref() {
+			return parent.known_storage(address, key)
+		}
+
+		None
+	}
+
+	pub fn known_original_storage(&self, address: &H160, key: &H256) -> Option<H256> {
+		if let Some(account) = self.accounts.get(address) {
+			if account.reset {
+				return Some(H256::default())
+			}
+		}
+
+		if let Some(parent) = self.parent.as_ref() {
+			return parent.known_original_storage(address, key)
+		}
+
+		None
+	}
+
 	fn account_mut<B: Backend>(&mut self, address: &H160, backend: &B) -> &mut MemoryStackAccount {
 		if !self.accounts.contains_key(address) {
 			let account = self.known_account(address)
