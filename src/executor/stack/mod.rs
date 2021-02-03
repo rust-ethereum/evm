@@ -729,13 +729,13 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	type CallFeedback = Infallible;
 
 	fn balance(&self, address: H160) -> U256 {
-		self.substate.known_basic(&address).map(|basic| basic.balance).unwrap_or_else(|| {
+		self.substate.known_basic(address).map(|basic| basic.balance).unwrap_or_else(|| {
 			self.backend.basic(address).balance
 		})
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		self.substate.known_code(&address).map(|code| U256::from(code.len())).unwrap_or_else(|| {
+		self.substate.known_code(address).map(|code| U256::from(code.len())).unwrap_or_else(|| {
 			U256::from(self.backend.code_size(address))
 		})
 	}
@@ -745,34 +745,34 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 			return H256::default()
 		}
 
-		self.substate.known_code(&address).map(|code| H256::from_slice(Keccak256::digest(&code).as_slice()))
+		self.substate.known_code(address).map(|code| H256::from_slice(Keccak256::digest(&code).as_slice()))
 			.unwrap_or_else(|| self.backend.code_hash(address))
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.substate.known_code(&address).map(|code| code.clone())
+		self.substate.known_code(address).map(|code| code.clone())
 			.unwrap_or_else(|| self.backend.code(address))
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
-		self.substate.known_storage(&address, &index)
+		self.substate.known_storage(address, index)
 			.unwrap_or_else(|| self.backend.storage(address, index))
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
-		self.substate.known_original_storage(&address, &index)
+		self.substate.known_original_storage(address, index)
 			.unwrap_or_else(|| self.backend.original_storage(address, index).unwrap_or_default())
 	}
 
 	fn exists(&self, address: H160) -> bool {
 		if self.config.empty_considered_exists {
-			match self.substate.known_empty(&address) {
+			match self.substate.known_empty(address) {
 				Some(true) => true,
 				Some(false) => true,
 				None => self.backend.exists(address),
 			}
 		} else {
-			match self.substate.known_empty(&address) {
+			match self.substate.known_empty(address) {
 				Some(true) => false,
 				Some(false) => true,
 				None => !(
@@ -799,32 +799,17 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 	fn chain_id(&self) -> U256 { self.backend.chain_id() }
 
 	fn deleted(&self, address: H160) -> bool {
-		unimplemented!()
-		// for substate in self.substates.iter().rev() {
-		// 	if substate.deleted.contains(&address) {
-		// 		return true
-		// 	}
-		// }
-
-		// false
+		self.substate.deleted(address)
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		unimplemented!()
-		// self.account_mut(address).storage.insert(index, value);
-
-		// Ok(())
+		self.substate.set_storage(address, index, value);
+		Ok(())
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
-		unimplemented!()
-		// let current = self.substates.last_mut()
-		// 	.expect("substate vec always have length greater than one; qed");
-		// current.logs.push(Log {
-		// 	address, topics, data
-		// });
-
-		// Ok(())
+		self.substate.log(address, topics, data);
+		Ok(())
 	}
 
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {

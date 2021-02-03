@@ -89,8 +89,8 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	fn known_account(&self, address: &H160) -> Option<&MemoryStackAccount> {
-		if let Some(account) = self.accounts.get(address) {
+	fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
+		if let Some(account) = self.accounts.get(&address) {
 			Some(account)
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_account(address)
@@ -99,15 +99,15 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
-	pub fn known_basic(&self, address: &H160) -> Option<Basic> {
+	pub fn known_basic(&self, address: H160) -> Option<Basic> {
 		self.known_account(address).map(|acc| acc.basic.clone())
 	}
 
-	pub fn known_code(&self, address: &H160) -> Option<Vec<u8>> {
+	pub fn known_code(&self, address: H160) -> Option<Vec<u8>> {
 		self.known_account(address).and_then(|acc| acc.code.clone())
 	}
 
-	pub fn known_empty(&self, address: &H160) -> Option<bool> {
+	pub fn known_empty(&self, address: H160) -> Option<bool> {
 		if let Some(account) = self.known_account(address) {
 			if let Some(code) = &account.code {
 				return Some(
@@ -121,12 +121,12 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
-	pub fn known_storage(&self, address: &H160, key: &H256) -> Option<H256> {
-		if let Some(value) = self.storages.get(&(*address, *key)) {
+	pub fn known_storage(&self, address: H160, key: H256) -> Option<H256> {
+		if let Some(value) = self.storages.get(&(address, key)) {
 			return Some(*value)
 		}
 
-		if let Some(account) = self.accounts.get(address) {
+		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
 				return Some(H256::default())
 			}
@@ -139,8 +139,8 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
-	pub fn known_original_storage(&self, address: &H160, key: &H256) -> Option<H256> {
-		if let Some(account) = self.accounts.get(address) {
+	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
+		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
 				return Some(H256::default())
 			}
@@ -153,22 +153,69 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
-	fn account_mut<B: Backend>(&mut self, address: &H160, backend: &B) -> &mut MemoryStackAccount {
-		if !self.accounts.contains_key(address) {
+	pub fn deleted(&self, address: H160) -> bool {
+		if self.deletes.contains(&address) {
+			return true
+		}
+
+		if let Some(parent) = self.parent.as_ref() {
+			return parent.deleted(address)
+		}
+
+		false
+	}
+
+	fn account_mut<B: Backend>(&mut self, address: H160, backend: &B) -> &mut MemoryStackAccount {
+		if !self.accounts.contains_key(&address) {
 			let account = self.known_account(address)
 				.cloned()
 				.unwrap_or_else(|| MemoryStackAccount {
-					basic: backend.basic(*address),
+					basic: backend.basic(address),
 					code: None,
 					reset: false,
 				});
-			self.accounts.insert(*address, account);
+			self.accounts.insert(address, account);
 		}
 
-		self.accounts.get_mut(address).expect("New account was just inserted")
+		self.accounts.get_mut(&address).expect("New account was just inserted")
 	}
 
-	pub fn inc_nonce<B: Backend>(&mut self, address: &H160, backend: &B) {
+	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend).basic.nonce += U256::one();
 	}
+
+	pub fn set_storage(&mut self, address: H160, key: H256, value: H256) {
+		self.storages.insert((address, key), value);
+	}
+
+	pub fn reset_storage<B: Backend>(&mut self, address: H160, backend: &B) {
+		let mut removing = Vec::new();
+
+		for (oa, ok) in self.storages.keys() {
+			if *oa == address {
+				removing.push(*ok);
+			}
+		}
+
+		for ok in removing {
+			self.storages.remove(&(address, ok));
+		}
+
+		self.account_mut(address, backend).reset = true;
+	}
+
+	pub fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
+		self.logs.push(Log {
+			address, topics, data,
+		});
+	}
+
+	pub fn set_deleted(&mut self, address: H160) {
+		self.deletes.insert(address);
+	}
 }
+
+// pub struct MemoryStackState<'backend, 'config, B> {
+// 	backend: &'backend B,
+// 	substate: MemoryStackSubstate<'config>,
+// }
