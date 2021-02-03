@@ -350,6 +350,43 @@ pub struct MemoryStackState<'backend, 'config, B> {
 	substate: MemoryStackSubstate<'config>,
 }
 
+impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'config, B> {
+	fn gas_price(&self) -> U256 { self.backend.gas_price() }
+	fn origin(&self) -> H160 { self.backend.origin() }
+	fn block_hash(&self, number: U256) -> H256 { self.backend.block_hash(number) }
+	fn block_number(&self) -> U256 { self.backend.block_number() }
+	fn block_coinbase(&self) -> H160 { self.backend.block_coinbase() }
+	fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
+	fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
+	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
+	fn chain_id(&self) -> U256 { self.backend.chain_id() }
+
+	fn exists(&self, address: H160) -> bool {
+		self.substate.known_account(address).is_some() || self.backend.exists(address)
+	}
+
+	fn basic(&self, address: H160) -> Basic {
+		self.substate.known_basic(address).unwrap_or_else(|| self.backend.basic(address))
+	}
+
+	fn code(&self, address: H160) -> Vec<u8> {
+		self.substate.known_code(address).unwrap_or_else(|| self.backend.code(address))
+	}
+
+	fn storage(&self, address: H160, key: H256) -> H256 {
+		self.substate.known_storage(address, key)
+			.unwrap_or_else(|| self.backend.storage(address, key))
+	}
+
+	fn original_storage(&self, address: H160, key: H256) -> Option<H256> {
+		if let Some(value) = self.substate.known_original_storage(address, key) {
+			return Some(value)
+		}
+
+		self.backend.original_storage(address, key)
+	}
+}
+
 impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend B) -> Self {
 		Self {
@@ -391,14 +428,6 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		self.substate.exit_discard()
 	}
 
-	pub fn basic(&self, address: H160) -> Basic {
-		self.substate.known_basic(address).unwrap_or_else(|| self.backend.basic(address))
-	}
-
-	pub fn code(&self, address: H160) -> Vec<u8> {
-		self.substate.known_code(address).unwrap_or_else(|| self.backend.code(address))
-	}
-
 	pub fn is_empty(&self, address: H160) -> bool {
 		if let Some(known_empty) = self.substate.known_empty(address) {
 			return known_empty
@@ -407,23 +436,6 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		self.backend.basic(address).balance == U256::zero() &&
 			self.backend.basic(address).nonce == U256::zero() &&
 			self.backend.code(address).len() == 0
-	}
-
-	pub fn exists(&self, address: H160) -> bool {
-		self.substate.known_account(address).is_some() || self.backend.exists(address)
-	}
-
-	pub fn storage(&self, address: H160, key: H256) -> H256 {
-		self.substate.known_storage(address, key)
-			.unwrap_or_else(|| self.backend.storage(address, key))
-	}
-
-	pub fn original_storage(&self, address: H160, key: H256) -> Option<H256> {
-		if let Some(value) = self.substate.known_original_storage(address, key) {
-			return Some(value)
-		}
-
-		self.backend.original_storage(address, key)
 	}
 
 	pub fn deleted(&self, address: H160) -> bool {
@@ -475,14 +487,4 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 	pub fn touch(&mut self, address: H160) {
 		self.substate.touch(address, self.backend)
 	}
-
-	pub fn gas_price(&self) -> U256 { self.backend.gas_price() }
-	pub fn origin(&self) -> H160 { self.backend.origin() }
-	pub fn block_hash(&self, number: U256) -> H256 { self.backend.block_hash(number) }
-	pub fn block_number(&self) -> U256 { self.backend.block_number() }
-	pub fn block_coinbase(&self) -> H160 { self.backend.block_coinbase() }
-	pub fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
-	pub fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
-	pub fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
-	pub fn chain_id(&self) -> U256 { self.backend.chain_id() }
 }
