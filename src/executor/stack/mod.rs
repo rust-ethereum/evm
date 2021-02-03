@@ -189,41 +189,38 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
-// 	/// Execute a `CALL` transaction.
-// 	pub fn transact_call(
-// 		&mut self,
-// 		caller: H160,
-// 		address: H160,
-// 		value: U256,
-// 		data: Vec<u8>,
-// 		gas_limit: u64,
-// 	) -> (ExitReason, Vec<u8>) {
-// 		let current = self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed");
+	/// Execute a `CALL` transaction.
+	pub fn transact_call(
+		&mut self,
+		caller: H160,
+		address: H160,
+		value: U256,
+		data: Vec<u8>,
+		gas_limit: u64,
+	) -> (ExitReason, Vec<u8>) {
+		let transaction_cost = gasometer::call_transaction_cost(&data);
+		match self.substate.metadata_mut().gasometer.record_transaction(transaction_cost) {
+			Ok(()) => (),
+			Err(e) => return (e.into(), Vec::new()),
+		}
 
-// 		let transaction_cost = gasometer::call_transaction_cost(&data);
-// 		match current.gasometer.record_transaction(transaction_cost) {
-// 			Ok(()) => (),
-// 			Err(e) => return (e.into(), Vec::new()),
-// 		}
+		self.substate.inc_nonce(caller, self.backend);
 
-// 		self.account_mut(caller).basic.nonce += U256::one();
+		let context = Context {
+			caller,
+			address,
+			apparent_value: value,
+		};
 
-// 		let context = Context {
-// 			caller,
-// 			address,
-// 			apparent_value: value,
-// 		};
-
-// 		match self.call_inner(address, Some(Transfer {
-// 			source: caller,
-// 			target: address,
-// 			value
-// 		}), data, Some(gas_limit), false, false, false, context) {
-// 			Capture::Exit((s, v)) => (s, v),
-// 			Capture::Trap(_) => unreachable!(),
-// 		}
-// 	}
+		match self.call_inner(address, Some(Transfer {
+			source: caller,
+			target: address,
+			value
+		}), data, Some(gas_limit), false, false, false, context) {
+			Capture::Exit((s, v)) => (s, v),
+			Capture::Trap(_) => unreachable!(),
+		}
+	}
 
 	/// Get used gas for the current executor, given the price.
 	pub fn used_gas(
