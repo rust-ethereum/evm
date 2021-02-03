@@ -1,6 +1,6 @@
 mod state;
 
-pub use self::state::{MemoryStackSubstate, MemoryStackState};
+pub use self::state::{MemoryStackSubstate, MemoryStackState, StackState};
 
 use core::{convert::Infallible, cmp::min};
 use alloc::{rc::Rc, vec::Vec};

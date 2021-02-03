@@ -345,6 +345,29 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
+pub trait StackState<'config>: Backend {
+	fn metadata(&self) -> &StackSubstateMetadata<'config>;
+	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
+
+	fn enter(&mut self, gas_limit: u64, is_static: bool);
+	fn exit_commit(&mut self) -> Result<(), ExitError>;
+	fn exit_revert(&mut self) -> Result<(), ExitError>;
+	fn exit_discard(&mut self) -> Result<(), ExitError>;
+
+	fn is_empty(&self, address: H160) -> bool;
+	fn deleted(&self, address: H160) -> bool;
+
+	fn inc_nonce(&mut self, address: H160);
+	fn set_storage(&mut self, address: H160, key: H256, value: H256);
+	fn reset_storage(&mut self, address: H160);
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
+	fn set_deleted(&mut self, address: H160);
+	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
+	fn reset_balance(&mut self, address: H160);
+	fn touch(&mut self, address: H160);
+}
+
 pub struct MemoryStackState<'backend, 'config, B> {
 	backend: &'backend B,
 	substate: MemoryStackSubstate<'config>,
@@ -387,20 +410,88 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	}
 }
 
+impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'backend, 'config, B> {
+	fn metadata(&self) -> &StackSubstateMetadata<'config> {
+		self.substate.metadata()
+	}
+
+	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config> {
+		self.substate.metadata_mut()
+	}
+
+	fn enter(&mut self, gas_limit: u64, is_static: bool) {
+		self.substate.enter(gas_limit, is_static)
+	}
+
+	fn exit_commit(&mut self) -> Result<(), ExitError> {
+		self.substate.exit_commit()
+	}
+
+	fn exit_revert(&mut self) -> Result<(), ExitError> {
+		self.substate.exit_revert()
+	}
+
+	fn exit_discard(&mut self) -> Result<(), ExitError> {
+		self.substate.exit_discard()
+	}
+
+	fn is_empty(&self, address: H160) -> bool {
+		if let Some(known_empty) = self.substate.known_empty(address) {
+			return known_empty
+		}
+
+		self.backend.basic(address).balance == U256::zero() &&
+			self.backend.basic(address).nonce == U256::zero() &&
+			self.backend.code(address).len() == 0
+	}
+
+	fn deleted(&self, address: H160) -> bool {
+		self.substate.deleted(address)
+	}
+
+	fn inc_nonce(&mut self, address: H160) {
+		self.substate.inc_nonce(address, self.backend);
+	}
+
+	fn set_storage(&mut self, address: H160, key: H256, value: H256) {
+		self.substate.set_storage(address, key, value)
+	}
+
+	fn reset_storage(&mut self, address: H160) {
+		self.substate.reset_storage(address, self.backend);
+	}
+
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
+		self.substate.log(address, topics, data);
+	}
+
+	fn set_deleted(&mut self, address: H160) {
+		self.substate.set_deleted(address)
+	}
+
+	fn set_code(&mut self, address: H160, code: Vec<u8>) {
+		self.substate.set_code(address, code, self.backend)
+	}
+
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
+		self.substate.transfer(transfer, self.backend)
+	}
+
+	fn reset_balance(&mut self, address: H160) {
+		self.substate.reset_balance(address, self.backend)
+	}
+
+	fn touch(&mut self, address: H160) {
+		self.substate.touch(address, self.backend)
+	}
+}
+
 impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend B) -> Self {
 		Self {
 			backend,
 			substate: MemoryStackSubstate::new(metadata),
 		}
-	}
-
-	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
-		self.substate.metadata()
-	}
-
-	pub fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config> {
-		self.substate.metadata_mut()
 	}
 
 	#[must_use]
@@ -412,79 +503,11 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		self.substate.deconstruct(self.backend)
 	}
 
-	pub fn enter(&mut self, gas_limit: u64, is_static: bool) {
-		self.substate.enter(gas_limit, is_static)
-	}
-
-	pub fn exit_commit(&mut self) -> Result<(), ExitError> {
-		self.substate.exit_commit()
-	}
-
-	pub fn exit_revert(&mut self) -> Result<(), ExitError> {
-		self.substate.exit_revert()
-	}
-
-	pub fn exit_discard(&mut self) -> Result<(), ExitError> {
-		self.substate.exit_discard()
-	}
-
-	pub fn is_empty(&self, address: H160) -> bool {
-		if let Some(known_empty) = self.substate.known_empty(address) {
-			return known_empty
-		}
-
-		self.backend.basic(address).balance == U256::zero() &&
-			self.backend.basic(address).nonce == U256::zero() &&
-			self.backend.code(address).len() == 0
-	}
-
-	pub fn deleted(&self, address: H160) -> bool {
-		self.substate.deleted(address)
-	}
-
-	pub fn inc_nonce(&mut self, address: H160) {
-		self.substate.inc_nonce(address, self.backend);
-	}
-
-	pub fn set_storage(&mut self, address: H160, key: H256, value: H256) {
-		self.substate.set_storage(address, key, value)
-	}
-
-	pub fn reset_storage(&mut self, address: H160) {
-		self.substate.reset_storage(address, self.backend);
-	}
-
-	pub fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
-		self.substate.log(address, topics, data);
-	}
-
-	pub fn set_deleted(&mut self, address: H160) {
-		self.substate.set_deleted(address)
-	}
-
-	pub fn set_code(&mut self, address: H160, code: Vec<u8>) {
-		self.substate.set_code(address, code, self.backend)
-	}
-
-	pub fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-		self.substate.transfer(transfer, self.backend)
-	}
-
-	// Only needed for jsontests.
 	pub fn withdraw(&mut self, address: H160, value: U256) -> Result<(), ExitError> {
 		self.substate.withdraw(address, value, self.backend)
 	}
 
-	// Only needed for jsontests.
 	pub fn deposit(&mut self, address: H160, value: U256) {
 		self.substate.deposit(address, value, self.backend)
-	}
-
-	pub fn reset_balance(&mut self, address: H160) {
-		self.substate.reset_balance(address, self.backend)
-	}
-
-	pub fn touch(&mut self, address: H160) {
-		self.substate.touch(address, self.backend)
 	}
 }
