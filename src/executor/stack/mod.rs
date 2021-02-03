@@ -34,6 +34,17 @@ impl<'config> StackSubstateMetadata<'config> {
 	pub fn swallow_discard(&mut self, other: Self) -> Result<(), ExitError> {
 		Ok(())
 	}
+
+	pub fn spit_child(&self, gas_limit: u64, is_static: bool) -> Self {
+		Self {
+			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
+			is_static: is_static || self.is_static,
+			depth: match self.depth {
+				None => Some(0),
+				Some(n) => Some(n + 1),
+			},
+		}
+	}
 }
 
 /// Stack-based executor.
