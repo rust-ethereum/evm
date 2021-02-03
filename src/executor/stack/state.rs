@@ -264,6 +264,10 @@ impl<'config> MemoryStackSubstate<'config> {
 	pub fn reset_balance<B: Backend>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend).basic.balance = U256::zero();
 	}
+
+	pub fn touch<B: Backend>(&mut self, address: H160, backend: &B) {
+		self.account_mut(address, backend);
+	}
 }
 
 // pub struct MemoryStackState<'backend, 'config, B> {

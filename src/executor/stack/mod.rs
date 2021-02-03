@@ -437,140 +437,122 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
-// 	fn call_inner(
-// 		&mut self,
-// 		code_address: H160,
-// 		transfer: Option<Transfer>,
-// 		input: Vec<u8>,
-// 		target_gas: Option<u64>,
-// 		is_static: bool,
-// 		take_l64: bool,
-// 		take_stipend: bool,
-// 		context: Context,
-// 	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
-// 		macro_rules! try_or_fail {
-// 			( $e:expr ) => {
-// 				match $e {
-// 					Ok(v) => v,
-// 					Err(e) => return Capture::Exit((e.into(), Vec::new())),
-// 				}
-// 			}
-// 		}
+	fn call_inner(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: Vec<u8>,
+		target_gas: Option<u64>,
+		is_static: bool,
+		take_l64: bool,
+		take_stipend: bool,
+		context: Context,
+	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
+		macro_rules! try_or_fail {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(e) => return Capture::Exit((e.into(), Vec::new())),
+				}
+			}
+		}
 
-// 		fn l64(gas: u64) -> u64 {
-// 			gas - gas / 64
-// 		}
+		fn l64(gas: u64) -> u64 {
+			gas - gas / 64
+		}
 
-// 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
-// 			if self.config.estimate {
-// 				let last_substate = self.substates.last_mut()
-// 					.expect("substate vec always have length greater than one; qed");
-// 				let initial_after_gas = last_substate.gasometer.gas();
-// 				let diff = initial_after_gas - l64(initial_after_gas);
-// 				try_or_fail!(last_substate.gasometer.record_cost(diff));
-// 				last_substate.gasometer.gas()
-// 			} else {
-// 				l64(self.substates.last()
-// 					.expect("substate vec always have length greater than one; qed")
-// 					.gasometer.gas())
-// 			}
-// 		} else {
-// 			self.substates.last()
-// 				.expect("substate vec always have length greater than one; qed")
-// 				.gasometer.gas()
-// 		};
+		let after_gas = if take_l64 && self.config.call_l64_after_gas {
+			if self.config.estimate {
+				let initial_after_gas = self.substate.metadata().gasometer.gas();
+				let diff = initial_after_gas - l64(initial_after_gas);
+				try_or_fail!(self.substate.metadata_mut().gasometer.record_cost(diff));
+				self.substate.metadata().gasometer.gas()
+			} else {
+				l64(self.substate.metadata().gasometer.gas())
+			}
+		} else {
+			self.substate.metadata().gasometer.gas()
+		};
 
-// 		let target_gas = target_gas.unwrap_or(after_gas);
-// 		let mut gas_limit = min(target_gas, after_gas);
+		let target_gas = target_gas.unwrap_or(after_gas);
+		let mut gas_limit = min(target_gas, after_gas);
 
-// 		try_or_fail!(
-// 			self.substates.last_mut()
-// 				.expect("substate vec always have length greater than one; qed")
-// 				.gasometer
-// 				.record_cost(gas_limit)
-// 		);
+		try_or_fail!(
+			self.substate.metadata_mut().gasometer.record_cost(gas_limit)
+		);
 
-// 		if let Some(transfer) = transfer.as_ref() {
-// 			if take_stipend && transfer.value != U256::zero() {
-// 				gas_limit = gas_limit.saturating_add(self.config.call_stipend);
-// 			}
-// 		}
+		if let Some(transfer) = transfer.as_ref() {
+			if take_stipend && transfer.value != U256::zero() {
+				gas_limit = gas_limit.saturating_add(self.config.call_stipend);
+			}
+		}
 
-// 		let code = self.code(code_address);
+		let code = self.code(code_address);
 
-// 		self.enter_substate(gas_limit, is_static);
-// 		self.account_mut(context.address);
+		self.enter_substate(gas_limit, is_static);
+		self.substate.touch(context.address, self.backend);
 
-// 		if let Some(depth) = self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed")
-// 			.depth
-// 		{
-// 			if depth > self.config.call_stack_limit {
-// 				let _ = self.exit_substate(StackExitKind::Reverted);
-// 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
-// 			}
-// 		}
+		if let Some(depth) = self.substate.metadata().depth {
+			if depth > self.config.call_stack_limit {
+				let _ = self.exit_substate(StackExitKind::Reverted);
+				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
+			}
+		}
 
-// 		if let Some(transfer) = transfer {
-// 			match self.transfer(transfer) {
-// 				Ok(()) => (),
-// 				Err(e) => {
-// 					let _ = self.exit_substate(StackExitKind::Reverted);
-// 					return Capture::Exit((ExitReason::Error(e), Vec::new()))
-// 				},
-// 			}
-// 		}
+		if let Some(transfer) = transfer {
+			match self.substate.transfer(transfer, self.backend) {
+				Ok(()) => (),
+				Err(e) => {
+					let _ = self.exit_substate(StackExitKind::Reverted);
+					return Capture::Exit((ExitReason::Error(e), Vec::new()))
+				},
+			}
+		}
 
-// 		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
-// 			return match ret {
-// 				Ok((s, out, cost)) => {
-// 					let _ = self.substates.last_mut()
-// 						.expect("substate vec always have length greater than one; qed")
-// 						.gasometer
-// 						.record_cost(cost);
-// 					let _ = self.exit_substate(StackExitKind::Succeeded);
-// 					Capture::Exit((ExitReason::Succeed(s), out))
-// 				},
-// 				Err(e) => {
-// 					let _ = self.exit_substate(StackExitKind::Failed);
-// 					Capture::Exit((ExitReason::Error(e), Vec::new()))
-// 				},
-// 			}
-// 		}
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
+			return match ret {
+				Ok((s, out, cost)) => {
+					let _ = self.substate.metadata_mut().gasometer.record_cost(cost);
+					let _ = self.exit_substate(StackExitKind::Succeeded);
+					Capture::Exit((ExitReason::Succeed(s), out))
+				},
+				Err(e) => {
+					let _ = self.exit_substate(StackExitKind::Failed);
+					Capture::Exit((ExitReason::Error(e), Vec::new()))
+				},
+			}
+		}
 
-// 		let mut runtime = Runtime::new(
-// 			Rc::new(code),
-// 			Rc::new(input),
-// 			context,
-// 			self.config,
-// 		);
+		let mut runtime = Runtime::new(
+			Rc::new(code),
+			Rc::new(input),
+			context,
+			self.config,
+		);
 
-// 		let reason = self.execute(&mut runtime);
-// 		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
+		let reason = self.execute(&mut runtime);
+		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
 
-// 		match reason {
-// 			ExitReason::Succeed(s) => {
-// 				let _ = self.exit_substate(StackExitKind::Succeeded);
-// 				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
-// 			},
-// 			ExitReason::Error(e) => {
-// 				let _ = self.exit_substate(StackExitKind::Failed);
-// 				Capture::Exit((ExitReason::Error(e), Vec::new()))
-// 			},
-// 			ExitReason::Revert(e) => {
-// 				let _ = self.exit_substate(StackExitKind::Reverted);
-// 				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
-// 			},
-// 			ExitReason::Fatal(e) => {
-// 				self.substates.last_mut()
-// 					.expect("substate vec always have length greater than one; qed")
-// 					.gasometer
-// 					.fail();
-// 				let _ = self.exit_substate(StackExitKind::Failed);
-// 				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
-// 			},
-// 		}
-// 	}
+		match reason {
+			ExitReason::Succeed(s) => {
+				let _ = self.exit_substate(StackExitKind::Succeeded);
+				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
+			},
+			ExitReason::Error(e) => {
+				let _ = self.exit_substate(StackExitKind::Failed);
+				Capture::Exit((ExitReason::Error(e), Vec::new()))
+			},
+			ExitReason::Revert(e) => {
+				let _ = self.exit_substate(StackExitKind::Reverted);
+				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
+			},
+			ExitReason::Fatal(e) => {
+				self.substate.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
+			},
+		}
+	}
 }
 
 impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config, B> {
