@@ -3,12 +3,12 @@ mod state;
 pub use self::state::MemoryStackSubstate;
 
 use core::{convert::Infallible, cmp::min};
-use alloc::{rc::Rc, vec, vec::Vec, collections::{BTreeMap, BTreeSet}};
+use alloc::{rc::Rc, vec::Vec};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
 			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
-use crate::backend::{Log, Basic, Apply, Backend};
+use crate::backend::Backend;
 use crate::gasometer::{self, Gasometer};
 
 pub enum StackExitKind {
@@ -37,7 +37,7 @@ impl<'config> StackSubstateMetadata<'config> {
 		Ok(())
 	}
 
-	pub fn swallow_discard(&mut self, other: Self) -> Result<(), ExitError> {
+	pub fn swallow_discard(&mut self, _other: Self) -> Result<(), ExitError> {
 		Ok(())
 	}
 

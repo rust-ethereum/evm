@@ -2,7 +2,7 @@ use core::mem;
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
 use crate::{ExitError, Transfer};
-use crate::backend::{Basic, Apply, Log, Backend};
+use crate::backend::{Basic, Log, Backend};
 use crate::executor::stack::StackSubstateMetadata;
 
 #[derive(Clone)]
