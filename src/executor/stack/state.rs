@@ -1,5 +1,5 @@
 use core::mem;
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::{vec::Vec, boxed::Box, collections::{BTreeMap, BTreeSet}};
 use primitive_types::{H160, H256, U256};
 use crate::{ExitError, Transfer};
 use crate::backend::{Basic, Log, Backend, Apply};
