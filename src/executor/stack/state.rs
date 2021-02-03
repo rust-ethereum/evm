@@ -343,7 +343,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
-// pub struct MemoryStackState<'backend, 'config, B> {
-// 	backend: &'backend B,
-// 	substate: MemoryStackSubstate<'config>,
-// }
+pub struct MemoryStackState<'backend, 'config, B> {
+	backend: &'backend B,
+	substate: MemoryStackSubstate<'config>,
+}
