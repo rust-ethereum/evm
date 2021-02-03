@@ -268,59 +268,6 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 		(applies, logs)
 // 	}
 
-// 	pub fn fetch_account(&self, address: &H160) -> StackAccount {
-// 		for substate in self.substates.iter().rev() {
-// 			if let Some(account) = substate.known_account(address) {
-// 				return Some(account)
-// 			}
-// 		}
-
-// 		Some(StackAccount {
-// 			basic: self.backend.basic(address),
-// 			code: None,
-// 			storage:
-// 		})
-// 	}
-
-// 	// /// Get account reference.
-// 	// pub fn account(&self, address: &H160) -> Option<&StackAccount> {
-// 	// 	for substate in self.substates.iter().rev() {
-// 	// 		if let Some(account) = substate.state.get(&address) {
-// 	// 			return Some(account)
-// 	// 		}
-// 	// 	}
-
-// 	// 	None
-// 	// }
-
-// 	// /// Get mutable account reference.
-// 	// pub fn account_mut(&mut self, address: H160) -> &mut StackAccount {
-// 	// 	if !self.substates.last_mut()
-// 	// 		.expect("substate vec always have length greater than one; qed")
-// 	// 		.state
-// 	// 		.contains_key(&address)
-// 	// 	{
-// 	// 		let account = self.account(address)
-// 	// 			.cloned()
-// 	// 			.unwrap_or_else(|| StackAccount {
-// 	// 				basic: self.backend.basic(address),
-// 	// 				code: None,
-// 	// 				storage: BTreeMap::new(),
-// 	// 				reset_storage: false,
-// 	// 			});
-// 	// 		self.substates.last_mut()
-// 	// 			.expect("substate vec always have length greater than one; qed")
-// 	// 			.state
-// 	// 			.insert(address, account);
-// 	// 	}
-
-// 	// 	self.substates.last_mut()
-// 	// 		.expect("substate vec always have length greater than one; qed")
-// 	// 		.state
-// 	// 		.get_mut(&address)
-// 	// 		.expect("contains_key is checked first so the key always exists; qed")
-// 	// }
-
 	/// Get account nonce.
 	pub fn nonce(&self, address: H160) -> U256 {
 		self.substate.known_basic(address).map(|acc| acc.nonce)
