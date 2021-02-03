@@ -5,7 +5,7 @@ use crate::{ExitError, Transfer};
 use crate::backend::{Basic, Log, Backend, Apply};
 use crate::executor::stack::StackSubstateMetadata;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct MemoryStackAccount {
 	pub basic: Basic,
 	pub code: Option<Vec<u8>>,
@@ -282,7 +282,7 @@ impl<'config> MemoryStackSubstate<'config> {
 
 		{
 			let target = self.account_mut(transfer.target, backend);
-			target.basic.balance.saturating_add(transfer.value);
+			target.basic.balance = target.basic.balance.saturating_add(transfer.value);
 		}
 
 		Ok(())
@@ -302,7 +302,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	// Only needed for jsontests.
 	pub fn deposit<B: Backend>(&mut self, address: H160, value: U256, backend: &B) {
 		let target = self.account_mut(address, backend);
-		target.basic.balance.saturating_add(value);
+		target.basic.balance = target.basic.balance.saturating_add(value);
 	}
 
 	pub fn reset_balance<B: Backend>(&mut self, address: H160, backend: &B) {
