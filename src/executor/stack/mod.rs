@@ -691,8 +691,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
-		unimplemented!()
-		// self.create_inner(caller, scheme, value, init_code, target_gas, true)
+		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 
 	fn call(
