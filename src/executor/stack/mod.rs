@@ -274,29 +274,29 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 			.unwrap_or_else(|| self.backend.basic(address).nonce)
 	}
 
-// 	/// Get the create address from given scheme.
-// 	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
-// 		match scheme {
-// 			CreateScheme::Create2 { caller, code_hash, salt } => {
-// 				let mut hasher = Keccak256::new();
-// 				hasher.input(&[0xff]);
-// 				hasher.input(&caller[..]);
-// 				hasher.input(&salt[..]);
-// 				hasher.input(&code_hash[..]);
-// 				H256::from_slice(hasher.result().as_slice()).into()
-// 			},
-// 			CreateScheme::Legacy { caller } => {
-// 				let nonce = self.nonce(caller);
-// 				let mut stream = rlp::RlpStream::new_list(2);
-// 				stream.append(&caller);
-// 				stream.append(&nonce);
-// 				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
-// 			},
-// 			CreateScheme::Fixed(naddress) => {
-// 				naddress
-// 			},
-// 		}
-// 	}
+	/// Get the create address from given scheme.
+	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
+		match scheme {
+			CreateScheme::Create2 { caller, code_hash, salt } => {
+				let mut hasher = Keccak256::new();
+				hasher.input(&[0xff]);
+				hasher.input(&caller[..]);
+				hasher.input(&salt[..]);
+				hasher.input(&code_hash[..]);
+				H256::from_slice(hasher.result().as_slice()).into()
+			},
+			CreateScheme::Legacy { caller } => {
+				let nonce = self.nonce(caller);
+				let mut stream = rlp::RlpStream::new_list(2);
+				stream.append(&caller);
+				stream.append(&nonce);
+				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+			},
+			CreateScheme::Fixed(naddress) => {
+				naddress
+			},
+		}
+	}
 
 // 	fn create_inner(
 // 		&mut self,
