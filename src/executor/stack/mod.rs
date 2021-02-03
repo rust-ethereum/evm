@@ -133,35 +133,32 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		self.substate.metadata().gasometer.gas()
 	}
 
-// 	/// Execute a `CREATE` transaction.
-// 	pub fn transact_create(
-// 		&mut self,
-// 		caller: H160,
-// 		value: U256,
-// 		init_code: Vec<u8>,
-// 		gas_limit: u64,
-// 	) -> ExitReason {
-// 		let current = self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed");
+	/// Execute a `CREATE` transaction.
+	pub fn transact_create(
+		&mut self,
+		caller: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		gas_limit: u64,
+	) -> ExitReason {
+		let transaction_cost = gasometer::create_transaction_cost(&init_code);
+		match self.substate.metadata_mut().gasometer.record_transaction(transaction_cost) {
+			Ok(()) => (),
+			Err(e) => return e.into(),
+		}
 
-// 		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-// 		match current.gasometer.record_transaction(transaction_cost) {
-// 			Ok(()) => (),
-// 			Err(e) => return e.into(),
-// 		}
-
-// 		match self.create_inner(
-// 			caller,
-// 			CreateScheme::Legacy { caller },
-// 			value,
-// 			init_code,
-// 			Some(gas_limit),
-// 			false,
-// 		) {
-// 			Capture::Exit((s, _, _)) => s,
-// 			Capture::Trap(_) => unreachable!(),
-// 		}
-// 	}
+		match self.create_inner(
+			caller,
+			CreateScheme::Legacy { caller },
+			value,
+			init_code,
+			Some(gas_limit),
+			false,
+		) {
+			Capture::Exit((s, _, _)) => s,
+			Capture::Trap(_) => unreachable!(),
+		}
+	}
 
 // 	/// Execute a `CREATE2` transaction.
 // 	pub fn transact_create2(
