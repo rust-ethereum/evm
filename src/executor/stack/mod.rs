@@ -231,25 +231,23 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 // 		}
 // 	}
 
-// 	/// Get used gas for the current executor, given the price.
-// 	pub fn used_gas(
-// 		&self,
-// 	) -> u64 {
-// 		let current = self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed");
+	/// Get used gas for the current executor, given the price.
+	pub fn used_gas(
+		&self,
+	) -> u64 {
+		self.substate.metadata().gasometer.total_used_gas() -
+			min(self.substate.metadata().gasometer.total_used_gas() / 2,
+				self.substate.metadata().gasometer.refunded_gas() as u64)
+	}
 
-// 		current.gasometer.total_used_gas() -
-// 			min(current.gasometer.total_used_gas() / 2, current.gasometer.refunded_gas() as u64)
-// 	}
-
-// 	/// Get fee needed for the current executor, given the price.
-// 	pub fn fee(
-// 		&self,
-// 		price: U256,
-// 	) -> U256 {
-// 		let used_gas = self.used_gas();
-// 		U256::from(used_gas) * price
-// 	}
+	/// Get fee needed for the current executor, given the price.
+	pub fn fee(
+		&self,
+		price: U256,
+	) -> U256 {
+		let used_gas = self.used_gas();
+		U256::from(used_gas) * price
+	}
 
 // 	/// Deconstruct the executor, return state to be applied. Panic if the
 // 	/// executor is not in the top-level substate.
