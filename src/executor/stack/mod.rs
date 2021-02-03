@@ -31,6 +31,12 @@ impl<'config> StackSubstateMetadata<'config> {
 		Ok(())
 	}
 
+	pub fn swallow_revert(&mut self, other: Self) -> Result<(), ExitError> {
+		self.gasometer.record_stipend(other.gasometer.gas())?;
+
+		Ok(())
+	}
+
 	pub fn swallow_discard(&mut self, other: Self) -> Result<(), ExitError> {
 		Ok(())
 	}
@@ -93,57 +99,26 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
-// 	/// Create a substate executor from the current executor.
-// 	pub fn enter_substate(
-// 		&mut self,
-// 		gas_limit: u64,
-// 		is_static: bool,
-// 	) {
-// 		let parent = self.substates.last()
-// 			.expect("substate vec always have length greater than one; qed");
+	/// Create a substate executor from the current executor.
+	pub fn enter_substate(
+		&mut self,
+		gas_limit: u64,
+		is_static: bool,
+	) {
+		self.substate.enter(gas_limit, is_static);
+	}
 
-// 		let substate = StackSubstate {
-// 			gasometer: Gasometer::new(gas_limit, self.config),
-// 			state: MemoryStackState::default(),
-// 			logs: Vec::new(),
-// 			is_static: is_static || parent.is_static,
-// 			depth: match parent.depth {
-// 				None => Some(0),
-// 				Some(n) => Some(n + 1),
-// 			},
-// 		};
-
-// 		self.substates.push(substate);
-// 	}
-
-// 	/// Exit a substate. Panic if it results an empty substate stack.
-// 	pub fn exit_substate(
-// 		&mut self,
-// 		kind: StackExitKind,
-// 	) -> Result<(), ExitError> {
-// 		assert!(self.substates.len() > 1);
-
-// 		let mut exited = self.substates.pop()
-// 			.expect("checked above substate vec length greater than one; qed");
-// 		let parent = self.substates.last_mut()
-// 			.expect("substate vec always have length greater than one; qed");
-
-// 		parent.logs.append(&mut exited.logs);
-
-// 		match kind {
-// 			StackExitKind::Succeeded => {
-// 				parent.gasometer.record_stipend(exited.gasometer.gas())?;
-// 				parent.gasometer.record_refund(exited.gasometer.refunded_gas())?;
-// 				exited.state.commit(&mut parent.state);
-// 			},
-// 			StackExitKind::Reverted => {
-// 				parent.gasometer.record_stipend(exited.gasometer.gas())?;
-// 			},
-// 			StackExitKind::Failed => (),
-// 		}
-
-// 		Ok(())
-// 	}
+	/// Exit a substate. Panic if it results an empty substate stack.
+	pub fn exit_substate(
+		&mut self,
+		kind: StackExitKind,
+	) -> Result<(), ExitError> {
+		match kind {
+			StackExitKind::Succeeded => self.substate.exit_commit(),
+			StackExitKind::Reverted => self.substate.exit_revert(),
+			StackExitKind::Failed => self.substate.exit_discard(),
+		}
+	}
 
 	/// Execute the runtime until it returns.
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {

@@ -68,11 +68,26 @@ impl<'config> MemoryStackSubstate<'config> {
 	// 	applies
 	// }
 
-	pub fn commit(&mut self) -> Result<(), ExitError> {
+	pub fn enter(&mut self, gas_limit: u64, is_static: bool) {
+		let mut entering = Self {
+			metadata: self.metadata.spit_child(gas_limit, is_static),
+			parent: None,
+			logs: Vec::new(),
+			accounts: BTreeMap::new(),
+			storages: BTreeMap::new(),
+			deletes: BTreeSet::new(),
+		};
+		mem::swap(&mut entering, self);
+
+		self.parent = Some(Box::new(entering));
+	}
+
+	pub fn exit_commit(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot commit on root substate");
 		mem::swap(&mut exited, self);
 
 		self.metadata.swallow_commit(exited.metadata)?;
+		self.logs.append(&mut exited.logs);
 		self.accounts.append(&mut exited.accounts);
 		self.storages.append(&mut exited.storages);
 		self.deletes.append(&mut exited.deletes);
@@ -80,11 +95,22 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	pub fn discard(&mut self) -> Result<(), ExitError> {
+	pub fn exit_revert(&mut self) -> Result<(), ExitError> {
+		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
+		mem::swap(&mut exited, self);
+
+		self.metadata.swallow_revert(exited.metadata)?;
+		self.logs.append(&mut exited.logs);
+
+		Ok(())
+	}
+
+	pub fn exit_discard(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
 		mem::swap(&mut exited, self);
 
 		self.metadata.swallow_discard(exited.metadata)?;
+		self.logs.append(&mut exited.logs);
 
 		Ok(())
 	}
