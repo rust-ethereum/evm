@@ -99,6 +99,14 @@ impl<'backend, 'config, B: Backend> StackExecutor<'backend, 'config, B> {
 		}
 	}
 
+	pub fn substate(&self) -> &MemoryStackSubstate<'config> {
+		&self.substate
+	}
+
+	pub fn substate_mut(&mut self) -> &mut MemoryStackSubstate<'config> {
+		&mut self.substate
+	}
+
 	/// Create a substate executor from the current executor.
 	pub fn enter_substate(
 		&mut self,

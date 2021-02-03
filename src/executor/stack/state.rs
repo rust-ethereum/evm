@@ -288,6 +288,23 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
+	// Only needed for jsontests.
+	pub fn withdraw<B: Backend>(&mut self, address: H160, value: U256, backend: &B) -> Result<(), ExitError> {
+		let source = self.account_mut(address, backend);
+		if source.basic.balance < value {
+			return Err(ExitError::OutOfFund)
+		}
+		source.basic.balance -= value;
+
+		Ok(())
+	}
+
+	// Only needed for jsontests.
+	pub fn deposit<B: Backend>(&mut self, address: H160, value: U256, backend: &B) {
+		let target = self.account_mut(address, backend);
+		target.basic.balance.saturating_add(value);
+	}
+
 	pub fn reset_balance<B: Backend>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend).basic.balance = U256::zero();
 	}
