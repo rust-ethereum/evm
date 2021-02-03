@@ -676,8 +676,7 @@ impl<'backend, 'config, B: Backend> Handler for StackExecutor<'backend, 'config,
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-		unimplemented!()
-		// self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
+		self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
 	}
 
 	fn pre_validate(
