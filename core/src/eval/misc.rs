@@ -106,10 +106,11 @@ pub fn jump(state: &mut Machine) -> Control {
 }
 
 pub fn jumpi(state: &mut Machine) -> Control {
-	pop_u256!(state, dest, value);
+	pop_u256!(state, dest);
+	pop!(state, value);
 	let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 
-	if value != U256::zero() {
+	if value != H256::zero() {
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
 		} else {
@@ -132,9 +133,11 @@ pub fn msize(state: &mut Machine) -> Control {
 
 pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 	let end = min(position + 1 + n, state.code.len());
-	let val = U256::from(&state.code[(position + 1)..end]);
+	let slice = &state.code[(position + 1)..end];
+	let mut val = [0u8; 32];
+	val[(32 - slice.len())..32].copy_from_slice(slice);
 
-	push_u256!(state, val);
+	push!(state, H256(val));
 	Control::Continue(1 + n)
 }
 
