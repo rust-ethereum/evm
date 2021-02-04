@@ -42,7 +42,7 @@ impl<'config> Gasometer<'config> {
 			gas_limit,
 			config,
 			inner: Ok(Inner {
-				memory_cost: 0,
+				memory_gas: 0,
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
@@ -64,10 +64,7 @@ impl<'config> Gasometer<'config> {
 	/// Remaining gas.
 	pub fn gas(&self) -> u64 {
 		match self.inner.as_ref() {
-			Ok(inner) => {
-				self.gas_limit - inner.used_gas -
-					memory::memory_gas(inner.memory_cost).expect("Checked via record")
-			},
+			Ok(inner) => self.gas_limit - inner.used_gas - inner.memory_gas,
 			Err(_) => 0,
 		}
 	}
@@ -75,8 +72,7 @@ impl<'config> Gasometer<'config> {
 	/// Total used gas.
 	pub fn total_used_gas(&self) -> u64 {
 		match self.inner.as_ref() {
-			Ok(inner) => inner.used_gas +
-				memory::memory_gas(inner.memory_cost).expect("Checked via record"),
+			Ok(inner) => inner.used_gas + inner.memory_gas,
 			Err(_) => self.gas_limit,
 		}
 	}
@@ -136,13 +132,12 @@ impl<'config> Gasometer<'config> {
 	) -> Result<(), ExitError> {
 		let gas = self.gas();
 
-		let memory_cost = match memory {
-			Some(memory) => try_or_fail!(self.inner, self.inner_mut()?.memory_cost(memory)),
-			None => self.inner_mut()?.memory_cost,
+		let memory_gas = match memory {
+			Some(memory) => try_or_fail!(self.inner, self.inner_mut()?.memory_gas(memory)),
+			None => self.inner_mut()?.memory_gas,
 		};
-		let memory_gas = try_or_fail!(self.inner, memory::memory_gas(memory_cost));
-		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost.clone(), gas));
-		let gas_refund = self.inner_mut()?.gas_refund(cost.clone());
+		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost, gas));
+		let gas_refund = self.inner_mut()?.gas_refund(cost);
 		let used_gas = self.inner_mut()?.used_gas;
 
 		let all_gas_cost = memory_gas + used_gas + gas_cost;
@@ -155,7 +150,7 @@ impl<'config> Gasometer<'config> {
 		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
 
 		self.inner_mut()?.used_gas += gas_cost;
-		self.inner_mut()?.memory_cost = memory_cost;
+		self.inner_mut()?.memory_gas = memory_gas;
 		self.inner_mut()?.refunded_gas += gas_refund;
 
 		Ok(())
@@ -441,22 +436,22 @@ pub fn opcode_cost<H: Handler>(
 
 #[derive(Clone)]
 struct Inner<'config> {
-	memory_cost: usize,
+	memory_gas: u64,
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
 }
 
 impl<'config> Inner<'config> {
-	fn memory_cost(
+	fn memory_gas(
 		&self,
 		memory: MemoryCost,
-	) -> Result<usize, ExitError> {
+	) -> Result<u64, ExitError> {
 		let from = memory.offset;
 		let len = memory.len;
 
 		if len == U256::zero() {
-			return Ok(self.memory_cost)
+			return Ok(self.memory_gas)
 		}
 
 		let end = from.checked_add(len).ok_or(ExitError::OutOfGas)?;
@@ -473,7 +468,7 @@ impl<'config> Inner<'config> {
 			end / 32 + 1
 		};
 
-		Ok(max(self.memory_cost, new))
+		Ok(max(self.memory_gas, memory::memory_gas(new)?))
 	}
 
 	fn extra_check(
@@ -552,7 +547,7 @@ impl<'config> Inner<'config> {
 }
 
 /// Gas cost.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum GasCost {
 	/// Zero gas cost.
 	Zero,
@@ -669,7 +664,7 @@ pub enum GasCost {
 }
 
 /// Memory cost.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MemoryCost {
 	/// Affected memory offset.
 	pub offset: U256,
@@ -678,7 +673,7 @@ pub struct MemoryCost {
 }
 
 /// Transaction cost.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum TransactionCost {
 	/// Call transaction cost.
 	Call {
