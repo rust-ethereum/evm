@@ -248,8 +248,23 @@ pub fn opcode_cost<H: Handler>(
 		Ok(Opcode::Gt) | Ok(Opcode::SLt) | Ok(Opcode::SGt) | Ok(Opcode::Eq) |
 		Ok(Opcode::IsZero) | Ok(Opcode::And) | Ok(Opcode::Or) | Ok(Opcode::Xor) |
 		Ok(Opcode::Byte) | Ok(Opcode::CallDataLoad) | Ok(Opcode::MLoad) |
-		Ok(Opcode::MStore) | Ok(Opcode::MStore8) | Ok(Opcode::Push(_)) |
-		Ok(Opcode::Dup(_)) | Ok(Opcode::Swap(_)) => GasCost::VeryLow,
+		Ok(Opcode::MStore) | Ok(Opcode::MStore8) |
+		Ok(Opcode::Push1) | Ok(Opcode::Push2) | Ok(Opcode::Push3) | Ok(Opcode::Push4) |
+		Ok(Opcode::Push5) | Ok(Opcode::Push6) | Ok(Opcode::Push7) | Ok(Opcode::Push8) |
+		Ok(Opcode::Push9) | Ok(Opcode::Push10) | Ok(Opcode::Push11) | Ok(Opcode::Push12) |
+		Ok(Opcode::Push13) | Ok(Opcode::Push14) | Ok(Opcode::Push15) | Ok(Opcode::Push16) |
+		Ok(Opcode::Push17) | Ok(Opcode::Push18) | Ok(Opcode::Push19) | Ok(Opcode::Push20) |
+		Ok(Opcode::Push21) | Ok(Opcode::Push22) | Ok(Opcode::Push23) | Ok(Opcode::Push24) |
+		Ok(Opcode::Push25) | Ok(Opcode::Push26) | Ok(Opcode::Push27) | Ok(Opcode::Push28) |
+		Ok(Opcode::Push29) | Ok(Opcode::Push30) | Ok(Opcode::Push31) | Ok(Opcode::Push32) |
+		Ok(Opcode::Dup1) | Ok(Opcode::Dup2) | Ok(Opcode::Dup3) | Ok(Opcode::Dup4) |
+		Ok(Opcode::Dup5) | Ok(Opcode::Dup6) | Ok(Opcode::Dup7) | Ok(Opcode::Dup8) |
+		Ok(Opcode::Dup9) | Ok(Opcode::Dup10) | Ok(Opcode::Dup11) | Ok(Opcode::Dup12) |
+		Ok(Opcode::Dup13) | Ok(Opcode::Dup14) | Ok(Opcode::Dup15) | Ok(Opcode::Dup16) |
+		Ok(Opcode::Swap1) | Ok(Opcode::Swap2) | Ok(Opcode::Swap3) | Ok(Opcode::Swap4) |
+		Ok(Opcode::Swap5) | Ok(Opcode::Swap6) | Ok(Opcode::Swap7) | Ok(Opcode::Swap8) |
+		Ok(Opcode::Swap9) | Ok(Opcode::Swap10) | Ok(Opcode::Swap11) | Ok(Opcode::Swap12) |
+		Ok(Opcode::Swap13) | Ok(Opcode::Swap14) | Ok(Opcode::Swap15) | Ok(Opcode::Swap16) => GasCost::VeryLow,
 
 		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) if config.has_bitwise_shifting =>
 			GasCost::VeryLow,
@@ -318,8 +333,24 @@ pub fn opcode_cost<H: Handler>(
 				new: value,
 			}
 		},
-		Err(ExternalOpcode::Log(n)) if !is_static => GasCost::Log {
-			n,
+		Err(ExternalOpcode::Log0) if !is_static => GasCost::Log {
+			n: 0,
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Log1) if !is_static => GasCost::Log {
+			n: 1,
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Log2) if !is_static => GasCost::Log {
+			n: 2,
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Log3) if !is_static => GasCost::Log {
+			n: 3,
+			len: U256::from_big_endian(&stack.peek(1)?[..]),
+		},
+		Err(ExternalOpcode::Log4) if !is_static => GasCost::Log {
+			n: 4,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
 		Err(ExternalOpcode::Create) if !is_static => GasCost::Create,
@@ -343,15 +374,18 @@ pub fn opcode_cost<H: Handler>(
 		Ok(Opcode::Invalid) => GasCost::Invalid,
 
 		Err(ExternalOpcode::Create) | Err(ExternalOpcode::Create2) |
-		Err(ExternalOpcode::SStore) | Err(ExternalOpcode::Log(_)) |
+		Err(ExternalOpcode::SStore) | Err(ExternalOpcode::Log0) |
+		Err(ExternalOpcode::Log1) | Err(ExternalOpcode::Log2) |
+		Err(ExternalOpcode::Log3) | Err(ExternalOpcode::Log4) |
 		Err(ExternalOpcode::Suicide) | Err(ExternalOpcode::Call) |
 
-		Err(ExternalOpcode::Other(_)) => GasCost::Invalid,
+		Err(_) => GasCost::Invalid,
 	};
 
 	let memory_cost = match opcode {
 		Err(ExternalOpcode::Sha3) | Ok(Opcode::Return) | Ok(Opcode::Revert) |
-		Err(ExternalOpcode::Log(_)) => Some(MemoryCost {
+		Err(ExternalOpcode::Log0) | Err(ExternalOpcode::Log1) | Err(ExternalOpcode::Log2) |
+		Err(ExternalOpcode::Log3) | Err(ExternalOpcode::Log4) => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		}),

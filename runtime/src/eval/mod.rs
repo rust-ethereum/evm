@@ -11,6 +11,16 @@ pub enum Control<H: Handler> {
 	Exit(ExitReason)
 }
 
+fn handle_other<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &mut H) -> Control<H> {
+	match handler.other(
+		opcode as u8,
+		&mut state.machine
+	) {
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
+}
+
 pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &mut H) -> Control<H> {
 	match opcode {
 		ExternalOpcode::Sha3 => system::sha3(state),
@@ -35,7 +45,11 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 		ExternalOpcode::SLoad => system::sload(state, handler),
 		ExternalOpcode::SStore => system::sstore(state, handler),
 		ExternalOpcode::Gas => system::gas(state, handler),
-		ExternalOpcode::Log(n) => system::log(state, n, handler),
+		ExternalOpcode::Log0 => system::log(state, 0, handler),
+		ExternalOpcode::Log1 => system::log(state, 1, handler),
+		ExternalOpcode::Log2 => system::log(state, 2, handler),
+		ExternalOpcode::Log3 => system::log(state, 3, handler),
+		ExternalOpcode::Log4 => system::log(state, 4, handler),
 		ExternalOpcode::Suicide => system::suicide(state, handler),
 		ExternalOpcode::Create => system::create(state, false, handler),
 		ExternalOpcode::Create2 => system::create(state, true, handler),
@@ -44,14 +58,6 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: ExternalOpcode, handler: &m
 		ExternalOpcode::DelegateCall => system::call(state, CallScheme::DelegateCall, handler),
 		ExternalOpcode::StaticCall => system::call(state, CallScheme::StaticCall, handler),
 		ExternalOpcode::ChainId => system::chainid(state, handler),
-		ExternalOpcode::Other(opcode) => {
-			match handler.other(
-				opcode,
-				&mut state.machine
-			) {
-				Ok(()) => Control::Continue,
-				Err(e) => Control::Exit(e.into()),
-			}
-		},
+		_ => handle_other(state, opcode, handler),
 	}
 }
