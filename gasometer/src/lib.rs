@@ -53,7 +53,7 @@ impl<'config> Gasometer<'config> {
 	fn inner_mut(
 		&mut self
 	) -> Result<&mut Inner<'config>, ExitError> {
-		self.inner.as_mut().map_err(|e| e.clone())
+		self.inner.as_mut().map_err(|e| *e)
 	}
 
 	/// Reference of the config.
