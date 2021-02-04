@@ -1,5 +1,5 @@
 use std::{str::FromStr, collections::BTreeMap};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use primitive_types::{U256, H160};
 use evm::Config;
 use evm::executor::{StackExecutor, MemoryStackState, StackSubstateMetadata};
