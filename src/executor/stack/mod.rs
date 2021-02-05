@@ -6,7 +6,7 @@ use core::{convert::Infallible, cmp::min};
 use alloc::{rc::Rc, vec::Vec};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
-use crate::{ExitError, Stack, ExternalOpcode, Opcode, Capture, Handler, Transfer,
+use crate::{ExitError, Stack, Opcode, Capture, Handler, Transfer,
 			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
 use crate::gasometer::{self, Gasometer};
 
@@ -656,7 +656,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 	fn pre_validate(
 		&mut self,
 		context: &Context,
-		opcode: Result<Opcode, ExternalOpcode>,
+		opcode: Opcode,
 		stack: &Stack
 	) -> Result<(), ExitError> {
 		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());

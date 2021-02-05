@@ -1,6 +1,6 @@
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use crate::{Capture, Stack, ExitError, Opcode, ExternalOpcode,
+use crate::{Capture, Stack, ExitError, Opcode,
 			CreateScheme, Context, Machine, ExitReason};
 
 /// Transfer from source to target, with given value.
@@ -108,13 +108,13 @@ pub trait Handler {
 	fn pre_validate(
 		&mut self,
 		context: &Context,
-		opcode: Result<Opcode, ExternalOpcode>,
+		opcode: Opcode,
 		stack: &Stack
 	) -> Result<(), ExitError>;
 	/// Handle other unknown external opcodes.
 	fn other(
 		&mut self,
-		_opcode: u8,
+		_opcode: Opcode,
 		_stack: &mut Machine
 	) -> Result<(), ExitError> {
 		Err(ExitError::OutOfGas)

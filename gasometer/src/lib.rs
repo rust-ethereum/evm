@@ -12,7 +12,7 @@ mod utils;
 
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
-use evm_core::{ExternalOpcode, Opcode, ExitError, Stack};
+use evm_core::{Opcode, ExitError, Stack};
 use evm_runtime::{Handler, Config};
 
 macro_rules! try_or_fail {
@@ -216,202 +216,197 @@ pub fn create_transaction_cost(
 static STATIC_OPCODE_COST_TABLE: [Option<u64>; 256] = {
 	let mut table = [None; 256];
 
-	table[Opcode::Stop as usize] = Some(consts::G_ZERO);
-	table[Opcode::CallDataSize as usize] = Some(consts::G_BASE);
-	table[Opcode::CodeSize as usize] = Some(consts::G_BASE);
-	table[Opcode::Pop as usize] = Some(consts::G_BASE);
-	table[Opcode::PC as usize] = Some(consts::G_BASE);
-	table[Opcode::MSize as usize] = Some(consts::G_BASE);
+	table[Opcode::STOP.as_usize()] = Some(consts::G_ZERO);
+	table[Opcode::CALLDATASIZE.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::CODESIZE.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::POP.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::PC.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::MSIZE.as_usize()] = Some(consts::G_BASE);
 
-	table[ExternalOpcode::Address as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Origin as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Caller as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::CallValue as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Coinbase as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Timestamp as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Number as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Difficulty as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::GasLimit as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::GasPrice as usize] = Some(consts::G_BASE);
-	table[ExternalOpcode::Gas as usize] = Some(consts::G_BASE);
+	table[Opcode::ADDRESS.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::ORIGIN.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::CALLER.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::CALLVALUE.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::COINBASE.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::TIMESTAMP.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::NUMBER.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::DIFFICULTY.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::GASLIMIT.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::GASPRICE.as_usize()] = Some(consts::G_BASE);
+	table[Opcode::GAS.as_usize()] = Some(consts::G_BASE);
 
-	table[Opcode::Add as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Sub as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Not as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Lt as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Gt as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::SLt as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::SGt as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Eq as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::IsZero as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::And as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Or as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Xor as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Byte as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::CallDataLoad as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push1 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push2 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push3 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push4 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push5 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push6 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push7 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push8 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push9 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push10 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push11 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push12 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push13 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push14 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push15 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push16 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push17 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push18 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push19 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push20 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push21 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push22 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push23 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push24 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push25 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push26 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push27 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push28 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push29 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push30 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push31 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Push32 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup1 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup2 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup3 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup4 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup5 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup6 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup7 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup8 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup9 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup10 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup11 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup12 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup13 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup14 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup15 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Dup16 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap1 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap2 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap3 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap4 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap5 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap6 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap7 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap8 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap9 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap10 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap11 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap12 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap13 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap14 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap15 as usize] = Some(consts::G_VERYLOW);
-	table[Opcode::Swap16 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::ADD.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SUB.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::NOT.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::LT.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::GT.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SLT.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SGT.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::EQ.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::ISZERO.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::AND.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::OR.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::XOR.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::BYTE.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::CALLDATALOAD.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH1.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH2.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH3.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH4.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH5.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH6.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH7.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH8.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH9.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH10.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH11.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH12.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH13.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH14.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH15.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH16.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH17.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH18.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH19.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH20.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH21.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH22.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH23.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH24.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH25.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH26.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH27.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH28.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH29.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH30.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH31.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::PUSH32.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP1.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP2.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP3.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP4.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP5.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP6.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP7.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP8.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP9.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP10.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP11.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP12.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP13.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP14.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP15.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::DUP16.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP1.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP2.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP3.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP4.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP5.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP6.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP7.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP8.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP9.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP10.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP11.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP12.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP13.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP14.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP15.as_usize()] = Some(consts::G_VERYLOW);
+	table[Opcode::SWAP16.as_usize()] = Some(consts::G_VERYLOW);
 
-	table[Opcode::Mul as usize] = Some(consts::G_LOW);
-	table[Opcode::Div as usize] = Some(consts::G_LOW);
-	table[Opcode::SDiv as usize] = Some(consts::G_LOW);
-	table[Opcode::Mod as usize] = Some(consts::G_LOW);
-	table[Opcode::SMod as usize] = Some(consts::G_LOW);
-	table[Opcode::SignExtend as usize] = Some(consts::G_LOW);
+	table[Opcode::MUL.as_usize()] = Some(consts::G_LOW);
+	table[Opcode::DIV.as_usize()] = Some(consts::G_LOW);
+	table[Opcode::SDIV.as_usize()] = Some(consts::G_LOW);
+	table[Opcode::MOD.as_usize()] = Some(consts::G_LOW);
+	table[Opcode::SMOD.as_usize()] = Some(consts::G_LOW);
+	table[Opcode::SIGNEXTEND.as_usize()] = Some(consts::G_LOW);
 
-	table[Opcode::AddMod as usize] = Some(consts::G_MID);
-	table[Opcode::MulMod as usize] = Some(consts::G_MID);
-	table[Opcode::Jump as usize] = Some(consts::G_MID);
+	table[Opcode::ADDMOD.as_usize()] = Some(consts::G_MID);
+	table[Opcode::MULMOD.as_usize()] = Some(consts::G_MID);
+	table[Opcode::JUMP.as_usize()] = Some(consts::G_MID);
 
-	table[Opcode::JumpI as usize] = Some(consts::G_HIGH);
+	table[Opcode::JUMPI.as_usize()] = Some(consts::G_HIGH);
 
 	table
 };
 
 pub fn static_opcode_cost(
-	opcode: Result<Opcode, ExternalOpcode>,
+	opcode: Opcode,
 ) -> Option<u64> {
-	let index = match opcode {
-		Ok(opcode) => opcode as usize,
-		Err(opcode) => opcode as usize,
-	};
-
-	STATIC_OPCODE_COST_TABLE[index]
+	STATIC_OPCODE_COST_TABLE[opcode.as_usize()]
 }
 
 /// Calculate the opcode cost.
 pub fn dynamic_opcode_cost<H: Handler>(
 	address: H160,
-	opcode: Result<Opcode, ExternalOpcode>,
+	opcode: Opcode,
 	stack: &Stack,
 	is_static: bool,
 	config: &Config,
 	handler: &H
 ) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
 	let gas_cost = match opcode {
-		Ok(Opcode::Return) => GasCost::Zero,
+		Opcode::RETURN => GasCost::Zero,
 
-		Ok(Opcode::MLoad) | Ok(Opcode::MStore) | Ok(Opcode::MStore8) => GasCost::VeryLow,
+		Opcode::MLOAD | Opcode::MSTORE | Opcode::MSTORE8 => GasCost::VeryLow,
 
-		Ok(Opcode::Revert) if config.has_revert => GasCost::Zero,
-		Ok(Opcode::Revert) => GasCost::Invalid,
+		Opcode::REVERT if config.has_revert => GasCost::Zero,
+		Opcode::REVERT => GasCost::Invalid,
 
-		Err(ExternalOpcode::ChainId) if config.has_chain_id => GasCost::Base,
-		Err(ExternalOpcode::ChainId) => GasCost::Invalid,
+		Opcode::CHAINID if config.has_chain_id => GasCost::Base,
+		Opcode::CHAINID => GasCost::Invalid,
 
-		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) if config.has_bitwise_shifting =>
+		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.has_bitwise_shifting =>
 			GasCost::VeryLow,
-		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) => GasCost::Invalid,
+		Opcode::SHL | Opcode::SHR | Opcode::SAR => GasCost::Invalid,
 
-		Err(ExternalOpcode::SelfBalance) if config.has_self_balance => GasCost::Low,
-		Err(ExternalOpcode::SelfBalance) => GasCost::Invalid,
+		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
+		Opcode::SELFBALANCE => GasCost::Invalid,
 
-		Err(ExternalOpcode::ExtCodeSize) => GasCost::ExtCodeSize,
-		Err(ExternalOpcode::Balance) => GasCost::Balance,
-		Err(ExternalOpcode::BlockHash) => GasCost::BlockHash,
+		Opcode::EXTCODESIZE => GasCost::ExtCodeSize,
+		Opcode::BALANCE => GasCost::Balance,
+		Opcode::BLOCKHASH => GasCost::BlockHash,
 
-		Err(ExternalOpcode::ExtCodeHash) if config.has_ext_code_hash => GasCost::ExtCodeHash,
-		Err(ExternalOpcode::ExtCodeHash) => GasCost::Invalid,
+		Opcode::EXTCODEHASH if config.has_ext_code_hash => GasCost::ExtCodeHash,
+		Opcode::EXTCODEHASH => GasCost::Invalid,
 
-		Err(ExternalOpcode::CallCode) => GasCost::CallCode {
+		Opcode::CALLCODE => GasCost::CallCode {
 			value: U256::from_big_endian(&stack.peek(2)?[..]),
 			gas: U256::from_big_endian(&stack.peek(0)?[..]),
 			target_exists: handler.exists(stack.peek(1)?.into()),
 		},
-		Err(ExternalOpcode::StaticCall) => GasCost::StaticCall {
+		Opcode::STATICCALL => GasCost::StaticCall {
 			gas: U256::from_big_endian(&stack.peek(0)?[..]),
 			target_exists: handler.exists(stack.peek(1)?.into()),
 		},
-		Err(ExternalOpcode::Sha3) => GasCost::Sha3 {
+		Opcode::SHA3 => GasCost::Sha3 {
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::ExtCodeCopy) => GasCost::ExtCodeCopy {
+		Opcode::EXTCODECOPY => GasCost::ExtCodeCopy {
 			len: U256::from_big_endian(&stack.peek(3)?[..]),
 		},
-		Ok(Opcode::CallDataCopy) | Ok(Opcode::CodeCopy) => GasCost::VeryLowCopy {
+		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
-		Ok(Opcode::Exp) => GasCost::Exp {
+		Opcode::EXP => GasCost::Exp {
 			power: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Ok(Opcode::JumpDest) => GasCost::JumpDest,
-		Err(ExternalOpcode::SLoad) => GasCost::SLoad,
+		Opcode::JUMPDEST => GasCost::JumpDest,
+		Opcode::SLOAD => GasCost::SLoad,
 
-		Err(ExternalOpcode::DelegateCall) if config.has_delegate_call => GasCost::DelegateCall {
+		Opcode::DELEGATECALL if config.has_delegate_call => GasCost::DelegateCall {
 			gas: U256::from_big_endian(&stack.peek(0)?[..]),
 			target_exists: handler.exists(stack.peek(1)?.into()),
 		},
-		Err(ExternalOpcode::DelegateCall) => GasCost::Invalid,
+		Opcode::DELEGATECALL => GasCost::Invalid,
 
-		Err(ExternalOpcode::ReturnDataSize) if config.has_return_data => GasCost::Base,
-		Err(ExternalOpcode::ReturnDataCopy) if config.has_return_data => GasCost::VeryLowCopy {
+		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
+		Opcode::RETURNDATACOPY if config.has_return_data => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
-		Err(ExternalOpcode::ReturnDataSize) | Err(ExternalOpcode::ReturnDataCopy) => GasCost::Invalid,
+		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid,
 
-		Err(ExternalOpcode::SStore) if !is_static => {
+		Opcode::SSTORE if !is_static => {
 			let index = stack.peek(0)?;
 			let value = stack.peek(1)?;
 
@@ -421,36 +416,36 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				new: value,
 			}
 		},
-		Err(ExternalOpcode::Log0) if !is_static => GasCost::Log {
+		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::Log1) if !is_static => GasCost::Log {
+		Opcode::LOG1 if !is_static => GasCost::Log {
 			n: 1,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::Log2) if !is_static => GasCost::Log {
+		Opcode::LOG2 if !is_static => GasCost::Log {
 			n: 2,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::Log3) if !is_static => GasCost::Log {
+		Opcode::LOG3 if !is_static => GasCost::Log {
 			n: 3,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::Log4) if !is_static => GasCost::Log {
+		Opcode::LOG4 if !is_static => GasCost::Log {
 			n: 4,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Err(ExternalOpcode::Create) if !is_static => GasCost::Create,
-		Err(ExternalOpcode::Create2) if !is_static && config.has_create2 => GasCost::Create2 {
+		Opcode::CREATE if !is_static => GasCost::Create,
+		Opcode::CREATE2 if !is_static && config.has_create2 => GasCost::Create2 {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
-		Err(ExternalOpcode::Suicide) if !is_static => GasCost::Suicide {
+		Opcode::SUICIDE if !is_static => GasCost::Suicide {
 			value: handler.balance(address),
 			target_exists: handler.exists(stack.peek(0)?.into()),
 			already_removed: handler.deleted(address),
 		},
-		Err(ExternalOpcode::Call)
+		Opcode::CALL
 			if !is_static ||
 			(is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
 			GasCost::Call {
@@ -459,52 +454,44 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_exists: handler.exists(stack.peek(1)?.into()),
 			},
 
-		Ok(Opcode::Invalid) => GasCost::Invalid,
-
-		Err(ExternalOpcode::Create) | Err(ExternalOpcode::Create2) |
-		Err(ExternalOpcode::SStore) | Err(ExternalOpcode::Log0) |
-		Err(ExternalOpcode::Log1) | Err(ExternalOpcode::Log2) |
-		Err(ExternalOpcode::Log3) | Err(ExternalOpcode::Log4) |
-		Err(ExternalOpcode::Suicide) | Err(ExternalOpcode::Call) |
-
 		_ => GasCost::Invalid,
 	};
 
 	let memory_cost = match opcode {
-		Err(ExternalOpcode::Sha3) | Ok(Opcode::Return) | Ok(Opcode::Revert) |
-		Err(ExternalOpcode::Log0) | Err(ExternalOpcode::Log1) | Err(ExternalOpcode::Log2) |
-		Err(ExternalOpcode::Log3) | Err(ExternalOpcode::Log4) => Some(MemoryCost {
+		Opcode::SHA3 | Opcode::RETURN | Opcode::REVERT |
+		Opcode::LOG0 | Opcode::LOG1 | Opcode::LOG2 |
+		Opcode::LOG3 | Opcode::LOG4 => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		}),
 
-		Ok(Opcode::CodeCopy) | Ok(Opcode::CallDataCopy) |
-		Err(ExternalOpcode::ReturnDataCopy) => Some(MemoryCost {
+		Opcode::CODECOPY | Opcode::CALLDATACOPY |
+		Opcode::RETURNDATACOPY => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		}),
 
-		Err(ExternalOpcode::ExtCodeCopy) => Some(MemoryCost {
+		Opcode::EXTCODECOPY => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(1)?[..]),
 			len: U256::from_big_endian(&stack.peek(3)?[..]),
 		}),
 
-		Ok(Opcode::MLoad) | Ok(Opcode::MStore) => Some(MemoryCost {
+		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from(32),
 		}),
 
-		Ok(Opcode::MStore8) => Some(MemoryCost {
+		Opcode::MSTORE8 => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from(1),
 		}),
 
-		Err(ExternalOpcode::Create) | Err(ExternalOpcode::Create2) => Some(MemoryCost {
+		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(1)?[..]),
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		}),
 
-		Err(ExternalOpcode::Call) | Err(ExternalOpcode::CallCode) => Some(MemoryCost {
+		Opcode::CALL | Opcode::CALLCODE => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(3)?[..]),
 			len: U256::from_big_endian(&stack.peek(4)?[..]),
 		}.join(MemoryCost {
@@ -512,8 +499,8 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			len: U256::from_big_endian(&stack.peek(6)?[..]),
 		})),
 
-		Err(ExternalOpcode::DelegateCall) |
-		Err(ExternalOpcode::StaticCall) => Some(MemoryCost {
+		Opcode::DELEGATECALL |
+		Opcode::STATICCALL => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(2)?[..]),
 			len: U256::from_big_endian(&stack.peek(3)?[..]),
 		}.join(MemoryCost {

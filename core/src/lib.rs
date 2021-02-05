@@ -19,7 +19,7 @@ mod utils;
 pub use crate::memory::Memory;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
-pub use crate::opcode::{Opcode, ExternalOpcode};
+pub use crate::opcode::Opcode;
 pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError, ExitRevert, ExitFatal};
 
 use core::ops::Range;
@@ -82,12 +82,12 @@ impl Machine {
 	}
 
 	/// Inspect the machine's next opcode and current stack.
-	pub fn inspect(&self) -> Option<(Result<Opcode, ExternalOpcode>, &Stack)> {
+	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
 		let position = match self.position {
 			Ok(position) => position,
 			Err(_) => return None,
 		};
-		self.code.get(position).map(|v| (Opcode::parse(*v), &self.stack))
+		self.code.get(position).map(|v| (Opcode(*v), &self.stack))
 	}
 
 	/// Copy and get the return value of the machine, if any.
@@ -127,8 +127,8 @@ impl Machine {
 	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
 		let position = *self.position.as_ref().map_err(|reason| Capture::Exit(reason.clone()))?;
 
-		match self.code.get(position).map(|v| Opcode::parse(*v)) {
-			Some(Ok(opcode)) => {
+		match self.code.get(position).map(|v| Opcode(*v)) {
+			Some(opcode) => {
 				match eval(self, opcode, position) {
 					Control::Continue(p) => {
 						self.position = Ok(position + p);
@@ -142,11 +142,11 @@ impl Machine {
 						self.position = Ok(p);
 						Ok(())
 					},
+					Control::Trap(opcode) => {
+						self.position = Ok(position + 1);
+						Err(Capture::Trap(opcode))
+					},
 				}
-			},
-			Some(Err(external)) => {
-				self.position = Ok(position + 1);
-				Err(Capture::Trap(external))
 			},
 			None => {
 				self.position = Err(ExitSucceed::Stopped.into());

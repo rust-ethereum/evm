@@ -13,16 +13,12 @@ impl Valids {
 
 		let mut i = 0;
 		while i < code.len() {
-			let opcode = Opcode::parse(code[i]);
-			if let Ok(opcode) = opcode {
-				if opcode == Opcode::JumpDest {
-					valids[i] = true;
-					i += 1;
-				} else if let Some(v) = opcode.is_push() {
-					i += v as usize + 1;
-				} else {
-					i += 1;
-				}
+			let opcode = Opcode(code[i]);
+			if opcode == Opcode::JUMPDEST {
+				valids[i] = true;
+				i += 1;
+			} else if let Some(v) = opcode.is_push() {
+				i += v as usize + 1;
 			} else {
 				i += 1;
 			}

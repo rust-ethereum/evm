@@ -1,8 +1,8 @@
 use alloc::borrow::Cow;
-use crate::ExternalOpcode;
+use crate::Opcode;
 
 /// Trap which indicates that an `ExternalOpcode` has to be handled.
-pub type Trap = ExternalOpcode;
+pub type Trap = Opcode;
 
 /// Capture represents the result of execution.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
