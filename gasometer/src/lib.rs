@@ -1,7 +1,7 @@
 //! EVM gasometer.
 
 #![deny(warnings)]
-#![forbid(unsafe_code, missing_docs, unused_variables, unused_imports)]
+#![forbid(unsafe_code, unused_variables, unused_imports)]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -125,7 +125,7 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Record opcode gas cost.
-	pub fn record_opcode(
+	pub fn record_dynamic_cost(
 		&mut self,
 		cost: GasCost,
 		memory: Option<MemoryCost>,
@@ -213,8 +213,136 @@ pub fn create_transaction_cost(
 	TransactionCost::Create { zero_data_len, non_zero_data_len }
 }
 
+static STATIC_OPCODE_COST_TABLE: [Option<u64>; 256] = {
+	let mut table = [None; 256];
+
+	table[Opcode::Stop as usize] = Some(consts::G_ZERO);
+	table[Opcode::CallDataSize as usize] = Some(consts::G_BASE);
+	table[Opcode::CodeSize as usize] = Some(consts::G_BASE);
+	table[Opcode::Pop as usize] = Some(consts::G_BASE);
+	table[Opcode::PC as usize] = Some(consts::G_BASE);
+	table[Opcode::MSize as usize] = Some(consts::G_BASE);
+
+	table[ExternalOpcode::Address as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Origin as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Caller as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::CallValue as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Coinbase as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Timestamp as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Number as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Difficulty as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::GasLimit as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::GasPrice as usize] = Some(consts::G_BASE);
+	table[ExternalOpcode::Gas as usize] = Some(consts::G_BASE);
+
+	table[Opcode::Add as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Sub as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Not as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Lt as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Gt as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::SLt as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::SGt as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Eq as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::IsZero as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::And as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Or as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Xor as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Byte as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::CallDataLoad as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push1 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push2 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push3 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push4 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push5 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push6 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push7 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push8 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push9 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push10 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push11 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push12 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push13 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push14 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push15 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push16 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push17 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push18 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push19 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push20 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push21 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push22 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push23 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push24 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push25 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push26 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push27 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push28 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push29 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push30 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push31 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Push32 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup1 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup2 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup3 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup4 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup5 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup6 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup7 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup8 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup9 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup10 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup11 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup12 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup13 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup14 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup15 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Dup16 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap1 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap2 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap3 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap4 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap5 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap6 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap7 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap8 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap9 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap10 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap11 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap12 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap13 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap14 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap15 as usize] = Some(consts::G_VERYLOW);
+	table[Opcode::Swap16 as usize] = Some(consts::G_VERYLOW);
+
+	table[Opcode::Mul as usize] = Some(consts::G_LOW);
+	table[Opcode::Div as usize] = Some(consts::G_LOW);
+	table[Opcode::SDiv as usize] = Some(consts::G_LOW);
+	table[Opcode::Mod as usize] = Some(consts::G_LOW);
+	table[Opcode::SMod as usize] = Some(consts::G_LOW);
+	table[Opcode::SignExtend as usize] = Some(consts::G_LOW);
+
+	table[Opcode::AddMod as usize] = Some(consts::G_MID);
+	table[Opcode::MulMod as usize] = Some(consts::G_MID);
+	table[Opcode::Jump as usize] = Some(consts::G_MID);
+
+	table[Opcode::JumpI as usize] = Some(consts::G_HIGH);
+
+	table
+};
+
+pub fn static_opcode_cost(
+	opcode: Result<Opcode, ExternalOpcode>,
+) -> Option<u64> {
+	let index = match opcode {
+		Ok(opcode) => opcode as usize,
+		Err(opcode) => opcode as usize,
+	};
+
+	STATIC_OPCODE_COST_TABLE[index]
+}
+
 /// Calculate the opcode cost.
-pub fn opcode_cost<H: Handler>(
+pub fn dynamic_opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Result<Opcode, ExternalOpcode>,
 	stack: &Stack,
@@ -223,57 +351,22 @@ pub fn opcode_cost<H: Handler>(
 	handler: &H
 ) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
 	let gas_cost = match opcode {
-		Ok(Opcode::Stop) | Ok(Opcode::Return) => GasCost::Zero,
+		Ok(Opcode::Return) => GasCost::Zero,
+
+		Ok(Opcode::MLoad) | Ok(Opcode::MStore) | Ok(Opcode::MStore8) => GasCost::VeryLow,
 
 		Ok(Opcode::Revert) if config.has_revert => GasCost::Zero,
 		Ok(Opcode::Revert) => GasCost::Invalid,
 
-		Err(ExternalOpcode::Address) | Err(ExternalOpcode::Origin) | Err(ExternalOpcode::Caller) |
-		Err(ExternalOpcode::CallValue) | Ok(Opcode::CallDataSize) |
-		Ok(Opcode::CodeSize) | Err(ExternalOpcode::GasPrice) | Err(ExternalOpcode::Coinbase) |
-		Err(ExternalOpcode::Timestamp) | Err(ExternalOpcode::Number) |
-		Err(ExternalOpcode::Difficulty) |
-		Err(ExternalOpcode::GasLimit) | Ok(Opcode::Pop) | Ok(Opcode::PC) |
-		Ok(Opcode::MSize) | Err(ExternalOpcode::Gas) => GasCost::Base,
-
 		Err(ExternalOpcode::ChainId) if config.has_chain_id => GasCost::Base,
 		Err(ExternalOpcode::ChainId) => GasCost::Invalid,
-
-		Ok(Opcode::Add) | Ok(Opcode::Sub) | Ok(Opcode::Not) | Ok(Opcode::Lt) |
-		Ok(Opcode::Gt) | Ok(Opcode::SLt) | Ok(Opcode::SGt) | Ok(Opcode::Eq) |
-		Ok(Opcode::IsZero) | Ok(Opcode::And) | Ok(Opcode::Or) | Ok(Opcode::Xor) |
-		Ok(Opcode::Byte) | Ok(Opcode::CallDataLoad) | Ok(Opcode::MLoad) |
-		Ok(Opcode::MStore) | Ok(Opcode::MStore8) |
-		Ok(Opcode::Push1) | Ok(Opcode::Push2) | Ok(Opcode::Push3) | Ok(Opcode::Push4) |
-		Ok(Opcode::Push5) | Ok(Opcode::Push6) | Ok(Opcode::Push7) | Ok(Opcode::Push8) |
-		Ok(Opcode::Push9) | Ok(Opcode::Push10) | Ok(Opcode::Push11) | Ok(Opcode::Push12) |
-		Ok(Opcode::Push13) | Ok(Opcode::Push14) | Ok(Opcode::Push15) | Ok(Opcode::Push16) |
-		Ok(Opcode::Push17) | Ok(Opcode::Push18) | Ok(Opcode::Push19) | Ok(Opcode::Push20) |
-		Ok(Opcode::Push21) | Ok(Opcode::Push22) | Ok(Opcode::Push23) | Ok(Opcode::Push24) |
-		Ok(Opcode::Push25) | Ok(Opcode::Push26) | Ok(Opcode::Push27) | Ok(Opcode::Push28) |
-		Ok(Opcode::Push29) | Ok(Opcode::Push30) | Ok(Opcode::Push31) | Ok(Opcode::Push32) |
-		Ok(Opcode::Dup1) | Ok(Opcode::Dup2) | Ok(Opcode::Dup3) | Ok(Opcode::Dup4) |
-		Ok(Opcode::Dup5) | Ok(Opcode::Dup6) | Ok(Opcode::Dup7) | Ok(Opcode::Dup8) |
-		Ok(Opcode::Dup9) | Ok(Opcode::Dup10) | Ok(Opcode::Dup11) | Ok(Opcode::Dup12) |
-		Ok(Opcode::Dup13) | Ok(Opcode::Dup14) | Ok(Opcode::Dup15) | Ok(Opcode::Dup16) |
-		Ok(Opcode::Swap1) | Ok(Opcode::Swap2) | Ok(Opcode::Swap3) | Ok(Opcode::Swap4) |
-		Ok(Opcode::Swap5) | Ok(Opcode::Swap6) | Ok(Opcode::Swap7) | Ok(Opcode::Swap8) |
-		Ok(Opcode::Swap9) | Ok(Opcode::Swap10) | Ok(Opcode::Swap11) | Ok(Opcode::Swap12) |
-		Ok(Opcode::Swap13) | Ok(Opcode::Swap14) | Ok(Opcode::Swap15) | Ok(Opcode::Swap16) => GasCost::VeryLow,
 
 		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) if config.has_bitwise_shifting =>
 			GasCost::VeryLow,
 		Ok(Opcode::Shl) | Ok(Opcode::Shr) | Ok(Opcode::Sar) => GasCost::Invalid,
 
-		Ok(Opcode::Mul) | Ok(Opcode::Div) | Ok(Opcode::SDiv) | Ok(Opcode::Mod) |
-		Ok(Opcode::SMod) | Ok(Opcode::SignExtend) => GasCost::Low,
-
 		Err(ExternalOpcode::SelfBalance) if config.has_self_balance => GasCost::Low,
 		Err(ExternalOpcode::SelfBalance) => GasCost::Invalid,
-
-		Ok(Opcode::AddMod) | Ok(Opcode::MulMod) | Ok(Opcode::Jump) => GasCost::Mid,
-
-		Ok(Opcode::JumpI) => GasCost::High,
 
 		Err(ExternalOpcode::ExtCodeSize) => GasCost::ExtCodeSize,
 		Err(ExternalOpcode::Balance) => GasCost::Balance,
@@ -374,7 +467,7 @@ pub fn opcode_cost<H: Handler>(
 		Err(ExternalOpcode::Log3) | Err(ExternalOpcode::Log4) |
 		Err(ExternalOpcode::Suicide) | Err(ExternalOpcode::Call) |
 
-		Err(_) => GasCost::Invalid,
+		_ => GasCost::Invalid,
 	};
 
 	let memory_cost = match opcode {

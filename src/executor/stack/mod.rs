@@ -659,16 +659,20 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		opcode: Result<Opcode, ExternalOpcode>,
 		stack: &Stack
 	) -> Result<(), ExitError> {
-		let is_static = self.state.metadata().is_static;
-		let (gas_cost, memory_cost) = gasometer::opcode_cost(
-			context.address, opcode, stack, is_static, &self.config, self
-		)?;
+		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
 
-		let gasometer = &mut self.state.metadata_mut().gasometer;
+		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
+			self.state.metadata_mut().gasometer.record_cost(cost)?;
+		} else {
+			let is_static = self.state.metadata().is_static;
+			let (gas_cost, memory_cost) = gasometer::dynamic_opcode_cost(
+				context.address, opcode, stack, is_static, &self.config, self
+			)?;
 
-		log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
+			let gasometer = &mut self.state.metadata_mut().gasometer;
 
-		gasometer.record_opcode(gas_cost, memory_cost)?;
+			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
+		}
 
 		Ok(())
 	}
