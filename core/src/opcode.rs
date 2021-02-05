@@ -653,3 +653,20 @@ pub enum ExternalOpcode {
 	Otherfb = 0xfb,
 	Otherfc = 0xfc,
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn opcode_u8_match() {
+		for v in 0..=u8::max_value() {
+			let opcode = Opcode::parse(v);
+
+			match opcode {
+				Ok(opcode) => assert_eq!(opcode as u8, v),
+				Err(opcode) => assert_eq!(opcode as u8, v),
+			}
+		}
+	}
+}
