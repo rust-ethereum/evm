@@ -128,20 +128,7 @@ impl Machine {
 		let position = *self.position.as_ref().map_err(|reason| Capture::Exit(reason.clone()))?;
 
 		match self.code.get(position).map(|v| Opcode::parse(*v)) {
-			Some(opcode) => self.step_as(opcode),
-			None => {
-				self.exit(ExitSucceed::Stopped.into());
-				Err(Capture::Exit(ExitSucceed::Stopped.into()))
-			},
-		}
-	}
-
-	/// Step the next opcode as, ignoring the current position's opcode.
-	pub fn step_as(&mut self, opcode: Result<Opcode, ExternalOpcode>) -> Result<(), Capture<ExitReason, Trap>> {
-		let position = *self.position.as_ref().map_err(|reason| Capture::Exit(reason.clone()))?;
-
-		match opcode {
-			Ok(opcode) => {
+			Some(Ok(opcode)) => {
 				match eval(self, opcode, position) {
 					Control::Continue(p) => {
 						self.position = Ok(position + p);
@@ -157,9 +144,13 @@ impl Machine {
 					},
 				}
 			},
-			Err(external) => {
+			Some(Err(external)) => {
 				self.position = Ok(position + 1);
 				Err(Capture::Trap(external))
+			},
+			None => {
+				self.position = Err(ExitSucceed::Stopped.into());
+				Err(Capture::Exit(ExitSucceed::Stopped.into()))
 			},
 		}
 	}

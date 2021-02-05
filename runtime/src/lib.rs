@@ -23,6 +23,16 @@ use alloc::rc::Rc;
 
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
+		if let Some((opcode, stack)) = $self.machine.inspect() {
+			match $handler.pre_validate(&$self.context, opcode, stack) {
+				Ok(()) => (),
+				Err(e) => {
+					$self.machine.exit(e.clone().into());
+					$self.status = Err(e.into());
+				},
+			}
+		}
+
 		match $self.status.clone() {
 			Ok(()) => (),
 			Err(e) => {

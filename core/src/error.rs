@@ -1,3 +1,4 @@
+use alloc::borrow::Cow;
 use crate::ExternalOpcode;
 
 /// Trap which indicates that an `ExternalOpcode` has to be handled.
@@ -14,7 +15,7 @@ pub enum Capture<E, T> {
 }
 
 /// Exit reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitReason {
@@ -98,7 +99,7 @@ impl From<ExitRevert> for ExitReason {
 }
 
 /// Exit error reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitError {
@@ -133,7 +134,7 @@ pub enum ExitError {
 	CreateEmpty,
 
 	/// Other normal errors.
-	Other(&'static str),
+	Other(Cow<'static, str>),
 }
 
 impl From<ExitError> for ExitReason {
@@ -143,7 +144,7 @@ impl From<ExitError> for ExitReason {
 }
 
 /// Exit fatal reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitFatal {
@@ -155,7 +156,7 @@ pub enum ExitFatal {
 	CallErrorAsFatal(ExitError),
 
 	/// Other fatal errors.
-	Other(&'static str),
+	Other(Cow<'static, str>),
 }
 
 impl From<ExitFatal> for ExitReason {
