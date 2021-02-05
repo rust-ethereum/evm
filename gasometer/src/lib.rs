@@ -329,6 +329,7 @@ pub fn static_opcode_cost(
 		table[Opcode::JUMP.as_usize()] = Some(consts::G_MID);
 
 		table[Opcode::JUMPI.as_usize()] = Some(consts::G_HIGH);
+		table[Opcode::JUMPDEST.as_usize()] = Some(consts::G_JUMPDEST);
 
 		table
 	};
@@ -391,7 +392,6 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::EXP => GasCost::Exp {
 			power: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Opcode::JUMPDEST => GasCost::JumpDest,
 		Opcode::SLOAD => GasCost::SLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => GasCost::DelegateCall {
@@ -592,15 +592,12 @@ impl<'config> Inner<'config> {
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
 			GasCost::Create => consts::G_CREATE,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
-			GasCost::JumpDest => consts::G_JUMPDEST,
 			GasCost::SLoad => self.config.gas_sload,
 
 			GasCost::Zero => consts::G_ZERO,
 			GasCost::Base => consts::G_BASE,
 			GasCost::VeryLow => consts::G_VERYLOW,
 			GasCost::Low => consts::G_LOW,
-			GasCost::Mid => consts::G_MID,
-			GasCost::High => consts::G_HIGH,
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
 			GasCost::ExtCodeSize => self.config.gas_ext_code,
@@ -637,10 +634,6 @@ pub enum GasCost {
 	VeryLow,
 	/// Low gas cost.
 	Low,
-	/// Mid gas cost.
-	Mid,
-	/// High gas cost.
-	High,
 	/// Fail the gasometer.
 	Invalid,
 
@@ -737,8 +730,6 @@ pub enum GasCost {
 		/// Length.
 		len: U256
 	},
-	/// Gas cost for `JUMPDEST`.
-	JumpDest,
 	/// Gas cost for `SLOAD`.
 	SLoad,
 }

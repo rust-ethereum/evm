@@ -8,6 +8,7 @@ use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::{H256, U256};
 use crate::{ExitReason, ExitSucceed, ExitError, Machine, Opcode};
 
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control {
 	Continue(usize),
 	Exit(ExitReason),
