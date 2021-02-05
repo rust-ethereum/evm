@@ -48,6 +48,7 @@ impl Stack {
 		Ok(())
 	}
 
+	#[inline]
 	/// Peek a value at given index for the stack, where the top of
 	/// the stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
@@ -59,6 +60,7 @@ impl Stack {
 		}
 	}
 
+	#[inline]
 	/// Set a value at given index for the stack, where the top of the
 	/// stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
