@@ -33,11 +33,11 @@ macro_rules! step {
 			}
 		}
 
-		match $self.status.clone() {
+		match &$self.status {
 			Ok(()) => (),
 			Err(e) => {
 				#[allow(unused_parens)]
-				$return $($err)*(Capture::Exit(e))
+				$return $($err)*(Capture::Exit(e.clone()))
 			},
 		}
 
