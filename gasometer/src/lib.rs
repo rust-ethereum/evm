@@ -50,17 +50,20 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	#[inline]
 	fn inner_mut(
 		&mut self
 	) -> Result<&mut Inner<'config>, ExitError> {
 		self.inner.as_mut().map_err(|e| e.clone())
 	}
 
+	#[inline]
 	/// Reference of the config.
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
 
+	#[inline]
 	/// Remaining gas.
 	pub fn gas(&self) -> u64 {
 		match self.inner.as_ref() {
@@ -69,6 +72,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	#[inline]
 	/// Total used gas.
 	pub fn total_used_gas(&self) -> u64 {
 		match self.inner.as_ref() {
@@ -77,6 +81,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	#[inline]
 	/// Refunded gas.
 	pub fn refunded_gas(&self) -> i64 {
 		match self.inner.as_ref() {
@@ -91,6 +96,7 @@ impl<'config> Gasometer<'config> {
 		ExitError::OutOfGas
 	}
 
+	#[inline]
 	/// Record an explict cost.
 	pub fn record_cost(
 		&mut self,
@@ -106,6 +112,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	#[inline]
 	/// Record an explict refund.
 	pub fn record_refund(
 		&mut self,
@@ -115,6 +122,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	#[inline]
 	/// Record `CREATE` code deposit.
 	pub fn record_deposit(
 		&mut self,
@@ -156,6 +164,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	#[inline]
 	/// Record opcode stipend.
 	pub fn record_stipend(
 		&mut self,
@@ -213,6 +222,7 @@ pub fn create_transaction_cost(
 	TransactionCost::Create { zero_data_len, non_zero_data_len }
 }
 
+#[inline]
 pub fn static_opcode_cost(
 	opcode: Opcode,
 ) -> Option<u64> {

@@ -3,6 +3,7 @@ use core::convert::TryInto;
 use primitive_types::{U256, U512};
 use crate::utils::I256;
 
+#[inline]
 pub fn div(op1: U256, op2: U256) -> U256 {
 	if op2 == U256::zero() {
 		U256::zero()
@@ -11,6 +12,7 @@ pub fn div(op1: U256, op2: U256) -> U256 {
 	}
 }
 
+#[inline]
 pub fn sdiv(op1: U256, op2: U256) -> U256 {
 	let op1: I256 = op1.into();
 	let op2: I256 = op2.into();
@@ -18,6 +20,7 @@ pub fn sdiv(op1: U256, op2: U256) -> U256 {
 	ret.into()
 }
 
+#[inline]
 pub fn rem(op1: U256, op2: U256) -> U256 {
 	if op2 == U256::zero() {
 		U256::zero()
@@ -26,6 +29,7 @@ pub fn rem(op1: U256, op2: U256) -> U256 {
 	}
 }
 
+#[inline]
 pub fn srem(op1: U256, op2: U256) -> U256 {
 	if op2 == U256::zero() {
 		U256::zero()
@@ -37,6 +41,7 @@ pub fn srem(op1: U256, op2: U256) -> U256 {
 	}
 }
 
+#[inline]
 pub fn addmod(op1: U256, op2: U256, op3: U256) -> U256 {
 	let op1: U512 = op1.into();
 	let op2: U512 = op2.into();
@@ -50,6 +55,7 @@ pub fn addmod(op1: U256, op2: U256, op3: U256) -> U256 {
 	}
 }
 
+#[inline]
 pub fn mulmod(op1: U256, op2: U256, op3: U256) -> U256 {
 	let op1: U512 = op1.into();
 	let op2: U512 = op2.into();
@@ -63,6 +69,7 @@ pub fn mulmod(op1: U256, op2: U256, op3: U256) -> U256 {
 	}
 }
 
+#[inline]
 pub fn exp(op1: U256, op2: U256) -> U256 {
 	let mut op1 = op1;
 	let mut op2 = op2;
@@ -79,6 +86,7 @@ pub fn exp(op1: U256, op2: U256) -> U256 {
 	r
 }
 
+#[inline]
 pub fn signextend(op1: U256, op2: U256) -> U256 {
 	if op1 > U256::from(32) {
 		op2

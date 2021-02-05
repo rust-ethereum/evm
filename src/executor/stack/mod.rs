@@ -653,6 +653,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
 	}
 
+	#[inline]
 	fn pre_validate(
 		&mut self,
 		context: &Context,
