@@ -275,9 +275,9 @@ pub fn create<H: Handler>(
 					push!(runtime, H256::default());
 					Control::Continue
 				},
-				ExitReason::Error(_) => {
+				ExitReason::Error(e) => {
 					push!(runtime, H256::default());
-					Control::Continue
+					Control::Exit(e.into())
 				},
 				ExitReason::Fatal(e) => {
 					push!(runtime, H256::default());
@@ -400,10 +400,10 @@ pub fn call<'config, H: Handler>(
 
 					Control::Continue
 				},
-				ExitReason::Error(_) => {
+				ExitReason::Error(e) => {
 					push_u256!(runtime, U256::zero());
 
-					Control::Continue
+					Control::Exit(e.into())
 				},
 				ExitReason::Fatal(e) => {
 					push_u256!(runtime, U256::zero());
