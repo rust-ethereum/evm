@@ -18,7 +18,7 @@ rlp = { version = "0.5", default-features = false }
 primitive-types = { version = "0.9", default-features = false, features = ["rlp"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"], optional = true }
-ethereum = { version = "0.6", default-features = false }
+ethereum = { version = "0.7", default-features = false }
 
 [dev-dependencies]
 criterion = "0.3"
