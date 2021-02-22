@@ -5,4 +5,4 @@
 
 mod stack;
 
-pub use self::stack::{StackExecutor, MemoryStackState, StackState, StackSubstateMetadata};
+pub use self::stack::{StackExecutor, MemoryStackState, StackState, StackSubstateMetadata, Hook};

@@ -63,11 +63,73 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
+/// Can be injected in `StackExecutor` to inspect contract execution step by
+/// step.
+pub trait Hook {
+	/// Called before the execution of a context.
+    fn before_loop<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        executor: &StackExecutor<'config, S, H>,
+        runtime: &Runtime,
+    );
+
+	/// Called before each step.
+    fn before_step<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        executor: &StackExecutor<'config, S, H>,
+        runtime: &Runtime,
+    );
+
+	/// Called after each step. Will not be called if runtime exited
+    /// from the loop.
+    fn after_step<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        executor: &StackExecutor<'config, S, H>,
+        runtime: &Runtime,
+    );
+
+	/// Called after the execution of a context.
+    fn after_loop<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        executor: &StackExecutor<'config, S, H>,
+        runtime: &Runtime,
+        reason: &ExitReason,
+    );
+}
+
+impl Hook for () {
+    fn before_loop<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        _executor: &StackExecutor<'config, S, H>,
+        _runtime: &Runtime,
+    ) {}
+
+    fn before_step<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        _executor: &StackExecutor<'config, S, H>,
+        _runtime: &Runtime,
+    ) {}
+
+    fn after_step<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        _executor: &StackExecutor<'config, S, H>,
+        _runtime: &Runtime,
+    ) {}
+
+    fn after_loop<'config, S: StackState<'config>, H: Hook>(
+        &mut self,
+        _executor: &StackExecutor<'config, S, H>,
+        _runtime: &Runtime,
+        _reason: &ExitReason,
+    ) {}
+}
+
 /// Stack-based executor.
-pub struct StackExecutor<'config, S> {
+pub struct StackExecutor<'config, S, H = ()> {
 	config: &'config Config,
 	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
 	state: S,
+	hook: Option<H>,
 }
 
 fn no_precompile(
@@ -79,7 +141,7 @@ fn no_precompile(
 	None
 }
 
-impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
+impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
 	/// Create a new stack-based executor.
 	pub fn new(
 		state: S,
@@ -98,6 +160,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			config,
 			precompile,
 			state,
+			hook: None,
 		}
 	}
 
@@ -134,13 +197,53 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	/// Execute the runtime until it returns.
-	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
-		match runtime.run(self) {
-			Capture::Exit(s) => s,
-			Capture::Trap(_) => unreachable!("Trap is Infallible"),
-		}
-	}
+	/// Set the hook used by the executor. Returns the previous one if any.
+    pub fn set_hook(&mut self, mut hook: Option<H>) -> Option<H> {
+        core::mem::swap(&mut self.hook, &mut hook);
+        hook
+    }
+
+    // Expects a hook to be in place.
+    fn call_hook<F>(&mut self, f: F)
+    where
+        F: Fn(&mut H, &mut Self),
+    {
+        // Take the hook to avoid reference aliasing.
+        let mut hook = self.hook.take();
+        f(hook.as_mut().expect("there is some hook"), self);
+        self.hook = hook;
+    }
+
+    /// Execute the runtime until it returns.
+    pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
+        if self.hook.is_some() {
+            // Hook : we execute step by step.
+
+            self.call_hook(|h, e| h.before_loop(e, runtime));
+
+            let reason = loop {
+                self.call_hook(|h, e| h.before_step(e, runtime));
+
+                match runtime.step(self) {
+                    Ok(_) => {}
+                    Err(Capture::Exit(s)) => break s,
+                    Err(Capture::Trap(_)) => unreachable!("Trap is Infallible"),
+                }
+
+                self.call_hook(|h, e| h.after_step(e, runtime));
+            };
+
+            self.call_hook(|h, e| h.after_loop(e, runtime, &reason));
+
+            reason
+        } else {
+            // No hook : we execute without stepping.
+            match runtime.run(self) {
+                Capture::Exit(s) => s,
+                Capture::Trap(_) => unreachable!("Trap is Infallible"),
+            }
+        }
+    }
 
 	/// Get remaining gas.
 	pub fn gas(&self) -> u64 {
@@ -546,7 +649,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 }
 
-impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
+impl<'config, S: StackState<'config>, H: Hook> Handler for StackExecutor<'config, S, H> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
