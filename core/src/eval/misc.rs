@@ -108,7 +108,7 @@ pub fn jump(state: &mut Machine) -> Control {
 	pop_u256!(state, dest);
 	let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 
-	if state.valids.is_valid(dest) {
+	if state.valids.is_jumpdest(dest) {
 		Control::Jump(dest)
 	} else {
 		Control::Exit(ExitError::InvalidJump.into())
@@ -122,13 +122,61 @@ pub fn jumpi(state: &mut Machine) -> Control {
 	let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 
 	if value != H256::zero() {
-		if state.valids.is_valid(dest) {
+		if state.valids.is_jumpdest(dest) {
 			Control::Jump(dest)
 		} else {
 			Control::Exit(ExitError::InvalidJump.into())
 		}
 	} else {
 		Control::Continue(1)
+	}
+}
+
+#[inline]
+pub fn beginsub(state: &mut Machine) -> Control {
+	if state.returns.is_some() {
+		Control::Exit(ExitError::InvalidSubroutine.into())
+	} else {
+		Control::Exit(ExitError::UnknownOpcode.into())
+	}
+}
+
+#[inline]
+pub fn jumpsub(state: &mut Machine, position: usize) -> Control {
+	if let Some(ref mut returns) = state.returns {
+		if position == usize::max_value() {
+			return Control::Exit(ExitFatal::NotSupported.into())
+		}
+
+		pop_u256!(state, dest);
+		let dest = as_usize_or_fail!(dest, ExitError::InvalidSubroutine);
+
+		if state.valids.is_beginsub(dest) {
+			if dest == usize::max_value() {
+				return Control::Exit(ExitSucceed::Stopped.into())
+			}
+
+			try_or_fail!(returns.push(position + 1));
+			Control::Jump(dest + 1)
+		} else {
+			Control::Exit(ExitError::InvalidSubroutine.into())
+		}
+	} else {
+		Control::Exit(ExitError::UnknownOpcode.into())
+	}
+}
+
+#[inline]
+pub fn returnsub(state: &mut Machine) -> Control {
+	if let Some(ref mut returns) = state.returns {
+		let value = match returns.pop() {
+			Ok(value) => value,
+			Err(e) => return Control::Exit(e.into()),
+		};
+
+		Control::Jump(value)
+	} else {
+		Control::Exit(ExitError::UnknownOpcode.into())
 	}
 }
 

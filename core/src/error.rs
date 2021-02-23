@@ -109,6 +109,8 @@ pub enum ExitError {
 	StackOverflow,
 	/// Jump destination is invalid.
 	InvalidJump,
+	/// Subroutine is invalid.
+	InvalidSubroutine,
 	/// An opcode accesses memory region, but the region is invalid.
 	InvalidRange,
 	/// Encountered the designated invalid opcode.
@@ -132,6 +134,9 @@ pub enum ExitError {
 	PCUnderflow,
 	/// Attempt to create an empty account (runtime, unused).
 	CreateEmpty,
+
+	/// Unknown opcode.
+	UnknownOpcode,
 
 	/// Other normal errors.
 	Other(Cow<'static, str>),

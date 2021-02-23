@@ -117,6 +117,6 @@ pub trait Handler {
 		_opcode: Opcode,
 		_stack: &mut Machine
 	) -> Result<(), ExitError> {
-		Err(ExitError::OutOfGas)
+		Err(ExitError::UnknownOpcode)
 	}
 }

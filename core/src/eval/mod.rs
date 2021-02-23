@@ -164,6 +164,18 @@ fn eval_jumpi(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control
 	self::misc::jumpi(state)
 }
 
+fn eval_beginsub(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
+	self::misc::beginsub(state)
+}
+
+fn eval_jumpsub(state: &mut Machine, _opcode: Opcode, position: usize) -> Control {
+	self::misc::jumpsub(state, position)
+}
+
+fn eval_returnsub(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
+	self::misc::returnsub(state)
+}
+
 fn eval_pc(state: &mut Machine, _opcode: Opcode, position: usize) -> Control {
 	self::misc::pc(state, position)
 }
@@ -490,6 +502,9 @@ pub fn eval(state: &mut Machine, opcode: Opcode, position: usize) -> Control {
 		table[Opcode::MSTORE8.as_usize()] = eval_mstore8 as _;
 		table[Opcode::JUMP.as_usize()] = eval_jump as _;
 		table[Opcode::JUMPI.as_usize()] = eval_jumpi as _;
+		table[Opcode::BEGINSUB.as_usize()] = eval_beginsub as _;
+		table[Opcode::JUMPSUB.as_usize()] = eval_jumpsub as _;
+		table[Opcode::RETURNSUB.as_usize()] = eval_returnsub as _;
 		table[Opcode::PC.as_usize()] = eval_pc as _;
 		table[Opcode::MSIZE.as_usize()] = eval_msize as _;
 		table[Opcode::JUMPDEST.as_usize()] = eval_jumpdest as _;

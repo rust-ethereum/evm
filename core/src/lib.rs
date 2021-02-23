@@ -17,8 +17,8 @@ mod eval;
 mod utils;
 
 pub use crate::memory::Memory;
-pub use crate::stack::Stack;
-pub use crate::valids::Valids;
+pub use crate::stack::{Stack, Returns};
+pub use crate::valids::{Valid, Valids};
 pub use crate::opcode::Opcode;
 pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError, ExitRevert, ExitFatal};
 
@@ -42,8 +42,10 @@ pub struct Machine {
 	valids: Valids,
 	/// Memory.
 	memory: Memory,
-	/// Stack.
+	/// Data stack.
 	stack: Stack,
+	/// Return stack.
+	returns: Option<Returns>,
 }
 
 impl Machine {
@@ -61,7 +63,8 @@ impl Machine {
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
 		stack_limit: usize,
-		memory_limit: usize
+		memory_limit: usize,
+		returns_limit: Option<usize>,
 	) -> Self {
 		let valids = Valids::new(&code[..]);
 
@@ -71,6 +74,7 @@ impl Machine {
 			position: Ok(0),
 			return_range: U256::zero()..U256::zero(),
 			valids,
+			returns: returns_limit.map(|l| Returns::new(l)),
 			memory: Memory::new(memory_limit),
 			stack: Stack::new(stack_limit),
 		}

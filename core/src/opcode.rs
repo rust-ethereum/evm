@@ -89,6 +89,13 @@ impl Opcode {
 	/// `JUMPDEST`
 	pub const JUMPDEST: Opcode = Opcode(0x5b);
 
+	/// `BEGINSUB`
+	pub const BEGINSUB: Opcode = Opcode(0x5c);
+	/// `RETURNSUB`
+	pub const RETURNSUB: Opcode = Opcode(0x5d);
+	/// `JUMPSUB`
+	pub const JUMPSUB: Opcode = Opcode(0x5e);
+
 	/// `PUSHn`
 	pub const PUSH1: Opcode = Opcode(0x60);
 	pub const PUSH2: Opcode = Opcode(0x61);

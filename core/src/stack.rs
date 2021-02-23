@@ -74,3 +74,50 @@ impl Stack {
 		}
 	}
 }
+
+/// EVM returns.
+#[derive(Clone, Debug)]
+pub struct Returns {
+	data: Vec<usize>,
+	limit: usize,
+}
+
+impl Returns {
+	/// Create a new stack with given limit.
+	pub fn new(limit: usize) -> Self {
+		Self {
+			data: Vec::new(),
+			limit,
+		}
+	}
+
+	#[inline]
+	/// Stack limit.
+	pub fn limit(&self) -> usize {
+		self.limit
+	}
+
+	#[inline]
+	/// Stack length.
+	pub fn len(&self) -> usize {
+		self.data.len()
+	}
+
+	#[inline]
+	/// Pop a value from the stack. If the stack is already empty, returns the
+	/// `StackUnderflow` error.
+	pub fn pop(&mut self) -> Result<usize, ExitError> {
+		self.data.pop().ok_or(ExitError::StackUnderflow)
+	}
+
+	#[inline]
+	/// Push a new value into the stack. If it will exceed the stack limit,
+	/// returns `StackOverflow` error and leaves the stack unchanged.
+	pub fn push(&mut self, value: usize) -> Result<(), ExitError> {
+		if self.data.len() + 1 > self.limit {
+			return Err(ExitError::StackOverflow)
+		}
+		self.data.push(value);
+		Ok(())
+	}
+}

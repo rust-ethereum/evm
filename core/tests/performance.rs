@@ -8,7 +8,7 @@ macro_rules! ret_test {
 			let code = hex::decode($code).unwrap();
 			let data = hex::decode($data).unwrap();
 
-			let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000);
+			let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, None);
 			assert_eq!(vm.run(), Capture::Exit(ExitSucceed::Returned.into()));
 			assert_eq!(vm.return_value(), hex::decode($ret).unwrap());
 		}
