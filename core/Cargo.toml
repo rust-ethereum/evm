@@ -13,7 +13,7 @@ primitive-types = { version = "0.9", default-features = false }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive", "full"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 # Work-around for https://github.com/myrrlyn/funty/issues/3
-funty = "=1.1"
+funty = { version = "=1.1", default-features = false }
 
 [dev-dependencies]
 hex = "0.4"
@@ -22,4 +22,4 @@ hex = "0.4"
 default = ["std"]
 with-codec = ["codec", "primitive-types/impl-codec"]
 with-serde = ["serde", "primitive-types/impl-serde"]
-std = ["primitive-types/std", "codec/std", "serde/std"]
+std = ["primitive-types/std", "codec/std", "serde/std", "funty/std"]
