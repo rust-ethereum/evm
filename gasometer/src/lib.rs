@@ -51,11 +51,16 @@ impl<'config> Gasometer<'config> {
 	}
 
 	#[inline]
-	/// Reference of the inner gasometer data.
-	pub fn inner(
-		&self
-	) -> Result<&Inner<'config>, ExitError> {
-		self.inner.as_ref().map_err(|e| e.clone())
+	/// Returns the numerical gas cost value.
+	pub fn gas_cost(
+		&self,
+		cost: GasCost,
+		gas: u64,
+	) -> Result<u64, ExitError>  {
+		match self.inner.as_ref() {
+			Ok(inner) => inner.gas_cost(cost, gas),
+			Err(e) => Err(e.clone())
+		}
 	}
 
 	#[inline]
@@ -534,7 +539,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 
 /// Holds the gas consumption for a Gasometer instance.
 #[derive(Clone)]
-pub struct Inner<'config> {
+struct Inner<'config> {
 	memory_gas: u64,
 	used_gas: u64,
 	refunded_gas: i64,
