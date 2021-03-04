@@ -236,13 +236,25 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			apparent_value: value,
 		};
 
-		match self.call_inner(address, Some(Transfer {
-			source: caller,
-			target: address,
-			value
-		}), data, Some(gas_limit), false, false, false, context) {
-			Capture::Exit((s, v)) => (s, v),
-			Capture::Trap(_) => unreachable!(),
+		match self.call_prepare(
+			address, Some(Transfer {
+				source: caller,
+				target: address,
+				value
+			}), &data, Some(gas_limit), false, false, false, &context
+		) {
+			// Precompile
+			Ok((Some(reason), return_value)) => (reason, return_value),
+			// Call type
+			Ok((None, code)) => {
+				let (reason, return_value) = self.call_execute(code, data, context);
+				match self.call_capture(reason, return_value) {
+					Capture::Exit((s, v)) => (s, v),
+					Capture::Trap(_) => unreachable!(),
+				}
+			},
+			// Error
+			Err(e) => return (e.into(), Vec::new())
 		}
 	}
 
@@ -455,22 +467,22 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	fn call_inner(
+	fn call_prepare(
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: Vec<u8>,
+		input: &Vec<u8>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		take_l64: bool,
 		take_stipend: bool,
-		context: Context,
-	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
+		context: &Context,
+	) -> Result<(Option<ExitReason>, Vec<u8>), ExitError> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), Vec::new())),
+					Err(e) => return Err(e),
 				}
 			}
 		}
@@ -513,7 +525,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
+				return Err(ExitError::CallTooDeep)
 			}
 		}
 
@@ -522,7 +534,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 				Ok(()) => (),
 				Err(e) => {
 					let _ = self.exit_substate(StackExitKind::Reverted);
-					return Capture::Exit((ExitReason::Error(e), Vec::new()))
+					return Err(e)
 				},
 			}
 		}
@@ -532,15 +544,24 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 				Ok((s, out, cost)) => {
 					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Succeeded);
-					Capture::Exit((ExitReason::Succeed(s), out))
+					Ok((Some(ExitReason::Succeed(s)), out))
 				},
 				Err(e) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(e), Vec::new()))
+					Err(e)
 				},
 			}
 		}
 
+		Ok((None, code))
+	}
+
+	fn call_execute(
+		&mut self,
+		code: Vec<u8>,
+		input: Vec<u8>,
+		context: Context
+	) -> (ExitReason, Vec<u8>) {
 		let mut runtime = Runtime::new(
 			Rc::new(code),
 			Rc::new(input),
@@ -549,12 +570,18 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		);
 
 		let reason = self.execute(&mut runtime);
-		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
+		(reason, runtime.machine().return_value())
+	}
 
+	fn call_capture(
+		&mut self,
+		reason: ExitReason,
+		return_value: Vec<u8>
+	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
 		match reason {
 			ExitReason::Succeed(s) => {
 				let _ = self.exit_substate(StackExitKind::Succeeded);
-				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
+				Capture::Exit((ExitReason::Succeed(s), return_value))
 			},
 			ExitReason::Error(e) => {
 				let _ = self.exit_substate(StackExitKind::Failed);
@@ -562,7 +589,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			},
 			ExitReason::Revert(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
+				Capture::Exit((ExitReason::Revert(e), return_value))
 			},
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
@@ -683,7 +710,17 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-		self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
+		match self.call_prepare(code_address, transfer, &input, target_gas, is_static, true, true, &context) {
+			// Precompile
+			Ok((Some(reason), return_value)) => Capture::Exit((reason, return_value)),
+			// Call type
+			Ok((None, code)) => {
+				let (reason, return_value) = self.call_execute(code, input, context);
+				return self.call_capture(reason, return_value);
+			},
+			// Error
+			Err(e) => return Capture::Exit((e.into(), Vec::new()))
+		}
 	}
 
 	#[inline]
