@@ -305,7 +305,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	fn create_prepare(
+	pub fn create_prepare(
 		&mut self,
 		caller: H160,
 		scheme: CreateScheme,
@@ -417,7 +417,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		(reason, runtime.machine().return_value())
 	}
 
-	fn create_capture(
+	pub fn create_capture(
 		&mut self,
 		address: H160,
 		reason: ExitReason,
@@ -467,7 +467,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	fn call_prepare(
+	pub fn call_prepare(
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
@@ -573,7 +573,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		(reason, runtime.machine().return_value())
 	}
 
-	fn call_capture(
+	pub fn call_capture(
 		&mut self,
 		reason: ExitReason,
 		return_value: Vec<u8>
