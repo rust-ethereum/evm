@@ -77,7 +77,7 @@ impl Div for I256 {
 			return I256::zero();
 		}
 
-		if self == I256::min_value() && other == I256(Sign::Minus, U256::from(1u64)) {
+		if self == I256::min_value() && other.1 == U256::from(1u64) {
 			return I256::min_value();
 		}
 
@@ -88,11 +88,15 @@ impl Div for I256 {
 		}
 
 		match (self.0, other.0) {
+			(Sign::NoSign, Sign::Plus) |
+			(Sign::Plus, Sign::NoSign) |
+			(Sign::NoSign, Sign::NoSign) |
 			(Sign::Plus, Sign::Plus) |
 			(Sign::Minus, Sign::Minus) => I256(Sign::Plus, d),
+			(Sign::NoSign, Sign::Minus) |
 			(Sign::Plus, Sign::Minus) |
-			(Sign::Minus, Sign::Plus) => I256(Sign::Minus, d),
-			_ => I256::zero()
+			(Sign::Minus, Sign::NoSign) |
+			(Sign::Minus, Sign::Plus) => I256(Sign::Minus, d)
 		}
 	}
 }
@@ -108,5 +112,44 @@ impl Rem for I256 {
 		}
 
 		I256(self.0, r)
+	}
+}
+
+
+#[cfg(test)]
+mod tests {
+	use std::num::Wrapping;
+	use primitive_types::U256;
+	use crate::utils::{I256, Sign};
+
+	#[test]
+	fn div_i256() {
+		// Sanity checks based on i8. Notice that we need to use `Wrapping` here because
+		// Rust will prevent the overflow by default whereas the EVM does not.
+		assert_eq!(Wrapping(i8::MIN)/Wrapping(-1), Wrapping(i8::MIN));
+		assert_eq!(i8::MIN/1, i8::MIN);
+		assert_eq!(i8::MAX/1, i8::MAX);
+		assert_eq!(i8::MAX/-1, -i8::MAX);
+
+		assert_eq!(100i8/-1, -100i8);
+		assert_eq!(100i8/2, 50i8);
+
+		// Now the same calculations based on i256
+		let one = I256(Sign::NoSign, U256::from(1));
+		let one_hundred = I256(Sign::NoSign, U256::from(100));
+		let fifty = I256(Sign::Plus, U256::from(50));
+		let two = I256(Sign::NoSign, U256::from(2));
+		let neg_one_hundred = I256(Sign::Minus, U256::from(100));
+		let minus_one = I256(Sign::Minus, U256::from(1));
+		let max_value = I256(Sign::Plus, U256::from(2).pow(U256::from(255)) - 1);
+		let neg_max_value = I256(Sign::Minus, U256::from(2).pow(U256::from(255)) - 1);
+
+		assert_eq!(I256::min_value()/minus_one, I256::min_value());
+		assert_eq!(I256::min_value()/one, I256::min_value());
+		assert_eq!(max_value/one, max_value);
+		assert_eq!(max_value/minus_one, neg_max_value);
+
+		assert_eq!(one_hundred/minus_one, neg_one_hundred);
+		assert_eq!(one_hundred/two, fifty);
 	}
 }
