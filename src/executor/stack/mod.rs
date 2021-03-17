@@ -218,8 +218,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			Err(e) => return (e.into(), Vec::new()),
 		}
 
-		self.state.inc_nonce(caller);
-
 		let context = Context {
 			caller,
 			address,
@@ -336,8 +334,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		);
 
 		let address = self.create_address(scheme);
-		self.state.inc_nonce(caller);
-
 		self.enter_substate(gas_limit, false);
 
 		{
@@ -370,10 +366,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 				let _ = self.exit_substate(StackExitKind::Reverted);
 				return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 			},
-		}
-
-		if self.config.create_increase_nonce {
-			self.state.inc_nonce(address);
 		}
 
 		let mut runtime = Runtime::new(
