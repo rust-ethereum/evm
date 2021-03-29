@@ -31,6 +31,12 @@ impl Stack {
 	}
 
 	#[inline]
+	/// Stack data.
+	pub fn data(&self) -> &Vec<H256> {
+		&self.data
+	}
+
+	#[inline]
 	/// Pop a value from the stack. If the stack is already empty, returns the
 	/// `StackUnderflow` error.
 	pub fn pop(&mut self) -> Result<H256, ExitError> {

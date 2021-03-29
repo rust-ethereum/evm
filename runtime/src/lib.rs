@@ -106,6 +106,11 @@ impl<'config> Runtime<'config> {
 		&self.machine
 	}
 
+	/// Get a reference to the execution context.
+	pub fn context(&self) -> &Context {
+		&self.context
+	}
+
 	/// Step the runtime.
 	pub fn step<'a, H: Handler>(
 		&'a mut self,
