@@ -590,7 +590,7 @@ impl<'config> Inner<'config> {
 	}
 
 	/// Returns the gas cost numerical value.
-	pub fn gas_cost(
+	fn gas_cost(
 		&self,
 		cost: GasCost,
 		gas: u64,
