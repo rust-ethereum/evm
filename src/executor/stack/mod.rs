@@ -526,7 +526,9 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
 			return match ret {
 				Ok((s, out, cost)) => {
-					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
+					try_or_fail!(
+						self.state.metadata_mut().gasometer.record_cost(cost)
+					);
 					let _ = self.exit_substate(StackExitKind::Succeeded);
 					Capture::Exit((ExitReason::Succeed(s), out))
 				},
