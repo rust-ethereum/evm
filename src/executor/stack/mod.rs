@@ -61,6 +61,22 @@ impl<'config> StackSubstateMetadata<'config> {
 			},
 		}
 	}
+
+	pub fn gasometer(&self) -> &Gasometer<'config> {
+		&self.gasometer
+	}
+
+	pub fn gasometer_mut(&mut self) -> &mut Gasometer<'config> {
+		&mut self.gasometer
+	}
+
+	pub fn is_static(&self) -> bool {
+		self.is_static
+	}
+
+	pub fn depth(&self) -> Option<usize> {
+		self.depth
+	}
 }
 
 /// Can be injected in `StackExecutor` to inspect contract execution step by
@@ -148,6 +164,13 @@ impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
 		config: &'config Config,
 	) -> Self {
 		Self::new_with_precompile(state, config, no_precompile)
+	}
+
+	/// Return a reference of the Config.
+	pub fn config(
+		&self
+	) -> &'config Config {
+		self.config
 	}
 
 	/// Create a new stack-based executor with given precompiles.

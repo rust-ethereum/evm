@@ -42,6 +42,11 @@ impl Memory {
 		self.len() == 0
 	}
 
+	/// Return the full memory.
+	pub fn data(&self) -> &Vec<u8> {
+		&self.data
+	}
+
 	/// Resize the memory, making it cover the memory region of `offset..(offset
 	/// + len)`, with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
