@@ -23,36 +23,32 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
     if config.sstore_gas_metering {
         if current == new {
             0
-        } else {
-            if original == current && new == H256::default() {
-                config.refund_sstore_clears
-            } else {
-                let mut refund = 0;
-                if original != H256::default() {
-                    if current == H256::default() {
-                        refund -= config.refund_sstore_clears;
-                    } else if new == H256::default() {
-                        refund += config.refund_sstore_clears;
-                    }
-                }
-
-                if original == new {
-                    if original == H256::default() {
-                        refund += (config.gas_sstore_set - config.gas_sload) as i64;
-                    } else {
-                        refund += (config.gas_sstore_reset - config.gas_sload) as i64;
-                    }
-                }
-
-                refund
-            }
-        }
-    } else {
-        if current != H256::default() && new == H256::default() {
+        } else if original == current && new == H256::default() {
             config.refund_sstore_clears
         } else {
-            0
+            let mut refund = 0;
+            if original != H256::default() {
+                if current == H256::default() {
+                    refund -= config.refund_sstore_clears;
+                } else if new == H256::default() {
+                    refund += config.refund_sstore_clears;
+                }
+            }
+
+            if original == new {
+                if original == H256::default() {
+                    refund += (config.gas_sstore_set - config.gas_sload) as i64;
+                } else {
+                    refund += (config.gas_sstore_reset - config.gas_sload) as i64;
+                }
+            }
+
+            refund
         }
+    } else if current != H256::default() && new == H256::default() {
+        config.refund_sstore_clears
+    } else {
+        0
     }
 }
 
@@ -192,24 +188,20 @@ pub fn sstore_cost(
     config: &Config,
 ) -> Result<u64, ExitError> {
     if config.sstore_gas_metering {
-        if config.sstore_revert_under_stipend {
-            if gas < config.call_stipend {
-                return Err(ExitError::OutOfGas);
-            }
+        if config.sstore_revert_under_stipend && gas < config.call_stipend {
+            return Err(ExitError::OutOfGas);
         }
 
         Ok(if new == current {
             config.gas_sload
-        } else {
-            if original == current {
-                if original == H256::zero() {
-                    config.gas_sstore_set
-                } else {
-                    config.gas_sstore_reset
-                }
+        } else if original == current {
+            if original == H256::zero() {
+                config.gas_sstore_set
             } else {
-                config.gas_sload
+                config.gas_sstore_reset
             }
+        } else {
+            config.gas_sload
         })
     } else {
         Ok(if current == H256::zero() && new != H256::zero() {

@@ -77,16 +77,14 @@ impl Memory {
     /// Value of `size` is considered trusted. If they're too large,
     /// the program can run out of memory, or it can overflow.
     pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
-        let mut ret = Vec::new();
-        ret.resize(size, 0);
+        let mut ret = vec![0; size];
 
-        for index in 0..size {
-            let position = offset + index;
+        for (i, e) in ret.iter_mut().enumerate() {
+            let position = offset + i;
             if position >= self.data.len() {
                 break;
             }
-
-            ret[index] = self.data[position];
+            *e = self.data[position];
         }
 
         ret

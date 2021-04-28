@@ -129,8 +129,9 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
     fn storage(&self, address: H160, index: H256) -> H256 {
         self.state
             .get(&address)
-            .map(|v| v.storage.get(&index).cloned().unwrap_or(H256::default()))
-            .unwrap_or(H256::default())
+            .map(|v| v.storage.get(&index).cloned())
+            .flatten()
+            .unwrap_or_default()
     }
 
     fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
@@ -155,7 +156,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
                     reset_storage,
                 } => {
                     let is_empty = {
-                        let account = self.state.entry(address).or_insert(Default::default());
+                        let account = self.state.entry(address).or_default();
                         account.balance = basic.balance;
                         account.nonce = basic.nonce;
                         if let Some(code) = code {
@@ -170,7 +171,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
                             .storage
                             .iter()
                             .filter(|(_, v)| v == &&H256::default())
-                            .map(|(k, _)| k.clone())
+                            .map(|(k, _)| *k)
                             .collect::<Vec<H256>>();
 
                         for zero in zeros {
@@ -187,7 +188,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 
                         account.balance == U256::zero()
                             && account.nonce == U256::zero()
-                            && account.code.len() == 0
+                            && account.code.is_empty()
                     };
 
                     if is_empty && delete_empty {

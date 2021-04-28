@@ -31,6 +31,12 @@ impl Stack {
     }
 
     #[inline]
+    /// Nuff said
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    #[inline]
     /// Pop a value from the stack. If the stack is already empty, returns the
     /// `StackUnderflow` error.
     pub fn pop(&mut self) -> Result<H256, ExitError> {

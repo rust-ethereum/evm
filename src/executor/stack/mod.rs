@@ -66,6 +66,7 @@ impl<'config> StackSubstateMetadata<'config> {
 /// Stack-based executor.
 pub struct StackExecutor<'config, 'precompile, S> {
     config: &'config Config,
+    #[allow(clippy::type_complexity)]
     precompile: Option<
         &'precompile mut dyn FnMut(
             H160,
@@ -88,6 +89,7 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
         }
     }
     /// Create a new stack-based executor with given precompiles.
+    #[allow(clippy::type_complexity)]
     pub fn new_with_precompile(
         state: S,
         config: &'config Config,
@@ -458,6 +460,7 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn call_inner(
         &mut self,
         code_address: H160,
@@ -663,7 +666,7 @@ impl<'config, 'precompile, S: StackState<'config>> Handler
 
         self.state.transfer(Transfer {
             source: address,
-            target: target,
+            target,
             value: balance,
         })?;
         self.state.reset_balance(address);
