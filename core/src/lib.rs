@@ -47,6 +47,10 @@ pub struct Machine {
 }
 
 impl Machine {
+	/// Reference to the program data.
+	pub fn data(&self) -> &[u8] { &self.data }	
+	/// Reference to the program code.
+	pub fn code(&self) -> &[u8] { &self.code }
 	/// Reference of machine stack.
 	pub fn stack(&self) -> &Stack { &self.stack }
 	/// Mutable reference of machine stack.
