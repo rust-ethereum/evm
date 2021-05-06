@@ -1,6 +1,8 @@
 mod state;
+mod hooked;
 
 pub use self::state::{MemoryStackSubstate, MemoryStackState, StackState};
+pub use self::hooked::{HookedStackExecutor, Hook};
 
 use core::{convert::Infallible, cmp::min};
 use alloc::{rc::Rc, vec::Vec};
@@ -104,13 +106,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		Self::new_with_precompile(state, config, no_precompile)
 	}
 
-	/// Return a reference of the Config.
-	pub fn config(
-		&self
-	) -> &'config Config {
-		self.config
-	}
-
 	/// Create a new stack-based executor with given precompiles.
 	pub fn new_with_precompile(
 		state: S,
@@ -122,6 +117,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			precompile,
 			state,
 		}
+	}
+
+	/// Return a reference of the Config.
+	pub fn config(&self) -> &'config Config {
+		self.config
 	}
 
 	pub fn state(&self) -> &S {
@@ -184,13 +184,17 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			Err(e) => return e.into(),
 		}
 
-		match self.create_inner(
+		match create_inner(
+			self,
 			caller,
 			CreateScheme::Legacy { caller },
 			value,
 			init_code,
 			Some(gas_limit),
 			false,
+			|executor, runtime| {
+				executor.execute(runtime)
+			}
 		) {
 			Capture::Exit((s, _, _)) => s,
 			Capture::Trap(_) => unreachable!(),
@@ -213,13 +217,17 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 
-		match self.create_inner(
+		match create_inner(
+			self,
 			caller,
 			CreateScheme::Create2 { caller, code_hash, salt },
 			value,
 			init_code,
 			Some(gas_limit),
 			false,
+			|executor, runtime| {
+				executor.execute(runtime)
+			}
 		) {
 			Capture::Exit((s, _, _)) => s,
 			Capture::Trap(_) => unreachable!(),
@@ -249,30 +257,38 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			apparent_value: value,
 		};
 
-		match self.call_inner(address, Some(Transfer {
-			source: caller,
-			target: address,
-			value
-		}), data, Some(gas_limit), false, false, false, context) {
+		match call_inner(
+			self,
+			address,
+			Some(Transfer {
+				source: caller,
+				target: address,
+				value
+			}),
+			data,
+			Some(gas_limit),
+			false,
+			false,
+			false,
+			context,
+			|executor, runtime| {
+				executor.execute(runtime)
+			}
+		) {
 			Capture::Exit((s, v)) => (s, v),
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
 
 	/// Get used gas for the current executor, given the price.
-	pub fn used_gas(
-		&self,
-	) -> u64 {
+	pub fn used_gas(&self) -> u64 {
 		self.state.metadata().gasometer.total_used_gas() -
 			min(self.state.metadata().gasometer.total_used_gas() / 2,
 				self.state.metadata().gasometer.refunded_gas() as u64)
 	}
 
 	/// Get fee needed for the current executor, given the price.
-	pub fn fee(
-		&self,
-		price: U256,
-	) -> U256 {
+	pub fn fee(&self, price: U256) -> U256 {
 		let used_gas = self.used_gas();
 		U256::from(used_gas) * price
 	}
@@ -305,267 +321,273 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			},
 		}
 	}
+}
 
-	fn create_inner(
-		&mut self,
-		caller: H160,
-		scheme: CreateScheme,
-		value: U256,
-		init_code: Vec<u8>,
-		target_gas: Option<u64>,
-		take_l64: bool,
-	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> {
-		macro_rules! try_or_fail {
-			( $e:expr ) => {
-				match $e {
-					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
+fn create_inner<'config, S: StackState<'config>, FExecute>(
+	executor: &mut StackExecutor<'config, S>,
+	caller: H160,
+	scheme: CreateScheme,
+	value: U256,
+	init_code: Vec<u8>,
+	target_gas: Option<u64>,
+	take_l64: bool,
+	fexecute: FExecute,
+) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> where
+	FExecute: FnOnce(&mut StackExecutor<'config, S>, &mut Runtime) -> ExitReason,
+{
+	macro_rules! try_or_fail {
+		( $e:expr ) => {
+			match $e {
+				Ok(v) => v,
+				Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
+			}
+		}
+	}
+
+	fn l64(gas: u64) -> u64 {
+		gas - gas / 64
+	}
+
+	if let Some(depth) = executor.state.metadata().depth {
+		if depth > executor.config.call_stack_limit {
+			return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
+		}
+	}
+
+	if executor.balance(caller) < value {
+		return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
+	}
+
+	let after_gas = if take_l64 && executor.config.call_l64_after_gas {
+		if executor.config.estimate {
+			let initial_after_gas = executor.state.metadata().gasometer.gas();
+			let diff = initial_after_gas - l64(initial_after_gas);
+			try_or_fail!(executor.state.metadata_mut().gasometer.record_cost(diff));
+			executor.state.metadata().gasometer.gas()
+		} else {
+			l64(executor.state.metadata().gasometer.gas())
+		}
+	} else {
+		executor.state.metadata().gasometer.gas()
+	};
+
+	let target_gas = target_gas.unwrap_or(after_gas);
+
+	let gas_limit = min(after_gas, target_gas);
+	try_or_fail!(
+		executor.state.metadata_mut().gasometer.record_cost(gas_limit)
+	);
+
+	let address = executor.create_address(scheme);
+	executor.state.inc_nonce(caller);
+
+	executor.enter_substate(gas_limit, false);
+
+	{
+		if executor.code_size(address) != U256::zero() {
+			let _ = executor.exit_substate(StackExitKind::Failed);
+			return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+		}
+
+		if executor.nonce(address) > U256::zero() {
+			let _ = executor.exit_substate(StackExitKind::Failed);
+			return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
+		}
+
+		executor.state.reset_storage(address);
+	}
+
+	let context = Context {
+		address,
+		caller,
+		apparent_value: value,
+	};
+	let transfer = Transfer {
+		source: caller,
+		target: address,
+		value,
+	};
+	match executor.state.transfer(transfer) {
+		Ok(()) => (),
+		Err(e) => {
+			let _ = executor.exit_substate(StackExitKind::Reverted);
+			return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+		},
+	}
+
+	if executor.config.create_increase_nonce {
+		executor.state.inc_nonce(address);
+	}
+
+	let mut runtime = Runtime::new(
+		Rc::new(init_code),
+		Rc::new(Vec::new()),
+		context,
+		executor.config,
+	);
+
+	let reason = fexecute(executor, &mut runtime);
+	log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
+
+	match reason {
+		ExitReason::Succeed(s) => {
+			let out = runtime.machine().return_value();
+
+			if let Some(limit) = executor.config.create_contract_limit {
+				if out.len() > limit {
+					executor.state.metadata_mut().gasometer.fail();
+					let _ = executor.exit_substate(StackExitKind::Failed);
+					return Capture::Exit((ExitError::CreateContractLimit.into(), None, Vec::new()))
 				}
 			}
-		}
 
-		fn l64(gas: u64) -> u64 {
-			gas - gas / 64
-		}
+			match executor.state.metadata_mut().gasometer.record_deposit(out.len()) {
+				Ok(()) => {
+					let e = executor.exit_substate(StackExitKind::Succeeded);
+					executor.state.set_code(address, out);
+					try_or_fail!(e);
+					Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
+				},
+				Err(e) => {
+					let _ = executor.exit_substate(StackExitKind::Failed);
+					Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+				},
+			}
+		},
+		ExitReason::Error(e) => {
+			executor.state.metadata_mut().gasometer.fail();
+			let _ = executor.exit_substate(StackExitKind::Failed);
+			Capture::Exit((ExitReason::Error(e), None, Vec::new()))
+		},
+		ExitReason::Revert(e) => {
+			let _ = executor.exit_substate(StackExitKind::Reverted);
+			Capture::Exit((ExitReason::Revert(e), None, runtime.machine().return_value()))
+		},
+		ExitReason::Fatal(e) => {
+			executor.state.metadata_mut().gasometer.fail();
+			let _ = executor.exit_substate(StackExitKind::Failed);
+			Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
+		},
+	}
+}
 
-		if let Some(depth) = self.state.metadata().depth {
-			if depth > self.config.call_stack_limit {
-				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
+fn call_inner<'config, S: StackState<'config>, FExecute>(
+	executor: &mut StackExecutor<'config, S>,
+	code_address: H160,
+	transfer: Option<Transfer>,
+	input: Vec<u8>,
+	target_gas: Option<u64>,
+	is_static: bool,
+	take_l64: bool,
+	take_stipend: bool,
+	context: Context,
+	fexecute: FExecute,
+) -> Capture<(ExitReason, Vec<u8>), Infallible> where
+	FExecute: FnOnce(&mut StackExecutor<'config, S>, &mut Runtime) -> ExitReason,
+{
+	macro_rules! try_or_fail {
+		( $e:expr ) => {
+			match $e {
+				Ok(v) => v,
+				Err(e) => return Capture::Exit((e.into(), Vec::new())),
 			}
 		}
+	}
 
-		if self.balance(caller) < value {
-			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()))
-		}
+	fn l64(gas: u64) -> u64 {
+		gas - gas / 64
+	}
 
-		let after_gas = if take_l64 && self.config.call_l64_after_gas {
-			if self.config.estimate {
-				let initial_after_gas = self.state.metadata().gasometer.gas();
-				let diff = initial_after_gas - l64(initial_after_gas);
-				try_or_fail!(self.state.metadata_mut().gasometer.record_cost(diff));
-				self.state.metadata().gasometer.gas()
-			} else {
-				l64(self.state.metadata().gasometer.gas())
-			}
+	let after_gas = if take_l64 && executor.config.call_l64_after_gas {
+		if executor.config.estimate {
+			let initial_after_gas = executor.state.metadata().gasometer.gas();
+			let diff = initial_after_gas - l64(initial_after_gas);
+			try_or_fail!(executor.state.metadata_mut().gasometer.record_cost(diff));
+			executor.state.metadata().gasometer.gas()
 		} else {
-			self.state.metadata().gasometer.gas()
-		};
-
-		let target_gas = target_gas.unwrap_or(after_gas);
-
-		let gas_limit = min(after_gas, target_gas);
-		try_or_fail!(
-			self.state.metadata_mut().gasometer.record_cost(gas_limit)
-		);
-
-		let address = self.create_address(scheme);
-		self.state.inc_nonce(caller);
-
-		self.enter_substate(gas_limit, false);
-
-		{
-			if self.code_size(address) != U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
-			}
-
-			if self.nonce(address) > U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()))
-			}
-
-			self.state.reset_storage(address);
+			l64(executor.state.metadata().gasometer.gas())
 		}
+	} else {
+		executor.state.metadata().gasometer.gas()
+	};
 
-		let context = Context {
-			address,
-			caller,
-			apparent_value: value,
-		};
-		let transfer = Transfer {
-			source: caller,
-			target: address,
-			value,
-		};
-		match self.state.transfer(transfer) {
+	let target_gas = target_gas.unwrap_or(after_gas);
+	let mut gas_limit = min(target_gas, after_gas);
+
+	try_or_fail!(
+		executor.state.metadata_mut().gasometer.record_cost(gas_limit)
+	);
+
+	if let Some(transfer) = transfer.as_ref() {
+		if take_stipend && transfer.value != U256::zero() {
+			gas_limit = gas_limit.saturating_add(executor.config.call_stipend);
+		}
+	}
+
+	let code = executor.code(code_address);
+
+	executor.enter_substate(gas_limit, is_static);
+	executor.state.touch(context.address);
+
+	if let Some(depth) = executor.state.metadata().depth {
+		if depth > executor.config.call_stack_limit {
+			let _ = executor.exit_substate(StackExitKind::Reverted);
+			return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
+		}
+	}
+
+	if let Some(transfer) = transfer {
+		match executor.state.transfer(transfer) {
 			Ok(()) => (),
 			Err(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-			},
-		}
-
-		if self.config.create_increase_nonce {
-			self.state.inc_nonce(address);
-		}
-
-		let mut runtime = Runtime::new(
-			Rc::new(init_code),
-			Rc::new(Vec::new()),
-			context,
-			self.config,
-		);
-
-		let reason = self.execute(&mut runtime);
-		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
-
-		match reason {
-			ExitReason::Succeed(s) => {
-				let out = runtime.machine().return_value();
-
-				if let Some(limit) = self.config.create_contract_limit {
-					if out.len() > limit {
-						self.state.metadata_mut().gasometer.fail();
-						let _ = self.exit_substate(StackExitKind::Failed);
-						return Capture::Exit((ExitError::CreateContractLimit.into(), None, Vec::new()))
-					}
-				}
-
-				match self.state.metadata_mut().gasometer.record_deposit(out.len()) {
-					Ok(()) => {
-						let e = self.exit_substate(StackExitKind::Succeeded);
-						self.state.set_code(address, out);
-						try_or_fail!(e);
-						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
-					},
-					Err(e) => {
-						let _ = self.exit_substate(StackExitKind::Failed);
-						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-					},
-				}
-			},
-			ExitReason::Error(e) => {
-				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-			},
-			ExitReason::Revert(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
-				Capture::Exit((ExitReason::Revert(e), None, runtime.machine().return_value()))
-			},
-			ExitReason::Fatal(e) => {
-				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
+				let _ = executor.exit_substate(StackExitKind::Reverted);
+				return Capture::Exit((ExitReason::Error(e), Vec::new()))
 			},
 		}
 	}
 
-	fn call_inner(
-		&mut self,
-		code_address: H160,
-		transfer: Option<Transfer>,
-		input: Vec<u8>,
-		target_gas: Option<u64>,
-		is_static: bool,
-		take_l64: bool,
-		take_stipend: bool,
-		context: Context,
-	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
-		macro_rules! try_or_fail {
-			( $e:expr ) => {
-				match $e {
-					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), Vec::new())),
-				}
-			}
-		}
-
-		fn l64(gas: u64) -> u64 {
-			gas - gas / 64
-		}
-
-		let after_gas = if take_l64 && self.config.call_l64_after_gas {
-			if self.config.estimate {
-				let initial_after_gas = self.state.metadata().gasometer.gas();
-				let diff = initial_after_gas - l64(initial_after_gas);
-				try_or_fail!(self.state.metadata_mut().gasometer.record_cost(diff));
-				self.state.metadata().gasometer.gas()
-			} else {
-				l64(self.state.metadata().gasometer.gas())
-			}
-		} else {
-			self.state.metadata().gasometer.gas()
-		};
-
-		let target_gas = target_gas.unwrap_or(after_gas);
-		let mut gas_limit = min(target_gas, after_gas);
-
-		try_or_fail!(
-			self.state.metadata_mut().gasometer.record_cost(gas_limit)
-		);
-
-		if let Some(transfer) = transfer.as_ref() {
-			if take_stipend && transfer.value != U256::zero() {
-				gas_limit = gas_limit.saturating_add(self.config.call_stipend);
-			}
-		}
-
-		let code = self.code(code_address);
-
-		self.enter_substate(gas_limit, is_static);
-		self.state.touch(context.address);
-
-		if let Some(depth) = self.state.metadata().depth {
-			if depth > self.config.call_stack_limit {
-				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()))
-			}
-		}
-
-		if let Some(transfer) = transfer {
-			match self.state.transfer(transfer) {
-				Ok(()) => (),
-				Err(e) => {
-					let _ = self.exit_substate(StackExitKind::Reverted);
-					return Capture::Exit((ExitReason::Error(e), Vec::new()))
-				},
-			}
-		}
-
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
-			return match ret {
-				Ok((s, out, cost)) => {
-					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
-					let _ = self.exit_substate(StackExitKind::Succeeded);
-					Capture::Exit((ExitReason::Succeed(s), out))
-				},
-				Err(e) => {
-					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(e), Vec::new()))
-				},
-			}
-		}
-
-		let mut runtime = Runtime::new(
-			Rc::new(code),
-			Rc::new(input),
-			context,
-			self.config,
-		);
-
-		let reason = self.execute(&mut runtime);
-		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
-
-		match reason {
-			ExitReason::Succeed(s) => {
-				let _ = self.exit_substate(StackExitKind::Succeeded);
-				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
+	if let Some(ret) = (executor.precompile)(code_address, &input, Some(gas_limit), &context) {
+		return match ret {
+			Ok((s, out, cost)) => {
+				let _ = executor.state.metadata_mut().gasometer.record_cost(cost);
+				let _ = executor.exit_substate(StackExitKind::Succeeded);
+				Capture::Exit((ExitReason::Succeed(s), out))
 			},
-			ExitReason::Error(e) => {
-				let _ = self.exit_substate(StackExitKind::Failed);
+			Err(e) => {
+				let _ = executor.exit_substate(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Error(e), Vec::new()))
 			},
-			ExitReason::Revert(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
-				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
-			},
-			ExitReason::Fatal(e) => {
-				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
-			},
 		}
+	}
+
+	let mut runtime = Runtime::new(
+		Rc::new(code),
+		Rc::new(input),
+		context,
+		executor.config,
+	);
+
+	let reason = fexecute(executor, &mut runtime);
+	log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
+
+	match reason {
+		ExitReason::Succeed(s) => {
+			let _ = executor.exit_substate(StackExitKind::Succeeded);
+			Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
+		},
+		ExitReason::Error(e) => {
+			let _ = executor.exit_substate(StackExitKind::Failed);
+			Capture::Exit((ExitReason::Error(e), Vec::new()))
+		},
+		ExitReason::Revert(e) => {
+			let _ = executor.exit_substate(StackExitKind::Reverted);
+			Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
+		},
+		ExitReason::Fatal(e) => {
+			executor.state.metadata_mut().gasometer.fail();
+			let _ = executor.exit_substate(StackExitKind::Failed);
+			Capture::Exit((ExitReason::Fatal(e), Vec::new()))
+		},
 	}
 }
 
@@ -661,7 +683,9 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
-		self.create_inner(caller, scheme, value, init_code, target_gas, true)
+		create_inner(self, caller, scheme, value, init_code, target_gas, true, |executor, runtime| {
+			executor.execute(runtime)
+		})
 	}
 
 	fn call(
@@ -673,7 +697,9 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-		self.call_inner(code_address, transfer, input, target_gas, is_static, true, true, context)
+		call_inner(self, code_address, transfer, input, target_gas, is_static, true, true, context, |executor, runtime| {
+			executor.execute(runtime)
+		})
 	}
 
 	#[inline]
@@ -683,8 +709,6 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		opcode: Opcode,
 		stack: &Stack
 	) -> Result<(), ExitError> {
-		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
-
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
 			self.state.metadata_mut().gasometer.record_cost(cost)?;
 		} else {
