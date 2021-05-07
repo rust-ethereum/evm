@@ -79,64 +79,38 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
+pub enum HookSite {
+	/// Called before the execution of a context.
+	EnterContext,
+	/// Called after the execution of a context.
+	ExitContext(ExitReason),
+	/// Called before each step.
+	BeforeStep,
+	/// Called after each step. Will not be called if runtime exited
+    /// from the loop.
+	AfterStep,
+}
+
 /// Can be injected in `StackExecutor` to inspect contract execution step by
 /// step.
 pub trait Hook {
-	/// Called before the execution of a context.
-    fn before_loop<'config, S: StackState<'config>, H: Hook>(
+	/// Called by the executor.
+    fn hook<'config, S: StackState<'config>>(
         &mut self,
-        executor: &StackExecutor<'config, S, H>,
+		site: HookSite,
+		config: &'config Config,
+        state: &S,
         runtime: &Runtime,
-    );
-
-	/// Called before each step.
-    fn before_step<'config, S: StackState<'config>, H: Hook>(
-        &mut self,
-        executor: &StackExecutor<'config, S, H>,
-        runtime: &Runtime,
-    );
-
-	/// Called after each step. Will not be called if runtime exited
-    /// from the loop.
-    fn after_step<'config, S: StackState<'config>, H: Hook>(
-        &mut self,
-        executor: &StackExecutor<'config, S, H>,
-        runtime: &Runtime,
-    );
-
-	/// Called after the execution of a context.
-    fn after_loop<'config, S: StackState<'config>, H: Hook>(
-        &mut self,
-        executor: &StackExecutor<'config, S, H>,
-        runtime: &Runtime,
-        reason: &ExitReason,
     );
 }
 
 impl Hook for () {
-    fn before_loop<'config, S: StackState<'config>, H: Hook>(
+    fn hook<'config, S: StackState<'config>>(
         &mut self,
-        _executor: &StackExecutor<'config, S, H>,
+		_site: HookSite,
+		_config: &'config Config,
+        _state: &S,
         _runtime: &Runtime,
-    ) {}
-
-    fn before_step<'config, S: StackState<'config>, H: Hook>(
-        &mut self,
-        _executor: &StackExecutor<'config, S, H>,
-        _runtime: &Runtime,
-    ) {}
-
-    fn after_step<'config, S: StackState<'config>, H: Hook>(
-        &mut self,
-        _executor: &StackExecutor<'config, S, H>,
-        _runtime: &Runtime,
-    ) {}
-
-    fn after_loop<'config, S: StackState<'config>, H: Hook>(
-        &mut self,
-        _executor: &StackExecutor<'config, S, H>,
-        _runtime: &Runtime,
-        _reason: &ExitReason,
     ) {}
 }
 
@@ -226,26 +200,19 @@ impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
         hook
     }
 
-    // Expects a hook to be in place.
-    fn call_hook<F>(&mut self, f: F)
-    where
-        F: Fn(&mut H, &mut Self),
-    {
-        // Take the hook to avoid reference aliasing.
-        let mut hook = self.hook.take();
-        f(hook.as_mut().expect("there is some hook"), self);
-        self.hook = hook;
-    }
-
     /// Execute the runtime until it returns.
     pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
         if self.hook.is_some() {
             // Hook : we execute step by step.
 
-            self.call_hook(|h, e| h.before_loop(e, runtime));
+			if let Some(hook) = &mut self.hook {
+				hook.hook(HookSite::EnterContext, &self.config, &self.state, runtime);
+			}
 
             let reason = loop {
-                self.call_hook(|h, e| h.before_step(e, runtime));
+				if let Some(hook) = &mut self.hook {
+					hook.hook(HookSite::BeforeStep, &self.config, &self.state, runtime);
+				}
 
                 match runtime.step(self) {
                     Ok(_) => {}
@@ -253,10 +220,14 @@ impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
                     Err(Capture::Trap(_)) => unreachable!("Trap is Infallible"),
                 }
 
-                self.call_hook(|h, e| h.after_step(e, runtime));
+                if let Some(hook) = &mut self.hook {
+					hook.hook(HookSite::AfterStep, &self.config, &self.state, runtime);
+				}
             };
 
-            self.call_hook(|h, e| h.after_loop(e, runtime, &reason));
+            if let Some(hook) = &mut self.hook {
+				hook.hook(HookSite::ExitContext(reason.clone()), &self.config, &self.state, runtime);
+			}
 
             reason
         } else {
