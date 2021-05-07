@@ -1,4 +1,6 @@
-use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
+use crate::{
+    Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, RuntimeStep, Stack,
+};
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
@@ -108,4 +110,6 @@ pub trait Handler {
     fn other(&mut self, _opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
         Err(ExitError::OutOfGas)
     }
+
+    fn register_step(&mut self, _: RuntimeStep);
 }

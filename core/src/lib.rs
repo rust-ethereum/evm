@@ -25,7 +25,7 @@ use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::ops::Range;
-use primitive_types::U256;
+use primitive_types::{H256, U256};
 
 /// Core execution layer for EVM.
 pub struct Machine {
@@ -127,7 +127,7 @@ impl Machine {
     pub fn run(&mut self) -> Capture<ExitReason, Trap> {
         loop {
             match self.step() {
-                Ok(()) => (),
+                Ok(_step) => (),
                 Err(res) => return res,
             }
         }
@@ -135,17 +135,31 @@ impl Machine {
 
     #[inline]
     /// Step the machine, executing one opcode. It then returns.
-    pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
+    pub fn step(&mut self) -> Result<MachineStep, Capture<ExitReason, Trap>> {
         let position = *self
             .position
             .as_ref()
             .map_err(|reason| Capture::Exit(reason.clone()))?;
 
-        match self.code.get(position).map(|v| Opcode(*v)) {
-            Some(opcode) => match eval(self, opcode, position) {
+        if let Some(opcode) = self.code.get(position).map(|v| Opcode(*v)) {
+            let step = MachineStep {
+                op: opcode.as_u8(),
+                pc: position, // TODO: ensure
+                opcode_pc: position,
+                code_hash: H256::from_slice(self.code.as_slice()),
+                memory: self
+                    .memory
+                    .as_ref()
+                    .chunks(std::mem::size_of::<U256>())
+                    .map(U256::from)
+                    .collect(),
+                stack: self.stack.as_ref().to_vec(),
+            };
+
+            match eval(self, opcode, position) {
                 Control::Continue(p) => {
                     self.position = Ok(position + p);
-                    Ok(())
+                    Ok(step)
                 }
                 Control::Exit(e) => {
                     self.position = Err(e.clone());
@@ -153,17 +167,26 @@ impl Machine {
                 }
                 Control::Jump(p) => {
                     self.position = Ok(p);
-                    Ok(())
+                    Ok(step)
                 }
                 Control::Trap(opcode) => {
                     self.position = Ok(position + 1);
                     Err(Capture::Trap(opcode))
                 }
-            },
-            None => {
-                self.position = Err(ExitSucceed::Stopped.into());
-                Err(Capture::Exit(ExitSucceed::Stopped.into()))
             }
+        } else {
+            self.position = Err(ExitSucceed::Stopped.into());
+            Err(Capture::Exit(ExitSucceed::Stopped.into()))
         }
     }
+}
+
+pub struct MachineStep {
+    pub op: u8,
+    pub pc: usize,
+    pub opcode_pc: usize,
+
+    pub code_hash: H256,
+    pub memory: Vec<U256>,
+    pub stack: Vec<H256>,
 }

@@ -3,8 +3,9 @@ use alloc::vec::Vec;
 use primitive_types::H256;
 
 /// EVM stack.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, derive_more::AsRef)]
 pub struct Stack {
+    #[as_ref]
     data: Vec<H256>,
     limit: usize,
 }

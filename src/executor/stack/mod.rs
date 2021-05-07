@@ -5,12 +5,13 @@ pub use self::state::{MemoryStackState, MemoryStackSubstate, StackState};
 use crate::gasometer::{self, Gasometer};
 use crate::{
     Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
-    Runtime, Stack, Transfer,
+    Runtime, RuntimeStep, Stack, Transfer,
 };
 use alloc::{rc::Rc, vec::Vec};
 use core::{cmp::min, convert::Infallible};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+use std::collections::HashMap;
 
 pub enum StackExitKind {
     Succeeded,
@@ -77,6 +78,17 @@ pub struct StackExecutor<'config, 'precompile, S> {
             -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
     >,
     state: S,
+    pub steps: Vec<Step>,
+}
+
+pub type Gas = u64;
+
+pub struct Step {
+    pub depth: usize,
+    pub gas: Gas,
+    pub gas_cost: Gas,
+    pub runtime_step: RuntimeStep, // TODO: inline
+    pub storage: HashMap<H256, H256>,
 }
 
 impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'precompile, S> {
@@ -86,8 +98,10 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
             config,
             precompile: None,
             state,
+            steps: vec![],
         }
     }
+
     /// Create a new stack-based executor with given precompiles.
     #[allow(clippy::type_complexity)]
     pub fn new_with_precompile(
@@ -106,6 +120,7 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
             config,
             precompile: Some(precompile),
             state,
+            steps: vec![],
         }
     }
 
@@ -735,5 +750,21 @@ impl<'config, 'precompile, S: StackState<'config>> Handler
         }
 
         Ok(())
+    }
+
+    fn register_step(&mut self, runtime_step: RuntimeStep) {
+        let depth = self.state.metadata().depth.as_ref().copied().unwrap_or(0);
+        let gas = self.used_gas();
+        let gas_cost = gas - self.steps.last().map(|step| step.gas).unwrap_or(0);
+        let storage = self.state.storage_map(runtime_step.address);
+
+        let step = Step {
+            depth,
+            gas,
+            gas_cost,
+            runtime_step,
+            storage,
+        };
+        self.steps.push(step);
     }
 }

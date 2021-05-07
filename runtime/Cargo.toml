@@ -9,6 +9,7 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
+derive_more = "0.99.13"
 evm-core = { version = "0.23", path = "../core", default-features = false }
 primitive-types = { version = "0.8", default-features = false }
 sha3 = { version = "0.8", default-features = false }

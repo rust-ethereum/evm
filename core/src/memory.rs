@@ -5,8 +5,9 @@ use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, derive_more::AsRef)]
 pub struct Memory {
+    #[as_ref]
     data: Vec<u8>,
     effective_len: U256,
     limit: usize,

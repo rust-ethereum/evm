@@ -20,67 +20,22 @@ pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 
-macro_rules! step {
-	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
-		if let Some((opcode, stack)) = $self.machine.inspect() {
-			match $handler.pre_validate(&$self.context, opcode, stack) {
-				Ok(()) => (),
-				Err(e) => {
-					$self.machine.exit(e.clone().into());
-					$self.status = Err(e.into());
-				},
-			}
-		}
+// use std::collections::HashMap;
 
-		match &$self.status {
-			Ok(()) => (),
-			Err(e) => {
-				#[allow(unused_parens)]
-				$return $($err)*(Capture::Exit(e.clone()))
-			},
-		}
-
-		match $self.machine.step() {
-			Ok(()) => $($ok)?(()),
-			Err(Capture::Exit(e)) => {
-				$self.status = Err(e.clone());
-				#[allow(unused_parens)]
-				$return $($err)*(Capture::Exit(e))
-			},
-			Err(Capture::Trap(opcode)) => {
-				match eval::eval($self, opcode, $handler) {
-					eval::Control::Continue => $($ok)?(()),
-					eval::Control::CallInterrupt(interrupt) => {
-						let resolve = ResolveCall::new($self);
-						#[allow(unused_parens)]
-						$return $($err)*(Capture::Trap(Resolve::Call(interrupt, resolve)))
-					},
-					eval::Control::CreateInterrupt(interrupt) => {
-						let resolve = ResolveCreate::new($self);
-						#[allow(unused_parens)]
-						$return $($err)*(Capture::Trap(Resolve::Create(interrupt, resolve)))
-					},
-					eval::Control::Exit(exit) => {
-						$self.machine.exit(exit.clone().into());
-						$self.status = Err(exit.clone());
-						#[allow(unused_parens)]
-						$return $($err)*(Capture::Exit(exit))
-					},
-				}
-			},
-		}
-	});
-}
+use primitive_types::H160;
 
 /// EVM runtime.
 ///
 /// The runtime wraps an EVM `Machine` with support of return data and context.
+#[derive(derive_more::AsRef)]
 pub struct Runtime<'config> {
     machine: Machine,
     status: Result<(), ExitReason>,
     return_data_buffer: Vec<u8>,
     context: Context,
     _config: &'config Config,
+    // #[as_ref]
+    // traces: Vec<StepTrace>,
 }
 
 impl<'config> Runtime<'config> {
@@ -97,6 +52,7 @@ impl<'config> Runtime<'config> {
             return_data_buffer: Vec::new(),
             context,
             _config: config,
+            // traces: vec![],
         }
     }
 
@@ -105,23 +61,66 @@ impl<'config> Runtime<'config> {
         &self.machine
     }
 
-    /// Step the runtime.
-    pub fn step<'a, H: Handler>(
-        &'a mut self,
-        handler: &mut H,
-    ) -> Result<(), Capture<ExitReason, Resolve<'a, 'config, H>>> {
-        step!(self, handler, return Err; Ok)
-    }
-
     /// Loop stepping the runtime until it stops.
     pub fn run<'a, H: Handler>(
         &'a mut self,
         handler: &mut H,
     ) -> Capture<ExitReason, Resolve<'a, 'config, H>> {
         loop {
-            step!(self, handler, return;)
+            if let Some((opcode, stack)) = self.machine.inspect() {
+                match handler.pre_validate(&self.context, opcode, stack) {
+                    Ok(()) => {}
+                    Err(e) => {
+                        self.machine.exit(e.clone().into());
+                        self.status = Err(e.into());
+                    }
+                }
+            }
+
+            match &self.status {
+                Ok(()) => {}
+                Err(e) => return Capture::Exit(e.clone()),
+            }
+
+            match self.machine.step() {
+                Ok(machine_step) => {
+                    let runtime_step = RuntimeStep {
+                        address: self.context.address,
+                        machine_step,
+                    };
+
+                    handler.register_step(runtime_step);
+                }
+                Err(Capture::Exit(e)) => {
+                    self.status = Err(e.clone());
+                    return Capture::Exit(e);
+                }
+                Err(Capture::Trap(opcode)) => match eval::eval(self, opcode, handler) {
+                    eval::Control::Continue => {} // TODO: ensure
+                    eval::Control::CallInterrupt(interrupt) => {
+                        let resolve = ResolveCall::new(self);
+                        return Capture::Trap(Resolve::Call(interrupt, resolve));
+                    }
+                    eval::Control::CreateInterrupt(interrupt) => {
+                        let resolve = ResolveCreate::new(self);
+                        return Capture::Trap(Resolve::Create(interrupt, resolve));
+                    }
+                    eval::Control::Exit(exit) => {
+                        self.machine.exit(exit.clone());
+                        self.status = Err(exit.clone());
+                        return Capture::Exit(exit);
+                    }
+                },
+            }
         }
     }
+}
+
+pub type Address = H160;
+
+pub struct RuntimeStep {
+    pub address: Address,
+    pub machine_step: MachineStep,
 }
 
 /// Runtime configuration.

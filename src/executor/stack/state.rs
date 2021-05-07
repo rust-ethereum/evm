@@ -8,6 +8,7 @@ use alloc::{
 };
 use core::mem;
 use primitive_types::{H160, H256, U256};
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 struct MemoryStackAccount {
@@ -381,6 +382,7 @@ pub trait StackState<'config>: Backend {
     fn inc_nonce(&mut self, address: H160);
     fn set_storage(&mut self, address: H160, key: H256, value: H256);
     fn reset_storage(&mut self, address: H160);
+    fn storage_map(&self, address: H160) -> HashMap<H256, H256>;
     fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
     fn set_deleted(&mut self, address: H160);
     fn set_code(&mut self, address: H160, code: Vec<u8>);
@@ -503,6 +505,19 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 
     fn reset_storage(&mut self, address: H160) {
         self.substate.reset_storage(address, self.backend);
+    }
+
+    fn storage_map(&self, address: H160) -> HashMap<H256, H256> {
+        use std::ops::Bound::Included;
+
+        let lower = (address, H256::zero());
+        let upper = (address, H256::repeat_byte(1));
+
+        self.substate
+            .storages
+            .range((Included(&lower), Included(&upper)))
+            .map(|((_address, index), value)| (*index, *value))
+            .collect()
     }
 
     fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
