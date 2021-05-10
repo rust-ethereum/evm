@@ -1,10 +1,10 @@
 macro_rules! try_or_fail {
-	( $e:expr ) => {
-		match $e {
-			Ok(v) => v,
-			Err(e) => return Control::Exit(e.into())
-		}
-	}
+    ( $e:expr ) => {
+        match $e {
+            Ok(v) => v,
+            Err(e) => return Control::Exit(e.into()),
+        }
+    };
 }
 
 macro_rules! pop {
@@ -54,23 +54,19 @@ macro_rules! push_u256 {
 }
 
 macro_rules! as_usize_or_fail {
-	( $v:expr ) => {
-		{
-			if $v > U256::from(usize::max_value()) {
-				return Control::Exit(ExitFatal::NotSupported.into())
-			}
+    ( $v:expr ) => {{
+        if $v > U256::from(usize::max_value()) {
+            return Control::Exit(ExitFatal::NotSupported.into());
+        }
 
-			$v.as_usize()
-		}
-	};
+        $v.as_usize()
+    }};
 
-	( $v:expr, $reason:expr ) => {
-		{
-			if $v > U256::from(usize::max_value()) {
-				return Control::Exit($reason.into())
-			}
+    ( $v:expr, $reason:expr ) => {{
+        if $v > U256::from(usize::max_value()) {
+            return Control::Exit($reason.into());
+        }
 
-			$v.as_usize()
-		}
-	};
+        $v.as_usize()
+    }};
 }
