@@ -33,34 +33,22 @@ pub enum ExitReason {
 impl ExitReason {
 	/// Whether the exit is succeeded.
 	pub fn is_succeed(&self) -> bool {
-		match self {
-			Self::Succeed(_) => true,
-			_ => false,
-		}
+        matches!(self, Self::Succeed(_))
 	}
 
 	/// Whether the exit is error.
 	pub fn is_error(&self) -> bool {
-		match self {
-			Self::Error(_) => true,
-			_ => false,
-		}
+        matches!(self, Self::Error(_))
 	}
 
 	/// Whether the exit is revert.
 	pub fn is_revert(&self) -> bool {
-		match self {
-			Self::Revert(_) => true,
-			_ => false,
-		}
+        matches!(self, Self::Revert(_))
 	}
 
 	/// Whether the exit is fatal.
 	pub fn is_fatal(&self) -> bool {
-		match self {
-			Self::Fatal(_) => true,
-			_ => false,
-		}
+        matches!(self, Self::Fatal(_))
 	}
 }
 
@@ -120,8 +108,7 @@ pub enum ExitError {
 	/// Create init code exceeds limit (runtime).
 	CreateContractLimit,
 
-	///	An opcode accesses external information, but the request is off offset
-	///	limit (runtime).
+	/// An opcode accesses external information, but the request is off offset limit (runtime).
 	OutOfOffset,
 	/// Execution runs out of gas (runtime).
 	OutOfGas,

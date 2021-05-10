@@ -49,24 +49,23 @@ impl From<U256> for I256 {
 	fn from(val: U256) -> I256 {
 		if val == U256::zero() {
 			I256::zero()
-		} else if val & SIGN_BIT_MASK.into() == val {
+		} else if val & SIGN_BIT_MASK == val {
 			I256(Sign::Plus, val)
 		} else {
 			I256(Sign::Minus, !val + U256::from(1u64))
 		}
 	}
 }
-impl Into<U256> for I256 {
-	fn into(self) -> U256 {
-		let sign = self.0;
-		if sign == Sign::NoSign {
-			U256::zero()
-		} else if sign == Sign::Plus {
-			self.1
-		} else {
-			!self.1 + U256::from(1u64)
-		}
-	}
+
+impl From<I256> for U256 {
+    fn from(val: I256) -> Self {
+        let sign = val.0;
+        match sign {
+            Sign::NoSign => Self::zero(),
+            Sign::Plus => val.1,
+            _ => !val.1 + Self::one()
+        }
+    }
 }
 
 impl Div for I256 {
@@ -81,7 +80,7 @@ impl Div for I256 {
 			return I256::min_value();
 		}
 
-		let d = (self.1 / other.1) & SIGN_BIT_MASK.into();
+		let d = (self.1 / other.1) & SIGN_BIT_MASK;
 
 		if d == U256::zero() {
 			return I256::zero();
@@ -105,7 +104,7 @@ impl Rem for I256 {
 	type Output = I256;
 
 	fn rem(self, other: I256) -> I256 {
-		let r = (self.1 % other.1) & SIGN_BIT_MASK.into();
+		let r = (self.1 % other.1) & SIGN_BIT_MASK;
 
 		if r == U256::zero() {
 			return I256::zero()

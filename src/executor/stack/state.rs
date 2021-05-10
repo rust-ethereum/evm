@@ -191,7 +191,7 @@ impl<'config> MemoryStackSubstate<'config> {
 				return Some(
 					account.basic.balance == U256::zero() &&
 						account.basic.nonce == U256::zero() &&
-						code.len() == 0
+						code.is_empty()
 				)
 			}
 		}
@@ -243,6 +243,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		false
 	}
 
+    #[allow(clippy::map_entry)]
 	fn account_mut<B: Backend>(&mut self, address: H160, backend: &B) -> &mut MemoryStackAccount {
 		if !self.accounts.contains_key(&address) {
 			let account = self.known_account(address)

@@ -79,7 +79,7 @@ pub fn exp(op1: U256, op2: U256) -> U256 {
 		if op2 & 1.into() != 0.into() {
 			r = r.overflowing_mul(op1).0;
 		}
-		op2 = op2 >> 1;
+        op2 >>= 1;
 		op1 = op1.overflowing_mul(op1).0;
 	}
 

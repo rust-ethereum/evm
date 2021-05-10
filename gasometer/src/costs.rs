@@ -19,6 +19,7 @@ pub fn suicide_refund(already_removed: bool) -> i64 {
 	}
 }
 
+#[allow(clippy::collapsible_else_if)]
 pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> i64 {
 	if config.sstore_gas_metering {
 		if current == new {
@@ -169,6 +170,8 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	Ok(gas.as_u64())
 }
 
+#[allow(clippy::collapsible_if)]
+#[allow(clippy::collapsible_else_if)]
 pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, config: &Config) -> Result<u64, ExitError> {
 	if config.sstore_gas_metering {
 		if config.sstore_revert_under_stipend {

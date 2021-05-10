@@ -361,6 +361,7 @@ pub fn static_opcode_cost(
 }
 
 /// Calculate the opcode cost.
+#[allow(clippy::nonminimal_bool)]
 pub fn dynamic_opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Opcode,

@@ -22,6 +22,7 @@ pub fn codecopy(state: &mut Machine) -> Control {
 }
 
 #[inline]
+#[allow(clippy::needless_range_loop)]
 pub fn calldataload(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
 
@@ -140,7 +141,7 @@ pub fn pc(state: &mut Machine, position: usize) -> Control {
 
 #[inline]
 pub fn msize(state: &mut Machine) -> Control {
-	push_u256!(state, U256::from(state.memory.effective_len()));
+	push_u256!(state, state.memory.effective_len());
 	Control::Continue(1)
 }
 

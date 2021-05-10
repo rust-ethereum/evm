@@ -80,12 +80,14 @@ impl<'config> StackSubstateMetadata<'config> {
 }
 
 /// Stack-based executor.
+#[allow(clippy::type_complexity)]
 pub struct StackExecutor<'config, S> {
 	config: &'config Config,
 	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
 	state: S,
 }
 
+#[allow(clippy::type_complexity)]
 fn no_precompile(
 	_address: H160,
 	_input: &[u8],
@@ -112,6 +114,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 
 	/// Create a new stack-based executor with given precompiles.
+    #[allow(clippy::type_complexity)]
 	pub fn new_with_precompile(
 		state: S,
 		config: &'config Config,
@@ -451,6 +454,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
+    #[allow(clippy::too_many_arguments)]
 	fn call_inner(
 		&mut self,
 		code_address: H160,
@@ -644,7 +648,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 
 		self.state.transfer(Transfer {
 			source: address,
-			target: target,
+			target,
 			value: balance,
 		})?;
 		self.state.reset_balance(address);

@@ -16,5 +16,5 @@ pub fn log2floor(value: U256) -> u64 {
             }
         }
     }
-    return l;
+    l
 }

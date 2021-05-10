@@ -56,7 +56,7 @@ fn run_loop_contract() {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("loop contract", |b| b.iter(|| run_loop_contract()));
+    c.bench_function("loop contract", |b| b.iter(run_loop_contract));
 }
 
 criterion_group!(benches, criterion_benchmark);

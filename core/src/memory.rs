@@ -81,6 +81,7 @@ impl Memory {
 	///
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
+    #[allow(clippy::needless_range_loop)]
 	pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
 		let mut ret = Vec::new();
 		ret.resize(size, 0);
