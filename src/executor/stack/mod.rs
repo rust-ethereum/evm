@@ -119,6 +119,7 @@ pub struct StackExecutor<'config, S, H = ()> {
 	config: &'config Config,
 	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
 	state: S,
+	#[allow(dead_code)] // used with `hook` feature.
 	hook: Option<H>,
 }
 
@@ -173,6 +174,12 @@ impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
 		self.state
 	}
 
+	#[cfg(feature = "hook")]
+	pub fn set_hook(&mut self, mut hook: Option<H>) -> Option<H> {
+		core::mem::swap(&mut self.hook, hook);
+		hook
+	}
+
 	/// Create a substate executor from the current executor.
 	pub fn enter_substate(
 		&mut self,
@@ -195,12 +202,14 @@ impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
 	}
 
 	/// Set the hook used by the executor. Returns the previous one if any.
+	#[cfg(feature = "hook")]
     pub fn set_hook(&mut self, mut hook: Option<H>) -> Option<H> {
         core::mem::swap(&mut self.hook, &mut hook);
         hook
     }
 
     /// Execute the runtime until it returns.
+	#[cfg(feature = "hook")]
     pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
         if self.hook.is_some() {
             // Hook : we execute step by step.
@@ -237,6 +246,15 @@ impl<'config, S: StackState<'config>, H: Hook> StackExecutor<'config, S, H> {
                 Capture::Trap(_) => unreachable!("Trap is Infallible"),
             }
         }
+    }
+
+	#[cfg(not(feature = "hook"))]
+	/// Execute the runtime until it returns.
+    pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
+		match runtime.run(self) {
+			Capture::Exit(s) => s,
+			Capture::Trap(_) => unreachable!("Trap is Infallible"),
+		}
     }
 
 	/// Get remaining gas.
