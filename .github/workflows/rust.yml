@@ -10,6 +10,11 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  check:
+    steps:
+    - uses: actions/checkout@v2
+    - name: Check formatting
+      run: cargo fmt -- --check
   build:
     runs-on: ubuntu-latest
     steps:
