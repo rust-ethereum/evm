@@ -9,6 +9,8 @@ mod consts;
 mod costs;
 mod memory;
 mod utils;
+
+#[macro_use]
 pub mod tracing;
 
 use core::cmp::max;
@@ -116,7 +118,7 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		cost: u64,
 	) -> Result<(), ExitError> {
-		tracing::emit(|| tracing::Event::RecordCost(cost));
+		event!(record_cost(cost));
 
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
@@ -134,7 +136,7 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		refund: i64,
 	) -> Result<(), ExitError> {
-		tracing::emit(|| tracing::Event::RecordRefund(refund));
+		event!(record_refund(refund));
 
 		self.inner_mut()?.refunded_gas += refund;
 		Ok(())
@@ -166,9 +168,7 @@ impl<'config> Gasometer<'config> {
 		let gas_refund = self.inner_mut()?.gas_refund(cost);
 		let used_gas = self.inner_mut()?.used_gas;
 
-		tracing::emit(|| tracing::Event::RecordDynamicCost {
-			gas_cost, memory_gas, gas_refund
-		});
+		event!(record_dynamic_cost(gas_cost, memory_gas, gas_refund));
 
 		let all_gas_cost = memory_gas + used_gas + gas_cost;
 		if self.gas_limit < all_gas_cost {
@@ -192,7 +192,7 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		stipend: u64,
 	) -> Result<(), ExitError> {
-		tracing::emit(|| tracing::Event::RecordStipend(stipend));
+		event!(record_stipend(stipend));
 
 		self.inner_mut()?.used_gas -= stipend;
 		Ok(())
@@ -216,7 +216,7 @@ impl<'config> Gasometer<'config> {
 			},
 		};
 
-		tracing::emit(|| tracing::Event::RecordTransaction(gas_cost));
+		event!(record_transaction(gas_cost));
 
 		if self.gas() < gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
