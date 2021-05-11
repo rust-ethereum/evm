@@ -105,6 +105,10 @@ impl Memory {
 		value: &[u8],
 		target_size: Option<usize>
 	) -> Result<(), ExitFatal> {
+		if value.is_empty() {
+			return Ok(())
+		}
+		
 		let target_size = target_size.unwrap_or(value.len());
 
 		if offset.checked_add(target_size)
