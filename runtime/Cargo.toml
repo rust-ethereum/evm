@@ -12,7 +12,11 @@ edition = "2018"
 evm-core = { version = "0.26", path = "../core", default-features = false }
 primitive-types = { version = "0.9", default-features = false }
 sha3 = { version = "0.8", default-features = false }
+environmental = { version = "1.1.2", default-features = false, optional = true}
 
 [features]
 default = ["std"]
-std = ["evm-core/std", "primitive-types/std", "sha3/std"]
+std = ["evm-core/std", "primitive-types/std", "sha3/std", "environmental/std"]
+tracing = [
+  "environmental"
+]

@@ -2,7 +2,7 @@ use core::cmp::min;
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Keccak256, Digest};
-use crate::{Runtime, ExitError, Handler, Capture, Transfer, ExitReason,
+use crate::{tracing, Runtime, ExitError, Handler, Capture, Transfer, ExitReason,
 			CreateScheme, CallScheme, Context, ExitSucceed, ExitFatal};
 use super::Control;
 
@@ -171,13 +171,27 @@ pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, index);
-	push!(runtime, handler.storage(runtime.context.address, index));
+	let value = handler.storage(runtime.context.address, index);
+	push!(runtime, value);
+
+	tracing::Event::SLoad {
+		address: runtime.context.address,
+		index,
+		value
+	}.emit();
 
 	Control::Continue
 }
 
 pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, index, value);
+
+	tracing::Event::SStore {
+		address: runtime.context.address,
+		index,
+		value
+	}.emit();
+
 	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),

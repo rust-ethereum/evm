@@ -1,4 +1,9 @@
-//! Allows to listen to gasometer events.
+//! Allows to listen to runtime events.
+
+use crate::{Context, Opcode, Stack, Memory};
+use primitive_types::{H160, H256};
+
+
 
 #[cfg(feature = "tracing")]
 environmental::environmental!(hook: dyn EventListener + 'static);
@@ -12,19 +17,26 @@ pub trait EventListener {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub enum Event {
-    RecordCost(u64),
-    RecordRefund(i64),
-    RecordStipend(u64),
-    RecordDynamicCost {
-        gas_cost: u64,
-        memory_gas: u64,
-        gas_refund: i64,
+pub enum Event<'a> {
+    Step {
+        context: &'a Context,
+        opcode: Opcode,
+        stack: &'a Stack,
+        memory: &'a Memory
     },
-    RecordTransaction(u64),
+    SLoad {
+        address: H160,
+        index: H256,
+        value: H256
+    },
+    SStore {
+        address: H160,
+        index: H256,
+        value: H256
+    },
 }
 
-impl Event {
+impl<'a> Event<'a> {
     #[cfg(feature = "tracing")]
     pub(crate) fn emit(self) {
         hook::with(|hook| hook.event(self));
