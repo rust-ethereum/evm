@@ -1,6 +1,6 @@
 //! Allows to listen to runtime events.
 
-use crate::{Context, Opcode, Stack, Memory};
+use crate::{Context, Opcode, Stack, Memory, Capture, ExitReason, Trap};
 use primitive_types::{H160, H256};
 
 
@@ -24,6 +24,7 @@ pub enum Event<'a> {
         stack: &'a Stack,
         memory: &'a Memory
     },
+    StepResult (&'a Result<(), Capture<ExitReason, Trap>>),
     SLoad {
         address: H160,
         index: H256,
