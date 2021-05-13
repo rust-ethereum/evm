@@ -1,7 +1,7 @@
 //! Allows to listen to gasometer events.
 
 #[cfg(feature = "tracing")]
-environmental::environmental!(hook: dyn EventListener + 'static);
+environmental::environmental!(listener: dyn EventListener + 'static);
 
 #[cfg(feature = "tracing")]
 pub trait EventListener {
@@ -27,7 +27,7 @@ pub enum Event {
 impl Event {
     #[cfg(feature = "tracing")]
     pub(crate) fn emit(self) {
-        hook::with(|hook| hook.event(self));
+        listener::with(|listener| listener.event(self));
     }
 
     #[cfg(not(feature = "tracing"))]
@@ -39,8 +39,8 @@ impl Event {
 /// Run closure with provided listener.
 #[cfg(feature = "tracing")]
 pub fn using<R, F: FnOnce() -> R>(
-    listener: &mut (dyn EventListener + 'static),
+    new: &mut (dyn EventListener + 'static),
     f: F
 ) -> R {
-    hook::using(listener, f)
+    listener::using(new, f)
 }

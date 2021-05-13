@@ -29,6 +29,7 @@ macro_rules! step {
 			tracing::Event::Step {
 				context: &$self.context,
 				opcode,
+				position: $self.machine.position(),
 				stack,
 				memory: $self.machine.memory()
 			}.emit();
@@ -51,8 +52,12 @@ macro_rules! step {
 		}
 
 		let result = $self.machine.step();
+		let return_value = $self.machine.return_value();
 
-		tracing::Event::StepResult(&result).emit();
+		tracing::Event::StepResult {
+			result: &result,
+			return_value: &return_value,
+		}.emit();
 
 		match result {
 			Ok(()) => $($ok)?(()),
