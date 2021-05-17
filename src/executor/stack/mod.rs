@@ -7,7 +7,7 @@ use alloc::{rc::Rc, vec::Vec};
 use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, Opcode, Capture, Handler, Transfer,
-			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config};
+			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config, tracing};
 use crate::gasometer::{self, Gasometer};
 
 pub enum StackExitKind {
@@ -328,6 +328,14 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			gas - gas / 64
 		}
 
+		tracing::Event::Create {
+			caller,
+			scheme,
+			value,
+			init_code: &init_code,
+			target_gas
+		}.emit();
+
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
@@ -474,6 +482,15 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
+
+		tracing::Event::Call {
+			code_address,
+			transfer: &transfer,
+			input: &input,
+			target_gas,
+			is_static,
+			context: &context,
+		}.emit();
 
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
