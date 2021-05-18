@@ -12,16 +12,43 @@ pub trait EventListener {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct Snapshot {
+    pub gas_limit: u64,
+    pub memory_gas: u64,
+	pub used_gas: u64,
+	pub refunded_gas: i64,
+}
+
+impl Snapshot {
+    pub fn gas(&self) -> u64 {
+        self.gas_limit - self.used_gas - self.memory_gas
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub enum Event {
-    RecordCost(u64),
-    RecordRefund(i64),
-    RecordStipend(u64),
+    RecordCost {
+        cost: u64,
+        snapshot: Snapshot,
+    },
+    RecordRefund {
+        refund: i64,
+        snapshot: Snapshot,
+    },
+    RecordStipend {
+        stipend: u64,
+        snapshot: Snapshot,
+    },
     RecordDynamicCost {
         gas_cost: u64,
         memory_gas: u64,
         gas_refund: i64,
+        snapshot: Snapshot,
     },
-    RecordTransaction(u64),
+    RecordTransaction {
+        cost: u64,
+        snapshot: Snapshot,
+    },
 }
 
 impl Event {
