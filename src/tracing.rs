@@ -27,11 +27,17 @@ pub enum Event<'a> {
     },
     Create {
         caller: H160,
+        address: H160,
 		scheme: CreateScheme,
 		value: U256,
 		init_code: &'a [u8],
 		target_gas: Option<u64>,
-    }
+    },
+    Suicide {
+        address: H160,
+		target: H160,
+        balance: U256,
+    },
 }
 
 impl<'a> Event<'a> {
