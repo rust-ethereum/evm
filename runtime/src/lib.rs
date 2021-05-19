@@ -13,7 +13,7 @@ pub mod tracing;
 #[cfg(feature = "tracing")]
 macro_rules! event {
 	($x:expr) => {
-		use tracing::Event::*;
+		use crate::tracing::Event::*;
 		$x.emit();
 	}
 }

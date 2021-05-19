@@ -4,10 +4,8 @@ use crate::{Context};
 use evm_runtime::{CreateScheme, Transfer};
 use primitive_types::{H160, U256};
 
-#[cfg(feature = "tracing")]
 environmental::environmental!(listener: dyn EventListener + 'static);
 
-#[cfg(feature = "tracing")]
 pub trait EventListener {
     fn event(
         &mut self,
@@ -41,19 +39,12 @@ pub enum Event<'a> {
 }
 
 impl<'a> Event<'a> {
-    #[cfg(feature = "tracing")]
     pub(crate) fn emit(self) {
         listener::with(|listener| listener.event(self));
-    }
-
-    #[cfg(not(feature = "tracing"))]
-    pub(crate) fn emit(self) {
-        // no op.
     }
 }
 
 /// Run closure with provided listener.
-#[cfg(feature = "tracing")]
 pub fn using<R, F: FnOnce() -> R>(
     new: &mut (dyn EventListener + 'static),
     f: F

@@ -1,22 +1,14 @@
 //! Allows to listen to gasometer events.
 
-#[cfg(feature = "tracing")]
+use super::Snapshot;
+
 environmental::environmental!(listener: dyn EventListener + 'static);
 
-#[cfg(feature = "tracing")]
 pub trait EventListener {
     fn event(
         &mut self,
         event: Event
     );
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct Snapshot {
-    pub gas_limit: u64,
-    pub memory_gas: u64,
-	pub used_gas: u64,
-	pub refunded_gas: i64,
 }
 
 impl Snapshot {
@@ -52,19 +44,12 @@ pub enum Event {
 }
 
 impl Event {
-    #[cfg(feature = "tracing")]
     pub(crate) fn emit(self) {
         listener::with(|listener| listener.event(self));
-    }
-
-    #[cfg(not(feature = "tracing"))]
-    pub(crate) fn emit(self) {
-        // no op.
     }
 }
 
 /// Run closure with provided listener.
-#[cfg(feature = "tracing")]
 pub fn using<R, F: FnOnce() -> R>(
     new: &mut (dyn EventListener + 'static),
     f: F

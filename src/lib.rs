@@ -11,6 +11,21 @@ pub use evm_core::*;
 pub use evm_runtime::*;
 pub use evm_gasometer as gasometer;
 
+#[cfg(feature = "tracing")]
+pub mod tracing;
+
+#[cfg(feature = "tracing")]
+macro_rules! event {
+	($x:expr) => {
+		use crate::tracing::Event::*;
+		$x.emit();
+	}
+}
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! event {
+	($x:expr) => { }
+}
+
 pub mod executor;
 pub mod backend;
-pub mod tracing;
