@@ -7,11 +7,26 @@
 
 extern crate alloc;
 
+#[cfg(feature = "tracing")]
+pub mod tracing;
+
+#[cfg(feature = "tracing")]
+macro_rules! event {
+	($x:expr) => {
+		use tracing::Event::*;
+		$x.emit();
+	}
+}
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! event {
+	($x:expr) => { }
+}
+
 mod eval;
 mod context;
 mod interrupt;
 mod handler;
-pub mod tracing;
 
 pub use evm_core::*;
 
@@ -25,13 +40,13 @@ use alloc::rc::Rc;
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
 		if let Some((opcode, stack)) = $self.machine.inspect() {
-			tracing::Event::Step {
+			event!(Step {
 				context: &$self.context,
 				opcode,
 				position: $self.machine.position(),
 				stack,
 				memory: $self.machine.memory()
-			}.emit();
+			});
 			
 			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
@@ -51,12 +66,11 @@ macro_rules! step {
 		}
 
 		let result = $self.machine.step();
-		let return_value = $self.machine.return_value();
 
-		tracing::Event::StepResult {
+		event!(StepResult {
 			result: &result,
-			return_value: &return_value,
-		}.emit();
+			return_value: &$self.machine.return_value(),
+		});
 
 		match result {
 			Ok(()) => $($ok)?(()),
