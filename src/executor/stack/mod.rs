@@ -8,6 +8,7 @@ use primitive_types::{U256, H256, H160};
 use sha3::{Keccak256, Digest};
 use crate::{ExitError, Stack, Opcode, Capture, Handler, Transfer,
 			Context, CreateScheme, Runtime, ExitReason, ExitSucceed, Config, tracing};
+use ethereum::Log;
 use crate::gasometer::{self, Gasometer};
 
 pub enum StackExitKind {
@@ -79,10 +80,17 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
+pub struct PrecompileOutput {
+	pub exit_status: ExitSucceed,
+	pub cost: u64,
+	pub output: Vec<u8>,
+	pub logs: Vec<Log>,
+}
+
 /// Stack-based executor.
 pub struct StackExecutor<'config, S> {
 	config: &'config Config,
-	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
+	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<PrecompileOutput, ExitError>>,
 	state: S,
 }
 
@@ -91,7 +99,7 @@ fn no_precompile(
 	_input: &[u8],
 	_target_gas: Option<u64>,
 	_context: &Context,
-) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>> {
+) -> Option<Result<PrecompileOutput, ExitError>> {
 	None
 }
 
@@ -115,7 +123,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	pub fn new_with_precompile(
 		state: S,
 		config: &'config Config,
-		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<(ExitSucceed, Vec<u8>, u64), ExitError>>,
+		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<PrecompileOutput, ExitError>>,
 	) -> Self {
 		Self {
 			config,
@@ -543,15 +551,24 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 
 		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
-			return match ret {
-				Ok((s, out, cost)) => {
+			match ret {
+				Ok(PrecompileOutput { exit_status , output, cost, logs }) => {
+					for Log { address, topics, data} in logs {
+						match self.log(address, topics, data) {
+							Ok(_) => continue,
+							Err(error) => {
+								return Capture::Exit((ExitReason::Error(error), output));
+							}
+						}
+					}
+
 					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Succeeded);
-					Capture::Exit((ExitReason::Succeed(s), out))
+					return Capture::Exit((ExitReason::Succeed(exit_status), output));
 				},
 				Err(e) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(e), Vec::new()))
+					return Capture::Exit((ExitReason::Error(e), Vec::new()));
 				},
 			}
 		}
