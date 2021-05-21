@@ -90,15 +90,16 @@ pub struct PrecompileOutput {
 /// Stack-based executor.
 pub struct StackExecutor<'config, S> {
 	config: &'config Config,
-	precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<PrecompileOutput, ExitError>>,
+	precompile: fn(H160, &[u8], Option<u64>, &Context, &mut S) -> Option<Result<PrecompileOutput, ExitError>>,
 	state: S,
 }
 
-fn no_precompile(
+fn no_precompile<S>(
 	_address: H160,
 	_input: &[u8],
 	_target_gas: Option<u64>,
 	_context: &Context,
+    _state: &mut S
 ) -> Option<Result<PrecompileOutput, ExitError>> {
 	None
 }
@@ -123,7 +124,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	pub fn new_with_precompile(
 		state: S,
 		config: &'config Config,
-		precompile: fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<PrecompileOutput, ExitError>>,
+		precompile: fn(H160, &[u8], Option<u64>, &Context, &mut S) -> Option<Result<PrecompileOutput, ExitError>>,
 	) -> Self {
 		Self {
 			config,
@@ -531,7 +532,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			}
 		}
 
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context, &mut self.state) {
 			match ret {
 				Ok(PrecompileOutput { exit_status , output, cost, logs }) => {
 					for Log { address, topics, data} in logs {
