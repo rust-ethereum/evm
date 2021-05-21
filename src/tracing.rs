@@ -1,6 +1,6 @@
 //! Allows to listen to runtime events.
 
-use crate::{Context};
+use crate::Context;
 use evm_runtime::{CreateScheme, Transfer};
 use primitive_types::{H160, U256};
 
