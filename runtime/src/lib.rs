@@ -47,7 +47,7 @@ macro_rules! step {
 				stack,
 				memory: $self.machine.memory()
 			});
-			
+
 			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
 				Err(e) => {

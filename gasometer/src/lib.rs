@@ -161,7 +161,7 @@ impl<'config> Gasometer<'config> {
 		refund: i64,
 	) -> Result<(), ExitError> {
 		event!(RecordRefund {
-			refund,			
+			refund,
 			snapshot: self.snapshot()?,
 		});
 
@@ -198,7 +198,7 @@ impl<'config> Gasometer<'config> {
 		event!(RecordDynamicCost {
 			gas_cost,
 			memory_gas,
-			gas_refund, 
+			gas_refund,
 			snapshot: self.snapshot()?,
 		});
 
@@ -259,7 +259,7 @@ impl<'config> Gasometer<'config> {
 		if self.gas() < gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
 			return Err(ExitError::OutOfGas);
-		}		
+		}
 
 		self.inner_mut()?.used_gas += gas_cost;
 		Ok(())
