@@ -45,8 +45,8 @@ macro_rules! try_or_fail {
 
 #[derive(Debug, Copy, Clone)]
 pub struct Snapshot {
-    pub gas_limit: u64,
-    pub memory_gas: u64,
+	pub gas_limit: u64,
+	pub memory_gas: u64,
 	pub used_gas: u64,
 	pub refunded_gas: i64,
 }
