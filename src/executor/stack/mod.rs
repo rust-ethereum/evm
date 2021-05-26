@@ -80,6 +80,7 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PrecompileOutput {
 	pub exit_status: ExitSucceed,
 	pub cost: u64,
