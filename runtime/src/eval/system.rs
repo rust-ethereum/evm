@@ -171,13 +171,27 @@ pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, index);
-	push!(runtime, handler.storage(runtime.context.address, index));
+	let value = handler.storage(runtime.context.address, index);
+	push!(runtime, value);
+
+	event!(SLoad {
+		address: runtime.context.address,
+		index,
+		value
+	});
 
 	Control::Continue
 }
 
 pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, index, value);
+
+	event!(SStore {
+		address: runtime.context.address,
+		index,
+		value
+	});
+
 	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),

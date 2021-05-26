@@ -336,6 +336,17 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			gas - gas / 64
 		}
 
+		let address = self.create_address(scheme);
+
+		event!(Create {
+			caller,
+			address,
+			scheme,
+			value,
+			init_code: &init_code,
+			target_gas
+		});
+
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()))
@@ -366,7 +377,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			self.state.metadata_mut().gasometer.record_cost(gas_limit)
 		);
 
-		let address = self.create_address(scheme);
 		self.state.inc_nonce(caller);
 
 		self.enter_substate(gas_limit, false);
@@ -482,6 +492,15 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
+
+		event!(Call {
+			code_address,
+			transfer: &transfer,
+			input: &input,
+			target_gas,
+			is_static,
+			context: &context,
+		});
 
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
@@ -659,9 +678,15 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
 		let balance = self.balance(address);
 
+		event!(Suicide {
+			target,
+			address,
+			balance,
+		});
+
 		self.state.transfer(Transfer {
 			source: address,
-			target: target,
+			target,
 			value: balance,
 		})?;
 		self.state.reset_balance(address);

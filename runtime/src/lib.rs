@@ -1,11 +1,27 @@
 //! Runtime layer for EVM.
 
 #![deny(warnings)]
-#![forbid(unsafe_code, unused_variables, unused_imports)]
+#![forbid(unsafe_code, unused_variables)]
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
+
+#[cfg(feature = "tracing")]
+pub mod tracing;
+
+#[cfg(feature = "tracing")]
+macro_rules! event {
+	($x:expr) => {
+		use crate::tracing::Event::*;
+		$x.emit();
+	}
+}
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! event {
+	($x:expr) => { }
+}
 
 mod eval;
 mod context;
@@ -24,6 +40,14 @@ use alloc::rc::Rc;
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
 		if let Some((opcode, stack)) = $self.machine.inspect() {
+			event!(Step {
+				context: &$self.context,
+				opcode,
+				position: $self.machine.position(),
+				stack,
+				memory: $self.machine.memory()
+			});
+
 			match $handler.pre_validate(&$self.context, opcode, stack) {
 				Ok(()) => (),
 				Err(e) => {
@@ -41,7 +65,14 @@ macro_rules! step {
 			},
 		}
 
-		match $self.machine.step() {
+		let result = $self.machine.step();
+
+		event!(StepResult {
+			result: &result,
+			return_value: &$self.machine.return_value(),
+		});
+
+		match result {
 			Ok(()) => $($ok)?(()),
 			Err(Capture::Exit(e)) => {
 				$self.status = Err(e.clone());

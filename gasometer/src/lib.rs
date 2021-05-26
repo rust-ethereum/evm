@@ -1,9 +1,25 @@
 //! EVM gasometer.
 
 #![deny(warnings)]
-#![forbid(unsafe_code, unused_variables, unused_imports)]
+#![forbid(unsafe_code, unused_variables)]
 
 #![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "tracing")]
+pub mod tracing;
+
+#[cfg(feature = "tracing")]
+macro_rules! event {
+	($x:expr) => {
+		use crate::tracing::Event::*;
+		$x.emit();
+	}
+}
+
+#[cfg(not(feature = "tracing"))]
+macro_rules! event {
+	($x:expr) => { }
+}
 
 mod consts;
 mod costs;
@@ -25,6 +41,14 @@ macro_rules! try_or_fail {
 			},
 		}
 	)
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Snapshot {
+	pub gas_limit: u64,
+	pub memory_gas: u64,
+	pub used_gas: u64,
+	pub refunded_gas: i64,
 }
 
 /// EVM gasometer.
@@ -115,6 +139,11 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		cost: u64,
 	) -> Result<(), ExitError> {
+		event!(RecordCost {
+			cost,
+			snapshot: self.snapshot()?,
+		});
+
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
@@ -131,6 +160,11 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		refund: i64,
 	) -> Result<(), ExitError> {
+		event!(RecordRefund {
+			refund,
+			snapshot: self.snapshot()?,
+		});
+
 		self.inner_mut()?.refunded_gas += refund;
 		Ok(())
 	}
@@ -161,6 +195,13 @@ impl<'config> Gasometer<'config> {
 		let gas_refund = self.inner_mut()?.gas_refund(cost);
 		let used_gas = self.inner_mut()?.used_gas;
 
+		event!(RecordDynamicCost {
+			gas_cost,
+			memory_gas,
+			gas_refund,
+			snapshot: self.snapshot()?,
+		});
+
 		let all_gas_cost = memory_gas + used_gas + gas_cost;
 		if self.gas_limit < all_gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
@@ -183,6 +224,11 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		stipend: u64,
 	) -> Result<(), ExitError> {
+		event!(RecordStipend {
+			stipend,
+			snapshot: self.snapshot()?,
+		});
+
 		self.inner_mut()?.used_gas -= stipend;
 		Ok(())
 	}
@@ -205,6 +251,11 @@ impl<'config> Gasometer<'config> {
 			},
 		};
 
+		event!(RecordTransaction {
+			cost: gas_cost,
+			snapshot: self.snapshot()?,
+		});
+
 		if self.gas() < gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
 			return Err(ExitError::OutOfGas);
@@ -212,6 +263,16 @@ impl<'config> Gasometer<'config> {
 
 		self.inner_mut()?.used_gas += gas_cost;
 		Ok(())
+	}
+
+	pub fn snapshot(&self) -> Result<Snapshot, ExitError> {
+		let inner = self.inner.as_ref().map_err(|e| e.clone())?;
+		Ok(Snapshot {
+			gas_limit: self.gas_limit,
+			memory_gas: inner.memory_gas,
+			used_gas: inner.used_gas,
+			refunded_gas: inner.refunded_gas,
+		})
 	}
 }
 
