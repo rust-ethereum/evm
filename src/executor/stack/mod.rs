@@ -91,7 +91,7 @@ pub struct PrecompileOutput {
 ///  * Address
 ///  * Input
 ///  * Context
-///	 * State
+///  * State
 ///  * Is static
 type PrecompileFn<S> = fn(H160, &[u8], Option<u64>, &Context, &mut S, bool) -> Option<Result<PrecompileOutput, ExitError>>;
 
