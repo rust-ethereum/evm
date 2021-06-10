@@ -107,7 +107,7 @@ fn no_precompile<S>(
 	_input: &[u8],
 	_target_gas: Option<u64>,
 	_context: &Context,
-    _state: &mut S,
+	_state: &mut S,
 	_is_static: bool,
 ) -> Option<Result<PrecompileOutput, ExitError>> {
 	None
