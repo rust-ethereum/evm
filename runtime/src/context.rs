@@ -22,7 +22,7 @@ pub enum CreateScheme {
 }
 
 /// Call scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug,)]
 pub enum CallScheme {
 	/// `CALL`
 	Call,
@@ -35,7 +35,7 @@ pub enum CallScheme {
 }
 
 /// Context of the runtime.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Context {
 	/// Execution address.
 	pub address: H160,
