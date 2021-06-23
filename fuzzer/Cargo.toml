@@ -1,0 +1,15 @@
+[package]
+name = "evm_fuzzer"
+version = "0.1.0"
+authors = ["Vincent Ulitzsch <vincent@srlabs.de>"]
+edition = "2018"
+
+[dependencies]
+honggfuzz = ""
+evm-core = {path="../core"}
+
+[[bin]]
+name = "evm_fuzz"
+path = "src/main.rs"
+
+[workspace]
