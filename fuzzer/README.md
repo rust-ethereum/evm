@@ -1,5 +1,5 @@
 # Fuzzing the rust evm
-This provides a simply fuzzing harness that can be used a start when fuzzing the rust evm.
+This provides a simple fuzzing harness that can be used a start when fuzzing the rust evm.
 The fuzzer will take a byte input from honggfuzz, split it at a fixed delimiter
 and give some of it as code and some of it as data to the evm.
 
@@ -14,5 +14,5 @@ Then, to debug a certain input in the fuzzing queue, run
 `./target/debug/evm_fuzz hfuzz_workspace/evm_fuzz/input/<file>`
 
 # Notes
-Because this fuzzer does not implemented any gasometer, honggfuzz will report some timeouts.
+Because this fuzzer does not implement any gasometer, honggfuzz will report some timeouts.
 A reasonable approach to improve the perfomance would be to extend this fuzzer with a gasometer.
