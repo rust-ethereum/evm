@@ -354,6 +354,8 @@ pub trait StackState<'config>: Backend {
 
 	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
+	fn is_known(&self, address: H160) -> bool;
+	fn is_storage_known(&self, address: H160, key: H256) -> bool;
 
 	fn inc_nonce(&mut self, address: H160);
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
@@ -445,6 +447,14 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 
 	fn deleted(&self, address: H160) -> bool {
 		self.substate.deleted(address)
+	}
+
+	fn is_known(&self, address: H160) -> bool {
+		self.substate.known_account(address).is_some()
+	}
+
+	fn is_storage_known(&self, address: H160, key: H256) -> bool {
+		self.substate.known_storage(address, key).is_some()
 	}
 
 	fn inc_nonce(&mut self, address: H160) {

@@ -448,27 +448,42 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
 		Opcode::SELFBALANCE => GasCost::Invalid,
 
-		Opcode::EXTCODESIZE => GasCost::ExtCodeSize,
-		Opcode::BALANCE => GasCost::Balance,
+		Opcode::EXTCODESIZE => GasCost::ExtCodeSize {
+			is_cold: handler.is_cold(stack.peek(0)?.into(), None),
+		},
+		Opcode::BALANCE => GasCost::Balance {
+			is_cold: handler.is_cold(stack.peek(0)?.into(), None),
+		},
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
-		Opcode::EXTCODEHASH if config.has_ext_code_hash => GasCost::ExtCodeHash,
+		Opcode::EXTCODEHASH if config.has_ext_code_hash => GasCost::ExtCodeHash {
+			is_cold: handler.is_cold(stack.peek(0)?.into(), None),
+		},
 		Opcode::EXTCODEHASH => GasCost::Invalid,
 
-		Opcode::CALLCODE => GasCost::CallCode {
-			value: U256::from_big_endian(&stack.peek(2)?[..]),
-			gas: U256::from_big_endian(&stack.peek(0)?[..]),
-			target_exists: handler.exists(stack.peek(1)?.into()),
-		},
-		Opcode::STATICCALL => GasCost::StaticCall {
-			gas: U256::from_big_endian(&stack.peek(0)?[..]),
-			target_exists: handler.exists(stack.peek(1)?.into()),
-		},
+		Opcode::CALLCODE => {
+			let target = stack.peek(1)?.into();
+			GasCost::CallCode {
+				value: U256::from_big_endian(&stack.peek(2)?[..]),
+				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				target_exists: handler.exists(target),
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
+		Opcode::STATICCALL => {
+			let target = stack.peek(1)?.into();
+			GasCost::StaticCall {
+				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				target_exists: handler.exists(target),
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
 		Opcode::SHA3 => GasCost::Sha3 {
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
 		Opcode::EXTCODECOPY => GasCost::ExtCodeCopy {
 			len: U256::from_big_endian(&stack.peek(3)?[..]),
+			is_cold: handler.is_cold(stack.peek(0)?.into(), None),
 		},
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
@@ -476,12 +491,21 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::EXP => GasCost::Exp {
 			power: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Opcode::SLOAD => GasCost::SLoad,
+		Opcode::SLOAD => {
+			let index = stack.peek(0)?;
+			GasCost::SLoad {
+				is_cold: handler.is_cold(address, Some(index))
+			}
+		}
 
-		Opcode::DELEGATECALL if config.has_delegate_call => GasCost::DelegateCall {
-			gas: U256::from_big_endian(&stack.peek(0)?[..]),
-			target_exists: handler.exists(stack.peek(1)?.into()),
-		},
+		Opcode::DELEGATECALL if config.has_delegate_call => {
+			let target = stack.peek(1)?.into();
+			GasCost::DelegateCall {
+				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				target_exists: handler.exists(target),
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
 		Opcode::DELEGATECALL => GasCost::Invalid,
 
 		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
@@ -493,11 +517,13 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SSTORE if !is_static => {
 			let index = stack.peek(0)?;
 			let value = stack.peek(1)?;
+			let is_cold = handler.is_cold(address, Some(index));
 
 			GasCost::SStore {
 				original: handler.original_storage(address, index),
 				current: handler.storage(address, index),
 				new: value,
+				is_cold,
 			}
 		},
 		Opcode::LOG0 if !is_static => GasCost::Log {
@@ -524,19 +550,26 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::CREATE2 if !is_static && config.has_create2 => GasCost::Create2 {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
-		Opcode::SUICIDE if !is_static => GasCost::Suicide {
-			value: handler.balance(address),
-			target_exists: handler.exists(stack.peek(0)?.into()),
-			already_removed: handler.deleted(address),
-		},
+		Opcode::SUICIDE if !is_static => {
+			let target = stack.peek(0)?.into();
+			GasCost::Suicide {
+				value: handler.balance(address),
+				target_exists: handler.exists(target),
+				target_is_cold: handler.is_cold(target, None),
+				already_removed: handler.deleted(address),
+			}
+		}
 		Opcode::CALL
 			if !is_static ||
-			(is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
+			(is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) => {
+			let target = stack.peek(1)?.into();
 			GasCost::Call {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_exists: handler.exists(stack.peek(1)?.into()),
-			},
+				target_exists: handler.exists(target),
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
 
 		_ => GasCost::Invalid,
 	};
@@ -665,20 +698,28 @@ impl<'config> Inner<'config> {
 				costs::call_cost(U256::zero(), false, false, !target_exists, self.config),
 			GasCost::StaticCall { target_exists, .. } =>
 				costs::call_cost(U256::zero(), false, true, !target_exists, self.config),
-			GasCost::Suicide { value, target_exists, .. } =>
-				costs::suicide_cost(value, target_exists, self.config),
+			GasCost::Suicide { value, target_exists, target_is_cold, .. } =>
+				costs::suicide_cost(value, target_exists, target_is_cold, self.config),
 			GasCost::SStore { .. } if self.config.estimate => self.config.gas_sstore_set,
-			GasCost::SStore { original, current, new } =>
-				costs::sstore_cost(original, current, new, gas, self.config)?,
+			GasCost::SStore { original, current, new, is_cold } =>
+				costs::sstore_cost(original, current, new, gas, is_cold, self.config)?,
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
-			GasCost::ExtCodeCopy { len } => costs::extcodecopy_cost(len, self.config)?,
+			GasCost::ExtCodeCopy { len, is_cold } =>
+				costs::extcodecopy_cost(len, is_cold, self.config)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
 			GasCost::Create => consts::G_CREATE,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
-			GasCost::SLoad => self.config.gas_sload,
+			GasCost::SLoad { is_cold } => match &self.config.eip_2929 {
+				None => self.config.gas_sload,
+				Some(eip_2929) => if is_cold {
+					eip_2929.cold_sload_cost
+				} else {
+					eip_2929.warm_storage_read_cost
+				},
+			},
 
 			GasCost::Zero => consts::G_ZERO,
 			GasCost::Base => consts::G_BASE,
@@ -686,11 +727,25 @@ impl<'config> Inner<'config> {
 			GasCost::Low => consts::G_LOW,
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
-			GasCost::ExtCodeSize => self.config.gas_ext_code,
-			GasCost::Balance => self.config.gas_balance,
+			GasCost::ExtCodeSize { is_cold } =>
+				self.account_access_cost(is_cold, self.config.gas_ext_code),
+			GasCost::Balance { is_cold } =>
+				self.account_access_cost(is_cold, self.config.gas_balance),
 			GasCost::BlockHash => consts::G_BLOCKHASH,
-			GasCost::ExtCodeHash => self.config.gas_ext_code_hash,
+			GasCost::ExtCodeHash { is_cold } =>
+				self.account_access_cost(is_cold, self.config.gas_ext_code_hash),
 		})
+	}
+
+	fn account_access_cost(&self, is_cold: bool, default_value: u64) -> u64 {
+		match &self.config.eip_2929 {
+			None => default_value,
+			Some(eip_2929) => if is_cold {
+				eip_2929.cold_account_access_cost
+			} else {
+				eip_2929.warm_storage_read_cost
+			},
+		}
 	}
 
 	fn gas_refund(
@@ -700,7 +755,7 @@ impl<'config> Inner<'config> {
 		match cost {
 			_ if self.config.estimate => 0,
 
-			GasCost::SStore { original, current, new } =>
+			GasCost::SStore { original, current, new, .. } =>
 				costs::sstore_refund(original, current, new, self.config),
 			GasCost::Suicide { already_removed, .. } =>
 				costs::suicide_refund(already_removed),
@@ -724,13 +779,22 @@ pub enum GasCost {
 	Invalid,
 
 	/// Gas cost for `EXTCODESIZE`.
-	ExtCodeSize,
+	ExtCodeSize {
+		/// True if address has not been previously accessed in this transaction
+		is_cold: bool,
+	},
 	/// Gas cost for `BALANCE`.
-	Balance,
+	Balance {
+		/// True if address has not been previously accessed in this transaction
+		is_cold: bool,
+	},
 	/// Gas cost for `BLOCKHASH`.
 	BlockHash,
 	/// Gas cost for `EXTBLOCKHASH`.
-	ExtCodeHash,
+	ExtCodeHash {
+		/// True if address has not been previously accessed in this transaction
+		is_cold: bool,
+	},
 
 	/// Gas cost for `CALL`.
 	Call {
@@ -739,7 +803,9 @@ pub enum GasCost {
 		/// Call gas.
 		gas: U256,
 		/// Whether the target exists.
-		target_exists: bool
+		target_exists: bool,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `CALLCODE.
 	CallCode {
@@ -748,21 +814,27 @@ pub enum GasCost {
 		/// Call gas.
 		gas: U256,
 		/// Whether the target exists.
-		target_exists: bool
+		target_exists: bool,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `DELEGATECALL`.
 	DelegateCall {
 		/// Call gas.
 		gas: U256,
 		/// Whether the target exists.
-		target_exists: bool
+		target_exists: bool,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `STATICCALL`.
 	StaticCall {
 		/// Call gas.
 		gas: U256,
 		/// Whether the target exists.
-		target_exists: bool
+		target_exists: bool,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `SUICIDE`.
 	Suicide {
@@ -770,6 +842,8 @@ pub enum GasCost {
 		value: U256,
 		/// Whether the target exists.
 		target_exists: bool,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Whether the target has already been removed.
 		already_removed: bool
 	},
@@ -780,7 +854,9 @@ pub enum GasCost {
 		/// Current value.
 		current: H256,
 		/// New value.
-		new: H256
+		new: H256,
+		/// True if slot has not been previously accessed in this transaction
+		is_cold: bool,
 	},
 	/// Gas cost for `SHA3`.
 	Sha3 {
@@ -797,7 +873,9 @@ pub enum GasCost {
 	/// Gas cost for `EXTCODECOPY`.
 	ExtCodeCopy {
 		/// Length.
-		len: U256
+		len: U256,
+		/// True if address has not been previously accessed in this transaction
+		is_cold: bool,
 	},
 	/// Gas cost for some copy opcodes that is documented as `VERYLOW`.
 	VeryLowCopy {
@@ -817,7 +895,10 @@ pub enum GasCost {
 		len: U256
 	},
 	/// Gas cost for `SLOAD`.
-	SLoad,
+	SLoad {
+		/// True if slot has not been previously accessed in this transaction
+		is_cold: bool,
+	},
 }
 
 /// Memory cost.
