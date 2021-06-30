@@ -245,6 +245,17 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
+	// TODO: Need to add the precompile addresses too (see EIP-2929 spec)
+	fn init_access_addresses(
+		gasometer: &mut Gasometer,
+		caller: H160,
+		address: H160
+	) -> Result<(), ExitError> {
+		gasometer.access_address(caller)?;
+		gasometer.access_address(address)?;
+		Ok(())
+	}
+
 	/// Execute a `CALL` transaction.
 	pub fn transact_call(
 		&mut self,
@@ -255,10 +266,17 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		gas_limit: u64,
 	) -> (ExitReason, Vec<u8>) {
 		let transaction_cost = gasometer::call_transaction_cost(&data);
-		match self.state.metadata_mut().gasometer.record_transaction(transaction_cost) {
-			Ok(()) => (),
-			Err(e) => return (e.into(), Vec::new()),
+		{
+			let gasometer = &mut self.state.metadata_mut().gasometer;
+			match gasometer
+				.record_transaction(transaction_cost)
+				.and(Self::init_access_addresses(gasometer, caller, address))
+			{
+				Ok(()) => (),
+				Err(e) => return (e.into(), Vec::new()),
+			}
 		}
+
 
 		self.state.inc_nonce(caller);
 
@@ -348,6 +366,10 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 
 		let address = self.create_address(scheme);
+
+		try_or_fail!(
+			Self::init_access_addresses(&mut self.state.metadata_mut().gasometer, caller, address)
+		);
 
 		event!(Create {
 			caller,

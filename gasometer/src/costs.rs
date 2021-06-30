@@ -113,11 +113,19 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 	Ok(gas.as_u64())
 }
 
-pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<u64, ExitError> {
+pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
+	let gas_ext_code = match &config.eip_2929 {
+		None => config.gas_ext_code,
+		Some(eip_2929) => if is_cold {
+			eip_2929.cold_account_access_cost
+		} else {
+			eip_2929.warm_storage_read_cost
+		},
+	};
 
-	let gas = U256::from(config.gas_ext_code).checked_add(
+	let gas = U256::from(gas_ext_code).checked_add(
 		U256::from(G_COPY).checked_mul(
 			if wordr == U256::zero() {
 				wordd
@@ -132,6 +140,28 @@ pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<u64, ExitError> {
 	}
 
 	Ok(gas.as_u64())
+}
+
+pub fn account_access_cost(is_cold: bool, default_value: u64, config: &Config) -> u64 {
+	match &config.eip_2929 {
+		None => default_value,
+		Some(eip_2929) => if is_cold {
+			eip_2929.cold_account_access_cost
+		} else {
+			eip_2929.warm_storage_read_cost
+		},
+	}
+}
+
+pub fn storage_access_cost(is_cold: bool, default_value: u64, config: &Config) -> u64 {
+	match &config.eip_2929 {
+		None => default_value,
+		Some(eip_2929) => if is_cold {
+			eip_2929.cold_sload_cost
+		} else {
+			eip_2929.warm_storage_read_cost
+		},
+	}
 }
 
 pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
@@ -169,37 +199,54 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	Ok(gas.as_u64())
 }
 
-pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, config: &Config) -> Result<u64, ExitError> {
-	if config.sstore_gas_metering {
+pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
+	// modify costs if EIP-2929 is enabled
+	let (gas_sload, gas_sstore_reset) = match &config.eip_2929 {
+		None => (config.gas_sload, config.gas_sstore_reset),
+		Some(eip_2929) => (eip_2929.warm_storage_read_cost, config.gas_sstore_reset - eip_2929.cold_sload_cost),
+	};
+	let gas_cost = if config.sstore_gas_metering {
 		if config.sstore_revert_under_stipend {
 			if gas < config.call_stipend {
 				return Err(ExitError::OutOfGas)
 			}
 		}
 
-		Ok(if new == current {
-			config.gas_sload
+		if new == current {
+			gas_sload
 		} else {
 			if original == current {
 				if original == H256::zero() {
 					config.gas_sstore_set
 				} else {
-					config.gas_sstore_reset
+					gas_sstore_reset
 				}
 			} else {
-				config.gas_sload
+				gas_sload
 			}
-		})
+		}
 	} else {
-		Ok(if current == H256::zero() && new != H256::zero() {
+		if current == H256::zero() && new != H256::zero() {
 			config.gas_sstore_set
 		} else {
-			config.gas_sstore_reset
-		})
-	}
+			gas_sstore_reset
+		}
+	};
+	Ok(
+		// In EIP-2929 we charge extra if the slot has not been used yet in this transaction
+		if is_cold {
+			config
+				.eip_2929
+				.as_ref()
+				.map(|eip2929| gas_cost + eip2929.cold_sload_cost)
+				.unwrap_or(gas_cost)
+		} else {
+			gas_cost
+		}
+	)
 }
 
-pub fn suicide_cost(value: U256, target_exists: bool, config: &Config) -> u64 {
+pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
 	let eip161 = !config.empty_considered_exists;
 	let should_charge_topup = if eip161 {
 		value != U256::zero() && !target_exists
@@ -213,18 +260,36 @@ pub fn suicide_cost(value: U256, target_exists: bool, config: &Config) -> u64 {
 		0
 	};
 
-	config.gas_suicide + suicide_gas_topup
+	let eip_2929_cost = match &config.eip_2929 {
+		None => 0,
+		Some(eip_2929) => if is_cold {
+			eip_2929.cold_account_access_cost
+		} else {
+			0
+		}
+	};
+
+	config.gas_suicide + suicide_gas_topup + eip_2929_cost
 }
 
 pub fn call_cost(
 	value: U256,
+	is_cold: bool,
 	is_call_or_callcode: bool,
 	is_call_or_staticcall: bool,
 	new_account: bool,
 	config: &Config,
 ) -> u64 {
 	let transfers_value = value != U256::default();
-	config.gas_call +
+	let gas_call = match &config.eip_2929 {
+		None => config.gas_call,
+		Some(eip_2929) => if is_cold {
+			eip_2929.cold_account_access_cost
+		} else {
+			eip_2929.warm_storage_read_cost
+		}
+	};
+	gas_call +
 		xfer_cost(is_call_or_callcode, transfers_value) +
 		new_cost(is_call_or_staticcall, new_account, transfers_value, config)
 }
