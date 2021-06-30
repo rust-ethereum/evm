@@ -658,16 +658,6 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		}
 	}
 
-	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
-		// TODO: how to ensure the correct initialization?
-		// From spec: "`accessed_addresses` is initialized to include: `tx.sender`, `tx.to` and
-		// the set of all precompiles."
-		match maybe_index {
-			None => self.state.is_known(address),
-			Some(index) => self.state.is_storage_known(address, index),
-		}
-	}
-
 	fn gas_left(&self) -> U256 {
 		U256::from(self.state.metadata().gasometer.gas())
 	}
