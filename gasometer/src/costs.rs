@@ -116,16 +116,7 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
-	let gas_ext_code = match &config.eip_2929 {
-		None => config.gas_ext_code,
-		Some(eip_2929) => if is_cold {
-			eip_2929.cold_account_access_cost
-		} else {
-			eip_2929.warm_storage_read_cost
-		},
-	};
-
-	let gas = U256::from(gas_ext_code).checked_add(
+	let gas = U256::from(storage_access_cost(is_cold, config.gas_ext_code, config)).checked_add(
 		U256::from(G_COPY).checked_mul(
 			if wordr == U256::zero() {
 				wordd
@@ -140,28 +131,6 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 	}
 
 	Ok(gas.as_u64())
-}
-
-pub fn account_access_cost(is_cold: bool, default_value: u64, config: &Config) -> u64 {
-	match &config.eip_2929 {
-		None => default_value,
-		Some(eip_2929) => if is_cold {
-			eip_2929.cold_account_access_cost
-		} else {
-			eip_2929.warm_storage_read_cost
-		},
-	}
-}
-
-pub fn storage_access_cost(is_cold: bool, default_value: u64, config: &Config) -> u64 {
-	match &config.eip_2929 {
-		None => default_value,
-		Some(eip_2929) => if is_cold {
-			eip_2929.cold_sload_cost
-		} else {
-			eip_2929.warm_storage_read_cost
-		},
-	}
 }
 
 pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
@@ -281,17 +250,21 @@ pub fn call_cost(
 	config: &Config,
 ) -> u64 {
 	let transfers_value = value != U256::default();
-	let gas_call = match &config.eip_2929 {
-		None => config.gas_call,
-		Some(eip_2929) => if is_cold {
-			eip_2929.cold_account_access_cost
-		} else {
-			eip_2929.warm_storage_read_cost
-		}
-	};
-	gas_call +
+	storage_access_cost(is_cold, config.gas_call, config) +
 		xfer_cost(is_call_or_callcode, transfers_value) +
 		new_cost(is_call_or_staticcall, new_account, transfers_value, config)
+}
+
+pub fn storage_access_cost(is_cold: bool, regular_value: u64, config: &Config) -> u64 {
+	if config.increase_state_access_gas {
+		if is_cold {
+			config.gas_account_access_cold
+		} else {
+			config.gas_storage_read_warm
+		}
+	} else {
+		regular_value
+	}
 }
 
 fn xfer_cost(

@@ -36,6 +36,7 @@ pub use crate::handler::{Transfer, Handler};
 
 use alloc::vec::Vec;
 use alloc::rc::Rc;
+use primitive_types::U256;
 
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
@@ -340,17 +341,17 @@ impl Config {
 	/// Berlin hard fork configuration.
 	pub const fn berlin() -> Config {
 		Config {
-			gas_ext_code: 700,
-			gas_ext_code_hash: 700,
-			gas_balance: 700,
-			gas_sload: 800,
+			gas_ext_code: 0,
+			gas_ext_code_hash: 0,
+			gas_balance: 0,
+			gas_sload: 0,
 			gas_sload_cold: 2100,
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
-			gas_call: 700,
+			gas_call: 0,
 			gas_expbyte: 50,
 			gas_transaction_create: 53000,
 			gas_transaction_call: 21000,

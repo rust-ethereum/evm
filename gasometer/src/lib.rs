@@ -726,6 +726,7 @@ impl<'config> Inner<'config> {
 				costs::call_cost(U256::zero(), self.is_address_cold(target), false, false, !target_exists, self.config),
 			GasCost::StaticCall { target, target_exists, .. } =>
 				costs::call_cost(U256::zero(), self.is_address_cold(target), false, true, !target_exists, self.config),
+
 			GasCost::Suicide { value, target, target_exists, .. } =>
 				costs::suicide_cost(value, self.is_address_cold(target), target_exists, self.config),
 			GasCost::SStore { .. } if self.config.estimate => self.config.gas_sstore_set,
@@ -734,8 +735,6 @@ impl<'config> Inner<'config> {
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
-			GasCost::ExtCodeCopy { address, len } =>
-				costs::extcodecopy_cost(len, self.is_address_cold(address), self.config)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
 			GasCost::Create => consts::G_CREATE,
@@ -750,12 +749,14 @@ impl<'config> Inner<'config> {
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
 			GasCost::ExtCodeSize { address } =>
-				costs::account_access_cost(self.is_address_cold(address), self.config.gas_ext_code, self.config),
+				costs::storage_access_cost(self.is_address_cold(address), self.config.gas_ext_code, self.config),
+			GasCost::ExtCodeCopy { address, len } =>
+				costs::extcodecopy_cost(len, self.is_address_cold(address), self.config)?,
 			GasCost::Balance { address } =>
-				costs::account_access_cost(self.is_address_cold(address), self.config.gas_balance, self.config),
+				costs::storage_access_cost(self.is_address_cold(address), self.config.gas_balance, self.config),
 			GasCost::BlockHash => consts::G_BLOCKHASH,
 			GasCost::ExtCodeHash { address } =>
-				costs::account_access_cost(self.is_address_cold(address), self.config.gas_ext_code_hash, self.config),
+				costs::storage_access_cost(self.is_address_cold(address), self.config.gas_ext_code_hash, self.config),
 		})
 	}
 
