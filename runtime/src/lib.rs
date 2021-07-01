@@ -161,14 +161,6 @@ impl<'config> Runtime<'config> {
 	}
 }
 
-/// Parameters specific to EIP-2929 (see https://eips.ethereum.org/EIPS/eip-2929)
-#[derive(Clone, Debug)]
-pub struct EIP2929Config {
-	pub cold_sload_cost: u64,
-	pub cold_account_access_cost: u64,
-	pub warm_storage_read_cost: u64,
-}
-
 /// Runtime configuration.
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -186,6 +178,8 @@ pub struct Config {
 	pub gas_balance: u64,
 	/// Gas paid for SLOAD opcode.
 	pub gas_sload: u64,
+	/// Gas paid for cold SLOAD opcode.
+    pub gas_sload_cold: u64,
 	/// Gas paid for SUICIDE opcode.
 	pub gas_suicide: u64,
 	/// Gas paid for SUICIDE opcode when it hits a new account.
@@ -202,10 +196,16 @@ pub struct Config {
 	pub gas_transaction_zero_data: u64,
 	/// Gas paid for non-zero data in a transaction.
 	pub gas_transaction_non_zero_data: u64,
+	/// Gas paid for accessing cold account.
+	pub gas_account_access_cold: u64,
+	/// Gas paid for accessing ready storage.
+	pub gas_storage_read_warm: u64,
 	/// EIP-1283.
 	pub sstore_gas_metering: bool,
 	/// EIP-1706.
 	pub sstore_revert_under_stipend: bool,
+	/// EIP-2929
+	pub increase_state_access_gas: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -244,7 +244,6 @@ pub struct Config {
 	pub has_ext_code_hash: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
-	pub eip_2929: Option<EIP2929Config>,
 }
 
 impl Config {
@@ -255,6 +254,7 @@ impl Config {
 			gas_ext_code_hash: 20,
 			gas_balance: 20,
 			gas_sload: 50,
+			gas_sload_cold: 0,
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
@@ -266,8 +266,11 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 68,
+			gas_account_access_cold: 0,
+			gas_storage_read_warm: 0,
 			sstore_gas_metering: false,
 			sstore_revert_under_stipend: false,
+			increase_state_access_gas: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
@@ -286,7 +289,6 @@ impl Config {
 			has_self_balance: false,
 			has_ext_code_hash: false,
 			estimate: false,
-			eip_2929: None,
 		}
 	}
 
@@ -297,6 +299,7 @@ impl Config {
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
 			gas_sload: 800,
+			gas_sload_cold: 0,
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
@@ -308,8 +311,11 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
+			gas_account_access_cold: 0,
+			gas_storage_read_warm: 0,
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
+			increase_state_access_gas: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -328,7 +334,6 @@ impl Config {
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			estimate: false,
-			eip_2929: None,
 		}
 	}
 
@@ -339,6 +344,7 @@ impl Config {
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
 			gas_sload: 800,
+			gas_sload_cold: 2100,
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
@@ -350,14 +356,17 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
+			gas_account_access_cold: 2600,
+			gas_storage_read_warm: 100,
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
+			increase_state_access_gas: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
 			call_l64_after_gas: true,
 			stack_limit: 1024,
-			memory_limit: usize::max_value(),
+			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: Some(0x6000),
 			call_stipend: 2300,
@@ -370,11 +379,6 @@ impl Config {
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			estimate: false,
-			eip_2929: Some(EIP2929Config {
-				cold_sload_cost: 2100,
-				cold_account_access_cost: 2600,
-				warm_storage_read_cost: 100,
-			}),
 		}
 	}
 }

@@ -270,7 +270,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 			match gasometer
 				.record_transaction(transaction_cost)
-				.and(Self::init_access_addresses(gasometer, caller, address))
+				.and_then(Self::init_access_addresses(gasometer, caller, address))
 			{
 				Ok(()) => (),
 				Err(e) => return (e.into(), Vec::new()),

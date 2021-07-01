@@ -65,6 +65,12 @@ pub struct Gasometer<'config> {
 impl<'config> Gasometer<'config> {
 	/// Create a new gasometer with given gas limit and config.
 	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
+		let (accessed_addresses, accessed_storage_keys) = if config.increase_state_access_gas {
+			(Some(BTreeSet::new()), Some(BTreeSet::new()))
+		} else {
+			(None, None)
+		};
+
 		Self {
 			gas_limit,
 			config,
@@ -73,8 +79,8 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
-				accessed_addresses: BTreeSet::new(),
-				accessed_storage_keys: BTreeSet::new(),
+				accessed_addresses,
+				accessed_storage_keys,
 			}),
 		}
 	}
@@ -82,11 +88,11 @@ impl<'config> Gasometer<'config> {
 	#[inline]
 	/// Returns the numerical gas cost value.
 	pub fn gas_cost(
-		&mut self,
+		&self,
 		cost: GasCost,
 		gas: u64,
 	) -> Result<u64, ExitError>  {
-		match self.inner.as_mut() {
+		match self.inner.as_ref() {
 			Ok(inner) => inner.gas_cost(cost, gas),
 			Err(e) => Err(e.clone())
 		}
@@ -241,13 +247,17 @@ impl<'config> Gasometer<'config> {
 	/// Access an address (makes certain gas costs cheaper in the future)
 	pub fn access_address(&mut self, address: H160) -> Result<(), ExitError> {
 		let inner = self.inner_mut()?;
-		inner.accessed_addresses.insert(address);
+		if let Some(accessed_addresses) = &mut inner.accessed_addresses {
+			accessed_addresses.insert(address);
+		}
 		Ok(())
 	}
 
 	pub fn access_storage(&mut self, address: H160, key: H256) -> Result<(), ExitError> {
 		let inner = self.inner_mut()?;
-		inner.accessed_storage_keys.insert((address, key));
+        if let Some(accessed_storage_keys) = &mut inner.accessed_storage_keys {
+			accessed_storage_keys.insert((address, key));
+		}
 		Ok(())
 	}
 
@@ -654,8 +664,8 @@ struct Inner<'config> {
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
-	accessed_addresses: BTreeSet<H160>,
-	accessed_storage_keys: BTreeSet<(H160, H256)>,
+	accessed_addresses: Option<BTreeSet<H160>>,
+	accessed_storage_keys: Option<BTreeSet<(H160, H256)>>,
 }
 
 impl<'config> Inner<'config> {
@@ -703,7 +713,7 @@ impl<'config> Inner<'config> {
 
 	/// Returns the gas cost numerical value.
 	fn gas_cost(
-		&mut self,
+		&self,
 		cost: GasCost,
 		gas: u64,
 	) -> Result<u64, ExitError> {
@@ -749,21 +759,21 @@ impl<'config> Inner<'config> {
 		})
 	}
 
-	fn is_address_cold(&mut self, address: H160) -> bool {
-		let is_cold = !self.accessed_addresses.contains(&address);
-		if is_cold {
-			self.accessed_addresses.insert(address);
+	fn is_address_cold(&self, address: H160) -> bool {
+        if let Some(accessed_addresses) = &self.accessed_addresses {
+			!accessed_addresses.contains(&address)
+		} else {
+			false
 		}
-		is_cold
 	}
 
-	fn is_storage_cold(&mut self, address: H160, key: H256) -> bool {
-		let tuple = (address, key);
-		let is_cold = !self.accessed_storage_keys.contains(&tuple);
-		if is_cold {
-			self.accessed_storage_keys.insert(tuple);
+	fn is_storage_cold(&self, address: H160, key: H256) -> bool {
+        if let Some(accessed_storage_keys) = &self.accessed_storage_keys {
+			let tuple = (address, key);
+			!accessed_storage_keys.contains(&tuple)
+		} else {
+			false
 		}
-		is_cold
 	}
 
 	fn gas_refund(
