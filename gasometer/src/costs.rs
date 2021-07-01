@@ -65,7 +65,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 		.ok_or(ExitError::OutOfGas)?;
 	let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::max_value()) {
+	if gas > U256::from(u64::MAX) {
 		return Err(ExitError::OutOfGas)
 	}
 
@@ -84,7 +84,7 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 			)
 			.ok_or(ExitError::OutOfGas)?;
 
-		if gas > U256::from(u64::max_value()) {
+		if gas > U256::from(u64::MAX) {
 			return Err(ExitError::OutOfGas)
 		}
 
@@ -106,7 +106,7 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 		).ok_or(ExitError::OutOfGas)?
 	).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::max_value()) {
+	if gas > U256::from(u64::MAX) {
 		return Err(ExitError::OutOfGas)
 	}
 
@@ -127,7 +127,7 @@ pub fn extcodecopy_cost(len: U256, config: &Config) -> Result<u64, ExitError> {
 		).ok_or(ExitError::OutOfGas)?
 	).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::max_value()) {
+	if gas > U256::from(u64::MAX) {
 		return Err(ExitError::OutOfGas)
 	}
 
@@ -141,7 +141,7 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
 		.checked_add(U256::from(G_LOGTOPIC * n as u64))
 		.ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::max_value()) {
+	if gas > U256::from(u64::MAX) {
 		return Err(ExitError::OutOfGas)
 	}
 
@@ -162,7 +162,7 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 		).ok_or(ExitError::OutOfGas)?
 	).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::max_value()) {
+	if gas > U256::from(u64::MAX) {
 		return Err(ExitError::OutOfGas)
 	}
 

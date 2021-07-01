@@ -56,7 +56,7 @@ macro_rules! push_u256 {
 macro_rules! as_usize_or_fail {
 	( $v:expr ) => {
 		{
-			if $v > U256::from(usize::max_value()) {
+			if $v > U256::from(usize::MAX) {
 				return Control::Exit(ExitFatal::NotSupported.into())
 			}
 
@@ -66,7 +66,7 @@ macro_rules! as_usize_or_fail {
 
 	( $v:expr, $reason:expr ) => {
 		{
-			if $v > U256::from(usize::max_value()) {
+			if $v > U256::from(usize::MAX) {
 				return Control::Exit($reason.into())
 			}
 
