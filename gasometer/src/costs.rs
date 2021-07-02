@@ -169,10 +169,10 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 }
 
 pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
-	// modify costs if EIP-2929 is enabled
-	let (gas_sload, gas_sstore_reset) = match &config.eip_2929 {
-		None => (config.gas_sload, config.gas_sstore_reset),
-		Some(eip_2929) => (eip_2929.warm_storage_read_cost, config.gas_sstore_reset - eip_2929.cold_sload_cost),
+    let (gas_sload, gas_sstore_reset) = if config.increase_state_access_gas {
+		(config.gas_storage_read_warm, config.gas_sstore_reset - config.gas_sload_cold)
+	} else {
+		(config.gas_sload, config.gas_sstore_reset)
 	};
 	let gas_cost = if config.sstore_gas_metering {
 		if config.sstore_revert_under_stipend {
@@ -204,11 +204,7 @@ pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, is_cold: 
 	Ok(
 		// In EIP-2929 we charge extra if the slot has not been used yet in this transaction
 		if is_cold {
-			config
-				.eip_2929
-				.as_ref()
-				.map(|eip2929| gas_cost + eip2929.cold_sload_cost)
-				.unwrap_or(gas_cost)
+			gas_cost + config.gas_sload_cold
 		} else {
 			gas_cost
 		}
@@ -229,16 +225,11 @@ pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Co
 		0
 	};
 
-	let eip_2929_cost = match &config.eip_2929 {
-		None => 0,
-		Some(eip_2929) => if is_cold {
-			eip_2929.cold_account_access_cost
-		} else {
-			0
-		}
-	};
-
-	config.gas_suicide + suicide_gas_topup + eip_2929_cost
+	let mut gas = config.gas_suicide + suicide_gas_topup;
+	if config.increase_state_access_gas && is_cold {
+		gas += config.gas_account_access_cold
+	}
+	gas
 }
 
 pub fn call_cost(
