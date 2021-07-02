@@ -88,18 +88,19 @@ pub struct PrecompileOutput {
 	pub logs: Vec<Log>,
 }
 
-/// Precompiles function signature. Expected input arguments are:
-///  * Address
-///  * Input
-///  * Context
-///  * State
-///  * Is static
-type PrecompileFn<S> = fn(H160, &[u8], Option<u64>, &Context, &mut S, bool) -> Option<Result<PrecompileOutput, ExitError>>;
+/// Precompiles trait which allows for the execution of a precompile.
+pub trait Precompiles<S> {
+	/// Runs the precompile at the given address with input and context.
+	fn run(address: H160, input: &[u8], context: &Context, state: &mut S, is_static: bool) -> Option<Result<PrecompileOutput, ExitError>>;
+
+	/// Returns the set of precompile addresses.
+	fn addresses(&self) -> &[H160];
+}
 
 /// Stack-based executor.
-pub struct StackExecutor<'config, S> {
+pub struct StackExecutor<'config, S: State, P: Precompiles<S>> {
 	config: &'config Config,
-	precompile: PrecompileFn<S>,
+	precompiles: P,
 	state: S,
 }
 
@@ -114,7 +115,7 @@ fn no_precompile<S>(
 	None
 }
 
-impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
+impl<'config, S: StackState<'config>, P: Precompiles<S>> StackExecutor<'config, S, P> {
 	/// Create a new stack-based executor.
 	pub fn new(
 		state: S,
@@ -138,7 +139,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	) -> Self {
 		Self {
 			config,
-			precompile,
+			precompiles: precompile,
 			state,
 		}
 	}
@@ -245,14 +246,17 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	// TODO: Need to add the precompile addresses too (see EIP-2929 spec)
 	fn init_access_addresses(
+		&self,
 		gasometer: &mut Gasometer,
 		caller: H160,
 		address: H160
 	) -> Result<(), ExitError> {
 		gasometer.access_address(caller)?;
 		gasometer.access_address(address)?;
+		for address in self.precompiles.addresses() {
+			gasometer.access_address(*address)?;
+		}
 		Ok(())
 	}
 
@@ -270,13 +274,12 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 			match gasometer
 				.record_transaction(transaction_cost)
-				.and_then(Self::init_access_addresses(gasometer, caller, address))
+				.and_then(self.init_access_addresses(gasometer, caller, address))
 			{
 				Ok(()) => (),
 				Err(e) => return (e.into(), Vec::new()),
 			}
 		}
-
 
 		self.state.inc_nonce(caller);
 
@@ -368,7 +371,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		let address = self.create_address(scheme);
 
 		try_or_fail!(
-			Self::init_access_addresses(&mut self.state.metadata_mut().gasometer, caller, address)
+			self.state.metadata_mut().gasometer.access_address(address)
 		);
 
 		event!(Create {
@@ -583,7 +586,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			}
 		}
 
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context, &mut self.state, is_static) {
+		if let Some(ret) = (self.precompiles)(code_address, &input, Some(gas_limit), &context, &mut self.state, is_static) {
 			match ret {
 				Ok(PrecompileOutput { exit_status , output, cost, logs }) => {
 					for Log { address, topics, data} in logs {
@@ -638,7 +641,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 }
 
-impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
+impl<'config, S: StackState<'config>, P: Precompiles<S>> Handler for StackExecutor<'config, S, P> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
