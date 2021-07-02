@@ -36,7 +36,6 @@ pub use crate::handler::{Transfer, Handler};
 
 use alloc::vec::Vec;
 use alloc::rc::Rc;
-use primitive_types::U256;
 
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
