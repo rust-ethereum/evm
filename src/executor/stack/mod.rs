@@ -106,7 +106,7 @@ pub trait Precompiles {
 }
 
 #[derive(Default)]
-struct NoPrecompile {
+pub struct NoPrecompile {
 	addresses: Vec<H160>,
 }
 
