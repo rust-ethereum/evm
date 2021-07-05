@@ -382,6 +382,9 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 		let address = self.create_address(scheme);
 
 		try_or_fail!(
+			self.state.metadata_mut().gasometer.access_address(caller)
+		);
+		try_or_fail!(
 			self.state.metadata_mut().gasometer.access_address(address)
 		);
 		try_or_fail!(
