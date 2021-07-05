@@ -384,6 +384,11 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 		try_or_fail!(
 			self.state.metadata_mut().gasometer.access_address(address)
 		);
+		try_or_fail!(
+			self.state.metadata_mut().gasometer.access_addresses(
+				self.precompiles.addresses().iter().copied()
+			)
+		);
 
 		event!(Create {
 			caller,
