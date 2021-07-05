@@ -280,15 +280,15 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 
         // Initialize initial addresses for EIP-2929
 		if self.config.increase_state_access_gas {
-			let mut addresses: Vec<H160> = Vec::with_capacity( 2 + self.precompiles.addresses().len());
-			addresses.push(caller);
-			addresses.push(address);
-			addresses.extend_from_slice(self.precompiles.addresses());
-			for addr in self.precompiles.addresses() {
-				match gasometer.access_address(*addr) {
-					Ok(_) => {},
-					Err(e) => return (e.into(), Vec::new()),
-				}
+			let addresses = self
+				.precompiles
+				.addresses()
+				.iter()
+				.copied()
+				.chain(core::iter::once(caller))
+				.chain(core::iter::once(address));
+			if let Err(e) = gasometer.access_addresses(addresses) {
+				return (e.into(), Vec::new());
 			}
 		}
 

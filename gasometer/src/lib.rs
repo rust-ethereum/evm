@@ -253,6 +253,19 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	pub fn access_addresses<I>(&mut self, addresses: I) -> Result<(), ExitError>
+	where
+		I: Iterator<Item=H160>
+	{
+		let inner = self.inner_mut()?;
+		if let Some(accessed_addresses) = &mut inner.accessed_addresses {
+			for address in addresses {
+				accessed_addresses.insert(address);
+			}
+		}
+		Ok(())
+	}
+
 	pub fn access_storage(&mut self, address: H160, key: H256) -> Result<(), ExitError> {
 		let inner = self.inner_mut()?;
         if let Some(accessed_storage_keys) = &mut inner.accessed_storage_keys {
