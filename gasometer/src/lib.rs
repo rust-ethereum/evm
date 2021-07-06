@@ -792,7 +792,7 @@ impl<'config> Inner<'config> {
 			GasCost::Create => consts::G_CREATE,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
 			GasCost::SLoad { address, key } =>
-				costs::storage_access_cost(self.check_and_update_storage_cold(address, key), self.config.gas_sload, self.config),
+				costs::sload_cost(self.check_and_update_storage_cold(address, key), self.config),
 
 			GasCost::Zero => consts::G_ZERO,
 			GasCost::Base => consts::G_BASE,
@@ -801,14 +801,14 @@ impl<'config> Inner<'config> {
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
 			GasCost::ExtCodeSize { address } =>
-				costs::storage_access_cost(self.check_and_update_address_cold(address), self.config.gas_ext_code, self.config),
+				costs::address_access_cost(self.check_and_update_address_cold(address), self.config.gas_ext_code, self.config),
 			GasCost::ExtCodeCopy { address, len } =>
 				costs::extcodecopy_cost(len, self.check_and_update_address_cold(address), self.config)?,
 			GasCost::Balance { address } =>
-				costs::storage_access_cost(self.check_and_update_address_cold(address), self.config.gas_balance, self.config),
+				costs::address_access_cost(self.check_and_update_address_cold(address), self.config.gas_balance, self.config),
 			GasCost::BlockHash => consts::G_BLOCKHASH,
 			GasCost::ExtCodeHash { address } =>
-				costs::storage_access_cost(self.check_and_update_address_cold(address), self.config.gas_ext_code_hash, self.config),
+				costs::address_access_cost(self.check_and_update_address_cold(address), self.config.gas_ext_code_hash, self.config),
 		})
 	}
 
