@@ -360,7 +360,7 @@ impl Config {
 			gas_storage_read_warm: 100,
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
-			increase_state_access_gas: false,
+			increase_state_access_gas: true,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
