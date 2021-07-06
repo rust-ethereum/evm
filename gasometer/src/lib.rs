@@ -81,18 +81,51 @@ impl<'config> Gasometer<'config> {
 				config,
 				accessed_addresses,
 				accessed_storage_keys,
+				parent: None,
 			}),
 		}
+	}
+
+	pub fn spawn(self, gas_limit: u64) -> Self {
+		let (accessed_addresses, accessed_storage_keys) = if self.config.increase_state_access_gas {
+			(Some(BTreeSet::new()), Some(BTreeSet::new()))
+		} else {
+			(None, None)
+		};
+		let config = self.config;
+
+
+		Self {
+			gas_limit,
+			config,
+			inner: Ok(Inner {
+				memory_gas: 0,
+				used_gas: 0,
+				refunded_gas: 0,
+				config,
+				accessed_addresses,
+				accessed_storage_keys,
+				parent: self.inner.ok().map(Box::new),
+			})
+		}
+	}
+
+	pub fn get_accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
+		self.inner.as_ref().ok().and_then(|inner| inner.accessed_addresses.as_ref()).map(|set| set.iter())
+	}
+
+	pub fn get_accessed_storages(&self) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
+		self.inner.as_ref().ok().and_then(|inner| inner.accessed_storage_keys.as_ref()).map(|set| set.iter())
 	}
 
 	#[inline]
 	/// Returns the numerical gas cost value.
 	pub fn gas_cost(
-		&self,
+		&mut self,
 		cost: GasCost,
 		gas: u64,
 	) -> Result<u64, ExitError>  {
-		match self.inner.as_ref() {
+		match self.inner.as_mut() {
 			Ok(inner) => inner.gas_cost(cost, gas),
 			Err(e) => Err(e.clone())
 		}
@@ -266,10 +299,15 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
-	pub fn access_storage(&mut self, address: H160, key: H256) -> Result<(), ExitError> {
+	pub fn access_storages<I>(&mut self, iter: I) -> Result<(), ExitError>
+	where
+		I: Iterator<Item=(H160, H256)>
+	{
 		let inner = self.inner_mut()?;
         if let Some(accessed_storage_keys) = &mut inner.accessed_storage_keys {
-			accessed_storage_keys.insert((address, key));
+			for (address, key) in iter {
+				accessed_storage_keys.insert((address, key));
+			}
 		}
 		Ok(())
 	}
@@ -679,6 +717,7 @@ struct Inner<'config> {
 	config: &'config Config,
 	accessed_addresses: Option<BTreeSet<H160>>,
 	accessed_storage_keys: Option<BTreeSet<(H160, H256)>>,
+	parent: Option<Box<Inner<'config>>>,
 }
 
 impl<'config> Inner<'config> {
@@ -726,25 +765,25 @@ impl<'config> Inner<'config> {
 
 	/// Returns the gas cost numerical value.
 	fn gas_cost(
-		&self,
+		&mut self,
 		cost: GasCost,
 		gas: u64,
 	) -> Result<u64, ExitError> {
 		Ok(match cost {
 			GasCost::Call { value, target, target_exists, .. } =>
-				costs::call_cost(value, self.is_address_cold(target), true, true, !target_exists, self.config),
+				costs::call_cost(value, self.check_and_update_address_cold(target), true, true, !target_exists, self.config),
 			GasCost::CallCode { value, target, target_exists, .. } =>
-				costs::call_cost(value, self.is_address_cold(target), true, false, !target_exists, self.config),
+				costs::call_cost(value, self.check_and_update_address_cold(target), true, false, !target_exists, self.config),
 			GasCost::DelegateCall { target, target_exists, .. } =>
-				costs::call_cost(U256::zero(), self.is_address_cold(target), false, false, !target_exists, self.config),
+				costs::call_cost(U256::zero(), self.check_and_update_address_cold(target), false, false, !target_exists, self.config),
 			GasCost::StaticCall { target, target_exists, .. } =>
-				costs::call_cost(U256::zero(), self.is_address_cold(target), false, true, !target_exists, self.config),
+				costs::call_cost(U256::zero(), self.check_and_update_address_cold(target), false, true, !target_exists, self.config),
 
 			GasCost::Suicide { value, target, target_exists, .. } =>
-				costs::suicide_cost(value, self.is_address_cold(target), target_exists, self.config),
+				costs::suicide_cost(value, self.check_and_update_address_cold(target), target_exists, self.config),
 			GasCost::SStore { .. } if self.config.estimate => self.config.gas_sstore_set,
 			GasCost::SStore { address, key, original, current, new } =>
-				costs::sstore_cost(original, current, new, gas, self.is_storage_cold(address, key), self.config)?,
+				costs::sstore_cost(original, current, new, gas, self.check_and_update_storage_cold(address, key), self.config)?,
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
@@ -753,7 +792,7 @@ impl<'config> Inner<'config> {
 			GasCost::Create => consts::G_CREATE,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
 			GasCost::SLoad { address, key } =>
-				costs::storage_access_cost(self.is_storage_cold(address, key), self.config.gas_sload, self.config),
+				costs::storage_access_cost(self.check_and_update_storage_cold(address, key), self.config.gas_sload, self.config),
 
 			GasCost::Zero => consts::G_ZERO,
 			GasCost::Base => consts::G_BASE,
@@ -762,29 +801,53 @@ impl<'config> Inner<'config> {
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
 			GasCost::ExtCodeSize { address } =>
-				costs::storage_access_cost(self.is_address_cold(address), self.config.gas_ext_code, self.config),
+				costs::storage_access_cost(self.check_and_update_address_cold(address), self.config.gas_ext_code, self.config),
 			GasCost::ExtCodeCopy { address, len } =>
-				costs::extcodecopy_cost(len, self.is_address_cold(address), self.config)?,
+				costs::extcodecopy_cost(len, self.check_and_update_address_cold(address), self.config)?,
 			GasCost::Balance { address } =>
-				costs::storage_access_cost(self.is_address_cold(address), self.config.gas_balance, self.config),
+				costs::storage_access_cost(self.check_and_update_address_cold(address), self.config.gas_balance, self.config),
 			GasCost::BlockHash => consts::G_BLOCKHASH,
 			GasCost::ExtCodeHash { address } =>
-				costs::storage_access_cost(self.is_address_cold(address), self.config.gas_ext_code_hash, self.config),
+				costs::storage_access_cost(self.check_and_update_address_cold(address), self.config.gas_ext_code_hash, self.config),
 		})
 	}
 
-	fn is_address_cold(&self, address: H160) -> bool {
+	fn check_and_update_address_cold(&mut self, address: H160) -> bool {
+		let is_cold = self.is_address_cold(&address);
+		if is_cold {
+			self.accessed_addresses.as_mut().map(|set| set.insert(address));
+		}
+		is_cold
+	}
+
+	fn check_and_update_storage_cold(&mut self, address: H160, key: H256) -> bool {
+		let tuple = (address, key);
+		let is_cold = self.is_storage_cold(&tuple);
+		if is_cold {
+			self.accessed_storage_keys.as_mut().map(|set| set.insert(tuple));
+		}
+		is_cold
+	}
+
+	fn is_address_cold(&self, address: &H160) -> bool {
         if let Some(accessed_addresses) = &self.accessed_addresses {
-			!accessed_addresses.contains(&address)
+			if accessed_addresses.contains(address) {
+				false
+			} else {
+				self.parent.as_ref().map(|p| p.is_address_cold(address)).unwrap_or(true)
+			}
 		} else {
 			false
 		}
 	}
 
-	fn is_storage_cold(&self, address: H160, key: H256) -> bool {
+	fn is_storage_cold(&self, tuple: &(H160, H256)) -> bool {
         if let Some(accessed_storage_keys) = &self.accessed_storage_keys {
-			let tuple = (address, key);
-			!accessed_storage_keys.contains(&tuple)
+			if accessed_storage_keys.contains(tuple) {
+				false
+			} else {
+				self.parent.as_ref().map(|p| p.is_storage_cold(tuple)).unwrap_or(true)
+			}
 		} else {
 			false
 		}

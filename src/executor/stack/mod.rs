@@ -38,6 +38,12 @@ impl<'config> StackSubstateMetadata<'config> {
 	pub fn swallow_commit(&mut self, other: Self) -> Result<(), ExitError> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer.record_refund(other.gasometer.refunded_gas())?;
+		if let Some(addresses) = other.gasometer.get_accessed_addresses() {
+			self.gasometer.access_addresses(addresses.copied())?;
+		}
+		if let Some(storages) = other.gasometer.get_accessed_storages() {
+			self.gasometer.access_storages(storages.copied())?;
+		}
 
 		Ok(())
 	}
@@ -54,7 +60,8 @@ impl<'config> StackSubstateMetadata<'config> {
 
 	pub fn spit_child(&self, gas_limit: u64, is_static: bool) -> Self {
 		Self {
-			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
+			// TODO: should be able to get rid of this clone
+			gasometer: self.gasometer.clone().spawn(gas_limit),
 			is_static: is_static || self.is_static,
 			depth: match self.depth {
 				None => Some(0),
