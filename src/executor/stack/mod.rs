@@ -89,7 +89,7 @@ pub struct PrecompileOutput {
 }
 
 /// Precompiles trait which allows for the execution of a precompile.
-pub trait Precompiles {
+pub trait Precompile {
 	/// Runs the precompile at the given address with input and context.
 	fn run<'config, S: StackState<'config>>(
 		&self,
@@ -110,7 +110,7 @@ pub struct NoPrecompile {
 	addresses: Vec<H160>,
 }
 
-impl Precompiles for NoPrecompile {
+impl Precompile for NoPrecompile {
 	fn run<'config, S: StackState<'config>>(&self, _address: H160, _input: &[u8], _gas_limit: Option<u64>,_context: &Context, _state: &mut S, _is_static: bool) -> Option<Result<PrecompileOutput, ExitError>> {
 		None
 	}
@@ -121,7 +121,7 @@ impl Precompiles for NoPrecompile {
 }
 
 /// Stack-based executor.
-pub struct StackExecutor<'config, S: StackState<'config>, P: Precompiles> {
+pub struct StackExecutor<'config, S: StackState<'config>, P: Precompile> {
 	config: &'config Config,
 	precompiles: P,
 	state: S,
@@ -137,7 +137,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S, NoPrecompile> {
 	}
 }
 
-impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, P> {
+impl<'config, S: StackState<'config>, P: Precompile> StackExecutor<'config, S, P> {
 	/// Return a reference of the Config.
 	pub fn config(
 		&self
@@ -660,7 +660,7 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 	}
 }
 
-impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<'config, S, P> {
+impl<'config, S: StackState<'config>, P: Precompile> Handler for StackExecutor<'config, S, P> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
