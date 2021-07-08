@@ -37,10 +37,15 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 				}
 
 				if original == new {
-					if original == H256::default() {
-						refund += (config.gas_sstore_set - config.gas_sload) as i64;
+					let (gas_sstore_reset, gas_sload) = if config.increase_state_access_gas {
+						(config.gas_sstore_reset - config.gas_sload_cold, config.gas_storage_read_warm)
 					} else {
-						refund += (config.gas_sstore_reset - config.gas_sload) as i64;
+						(config.gas_sstore_reset, config.gas_sload)
+					};
+					if original == H256::default() {
+						refund += (config.gas_sstore_set - gas_sload) as i64;
+					} else {
+						refund += (gas_sstore_reset - gas_sload) as i64;
 					}
 				}
 
