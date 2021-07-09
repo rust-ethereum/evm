@@ -196,6 +196,10 @@ pub struct Config {
 	pub gas_transaction_zero_data: u64,
 	/// Gas paid for non-zero data in a transaction.
 	pub gas_transaction_non_zero_data: u64,
+	/// Gas paid per address in transaction access list (see EIP-2930).
+	pub gas_access_list_address: u64,
+	/// Gas paid per storage key in transaction access list (see EIP-2930).
+	pub gas_access_list_storage_key: u64,
 	/// Gas paid for accessing cold account.
 	pub gas_account_access_cold: u64,
 	/// Gas paid for accessing ready storage.
@@ -266,6 +270,8 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 68,
+			gas_access_list_address: 0,
+			gas_access_list_storage_key: 0,
 			gas_account_access_cold: 0,
 			gas_storage_read_warm: 0,
 			sstore_gas_metering: false,
@@ -311,6 +317,8 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
+			gas_access_list_address: 0,
+			gas_access_list_storage_key: 0,
 			gas_account_access_cold: 0,
 			gas_storage_read_warm: 0,
 			sstore_gas_metering: true,
@@ -356,6 +364,8 @@ impl Config {
 			gas_transaction_call: 21000,
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
+			gas_access_list_address: 2400,
+			gas_access_list_storage_key: 1900,
 			gas_account_access_cold: 2600,
 			gas_storage_read_warm: 100,
 			sstore_gas_metering: true,

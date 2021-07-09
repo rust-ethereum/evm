@@ -218,11 +218,17 @@ impl<'config, S: StackState<'config>, P: Precompile> StackExecutor<'config, S, P
 		value: U256,
 		init_code: Vec<u8>,
 		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
-		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-		match self.state.metadata_mut().gasometer.record_transaction(transaction_cost) {
+		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
+		let gasometer = &mut self.state.metadata_mut().gasometer;
+		match gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return e.into(),
+		}
+
+		if let Err(e) = Self::initialize_with_access_list(gasometer, access_list) {
+			return e.into();
 		}
 
 		match self.create_inner(
@@ -246,13 +252,19 @@ impl<'config, S: StackState<'config>, P: Precompile> StackExecutor<'config, S, P
 		init_code: Vec<u8>,
 		salt: H256,
 		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
-		let transaction_cost = gasometer::create_transaction_cost(&init_code);
-		match self.state.metadata_mut().gasometer.record_transaction(transaction_cost) {
+		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
+		let gasometer = &mut self.state.metadata_mut().gasometer;
+		match gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return e.into(),
 		}
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
+
+		if let Err(e) = Self::initialize_with_access_list(gasometer, access_list) {
+			return e.into();
+		}
 
 		match self.create_inner(
 			caller,
@@ -275,8 +287,9 @@ impl<'config, S: StackState<'config>, P: Precompile> StackExecutor<'config, S, P
 		value: U256,
 		data: Vec<u8>,
 		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
-		let transaction_cost = gasometer::call_transaction_cost(&data);
+		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer
@@ -295,6 +308,10 @@ impl<'config, S: StackState<'config>, P: Precompile> StackExecutor<'config, S, P
 				.chain(core::iter::once(caller))
 				.chain(core::iter::once(address));
 			if let Err(e) = gasometer.access_addresses(addresses) {
+				return (e.into(), Vec::new());
+			}
+
+			if let Err(e) = Self::initialize_with_access_list(gasometer, access_list) {
 				return (e.into(), Vec::new());
 			}
 		}
@@ -362,6 +379,19 @@ impl<'config, S: StackState<'config>, P: Precompile> StackExecutor<'config, S, P
 				naddress
 			},
 		}
+	}
+
+	fn initialize_with_access_list(
+		gasometer: &mut Gasometer,
+		access_list: Vec<(H160, Vec<H256>)>
+	) -> Result<(), ExitError> {
+		let addresses = access_list.iter().map(|a| a.0);
+		gasometer.access_addresses(addresses)?;
+
+		let storage_keys = access_list
+			.into_iter()
+			.flat_map(|(address, keys)| keys.into_iter().map(move |key| (address, key)));
+		gasometer.access_storages(storage_keys)
 	}
 
 	fn create_inner(

@@ -318,15 +318,19 @@ impl<'config> Gasometer<'config> {
 		cost: TransactionCost,
 	) -> Result<(), ExitError> {
 		let gas_cost = match cost {
-			TransactionCost::Call { zero_data_len, non_zero_data_len } => {
+			TransactionCost::Call { zero_data_len, non_zero_data_len, access_list_address_len, access_list_storage_len } => {
 				self.config.gas_transaction_call +
 					zero_data_len as u64 * self.config.gas_transaction_zero_data +
-					non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
+					non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data +
+					access_list_address_len as u64 * self.config.gas_access_list_address +
+					access_list_storage_len as u64 * self.config.gas_access_list_storage_key
 			},
-			TransactionCost::Create { zero_data_len, non_zero_data_len } => {
+			TransactionCost::Create { zero_data_len, non_zero_data_len, access_list_address_len, access_list_storage_len } => {
 				self.config.gas_transaction_create +
 					zero_data_len as u64 * self.config.gas_transaction_zero_data +
-					non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
+					non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data +
+					access_list_address_len as u64 * self.config.gas_access_list_address +
+					access_list_storage_len as u64 * self.config.gas_access_list_storage_key
 			},
 		};
 
@@ -357,22 +361,34 @@ impl<'config> Gasometer<'config> {
 
 /// Calculate the call transaction cost.
 pub fn call_transaction_cost(
-	data: &[u8]
+	data: &[u8],
+	access_list: &[(H160, Vec<H256>)],
 ) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
+	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
 
-	TransactionCost::Call { zero_data_len, non_zero_data_len }
+	TransactionCost::Call { zero_data_len, non_zero_data_len, access_list_address_len, access_list_storage_len }
 }
 
 /// Calculate the create transaction cost.
 pub fn create_transaction_cost(
-	data: &[u8]
+	data: &[u8],
+	access_list: &[(H160, Vec<H256>)],
 ) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
+	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
 
-	TransactionCost::Create { zero_data_len, non_zero_data_len }
+	TransactionCost::Create { zero_data_len, non_zero_data_len, access_list_address_len, access_list_storage_len }
+}
+
+/// Counts the number of addresses and storage keys in the access list
+fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
+	let access_list_address_len = access_list.len();
+	let access_list_storage_len = access_list.iter().map(|(_, keys)| keys.len()).sum();
+
+	(access_list_address_len, access_list_storage_len)
 }
 
 #[inline]
@@ -1027,14 +1043,22 @@ pub enum TransactionCost {
 		/// Length of zeros in transaction data.
 		zero_data_len: usize,
 		/// Length of non-zeros in transaction data.
-		non_zero_data_len: usize
+		non_zero_data_len: usize,
+		/// Number of addresses in transaction access list (see EIP-2930)
+		access_list_address_len: usize,
+		/// Total number of storage keys in transaction access list (see EIP-2930)
+		access_list_storage_len: usize,
 	},
 	/// Create transaction cost.
 	Create {
 		/// Length of zeros in transaction data.
 		zero_data_len: usize,
 		/// Length of non-zeros in transaction data.
-		non_zero_data_len: usize
+		non_zero_data_len: usize,
+		/// Number of addresses in transaction access list (see EIP-2930)
+		access_list_address_len: usize,
+		/// Total number of storage keys in transaction access list (see EIP-2930)
+		access_list_storage_len: usize,
 	},
 }
 
