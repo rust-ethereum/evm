@@ -315,7 +315,7 @@ pub fn call<'config, H: Handler>(
 
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
-	let gas = if gas > U256::from(u64::max_value()) {
+	let gas = if gas > U256::from(u64::MAX) {
 		None
 	} else {
 		Some(gas.as_u64())

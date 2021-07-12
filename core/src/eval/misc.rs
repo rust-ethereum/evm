@@ -28,7 +28,7 @@ pub fn calldataload(state: &mut Machine) -> Control {
 	let mut load = [0u8; 32];
 	for i in 0..32 {
 		if let Some(p) = index.checked_add(U256::from(i)) {
-			if p <= U256::from(usize::max_value()) {
+			if p <= U256::from(usize::MAX) {
 				let p = p.as_usize();
 				if p < state.data.len() {
 					load[i] = state.data[p];
