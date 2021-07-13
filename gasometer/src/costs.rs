@@ -193,7 +193,7 @@ pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, is_cold: 
 	};
 	let gas_cost = if config.sstore_gas_metering {
 		if config.sstore_revert_under_stipend {
-			if gas < config.call_stipend {
+			if gas <= config.call_stipend {
 				return Err(ExitError::OutOfGas)
 			}
 		}
