@@ -22,7 +22,7 @@ pub enum CreateScheme {
 }
 
 /// Call scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug,)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum CallScheme {
 	/// `CALL`
 	Call,
