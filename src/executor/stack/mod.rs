@@ -279,7 +279,12 @@ impl<'config, S: StackState<'config>, P: Precompiles<S>> StackExecutor<'config, 
 		}
 	}
 
-	/// Execute a `CALL` transaction.
+	/// Execute a `CALL` transaction with a given caller, address, value and
+	/// gas limit and data.
+	///
+	/// Takes in an additional `access_list` parameter for EIP-2930 which was
+	/// introduced in the Ethereum Berlin hard fork. If you do not wish to use
+	/// this functionality, just pass in an empty vector.
 	pub fn transact_call(
 		&mut self,
 		caller: H160,
@@ -287,7 +292,7 @@ impl<'config, S: StackState<'config>, P: Precompiles<S>> StackExecutor<'config, 
 		value: U256,
 		data: Vec<u8>,
 		gas_limit: u64,
-		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		access_list: Vec<(H160, Vec<H256>)>,
 	) -> (ExitReason, Vec<u8>) {
 		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 
