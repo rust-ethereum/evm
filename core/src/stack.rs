@@ -1,6 +1,6 @@
-use primitive_types::H256;
-use alloc::vec::Vec;
 use crate::ExitError;
+use alloc::vec::Vec;
+use primitive_types::H256;
 
 /// EVM stack.
 #[derive(Clone, Debug)]
@@ -48,7 +48,7 @@ impl Stack {
 	/// returns `StackOverflow` error and leaves the stack unchanged.
 	pub fn push(&mut self, value: H256) -> Result<(), ExitError> {
 		if self.data.len() + 1 > self.limit {
-			return Err(ExitError::StackOverflow)
+			return Err(ExitError::StackOverflow);
 		}
 		self.data.push(value);
 		Ok(())

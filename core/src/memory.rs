@@ -1,7 +1,7 @@
-use primitive_types::U256;
-use core::cmp::{min, max};
-use alloc::vec::Vec;
 use crate::{ExitError, ExitFatal};
+use alloc::vec::Vec;
+use core::cmp::{max, min};
+use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
@@ -52,7 +52,7 @@ impl Memory {
 	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
 		if len == U256::zero() {
-			return Ok(())
+			return Ok(());
 		}
 
 		if let Some(end) = offset.checked_add(len) {
@@ -67,7 +67,7 @@ impl Memory {
 		while end % U256::from(32) != U256::zero() {
 			end = match end.checked_add(U256::one()) {
 				Some(end) => end,
-				None => return Err(ExitError::InvalidRange)
+				None => return Err(ExitError::InvalidRange),
 			};
 		}
 
@@ -88,7 +88,7 @@ impl Memory {
 		for index in 0..size {
 			let position = offset + index;
 			if position >= self.data.len() {
-				break
+				break;
 			}
 
 			ret[index] = self.data[position];
@@ -103,7 +103,7 @@ impl Memory {
 		&mut self,
 		offset: usize,
 		value: &[u8],
-		target_size: Option<usize>
+		target_size: Option<usize>,
 	) -> Result<(), ExitFatal> {
 		match target_size {
 			Some(target_size) if target_size == 0 => return Ok(()),
@@ -113,10 +113,12 @@ impl Memory {
 
 		let target_size = target_size.unwrap_or(value.len());
 
-		if offset.checked_add(target_size)
-			.map(|pos| pos > self.limit).unwrap_or(true)
+		if offset
+			.checked_add(target_size)
+			.map(|pos| pos > self.limit)
+			.unwrap_or(true)
 		{
-			return Err(ExitFatal::NotSupported)
+			return Err(ExitFatal::NotSupported);
 		}
 
 		if self.data.len() < offset + target_size {
@@ -140,16 +142,16 @@ impl Memory {
 		memory_offset: U256,
 		data_offset: U256,
 		len: U256,
-		data: &[u8]
+		data: &[u8],
 	) -> Result<(), ExitFatal> {
 		let memory_offset = if memory_offset > U256::from(usize::MAX) {
-			return Err(ExitFatal::NotSupported)
+			return Err(ExitFatal::NotSupported);
 		} else {
 			memory_offset.as_usize()
 		};
 
 		let ulen = if len > U256::from(usize::MAX) {
-			return Err(ExitFatal::NotSupported)
+			return Err(ExitFatal::NotSupported);
 		} else {
 			len.as_usize()
 		};

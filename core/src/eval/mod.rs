@@ -4,9 +4,9 @@ mod arithmetic;
 mod bitwise;
 mod misc;
 
+use crate::{ExitError, ExitReason, ExitSucceed, Machine, Opcode};
 use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::{H256, U256};
-use crate::{ExitReason, ExitSucceed, ExitError, Machine, Opcode};
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control {

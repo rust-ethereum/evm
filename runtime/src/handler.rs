@@ -1,7 +1,6 @@
+use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use crate::{Capture, Stack, ExitError, Opcode,
-			CreateScheme, Context, Machine, ExitReason};
 
 /// Transfer from source to target, with given value.
 #[derive(Clone, Debug)]
@@ -80,10 +79,7 @@ pub trait Handler {
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
 	/// Feed in create feedback.
-	fn create_feedback(
-		&mut self,
-		_feedback: Self::CreateFeedback
-	) -> Result<(), ExitError> {
+	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
 		Ok(())
 	}
 	/// Invoke a call operation.
@@ -97,10 +93,7 @@ pub trait Handler {
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
 	/// Feed in call feedback.
-	fn call_feedback(
-		&mut self,
-		_feedback: Self::CallFeedback
-	) -> Result<(), ExitError> {
+	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
 		Ok(())
 	}
 
@@ -109,14 +102,10 @@ pub trait Handler {
 		&mut self,
 		context: &Context,
 		opcode: Opcode,
-		stack: &Stack
+		stack: &Stack,
 	) -> Result<(), ExitError>;
 	/// Handle other unknown external opcodes.
-	fn other(
-		&mut self,
-		_opcode: Opcode,
-		_stack: &mut Machine
-	) -> Result<(), ExitError> {
+	fn other(&mut self, _opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
 		Err(ExitError::OutOfGas)
 	}
 }

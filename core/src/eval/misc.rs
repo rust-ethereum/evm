@@ -1,7 +1,7 @@
+use super::Control;
+use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
-use super::Control;
-use crate::{Machine, ExitError, ExitSucceed, ExitFatal, ExitRevert};
 
 #[inline]
 pub fn codesize(state: &mut Machine) -> Control {
@@ -15,7 +15,10 @@ pub fn codecopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, code_offset, len);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
-	match state.memory.copy_large(memory_offset, code_offset, len, &state.code) {
+	match state
+		.memory
+		.copy_large(memory_offset, code_offset, len, &state.code)
+	{
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -54,10 +57,13 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 	if len == U256::zero() {
-		return Control::Continue(1)
+		return Control::Continue(1);
 	}
 
-	match state.memory.copy_large(memory_offset, data_offset, len, &state.data) {
+	match state
+		.memory
+		.copy_large(memory_offset, data_offset, len, &state.data)
+	{
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}

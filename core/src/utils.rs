@@ -1,5 +1,5 @@
-use core::ops::{Rem, Div};
 use core::cmp::Ordering;
+use core::ops::{Div, Rem};
 use primitive_types::U256;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -9,17 +9,25 @@ pub enum Sign {
 	NoSign,
 }
 
-const SIGN_BIT_MASK: U256 = U256([0xffffffffffffffff, 0xffffffffffffffff,
-								  0xffffffffffffffff, 0x7fffffffffffffff]);
+const SIGN_BIT_MASK: U256 = U256([
+	0xffffffffffffffff,
+	0xffffffffffffffff,
+	0xffffffffffffffff,
+	0x7fffffffffffffff,
+]);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct I256(pub Sign, pub U256);
 
 impl I256 {
 	/// Zero value of I256.
-	pub fn zero() -> I256 { I256(Sign::NoSign, U256::zero()) }
+	pub fn zero() -> I256 {
+		I256(Sign::NoSign, U256::zero())
+	}
 	/// Minimum value of I256.
-	pub fn min_value() -> I256 { I256(Sign::Minus, (U256::MAX & SIGN_BIT_MASK) + U256::from(1u64)) }
+	pub fn min_value() -> I256 {
+		I256(Sign::Minus, (U256::MAX & SIGN_BIT_MASK) + U256::from(1u64))
+	}
 }
 
 impl Ord for I256 {
@@ -44,7 +52,11 @@ impl PartialOrd for I256 {
 	}
 }
 
-impl Default for I256 { fn default() -> I256 { I256::zero() } }
+impl Default for I256 {
+	fn default() -> I256 {
+		I256::zero()
+	}
+}
 impl From<U256> for I256 {
 	fn from(val: U256) -> I256 {
 		if val == U256::zero() {
@@ -88,15 +100,15 @@ impl Div for I256 {
 		}
 
 		match (self.0, other.0) {
-			(Sign::NoSign, Sign::Plus) |
-			(Sign::Plus, Sign::NoSign) |
-			(Sign::NoSign, Sign::NoSign) |
-			(Sign::Plus, Sign::Plus) |
-			(Sign::Minus, Sign::Minus) => I256(Sign::Plus, d),
-			(Sign::NoSign, Sign::Minus) |
-			(Sign::Plus, Sign::Minus) |
-			(Sign::Minus, Sign::NoSign) |
-			(Sign::Minus, Sign::Plus) => I256(Sign::Minus, d)
+			(Sign::NoSign, Sign::Plus)
+			| (Sign::Plus, Sign::NoSign)
+			| (Sign::NoSign, Sign::NoSign)
+			| (Sign::Plus, Sign::Plus)
+			| (Sign::Minus, Sign::Minus) => I256(Sign::Plus, d),
+			(Sign::NoSign, Sign::Minus)
+			| (Sign::Plus, Sign::Minus)
+			| (Sign::Minus, Sign::NoSign)
+			| (Sign::Minus, Sign::Plus) => I256(Sign::Minus, d),
 		}
 	}
 }
@@ -108,31 +120,30 @@ impl Rem for I256 {
 		let r = (self.1 % other.1) & SIGN_BIT_MASK.into();
 
 		if r == U256::zero() {
-			return I256::zero()
+			return I256::zero();
 		}
 
 		I256(self.0, r)
 	}
 }
 
-
 #[cfg(test)]
 mod tests {
-	use std::num::Wrapping;
+	use crate::utils::{Sign, I256};
 	use primitive_types::U256;
-	use crate::utils::{I256, Sign};
+	use std::num::Wrapping;
 
 	#[test]
 	fn div_i256() {
 		// Sanity checks based on i8. Notice that we need to use `Wrapping` here because
 		// Rust will prevent the overflow by default whereas the EVM does not.
-		assert_eq!(Wrapping(i8::MIN)/Wrapping(-1), Wrapping(i8::MIN));
-		assert_eq!(i8::MIN/1, i8::MIN);
-		assert_eq!(i8::MAX/1, i8::MAX);
-		assert_eq!(i8::MAX/-1, -i8::MAX);
+		assert_eq!(Wrapping(i8::MIN) / Wrapping(-1), Wrapping(i8::MIN));
+		assert_eq!(i8::MIN / 1, i8::MIN);
+		assert_eq!(i8::MAX / 1, i8::MAX);
+		assert_eq!(i8::MAX / -1, -i8::MAX);
 
-		assert_eq!(100i8/-1, -100i8);
-		assert_eq!(100i8/2, 50i8);
+		assert_eq!(100i8 / -1, -100i8);
+		assert_eq!(100i8 / 2, 50i8);
 
 		// Now the same calculations based on i256
 		let one = I256(Sign::NoSign, U256::from(1));
@@ -144,12 +155,12 @@ mod tests {
 		let max_value = I256(Sign::Plus, U256::from(2).pow(U256::from(255)) - 1);
 		let neg_max_value = I256(Sign::Minus, U256::from(2).pow(U256::from(255)) - 1);
 
-		assert_eq!(I256::min_value()/minus_one, I256::min_value());
-		assert_eq!(I256::min_value()/one, I256::min_value());
-		assert_eq!(max_value/one, max_value);
-		assert_eq!(max_value/minus_one, neg_max_value);
+		assert_eq!(I256::min_value() / minus_one, I256::min_value());
+		assert_eq!(I256::min_value() / one, I256::min_value());
+		assert_eq!(max_value / one, max_value);
+		assert_eq!(max_value / minus_one, neg_max_value);
 
-		assert_eq!(one_hundred/minus_one, neg_one_hundred);
-		assert_eq!(one_hundred/two, fifty);
+		assert_eq!(one_hundred / minus_one, neg_one_hundred);
+		assert_eq!(one_hundred / two, fifty);
 	}
 }
