@@ -41,7 +41,7 @@ fn run_loop_contract() {
 	);
 
 	let backend = MemoryBackend::new(&vicinity, state);
-	let metadata = StackSubstateMetadata::new(u64::max_value(), &config);
+	let metadata = StackSubstateMetadata::new(u64::MAX, &config);
 	let state = MemoryStackState::new(metadata, &backend);
 	let mut executor = StackExecutor::new(state, &config);
 
@@ -51,7 +51,7 @@ fn run_loop_contract() {
 		U256::zero(),
 		hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000b71b00").unwrap(),
 		// hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000002ee0").unwrap(),
-		u64::max_value(),
+		u64::MAX,
 		Vec::new(),
 	);
 }

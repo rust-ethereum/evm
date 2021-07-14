@@ -752,7 +752,7 @@ impl<'config> Inner<'config> {
 
 		let end = from.checked_add(len).ok_or(ExitError::OutOfGas)?;
 
-		if end > U256::from(usize::max_value()) {
+		if end > U256::from(usize::MAX) {
 			return Err(ExitError::OutOfGas)
 		}
 		let end = end.as_usize();
