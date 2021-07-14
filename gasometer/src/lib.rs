@@ -28,7 +28,9 @@ mod costs;
 mod memory;
 mod utils;
 
+use alloc::boxed::Box;
 use alloc::collections::BTreeSet;
+use alloc::vec::Vec;
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
 use evm_core::{Opcode, ExitError, Stack};
