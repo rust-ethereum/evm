@@ -5,4 +5,4 @@
 
 mod stack;
 
-pub use self::stack::{StackExecutor, MemoryStackState, StackState, StackSubstateMetadata, StackExitKind, PrecompileOutput, Precompile};
+pub use self::stack::{StackExecutor, MemoryStackState, StackState, StackSubstateMetadata, StackExitKind, PrecompileOutput, Precompiles};
