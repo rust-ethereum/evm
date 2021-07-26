@@ -1,5 +1,5 @@
-use alloc::vec::Vec;
 use crate::Opcode;
+use alloc::vec::Vec;
 
 /// Mapping of valid jump destination from code.
 #[derive(Clone, Debug, Eq, PartialEq)]

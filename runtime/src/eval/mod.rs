@@ -2,20 +2,17 @@
 mod macros;
 mod system;
 
-use crate::{Handler, Runtime, ExitReason, CallScheme, Opcode};
+use crate::{CallScheme, ExitReason, Handler, Opcode, Runtime};
 
 pub enum Control<H: Handler> {
 	Continue,
 	CallInterrupt(H::CallInterrupt),
 	CreateInterrupt(H::CreateInterrupt),
-	Exit(ExitReason)
+	Exit(ExitReason),
 }
 
 fn handle_other<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) -> Control<H> {
-	match handler.other(
-		opcode,
-		&mut state.machine
-	) {
+	match handler.other(opcode, &mut state.machine) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}

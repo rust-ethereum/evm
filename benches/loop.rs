@@ -1,9 +1,9 @@
-use std::{str::FromStr, collections::BTreeMap};
 use criterion::{criterion_group, criterion_main, Criterion};
-use primitive_types::{U256, H160};
+use evm::backend::{MemoryAccount, MemoryBackend, MemoryVicinity};
+use evm::executor::{MemoryStackState, StackExecutor, StackSubstateMetadata};
 use evm::Config;
-use evm::executor::{StackExecutor, MemoryStackState, StackSubstateMetadata};
-use evm::backend::{MemoryAccount, MemoryVicinity, MemoryBackend};
+use primitive_types::{H160, U256};
+use std::{collections::BTreeMap, str::FromStr};
 
 fn run_loop_contract() {
 	let config = Config::istanbul();
@@ -49,14 +49,15 @@ fn run_loop_contract() {
 		H160::from_str("0xf000000000000000000000000000000000000000").unwrap(),
 		H160::from_str("0x1000000000000000000000000000000000000000").unwrap(),
 		U256::zero(),
-		hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000b71b00").unwrap(),
+		hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000b71b00")
+			.unwrap(),
 		// hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000002ee0").unwrap(),
 		u64::MAX,
 	);
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("loop contract", |b| b.iter(|| run_loop_contract()));
+	c.bench_function("loop contract", |b| b.iter(|| run_loop_contract()));
 }
 
 criterion_group!(benches, criterion_benchmark);

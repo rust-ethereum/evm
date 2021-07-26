@@ -1,7 +1,7 @@
-use core::ops::Rem;
-use core::convert::TryInto;
-use primitive_types::{U256, U512};
 use crate::utils::I256;
+use core::convert::TryInto;
+use core::ops::Rem;
+use primitive_types::{U256, U512};
 
 #[inline]
 pub fn div(op1: U256, op2: U256) -> U256 {
@@ -51,7 +51,8 @@ pub fn addmod(op1: U256, op2: U256, op3: U256) -> U256 {
 		U256::zero()
 	} else {
 		let v = (op1 + op2) % op3;
-		v.try_into().expect("op3 is less than U256::MAX, thus it never overflows; qed")
+		v.try_into()
+			.expect("op3 is less than U256::MAX, thus it never overflows; qed")
 	}
 }
 
@@ -65,7 +66,8 @@ pub fn mulmod(op1: U256, op2: U256, op3: U256) -> U256 {
 		U256::zero()
 	} else {
 		let v = (op1 * op2) % op3;
-		v.try_into().expect("op3 is less than U256::MAX, thus it never overflows; qed")
+		v.try_into()
+			.expect("op3 is less than U256::MAX, thus it never overflows; qed")
 	}
 }
 

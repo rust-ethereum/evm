@@ -2,31 +2,30 @@
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables, unused_imports)]
-
 #![cfg_attr(not(feature = "std"), no_std)]
 
-extern crate core;
 extern crate alloc;
+extern crate core;
 
-mod memory;
-mod stack;
-mod valids;
-mod opcode;
 mod error;
 mod eval;
+mod memory;
+mod opcode;
+mod stack;
 mod utils;
+mod valids;
 
+pub use crate::error::{Capture, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Trap};
 pub use crate::memory::Memory;
+pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
-pub use crate::opcode::Opcode;
-pub use crate::error::{Trap, Capture, ExitReason, ExitSucceed, ExitError, ExitRevert, ExitFatal};
 
-use core::ops::Range;
-use alloc::vec::Vec;
-use alloc::rc::Rc;
-use primitive_types::U256;
 use crate::eval::{eval, Control};
+use alloc::rc::Rc;
+use alloc::vec::Vec;
+use core::ops::Range;
+use primitive_types::U256;
 
 /// Core execution layer for EVM.
 pub struct Machine {
@@ -48,22 +47,32 @@ pub struct Machine {
 
 impl Machine {
 	/// Reference of machine stack.
-	pub fn stack(&self) -> &Stack { &self.stack }
+	pub fn stack(&self) -> &Stack {
+		&self.stack
+	}
 	/// Mutable reference of machine stack.
-	pub fn stack_mut(&mut self) -> &mut Stack { &mut self.stack }
+	pub fn stack_mut(&mut self) -> &mut Stack {
+		&mut self.stack
+	}
 	/// Reference of machine memory.
-	pub fn memory(&self) -> &Memory { &self.memory }
+	pub fn memory(&self) -> &Memory {
+		&self.memory
+	}
 	/// Mutable reference of machine memory.
-	pub fn memory_mut(&mut self) -> &mut Memory { &mut self.memory }
+	pub fn memory_mut(&mut self) -> &mut Memory {
+		&mut self.memory
+	}
 	/// Return a reference of the program counter.
-	pub fn position(&self) -> &Result<usize, ExitReason> { &self.position }
+	pub fn position(&self) -> &Result<usize, ExitReason> {
+		&self.position
+	}
 
 	/// Create a new machine with given code and data.
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
 		stack_limit: usize,
-		memory_limit: usize
+		memory_limit: usize,
 	) -> Self {
 		let valids = Valids::new(&code[..]);
 
@@ -96,7 +105,10 @@ impl Machine {
 	pub fn return_value(&self) -> Vec<u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
 			let mut ret = Vec::new();
-			ret.resize((self.return_range.end - self.return_range.start).as_usize(), 0);
+			ret.resize(
+				(self.return_range.end - self.return_range.start).as_usize(),
+				0,
+			);
 			ret
 		} else if self.return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.memory.get(
@@ -128,33 +140,34 @@ impl Machine {
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
 	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
-		let position = *self.position.as_ref().map_err(|reason| Capture::Exit(reason.clone()))?;
+		let position = *self
+			.position
+			.as_ref()
+			.map_err(|reason| Capture::Exit(reason.clone()))?;
 
 		match self.code.get(position).map(|v| Opcode(*v)) {
-			Some(opcode) => {
-				match eval(self, opcode, position) {
-					Control::Continue(p) => {
-						self.position = Ok(position + p);
-						Ok(())
-					},
-					Control::Exit(e) => {
-						self.position = Err(e.clone());
-						Err(Capture::Exit(e))
-					},
-					Control::Jump(p) => {
-						self.position = Ok(p);
-						Ok(())
-					},
-					Control::Trap(opcode) => {
-						self.position = Ok(position + 1);
-						Err(Capture::Trap(opcode))
-					},
+			Some(opcode) => match eval(self, opcode, position) {
+				Control::Continue(p) => {
+					self.position = Ok(position + p);
+					Ok(())
+				}
+				Control::Exit(e) => {
+					self.position = Err(e.clone());
+					Err(Capture::Exit(e))
+				}
+				Control::Jump(p) => {
+					self.position = Ok(p);
+					Ok(())
+				}
+				Control::Trap(opcode) => {
+					self.position = Ok(position + 1);
+					Err(Capture::Trap(opcode))
 				}
 			},
 			None => {
 				self.position = Err(ExitSucceed::Stopped.into());
 				Err(Capture::Exit(ExitSucceed::Stopped.into()))
-			},
+			}
 		}
 	}
 }
