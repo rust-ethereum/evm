@@ -122,7 +122,7 @@ pub fn signextend(op1: U256, op2: U256) -> U256 {
 
 #[cfg(test)]
 mod tests {
-	use super::{U256, signextend};
+	use super::{signextend, U256};
 
 	/// Test to ensure new (optimized) `signextend` implementation is equivalent to the previous
 	/// implementation.
