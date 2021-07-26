@@ -10,6 +10,12 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Rustfmt
+      run: cargo fmt --all -- --check
   build:
     runs-on: ubuntu-latest
     steps:
