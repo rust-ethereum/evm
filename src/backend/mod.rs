@@ -4,7 +4,7 @@
 
 mod memory;
 
-pub use self::memory::{MemoryBackend, MemoryVicinity, MemoryAccount};
+pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
 
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
@@ -82,13 +82,9 @@ pub trait Backend {
 /// EVM backend that can apply changes.
 pub trait ApplyBackend {
 	/// Apply given values and logs at backend.
-	fn apply<A, I, L>(
-		&mut self,
-		values: A,
-		logs: L,
-		delete_empty: bool,
-	) where
-		A: IntoIterator<Item=Apply<I>>,
-		I: IntoIterator<Item=(H256, H256)>,
-		L: IntoIterator<Item=Log>;
+	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
+	where
+		A: IntoIterator<Item = Apply<I>>,
+		I: IntoIterator<Item = (H256, H256)>,
+		L: IntoIterator<Item = Log>;
 }
