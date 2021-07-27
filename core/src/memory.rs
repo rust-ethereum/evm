@@ -85,6 +85,7 @@ impl Memory {
 		let mut ret = Vec::new();
 		ret.resize(size, 0);
 
+		#[allow(clippy::needless_range_loop)]
 		for index in 0..size {
 			let position = offset + index;
 			if position >= self.data.len() {
