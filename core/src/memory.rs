@@ -144,10 +144,10 @@ impl Memory {
 		len: U256,
 		data: &[u8],
 	) -> Result<(), ExitFatal> {
-        if len.is_zero() {
-            // a zero-length copy is defined to be a no-op
-            return Ok(());
-        }
+		if len.is_zero() {
+			// a zero-length copy is defined to be a no-op
+			return Ok(());
+		}
 
 		let memory_offset = if memory_offset > U256::from(usize::MAX) {
 			return Err(ExitFatal::NotSupported);

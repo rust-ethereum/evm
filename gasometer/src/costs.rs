@@ -38,7 +38,10 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 
 				if original == new {
 					let (gas_sstore_reset, gas_sload) = if config.increase_state_access_gas {
-						(config.gas_sstore_reset - config.gas_sload_cold, config.gas_storage_read_warm)
+						(
+							config.gas_sstore_reset - config.gas_sload_cold,
+							config.gas_storage_read_warm,
+						)
 					} else {
 						(config.gas_sstore_reset, config.gas_sload)
 					};
@@ -128,15 +131,17 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
-	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code, config)).checked_add(
-		U256::from(G_COPY).checked_mul(
-			if wordr == U256::zero() {
-				wordd
-			} else {
-				wordd + U256::one()
-			}
-		).ok_or(ExitError::OutOfGas)?
-	).ok_or(ExitError::OutOfGas)?;
+	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code, config))
+		.checked_add(
+			U256::from(G_COPY)
+				.checked_mul(if wordr == U256::zero() {
+					wordd
+				} else {
+					wordd + U256::one()
+				})
+				.ok_or(ExitError::OutOfGas)?,
+		)
+		.ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
 		return Err(ExitError::OutOfGas);
@@ -198,16 +203,26 @@ pub fn sload_cost(is_cold: bool, config: &Config) -> u64 {
 	}
 }
 
-pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
-    let (gas_sload, gas_sstore_reset) = if config.increase_state_access_gas {
-		(config.gas_storage_read_warm, config.gas_sstore_reset - config.gas_sload_cold)
+pub fn sstore_cost(
+	original: H256,
+	current: H256,
+	new: H256,
+	gas: u64,
+	is_cold: bool,
+	config: &Config,
+) -> Result<u64, ExitError> {
+	let (gas_sload, gas_sstore_reset) = if config.increase_state_access_gas {
+		(
+			config.gas_storage_read_warm,
+			config.gas_sstore_reset - config.gas_sload_cold,
+		)
 	} else {
 		(config.gas_sload, config.gas_sstore_reset)
 	};
 	let gas_cost = if config.sstore_gas_metering {
 		if config.sstore_revert_under_stipend {
 			if gas <= config.call_stipend {
-				return Err(ExitError::OutOfGas)
+				return Err(ExitError::OutOfGas);
 			}
 		}
 
@@ -237,7 +252,7 @@ pub fn sstore_cost(original: H256, current: H256, new: H256, gas: u64, is_cold: 
 			gas_cost + config.gas_sload_cold
 		} else {
 			gas_cost
-		}
+		},
 	)
 }
 
@@ -271,9 +286,9 @@ pub fn call_cost(
 	config: &Config,
 ) -> u64 {
 	let transfers_value = value != U256::default();
-	address_access_cost(is_cold, config.gas_call, config) +
-		xfer_cost(is_call_or_callcode, transfers_value) +
-		new_cost(is_call_or_staticcall, new_account, transfers_value, config)
+	address_access_cost(is_cold, config.gas_call, config)
+		+ xfer_cost(is_call_or_callcode, transfers_value)
+		+ new_cost(is_call_or_staticcall, new_account, transfers_value, config)
 }
 
 pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -> u64 {
@@ -288,10 +303,7 @@ pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -
 	}
 }
 
-fn xfer_cost(
-	is_call_or_callcode: bool,
-	transfers_value: bool
-) -> u64 {
+fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
 	if is_call_or_callcode && transfers_value {
 		G_CALLVALUE
 	} else {

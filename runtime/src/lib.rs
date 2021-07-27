@@ -178,7 +178,7 @@ pub struct Config {
 	/// Gas paid for SLOAD opcode.
 	pub gas_sload: u64,
 	/// Gas paid for cold SLOAD opcode.
-    pub gas_sload_cold: u64,
+	pub gas_sload_cold: u64,
 	/// Gas paid for SUICIDE opcode.
 	pub gas_suicide: u64,
 	/// Gas paid for SUICIDE opcode when it hits a new account.
