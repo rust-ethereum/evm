@@ -1,7 +1,7 @@
-use primitive_types::{H256, U256};
-use evm_core::ExitError;
-use crate::Config;
 use crate::consts::*;
+use crate::Config;
+use evm_core::ExitError;
+use primitive_types::{H256, U256};
 
 pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitError> {
 	if config.err_on_call_with_more_gas && U256::from(after_gas) < gas {
@@ -64,14 +64,19 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)
-	let sha_addup_base = len / U256::from(32) +
-		if len % U256::from(32) == U256::zero() { U256::zero() } else { U256::one() };
-	let sha_addup = U256::from(G_SHA3WORD).checked_mul(sha_addup_base)
+	let sha_addup_base = len / U256::from(32)
+		+ if len % U256::from(32) == U256::zero() {
+			U256::zero()
+		} else {
+			U256::one()
+		};
+	let sha_addup = U256::from(G_SHA3WORD)
+		.checked_mul(sha_addup_base)
 		.ok_or(ExitError::OutOfGas)?;
 	let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
-		return Err(ExitError::OutOfGas)
+		return Err(ExitError::OutOfGas);
 	}
 
 	Ok(gas.as_u64())
@@ -85,12 +90,12 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 			.checked_add(
 				U256::from(config.gas_expbyte)
 					.checked_mul(U256::from(crate::utils::log2floor(power) / 8 + 1))
-					.ok_or(ExitError::OutOfGas)?
+					.ok_or(ExitError::OutOfGas)?,
 			)
 			.ok_or(ExitError::OutOfGas)?;
 
 		if gas > U256::from(u64::MAX) {
-			return Err(ExitError::OutOfGas)
+			return Err(ExitError::OutOfGas);
 		}
 
 		Ok(gas.as_u64())
@@ -101,18 +106,20 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
 
-	let gas = U256::from(G_VERYLOW).checked_add(
-		U256::from(G_COPY).checked_mul(
-			if wordr == U256::zero() {
-				wordd
-			} else {
-				wordd + U256::one()
-			}
-		).ok_or(ExitError::OutOfGas)?
-	).ok_or(ExitError::OutOfGas)?;
+	let gas = U256::from(G_VERYLOW)
+		.checked_add(
+			U256::from(G_COPY)
+				.checked_mul(if wordr == U256::zero() {
+					wordd
+				} else {
+					wordd + U256::one()
+				})
+				.ok_or(ExitError::OutOfGas)?,
+		)
+		.ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
-		return Err(ExitError::OutOfGas)
+		return Err(ExitError::OutOfGas);
 	}
 
 	Ok(gas.as_u64())
@@ -132,7 +139,7 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 	).ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
-		return Err(ExitError::OutOfGas)
+		return Err(ExitError::OutOfGas);
 	}
 
 	Ok(gas.as_u64())
@@ -140,13 +147,17 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 
 pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
 	let gas = U256::from(G_LOG)
-		.checked_add(U256::from(G_LOGDATA).checked_mul(len).ok_or(ExitError::OutOfGas)?)
+		.checked_add(
+			U256::from(G_LOGDATA)
+				.checked_mul(len)
+				.ok_or(ExitError::OutOfGas)?,
+		)
 		.ok_or(ExitError::OutOfGas)?
 		.checked_add(U256::from(G_LOGTOPIC * n as u64))
 		.ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
-		return Err(ExitError::OutOfGas)
+		return Err(ExitError::OutOfGas);
 	}
 
 	Ok(gas.as_u64())
@@ -156,18 +167,20 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
 
-	let gas = U256::from(G_SHA3).checked_add(
-		U256::from(G_SHA3WORD).checked_mul(
-			if wordr == U256::zero() {
-				wordd
-			} else {
-				wordd + U256::one()
-			}
-		).ok_or(ExitError::OutOfGas)?
-	).ok_or(ExitError::OutOfGas)?;
+	let gas = U256::from(G_SHA3)
+		.checked_add(
+			U256::from(G_SHA3WORD)
+				.checked_mul(if wordr == U256::zero() {
+					wordd
+				} else {
+					wordd + U256::one()
+				})
+				.ok_or(ExitError::OutOfGas)?,
+		)
+		.ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
-		return Err(ExitError::OutOfGas)
+		return Err(ExitError::OutOfGas);
 	}
 
 	Ok(gas.as_u64())
