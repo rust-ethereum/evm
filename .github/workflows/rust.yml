@@ -34,7 +34,7 @@ jobs:
     - name: Submodules
       run: |
         cd evm
-        git fetch
+        git fetch --all
         git checkout $GITHUB_SHA
     - name: Run tests
       run: |
