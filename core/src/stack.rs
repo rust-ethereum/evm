@@ -31,6 +31,12 @@ impl Stack {
 	}
 
 	#[inline]
+	/// Whether the stack is empty.
+	pub fn is_empty(&self) -> bool {
+		self.data.is_empty()
+	}
+
+	#[inline]
 	/// Stack data.
 	pub fn data(&self) -> &Vec<H256> {
 		&self.data

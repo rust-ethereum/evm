@@ -29,6 +29,7 @@ pub fn calldataload(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
 
 	let mut load = [0u8; 32];
+	#[allow(clippy::needless_range_loop)]
 	for i in 0..32 {
 		if let Some(p) = index.checked_add(U256::from(i)) {
 			if p <= U256::from(usize::MAX) {
@@ -146,7 +147,7 @@ pub fn pc(state: &mut Machine, position: usize) -> Control {
 
 #[inline]
 pub fn msize(state: &mut Machine) -> Control {
-	push_u256!(state, U256::from(state.memory.effective_len()));
+	push_u256!(state, state.memory.effective_len());
 	Control::Continue(1)
 }
 
