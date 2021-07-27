@@ -15,15 +15,15 @@ pub mod tracing;
 
 #[cfg(feature = "tracing")]
 macro_rules! event {
-	($x:expr) => {
-		use crate::tracing::Event::*;
-		$x.emit();
-	};
+    ($x:expr) => {
+        use crate::tracing::Event::*;
+        $x.emit();
+    };
 }
 
 #[cfg(not(feature = "tracing"))]
 macro_rules! event {
-	($x:expr) => {};
+    ($x:expr) => {};
 }
 
 pub mod backend;
