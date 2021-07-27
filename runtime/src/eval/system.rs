@@ -318,11 +318,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	}
 }
 
-pub fn call<H: Handler>(
-	runtime: &mut Runtime,
-	scheme: CallScheme,
-	handler: &mut H,
-) -> Control<H> {
+pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, gas);
