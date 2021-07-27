@@ -19,6 +19,7 @@ pub fn suicide_refund(already_removed: bool) -> i64 {
 	}
 }
 
+#[allow(clippy::collapsible_else_if)]
 pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> i64 {
 	if config.sstore_gas_metering {
 		if current == new {
@@ -28,6 +29,7 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 				config.refund_sstore_clears
 			} else {
 				let mut refund = 0;
+
 				if original != H256::default() {
 					if current == H256::default() {
 						refund -= config.refund_sstore_clears;
@@ -192,24 +194,20 @@ pub fn sstore_cost(
 	config: &Config,
 ) -> Result<u64, ExitError> {
 	if config.sstore_gas_metering {
-		if config.sstore_revert_under_stipend {
-			if gas < config.call_stipend {
-				return Err(ExitError::OutOfGas);
-			}
+		if config.sstore_revert_under_stipend && gas < config.call_stipend {
+			return Err(ExitError::OutOfGas);
 		}
 
 		Ok(if new == current {
 			config.gas_sload
-		} else {
-			if original == current {
-				if original == H256::zero() {
-					config.gas_sstore_set
-				} else {
-					config.gas_sstore_reset
-				}
+		} else if original == current {
+			if original == H256::zero() {
+				config.gas_sstore_set
 			} else {
-				config.gas_sload
+				config.gas_sstore_reset
 			}
+		} else {
+			config.gas_sload
 		})
 	} else {
 		Ok(if current == H256::zero() && new != H256::zero() {

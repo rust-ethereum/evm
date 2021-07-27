@@ -294,7 +294,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 
 			match reason {
 				ExitReason::Succeed(_) => {
-					push!(runtime, create_address.into());
+					push!(runtime, create_address);
 					Control::Continue
 				}
 				ExitReason::Revert(_) => {
@@ -318,7 +318,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	}
 }
 
-pub fn call<'config, H: Handler>(
+pub fn call<H: Handler>(
 	runtime: &mut Runtime,
 	scheme: CallScheme,
 	handler: &mut H,
@@ -383,13 +383,13 @@ pub fn call<'config, H: Handler>(
 		Some(Transfer {
 			source: runtime.context.address,
 			target: to.into(),
-			value: value.into(),
+			value,
 		})
 	} else if scheme == CallScheme::CallCode {
 		Some(Transfer {
 			source: runtime.context.address,
 			target: runtime.context.address,
-			value: value.into(),
+			value,
 		})
 	} else {
 		None
