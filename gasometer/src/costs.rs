@@ -205,6 +205,7 @@ pub fn sload_cost(is_cold: bool, config: &Config) -> u64 {
 	}
 }
 
+#[allow(clippy::collapsible_else_if)]
 pub fn sstore_cost(
 	original: H256,
 	current: H256,
@@ -222,10 +223,8 @@ pub fn sstore_cost(
 		(config.gas_sload, config.gas_sstore_reset)
 	};
 	let gas_cost = if config.sstore_gas_metering {
-		if config.sstore_revert_under_stipend {
-			if gas <= config.call_stipend {
-				return Err(ExitError::OutOfGas);
-			}
+		if config.sstore_revert_under_stipend && gas <= config.call_stipend {
+			return Err(ExitError::OutOfGas);
 		}
 
 		if new == current {
