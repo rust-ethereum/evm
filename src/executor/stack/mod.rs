@@ -576,6 +576,7 @@ impl<'config, S: StackState<'config>, P: Precompiles<S>> StackExecutor<'config, 
 		}
 	}
 
+	#[allow(clippy::too_many_arguments)]
 	fn call_inner(
 		&mut self,
 		code_address: H160,

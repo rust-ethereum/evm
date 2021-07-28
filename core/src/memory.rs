@@ -1,6 +1,7 @@
 use crate::{ExitError, ExitFatal};
 use alloc::vec::Vec;
-use core::cmp::{max, min};
+use core::cmp::min;
+use core::ops::{BitAnd, Not};
 use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
@@ -63,15 +64,12 @@ impl Memory {
 	}
 
 	/// Resize the memory, making it cover to `end`, with 32 bytes as the step.
-	pub fn resize_end(&mut self, mut end: U256) -> Result<(), ExitError> {
-		while end % U256::from(32) != U256::zero() {
-			end = match end.checked_add(U256::one()) {
-				Some(end) => end,
-				None => return Err(ExitError::InvalidRange),
-			};
+	pub fn resize_end(&mut self, end: U256) -> Result<(), ExitError> {
+		if end > self.effective_len {
+			let new_end = next_multiple_of_32(end).ok_or(ExitError::InvalidRange)?;
+			self.effective_len = new_end;
 		}
 
-		self.effective_len = max(self.effective_len, end);
 		Ok(())
 	}
 
@@ -85,6 +83,7 @@ impl Memory {
 		let mut ret = Vec::new();
 		ret.resize(size, 0);
 
+		#[allow(clippy::needless_range_loop)]
 		for index in 0..size {
 			let position = offset + index;
 			if position >= self.data.len() {
@@ -105,13 +104,10 @@ impl Memory {
 		value: &[u8],
 		target_size: Option<usize>,
 	) -> Result<(), ExitFatal> {
-		match target_size {
-			Some(target_size) if target_size == 0 => return Ok(()),
-			None if value.is_empty() => return Ok(()),
-			_ => (),
-		}
-
 		let target_size = target_size.unwrap_or(value.len());
+		if target_size == 0 {
+			return Ok(());
+		}
 
 		if offset
 			.checked_add(target_size)
@@ -125,12 +121,13 @@ impl Memory {
 			self.data.resize(offset + target_size, 0);
 		}
 
-		for index in 0..target_size {
-			if self.data.len() > offset + index && value.len() > index {
-				self.data[offset + index] = value[index];
-			} else {
+		if target_size > value.len() {
+			self.data[offset..((value.len()) + offset)].clone_from_slice(&value);
+			for index in (value.len())..target_size {
 				self.data[offset + index] = 0;
 			}
+		} else {
+			self.data[offset..(target_size + offset)].clone_from_slice(&value[..target_size]);
 		}
 
 		Ok(())
@@ -179,5 +176,49 @@ impl Memory {
 		};
 
 		self.set(memory_offset, data, Some(ulen))
+	}
+}
+
+/// Rounds up `x` to the closest multiple of 32. If `x % 32 == 0` then `x` is returned.
+#[inline]
+fn next_multiple_of_32(x: U256) -> Option<U256> {
+	let r = x.low_u32().bitand(31).not().wrapping_add(1).bitand(31);
+	x.checked_add(r.into())
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{next_multiple_of_32, U256};
+
+	#[test]
+	fn test_next_multiple_of_32() {
+		// next_multiple_of_32 returns x when it is a multiple of 32
+		for i in 0..32 {
+			let x = U256::from(i * 32);
+			assert_eq!(Some(x), next_multiple_of_32(x));
+		}
+
+		// next_multiple_of_32 rounds up to the nearest multiple of 32 when `x % 32 != 0`
+		for x in 0..1024 {
+			if x % 32 == 0 {
+				continue;
+			}
+			let next_multiple = x + 32 - (x % 32);
+			assert_eq!(
+				Some(U256::from(next_multiple)),
+				next_multiple_of_32(x.into())
+			);
+		}
+
+		// next_multiple_of_32 returns None when the next multiple of 32 is too big
+		let last_multiple_of_32 = U256::MAX & !U256::from(31);
+		for i in 0..63 {
+			let x = U256::MAX - U256::from(i);
+			if x > last_multiple_of_32 {
+				assert_eq!(None, next_multiple_of_32(x));
+			} else {
+				assert_eq!(Some(last_multiple_of_32), next_multiple_of_32(x));
+			}
+		}
 	}
 }
