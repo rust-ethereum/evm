@@ -110,7 +110,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
-	pub fn get_accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
+	pub fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
 		self.inner
 			.as_ref()
 			.ok()
@@ -118,7 +118,7 @@ impl<'config> Gasometer<'config> {
 			.map(|set| set.iter())
 	}
 
-	pub fn get_accessed_storages(
+	pub fn accessed_storages(
 		&self,
 	) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
 		self.inner

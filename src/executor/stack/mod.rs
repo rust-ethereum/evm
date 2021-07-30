@@ -38,10 +38,10 @@ impl<'config> StackSubstateMetadata<'config> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer
 			.record_refund(other.gasometer.refunded_gas())?;
-		if let Some(addresses) = other.gasometer.get_accessed_addresses() {
+		if let Some(addresses) = other.gasometer.accessed_addresses() {
 			self.gasometer.access_addresses(addresses.copied())?;
 		}
-		if let Some(storages) = other.gasometer.get_accessed_storages() {
+		if let Some(storages) = other.gasometer.accessed_storages() {
 			self.gasometer.access_storages(storages.copied())?;
 		}
 
