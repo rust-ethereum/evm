@@ -47,14 +47,6 @@ impl Accessed {
 			self.accessed_storage.insert((storage.0, storage.1));
 		}
 	}
-
-	fn accessed_addresses(&self) -> alloc::collections::btree_set::Iter<'_, H160> {
-		self.accessed_addresses.iter()
-	}
-
-	fn accessed_storages(&self) -> alloc::collections::btree_set::Iter<'_, (H160, H256)> {
-		self.accessed_storage.iter()
-	}
 }
 
 pub struct StackSubstateMetadata<'config> {
@@ -83,12 +75,17 @@ impl<'config> StackSubstateMetadata<'config> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer
 			.record_refund(other.gasometer.refunded_gas())?;
-		if let Some(addresses) = other.accessed_addresses() {
-			self.access_addresses(addresses.copied());
-		};
-		if let Some(storages) = other.accessed_storages() {
-			self.access_storages(storages.copied());
-		};
+
+		if let (Some(mut other_accessed), Some(self_accessed)) =
+			(other.accessed, self.accessed.as_mut())
+		{
+			self_accessed
+				.accessed_addresses
+				.append(&mut other_accessed.accessed_addresses);
+			self_accessed
+				.accessed_storage
+				.append(&mut other_accessed.accessed_storage);
+		}
 
 		Ok(())
 	}
@@ -159,18 +156,6 @@ impl<'config> StackSubstateMetadata<'config> {
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_storages(storages);
 		}
-	}
-
-	fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
-		self.accessed
-			.as_ref()
-			.map(|accessed| accessed.accessed_addresses())
-	}
-
-	fn accessed_storages(&self) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
-		self.accessed
-			.as_ref()
-			.map(|accessed| accessed.accessed_storages())
 	}
 }
 
