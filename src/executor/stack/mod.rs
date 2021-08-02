@@ -7,7 +7,7 @@ use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
 	Runtime, Stack, Transfer,
 };
-use alloc::{rc::Rc, vec::Vec};
+use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
 use core::{cmp::min, convert::Infallible};
 use ethereum::Log;
 use primitive_types::{H160, H256, U256};
@@ -19,18 +19,63 @@ pub enum StackExitKind {
 	Failed,
 }
 
+#[derive(Default)]
+struct Accessed {
+	accessed_addresses: BTreeSet<H160>,
+	accessed_storage: BTreeSet<(H160, H256)>,
+}
+
+impl Accessed {
+	fn access_address(&mut self, address: H160) {
+		self.accessed_addresses.insert(address);
+	}
+
+	fn access_addresses<I>(&mut self, addresses: I)
+	where
+		I: Iterator<Item = H160>,
+	{
+		for address in addresses {
+			self.accessed_addresses.insert(address);
+		}
+	}
+
+	fn access_storages<I>(&mut self, storages: I)
+	where
+		I: Iterator<Item = (H160, H256)>,
+	{
+		for storage in storages {
+			self.accessed_storage.insert((storage.0, storage.1));
+		}
+	}
+
+	fn accessed_addresses(&self) -> alloc::collections::btree_set::Iter<'_, H160> {
+		self.accessed_addresses.iter()
+	}
+
+	fn accessed_storages(&self) -> alloc::collections::btree_set::Iter<'_, (H160, H256)> {
+		self.accessed_storage.iter()
+	}
+}
+
 pub struct StackSubstateMetadata<'config> {
 	gasometer: Gasometer<'config>,
 	is_static: bool,
 	depth: Option<usize>,
+	accessed: Option<Accessed>,
 }
 
 impl<'config> StackSubstateMetadata<'config> {
 	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
+		let accessed = if config.increase_state_access_gas {
+			Some(Accessed::default())
+		} else {
+			None
+		};
 		Self {
 			gasometer: Gasometer::new(gas_limit, config),
 			is_static: false,
 			depth: None,
+			accessed,
 		}
 	}
 
@@ -38,12 +83,16 @@ impl<'config> StackSubstateMetadata<'config> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer
 			.record_refund(other.gasometer.refunded_gas())?;
-		if let Some(addresses) = other.gasometer.accessed_addresses() {
-			self.gasometer.access_addresses(addresses.copied())?;
-		}
-		if let Some(storages) = other.gasometer.accessed_storages() {
-			self.gasometer.access_storages(storages.copied())?;
-		}
+		other.accessed_addresses().map(|addresses| {
+			self.accessed
+				.as_mut()
+				.map(|accessed| accessed.access_addresses(addresses.copied()));
+		});
+		other.accessed_storages().map(|storages| {
+			self.accessed
+				.as_mut()
+				.map(|accessed| accessed.access_storages(storages.copied()));
+		});
 
 		Ok(())
 	}
@@ -67,6 +116,7 @@ impl<'config> StackSubstateMetadata<'config> {
 				None => Some(0),
 				Some(n) => Some(n + 1),
 			},
+			accessed: Default::default(),
 		}
 	}
 
@@ -84,6 +134,47 @@ impl<'config> StackSubstateMetadata<'config> {
 
 	pub fn depth(&self) -> Option<usize> {
 		self.depth
+	}
+
+	fn access_address(&mut self, address: H160) {
+		debug_assert!(self.accessed.is_some());
+		self.accessed
+			.as_mut()
+			.map(|accessed| accessed.access_address(address));
+	}
+
+	fn access_addresses<I>(&mut self, addresses: I)
+	where
+		I: Iterator<Item = H160>,
+	{
+		debug_assert!(self.accessed.is_some());
+		self.accessed
+			.as_mut()
+			.map(|accessed| accessed.access_addresses(addresses));
+	}
+
+	fn access_storages<I>(&mut self, storages: I)
+	where
+		I: Iterator<Item = (H160, H256)>,
+	{
+		debug_assert!(self.accessed.is_some());
+		self.accessed
+			.as_mut()
+			.map(|accessed| accessed.access_storages(storages));
+	}
+
+	fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
+		debug_assert!(self.accessed.is_some());
+		self.accessed
+			.as_ref()
+			.map(|accessed| accessed.accessed_addresses())
+	}
+
+	fn accessed_storages(&self) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
+		debug_assert!(self.accessed.is_some());
+		self.accessed
+			.as_ref()
+			.map(|accessed| accessed.accessed_storages())
 	}
 }
 
@@ -219,9 +310,7 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 			Err(e) => return e.into(),
 		}
 
-		if let Err(e) = Self::initialize_with_access_list(gasometer, access_list) {
-			return e.into();
-		}
+		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
 			caller,
@@ -254,9 +343,7 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 		}
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 
-		if let Err(e) = Self::initialize_with_access_list(gasometer, access_list) {
-			return e.into();
-		}
+		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
 			caller,
@@ -307,13 +394,9 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 				.copied()
 				.chain(core::iter::once(caller))
 				.chain(core::iter::once(address));
-			if let Err(e) = gasometer.access_addresses(addresses) {
-				return (e.into(), Vec::new());
-			}
+			self.state.metadata_mut().access_addresses(addresses);
 
-			if let Err(e) = Self::initialize_with_access_list(gasometer, access_list) {
-				return (e.into(), Vec::new());
-			}
+			self.initialize_with_access_list(access_list);
 		}
 
 		self.state.inc_nonce(caller);
@@ -389,17 +472,14 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 		}
 	}
 
-	fn initialize_with_access_list(
-		gasometer: &mut Gasometer,
-		access_list: Vec<(H160, Vec<H256>)>,
-	) -> Result<(), ExitError> {
+	fn initialize_with_access_list(&mut self, access_list: Vec<(H160, Vec<H256>)>) {
 		let addresses = access_list.iter().map(|a| a.0);
-		gasometer.access_addresses(addresses)?;
+		self.state.metadata_mut().access_addresses(addresses);
 
 		let storage_keys = access_list
 			.into_iter()
 			.flat_map(|(address, keys)| keys.into_iter().map(move |key| (address, key)));
-		gasometer.access_storages(storage_keys)
+		self.state.metadata_mut().access_storages(storage_keys);
 	}
 
 	fn create_inner(
@@ -426,13 +506,11 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 
 		let address = self.create_address(scheme);
 
-		try_or_fail!(self.state.metadata_mut().gasometer.access_address(caller));
-		try_or_fail!(self.state.metadata_mut().gasometer.access_address(address));
-		try_or_fail!(self
-			.state
+		self.state.metadata_mut().access_address(caller);
+		self.state.metadata_mut().access_address(address);
+		self.state
 			.metadata_mut()
-			.gasometer
-			.access_addresses(self.precompiles.addresses().iter().copied()));
+			.access_addresses(self.precompiles.addresses().iter().copied());
 
 		event!(Create {
 			caller,
@@ -764,6 +842,13 @@ impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<
 			self.state.exists(address)
 		} else {
 			self.state.exists(address) && !self.state.is_empty(address)
+		}
+	}
+
+	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
+		match maybe_index {
+			None => self.state.is_known(address),
+			Some(index) => self.state.is_storage_known(address, index),
 		}
 	}
 

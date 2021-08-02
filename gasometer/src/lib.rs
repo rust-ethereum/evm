@@ -28,7 +28,6 @@ mod memory;
 mod utils;
 
 use alloc::boxed::Box;
-use alloc::collections::BTreeSet;
 use alloc::vec::Vec;
 use core::cmp::max;
 use evm_core::{ExitError, Opcode, Stack};
@@ -66,11 +65,11 @@ pub struct Gasometer<'config> {
 impl<'config> Gasometer<'config> {
 	/// Create a new gasometer with given gas limit and config.
 	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
-		let (accessed_addresses, accessed_storage_keys) = if config.increase_state_access_gas {
-			(Some(BTreeSet::new()), Some(BTreeSet::new()))
-		} else {
-			(None, None)
-		};
+		// let (accessed_addresses, accessed_storage_keys) = if config.increase_state_access_gas {
+		// 	(Some(BTreeSet::new()), Some(BTreeSet::new()))
+		// } else {
+		// 	(None, None)
+		// };
 
 		Self {
 			gas_limit,
@@ -80,19 +79,17 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
-				accessed_addresses,
-				accessed_storage_keys,
 				parent: None,
 			}),
 		}
 	}
 
 	pub fn spawn(self, gas_limit: u64) -> Self {
-		let (accessed_addresses, accessed_storage_keys) = if self.config.increase_state_access_gas {
-			(Some(BTreeSet::new()), Some(BTreeSet::new()))
-		} else {
-			(None, None)
-		};
+		// let (accessed_addresses, accessed_storage_keys) = if self.config.increase_state_access_gas {
+		// 	(Some(BTreeSet::new()), Some(BTreeSet::new()))
+		// } else {
+		// 	(None, None)
+		// };
 		let config = self.config;
 
 		Self {
@@ -103,30 +100,28 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
-				accessed_addresses,
-				accessed_storage_keys,
 				parent: self.inner.ok().map(Box::new),
 			}),
 		}
 	}
 
-	pub fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
-		self.inner
-			.as_ref()
-			.ok()
-			.and_then(|inner| inner.accessed_addresses.as_ref())
-			.map(|set| set.iter())
-	}
-
-	pub fn accessed_storages(
-		&self,
-	) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
-		self.inner
-			.as_ref()
-			.ok()
-			.and_then(|inner| inner.accessed_storage_keys.as_ref())
-			.map(|set| set.iter())
-	}
+	// pub fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
+	// 	self.inner
+	// 		.as_ref()
+	// 		.ok()
+	// 		.and_then(|inner| inner.accessed_addresses.as_ref())
+	// 		.map(|set| set.iter())
+	// }
+	//
+	// pub fn accessed_storages(
+	// 	&self,
+	// ) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
+	// 	self.inner
+	// 		.as_ref()
+	// 		.ok()
+	// 		.and_then(|inner| inner.accessed_storage_keys.as_ref())
+	// 		.map(|set| set.iter())
+	// }
 
 	#[inline]
 	/// Returns the numerical gas cost value.
@@ -268,41 +263,41 @@ impl<'config> Gasometer<'config> {
 		self.inner_mut()?.used_gas -= stipend;
 		Ok(())
 	}
-
-	/// Access an address (makes certain gas costs cheaper in the future)
-	pub fn access_address(&mut self, address: H160) -> Result<(), ExitError> {
-		let inner = self.inner_mut()?;
-		if let Some(accessed_addresses) = &mut inner.accessed_addresses {
-			accessed_addresses.insert(address);
-		}
-		Ok(())
-	}
-
-	pub fn access_addresses<I>(&mut self, addresses: I) -> Result<(), ExitError>
-	where
-		I: Iterator<Item = H160>,
-	{
-		let inner = self.inner_mut()?;
-		if let Some(accessed_addresses) = &mut inner.accessed_addresses {
-			for address in addresses {
-				accessed_addresses.insert(address);
-			}
-		}
-		Ok(())
-	}
-
-	pub fn access_storages<I>(&mut self, iter: I) -> Result<(), ExitError>
-	where
-		I: Iterator<Item = (H160, H256)>,
-	{
-		let inner = self.inner_mut()?;
-		if let Some(accessed_storage_keys) = &mut inner.accessed_storage_keys {
-			for (address, key) in iter {
-				accessed_storage_keys.insert((address, key));
-			}
-		}
-		Ok(())
-	}
+	//
+	// /// Access an address (makes certain gas costs cheaper in the future)
+	// pub fn access_address(&mut self, address: H160) -> Result<(), ExitError> {
+	// 	let inner = self.inner_mut()?;
+	// 	if let Some(accessed_addresses) = &mut inner.accessed_addresses {
+	// 		accessed_addresses.insert(address);
+	// 	}
+	// 	Ok(())
+	// }
+	//
+	// pub fn access_addresses<I>(&mut self, addresses: I) -> Result<(), ExitError>
+	// where
+	// 	I: Iterator<Item = H160>,
+	// {
+	// 	let inner = self.inner_mut()?;
+	// 	if let Some(accessed_addresses) = &mut inner.accessed_addresses {
+	// 		for address in addresses {
+	// 			accessed_addresses.insert(address);
+	// 		}
+	// 	}
+	// 	Ok(())
+	// }
+	//
+	// pub fn access_storages<I>(&mut self, iter: I) -> Result<(), ExitError>
+	// where
+	// 	I: Iterator<Item = (H160, H256)>,
+	// {
+	// 	let inner = self.inner_mut()?;
+	// 	if let Some(accessed_storage_keys) = &mut inner.accessed_storage_keys {
+	// 		for (address, key) in iter {
+	// 			accessed_storage_keys.insert((address, key));
+	// 		}
+	// 	}
+	// 	Ok(())
+	// }
 
 	/// Record transaction cost.
 	pub fn record_transaction(&mut self, cost: TransactionCost) -> Result<(), ExitError> {
@@ -545,15 +540,15 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SELFBALANCE => GasCost::Invalid,
 
 		Opcode::EXTCODESIZE => GasCost::ExtCodeSize {
-			address: stack.peek(0)?.into(),
+			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
 		},
 		Opcode::BALANCE => GasCost::Balance {
-			address: stack.peek(0)?.into(),
+			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
 		},
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.has_ext_code_hash => GasCost::ExtCodeHash {
-			address: stack.peek(0)?.into(),
+			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
 		},
 		Opcode::EXTCODEHASH => GasCost::Invalid,
 
@@ -562,7 +557,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::CallCode {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
 		}
@@ -570,7 +565,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek(1)?.into();
 			GasCost::StaticCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
 		}
@@ -578,7 +573,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
 		Opcode::EXTCODECOPY => GasCost::ExtCodeCopy {
-			address: stack.peek(0)?.into(),
+			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
 			len: U256::from_big_endian(&stack.peek(3)?[..]),
 		},
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
@@ -587,16 +582,18 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::EXP => GasCost::Exp {
 			power: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Opcode::SLOAD => GasCost::SLoad {
-			address,
-			key: stack.peek(0)?,
-		},
+		Opcode::SLOAD => {
+			let index = stack.peek(0)?;
+			GasCost::SLoad {
+				target_is_cold: handler.is_cold(address, Some(index)),
+			}
+		}
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
 			GasCost::DelegateCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
 		}
@@ -613,11 +610,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let value = stack.peek(1)?;
 
 			GasCost::SStore {
-				address,
-				key: index,
 				original: handler.original_storage(address, index),
 				current: handler.storage(address, index),
 				new: value,
+				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
 		Opcode::LOG0 if !is_static => GasCost::Log {
@@ -648,7 +644,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek(0)?.into();
 			GasCost::Suicide {
 				value: handler.balance(address),
-				target,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 				already_removed: handler.deleted(address),
 			}
@@ -661,7 +657,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::Call {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
 		}
@@ -742,8 +738,6 @@ struct Inner<'config> {
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
-	accessed_addresses: Option<BTreeSet<H160>>,
-	accessed_storage_keys: Option<BTreeSet<(H160, H256)>>,
 	parent: Option<Box<Inner<'config>>>,
 }
 
@@ -786,12 +780,12 @@ impl<'config> Inner<'config> {
 		Ok(match cost {
 			GasCost::Call {
 				value,
-				target,
+				target_is_cold,
 				target_exists,
 				..
 			} => costs::call_cost(
 				value,
-				self.check_and_update_address_cold(target),
+				target_is_cold,
 				true,
 				true,
 				!target_exists,
@@ -799,36 +793,36 @@ impl<'config> Inner<'config> {
 			),
 			GasCost::CallCode {
 				value,
-				target,
+				target_is_cold,
 				target_exists,
 				..
 			} => costs::call_cost(
 				value,
-				self.check_and_update_address_cold(target),
+				target_is_cold,
 				true,
 				false,
 				!target_exists,
 				self.config,
 			),
 			GasCost::DelegateCall {
-				target,
+				target_is_cold,
 				target_exists,
 				..
 			} => costs::call_cost(
 				U256::zero(),
-				self.check_and_update_address_cold(target),
+				target_is_cold,
 				false,
 				false,
 				!target_exists,
 				self.config,
 			),
 			GasCost::StaticCall {
-				target,
+				target_is_cold,
 				target_exists,
 				..
 			} => costs::call_cost(
 				U256::zero(),
-				self.check_and_update_address_cold(target),
+				target_is_cold,
 				false,
 				true,
 				!target_exists,
@@ -837,30 +831,17 @@ impl<'config> Inner<'config> {
 
 			GasCost::Suicide {
 				value,
-				target,
+				target_is_cold,
 				target_exists,
 				..
-			} => costs::suicide_cost(
-				value,
-				self.check_and_update_address_cold(target),
-				target_exists,
-				self.config,
-			),
+			} => costs::suicide_cost(value, target_is_cold, target_exists, self.config),
 			GasCost::SStore { .. } if self.config.estimate => self.config.gas_sstore_set,
 			GasCost::SStore {
-				address,
-				key,
 				original,
 				current,
 				new,
-			} => costs::sstore_cost(
-				original,
-				current,
-				new,
-				gas,
-				self.check_and_update_storage_cold(address, key),
-				self.config,
-			)?,
+				target_is_cold,
+			} => costs::sstore_cost(original, current, new, gas, target_is_cold, self.config)?,
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
@@ -868,10 +849,7 @@ impl<'config> Inner<'config> {
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
 			GasCost::Create => consts::G_CREATE,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
-			GasCost::SLoad { address, key } => costs::sload_cost(
-				self.check_and_update_storage_cold(address, key),
-				self.config,
-			),
+			GasCost::SLoad { target_is_cold } => costs::sload_cost(target_is_cold, self.config),
 
 			GasCost::Zero => consts::G_ZERO,
 			GasCost::Base => consts::G_BASE,
@@ -879,80 +857,75 @@ impl<'config> Inner<'config> {
 			GasCost::Low => consts::G_LOW,
 			GasCost::Invalid => return Err(ExitError::OutOfGas),
 
-			GasCost::ExtCodeSize { address } => costs::address_access_cost(
-				self.check_and_update_address_cold(address),
-				self.config.gas_ext_code,
-				self.config,
-			),
-			GasCost::ExtCodeCopy { address, len } => costs::extcodecopy_cost(
+			GasCost::ExtCodeSize { target_is_cold } => {
+				costs::address_access_cost(target_is_cold, self.config.gas_ext_code, self.config)
+			}
+			GasCost::ExtCodeCopy {
+				target_is_cold,
 				len,
-				self.check_and_update_address_cold(address),
-				self.config,
-			)?,
-			GasCost::Balance { address } => costs::address_access_cost(
-				self.check_and_update_address_cold(address),
-				self.config.gas_balance,
-				self.config,
-			),
+			} => costs::extcodecopy_cost(len, target_is_cold, self.config)?,
+			GasCost::Balance { target_is_cold } => {
+				costs::address_access_cost(target_is_cold, self.config.gas_balance, self.config)
+			}
 			GasCost::BlockHash => consts::G_BLOCKHASH,
-			GasCost::ExtCodeHash { address } => costs::address_access_cost(
-				self.check_and_update_address_cold(address),
+			GasCost::ExtCodeHash { target_is_cold } => costs::address_access_cost(
+				target_is_cold,
 				self.config.gas_ext_code_hash,
 				self.config,
 			),
 		})
 	}
 
-	fn check_and_update_address_cold(&mut self, address: H160) -> bool {
-		let is_cold = self.is_address_cold(&address);
-		if is_cold {
-			self.accessed_addresses
-				.as_mut()
-				.map(|set| set.insert(address));
-		}
-		is_cold
-	}
-
-	fn check_and_update_storage_cold(&mut self, address: H160, key: H256) -> bool {
-		let tuple = (address, key);
-		let is_cold = self.is_storage_cold(&tuple);
-		if is_cold {
-			self.accessed_storage_keys
-				.as_mut()
-				.map(|set| set.insert(tuple));
-		}
-		is_cold
-	}
-
-	fn is_address_cold(&self, address: &H160) -> bool {
-		if let Some(accessed_addresses) = &self.accessed_addresses {
-			if accessed_addresses.contains(address) {
-				false
-			} else {
-				self.parent
-					.as_ref()
-					.map(|p| p.is_address_cold(address))
-					.unwrap_or(true)
-			}
-		} else {
-			false
-		}
-	}
-
-	fn is_storage_cold(&self, tuple: &(H160, H256)) -> bool {
-		if let Some(accessed_storage_keys) = &self.accessed_storage_keys {
-			if accessed_storage_keys.contains(tuple) {
-				false
-			} else {
-				self.parent
-					.as_ref()
-					.map(|p| p.is_storage_cold(tuple))
-					.unwrap_or(true)
-			}
-		} else {
-			false
-		}
-	}
+	// fn check_and_update_address_cold(&mut self, address: H160) -> bool {
+	// 	let is_cold = self.is_address_cold(&address);
+	// 	if is_cold {
+	// 		self.accessed_addresses
+	// 			.as_mut()
+	// 			.map(|set| set.insert(address));
+	// 	}
+	// 	is_cold
+	// }
+	//
+	// fn check_and_update_storage_cold(&mut self, address: H160, key: H256) -> bool {
+	// 	let tuple = (address, key);
+	// 	let is_cold = self.is_storage_cold(&tuple);
+	// 	if is_cold {
+	// 		self.accessed_storage_keys
+	// 			.as_mut()
+	// 			.map(|set| set.insert(tuple));
+	// 	}
+	// 	is_cold
+	// }
+	//
+	// fn is_address_cold(&self, address: &H160) -> bool {
+	// 	if let Some(accessed_addresses) = &self.accessed_addresses {
+	// 		if accessed_addresses.contains(address) {
+	// 			false
+	// 		} else {
+	// 			self.parent
+	// 				.as_ref()
+	// 				.map(|p| p.is_address_cold(address))
+	// 				.unwrap_or(true)
+	// 		}
+	// 	} else {
+	// 		false
+	// 	}
+	// }
+	//
+	// fn is_storage_cold(&self, tuple: &(H160, H256)) -> bool {
+	// 	if let Some(accessed_storage_keys) = &self.accessed_storage_keys {
+	// 		if accessed_storage_keys.contains(tuple) {
+	// 			false
+	// 		} else {
+	// 			self.parent
+	// 				.as_ref()
+	// 				.map(|p| p.is_storage_cold(tuple))
+	// 				.unwrap_or(true)
+	// 		}
+	// 	} else {
+	// 		false
+	// 	}
+	// }
 
 	fn gas_refund(&self, cost: GasCost) -> i64 {
 		match cost {
@@ -988,20 +961,20 @@ pub enum GasCost {
 
 	/// Gas cost for `EXTCODESIZE`.
 	ExtCodeSize {
-		/// Address to get code size of
-		address: H160,
+		/// True if address has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `BALANCE`.
 	Balance {
-		/// Address to get balance of
-		address: H160,
+		/// True if address has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `BLOCKHASH`.
 	BlockHash,
 	/// Gas cost for `EXTBLOCKHASH`.
 	ExtCodeHash {
-		/// Address to get code hash of
-		address: H160,
+		/// True if address has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 
 	/// Gas cost for `CALL`.
@@ -1010,8 +983,8 @@ pub enum GasCost {
 		value: U256,
 		/// Call gas.
 		gas: U256,
-		/// Address to call
-		target: H160,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Whether the target exists.
 		target_exists: bool,
 	},
@@ -1021,8 +994,8 @@ pub enum GasCost {
 		value: U256,
 		/// Call gas.
 		gas: U256,
-		/// Address to call
-		target: H160,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Whether the target exists.
 		target_exists: bool,
 	},
@@ -1030,8 +1003,8 @@ pub enum GasCost {
 	DelegateCall {
 		/// Call gas.
 		gas: U256,
-		/// Address to call
-		target: H160,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Whether the target exists.
 		target_exists: bool,
 	},
@@ -1039,8 +1012,8 @@ pub enum GasCost {
 	StaticCall {
 		/// Call gas.
 		gas: U256,
-		/// Address to call
-		target: H160,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Whether the target exists.
 		target_exists: bool,
 	},
@@ -1048,8 +1021,8 @@ pub enum GasCost {
 	Suicide {
 		/// Value.
 		value: U256,
-		/// ETH recipient
-		target: H160,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Whether the target exists.
 		target_exists: bool,
 		/// Whether the target has already been removed.
@@ -1057,16 +1030,14 @@ pub enum GasCost {
 	},
 	/// Gas cost for `SSTORE`.
 	SStore {
-		/// Address the storage is for
-		address: H160,
-		/// Key
-		key: H256,
 		/// Original value.
 		original: H256,
 		/// Current value.
 		current: H256,
 		/// New value.
 		new: H256,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 	/// Gas cost for `SHA3`.
 	Sha3 {
@@ -1082,8 +1053,8 @@ pub enum GasCost {
 	},
 	/// Gas cost for `EXTCODECOPY`.
 	ExtCodeCopy {
-		/// Address to copy code from
-		address: H160,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 		/// Length.
 		len: U256,
 	},
@@ -1106,10 +1077,8 @@ pub enum GasCost {
 	},
 	/// Gas cost for `SLOAD`.
 	SLoad {
-		/// Address the storage is for
-		address: H160,
-		/// Key to read
-		key: H256,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
 	},
 }
 
