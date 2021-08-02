@@ -27,7 +27,6 @@ mod costs;
 mod memory;
 mod utils;
 
-use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::cmp::max;
 use evm_core::{ExitError, Opcode, Stack};
@@ -73,23 +72,6 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
-				parent: None,
-			}),
-		}
-	}
-
-	pub fn spawn(self, gas_limit: u64) -> Self {
-		let config = self.config;
-
-		Self {
-			gas_limit,
-			config,
-			inner: Ok(Inner {
-				memory_gas: 0,
-				used_gas: 0,
-				refunded_gas: 0,
-				config,
-				parent: self.inner.ok().map(Box::new),
 			}),
 		}
 	}
@@ -674,7 +656,6 @@ struct Inner<'config> {
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
-	parent: Option<Box<Inner<'config>>>,
 }
 
 impl<'config> Inner<'config> {

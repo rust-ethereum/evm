@@ -105,8 +105,7 @@ impl<'config> StackSubstateMetadata<'config> {
 
 	pub fn spit_child(&self, gas_limit: u64, is_static: bool) -> Self {
 		Self {
-			// TODO: should be able to get rid of this clone
-			gasometer: self.gasometer.clone().spawn(gas_limit),
+			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
 			is_static: is_static || self.is_static,
 			depth: match self.depth {
 				None => Some(0),
