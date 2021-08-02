@@ -122,7 +122,7 @@ impl Memory {
 		}
 
 		if target_size > value.len() {
-			self.data[offset..((value.len()) + offset)].clone_from_slice(&value);
+			self.data[offset..((value.len()) + offset)].clone_from_slice(value);
 			for index in (value.len())..target_size {
 				self.data[offset + index] = 0;
 			}

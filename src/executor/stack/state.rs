@@ -132,7 +132,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 		let mut reset_keys = BTreeSet::new();
 		for (address, key) in self.storages.keys() {
-			if resets.contains(&address) {
+			if resets.contains(address) {
 				reset_keys.insert((*address, *key));
 			}
 		}

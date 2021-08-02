@@ -83,16 +83,12 @@ impl<'config> StackSubstateMetadata<'config> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer
 			.record_refund(other.gasometer.refunded_gas())?;
-		other.accessed_addresses().map(|addresses| {
-			self.accessed
-				.as_mut()
-				.map(|accessed| accessed.access_addresses(addresses.copied()));
-		});
-		other.accessed_storages().map(|storages| {
-			self.accessed
-				.as_mut()
-				.map(|accessed| accessed.access_storages(storages.copied()));
-		});
+		if let Some(addresses) = other.accessed_addresses() {
+			self.access_addresses(addresses.copied());
+		};
+		if let Some(storages) = other.accessed_storages() {
+			self.access_storages(storages.copied());
+		};
 
 		Ok(())
 	}
@@ -138,9 +134,9 @@ impl<'config> StackSubstateMetadata<'config> {
 
 	fn access_address(&mut self, address: H160) {
 		debug_assert!(self.accessed.is_some());
-		self.accessed
-			.as_mut()
-			.map(|accessed| accessed.access_address(address));
+		if let Some(accessed) = &mut self.accessed {
+			accessed.access_address(address)
+		}
 	}
 
 	fn access_addresses<I>(&mut self, addresses: I)
@@ -148,9 +144,9 @@ impl<'config> StackSubstateMetadata<'config> {
 		I: Iterator<Item = H160>,
 	{
 		debug_assert!(self.accessed.is_some());
-		self.accessed
-			.as_mut()
-			.map(|accessed| accessed.access_addresses(addresses));
+		if let Some(accessed) = &mut self.accessed {
+			accessed.access_addresses(addresses);
+		}
 	}
 
 	fn access_storages<I>(&mut self, storages: I)
@@ -158,9 +154,9 @@ impl<'config> StackSubstateMetadata<'config> {
 		I: Iterator<Item = (H160, H256)>,
 	{
 		debug_assert!(self.accessed.is_some());
-		self.accessed
-			.as_mut()
-			.map(|accessed| accessed.access_storages(storages));
+		if let Some(accessed) = &mut self.accessed {
+			accessed.access_storages(storages);
+		}
 	}
 
 	fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
@@ -968,7 +964,7 @@ impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<
 				opcode,
 				stack,
 				is_static,
-				&self.config,
+				self.config,
 				self,
 			)?;
 
