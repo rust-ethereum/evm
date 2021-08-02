@@ -96,8 +96,8 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Returns the numerical gas cost value.
-	pub fn gas_cost(&mut self, cost: GasCost, gas: u64) -> Result<u64, ExitError> {
-		match self.inner.as_mut() {
+	pub fn gas_cost(&self, cost: GasCost, gas: u64) -> Result<u64, ExitError> {
+		match self.inner.as_ref() {
 			Ok(inner) => inner.gas_cost(cost, gas),
 			Err(e) => Err(e.clone()),
 		}
@@ -712,7 +712,7 @@ impl<'config> Inner<'config> {
 	}
 
 	/// Returns the gas cost numerical value.
-	fn gas_cost(&mut self, cost: GasCost, gas: u64) -> Result<u64, ExitError> {
+	fn gas_cost(&self, cost: GasCost, gas: u64) -> Result<u64, ExitError> {
 		Ok(match cost {
 			GasCost::Call {
 				value,
