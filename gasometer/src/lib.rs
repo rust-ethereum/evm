@@ -439,7 +439,8 @@ pub fn dynamic_opcode_cost<H: Handler>(
 	is_static: bool,
 	config: &Config,
 	handler: &H,
-) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
+) -> Result<(GasCost, StorageTarget, Option<MemoryCost>), ExitError> {
+	let mut storage_target = StorageTarget::None;
 	let gas_cost = match opcode {
 		Opcode::RETURN => GasCost::Zero,
 
@@ -457,21 +458,34 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
 		Opcode::SELFBALANCE => GasCost::Invalid,
 
-		Opcode::EXTCODESIZE => GasCost::ExtCodeSize {
-			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
-		},
-		Opcode::BALANCE => GasCost::Balance {
-			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
-		},
+		Opcode::EXTCODESIZE => {
+			let target = stack.peek(0)?.into();
+			storage_target = StorageTarget::Address(target);
+			GasCost::ExtCodeSize {
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
+		Opcode::BALANCE => {
+			let target = stack.peek(0)?.into();
+			storage_target = StorageTarget::Address(target);
+			GasCost::Balance {
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
-		Opcode::EXTCODEHASH if config.has_ext_code_hash => GasCost::ExtCodeHash {
-			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
-		},
+		Opcode::EXTCODEHASH if config.has_ext_code_hash => {
+			let target = stack.peek(0)?.into();
+			storage_target = StorageTarget::Address(target);
+			GasCost::ExtCodeHash {
+				target_is_cold: handler.is_cold(target, None),
+			}
+		}
 		Opcode::EXTCODEHASH => GasCost::Invalid,
 
 		Opcode::CALLCODE => {
 			let target = stack.peek(1)?.into();
+			storage_target = StorageTarget::Address(target);
 			GasCost::CallCode {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
@@ -481,6 +495,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		}
 		Opcode::STATICCALL => {
 			let target = stack.peek(1)?.into();
+			storage_target = StorageTarget::Address(target);
 			GasCost::StaticCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None),
@@ -490,10 +505,14 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SHA3 => GasCost::Sha3 {
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		},
-		Opcode::EXTCODECOPY => GasCost::ExtCodeCopy {
-			target_is_cold: handler.is_cold(stack.peek(0)?.into(), None),
-			len: U256::from_big_endian(&stack.peek(3)?[..]),
-		},
+		Opcode::EXTCODECOPY => {
+			let target = stack.peek(0)?.into();
+			storage_target = StorageTarget::Address(target);
+			GasCost::ExtCodeCopy {
+				target_is_cold: handler.is_cold(target, None),
+				len: U256::from_big_endian(&stack.peek(3)?[..]),
+			}
+		}
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
@@ -502,6 +521,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		},
 		Opcode::SLOAD => {
 			let index = stack.peek(0)?;
+			storage_target = StorageTarget::Slot(address, index);
 			GasCost::SLoad {
 				target_is_cold: handler.is_cold(address, Some(index)),
 			}
@@ -509,6 +529,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
+			storage_target = StorageTarget::Address(target);
 			GasCost::DelegateCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None),
@@ -526,6 +547,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SSTORE if !is_static => {
 			let index = stack.peek(0)?;
 			let value = stack.peek(1)?;
+			storage_target = StorageTarget::Slot(address, index);
 
 			GasCost::SStore {
 				original: handler.original_storage(address, index),
@@ -560,6 +582,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		},
 		Opcode::SUICIDE if !is_static => {
 			let target = stack.peek(0)?.into();
+			storage_target = StorageTarget::Address(target);
 			GasCost::Suicide {
 				value: handler.balance(address),
 				target_is_cold: handler.is_cold(target, None),
@@ -572,6 +595,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
 		{
 			let target = stack.peek(1)?.into();
+			storage_target = StorageTarget::Address(target);
 			GasCost::Call {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
@@ -646,7 +670,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		_ => None,
 	};
 
-	Ok((gas_cost, memory_cost))
+	Ok((gas_cost, storage_target, memory_cost))
 }
 
 /// Holds the gas consumption for a Gasometer instance.
@@ -946,6 +970,17 @@ pub enum GasCost {
 		/// True if target has not been previously accessed in this transaction
 		target_is_cold: bool,
 	},
+}
+
+/// Storage opcode will access. Used for tracking accessed storage (EIP-2929).
+#[derive(Debug, Clone, Copy)]
+pub enum StorageTarget {
+	/// No storage access
+	None,
+	/// Accessing address
+	Address(H160),
+	/// Accessing storage slot within an address
+	Slot(H160, H256),
 }
 
 /// Memory cost.

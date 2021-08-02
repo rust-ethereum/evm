@@ -1,5 +1,5 @@
 use crate::backend::{Apply, Backend, Basic, Log};
-use crate::executor::stack::StackSubstateMetadata;
+use crate::executor::stack::{Accessed, StackSubstateMetadata};
 use crate::{ExitError, Transfer};
 use alloc::{
 	boxed::Box,
@@ -237,6 +237,26 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
+	pub fn is_cold(&self, address: H160) -> bool {
+		self.recursive_is_cold(&|a| a.accessed_addresses.contains(&address))
+	}
+
+	pub fn is_storage_cold(&self, address: H160, key: H256) -> bool {
+		self.recursive_is_cold(&|a: &Accessed| a.accessed_storage.contains(&(address, key)))
+	}
+
+	fn recursive_is_cold<F: Fn(&Accessed) -> bool>(&self, f: &F) -> bool {
+		let local_is_accessed = self.metadata.accessed.as_ref().map(f).unwrap_or(false);
+		if local_is_accessed {
+			false
+		} else {
+			self.parent
+				.as_ref()
+				.map(|p| p.recursive_is_cold(f))
+				.unwrap_or(true)
+		}
+	}
+
 	pub fn deleted(&self, address: H160) -> bool {
 		if self.deletes.contains(&address) {
 			return true;
@@ -375,8 +395,8 @@ pub trait StackState<'config>: Backend {
 
 	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
-	fn is_known(&self, address: H160) -> bool;
-	fn is_storage_known(&self, address: H160, key: H256) -> bool;
+	fn is_cold(&self, address: H160) -> bool;
+	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
 	fn inc_nonce(&mut self, address: H160);
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
@@ -493,12 +513,12 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.deleted(address)
 	}
 
-	fn is_known(&self, address: H160) -> bool {
-		self.substate.known_account(address).is_some()
+	fn is_cold(&self, address: H160) -> bool {
+		self.substate.is_cold(address)
 	}
 
-	fn is_storage_known(&self, address: H160, key: H256) -> bool {
-		self.substate.known_storage(address, key).is_some()
+	fn is_storage_cold(&self, address: H160, key: H256) -> bool {
+		self.substate.is_storage_cold(address, key)
 	}
 
 	fn inc_nonce(&mut self, address: H160) {

@@ -2,7 +2,7 @@ mod state;
 
 pub use self::state::{MemoryStackState, MemoryStackSubstate, StackState};
 
-use crate::gasometer::{self, Gasometer};
+use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
 	Runtime, Stack, Transfer,
@@ -111,7 +111,7 @@ impl<'config> StackSubstateMetadata<'config> {
 				None => Some(0),
 				Some(n) => Some(n + 1),
 			},
-			accessed: Default::default(),
+			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
 		}
 	}
 
@@ -143,6 +143,12 @@ impl<'config> StackSubstateMetadata<'config> {
 	{
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_addresses(addresses);
+		}
+	}
+
+	fn access_storage(&mut self, address: H160, key: H256) {
+		if let Some(accessed) = &mut self.accessed {
+			accessed.accessed_storage.insert((address, key));
 		}
 	}
 
@@ -837,8 +843,8 @@ impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<
 
 	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
 		match maybe_index {
-			None => self.state.is_known(address),
-			Some(index) => self.state.is_storage_known(address, index),
+			None => self.state.is_cold(address),
+			Some(index) => self.state.is_storage_cold(address, index),
 		}
 	}
 
@@ -953,7 +959,7 @@ impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<
 			self.state.metadata_mut().gasometer.record_cost(cost)?;
 		} else {
 			let is_static = self.state.metadata().is_static;
-			let (gas_cost, memory_cost) = gasometer::dynamic_opcode_cost(
+			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
 				context.address,
 				opcode,
 				stack,
@@ -965,6 +971,15 @@ impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 
 			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
+			match target {
+				StorageTarget::Address(address) => {
+					self.state.metadata_mut().access_address(address)
+				}
+				StorageTarget::Slot(address, key) => {
+					self.state.metadata_mut().access_storage(address, key)
+				}
+				StorageTarget::None => (),
+			}
 		}
 
 		Ok(())
