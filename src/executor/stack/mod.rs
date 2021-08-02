@@ -133,7 +133,6 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 
 	fn access_address(&mut self, address: H160) {
-		debug_assert!(self.accessed.is_some());
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_address(address)
 		}
@@ -143,7 +142,6 @@ impl<'config> StackSubstateMetadata<'config> {
 	where
 		I: Iterator<Item = H160>,
 	{
-		debug_assert!(self.accessed.is_some());
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_addresses(addresses);
 		}
@@ -153,21 +151,18 @@ impl<'config> StackSubstateMetadata<'config> {
 	where
 		I: Iterator<Item = (H160, H256)>,
 	{
-		debug_assert!(self.accessed.is_some());
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_storages(storages);
 		}
 	}
 
 	fn accessed_addresses(&self) -> Option<alloc::collections::btree_set::Iter<'_, H160>> {
-		debug_assert!(self.accessed.is_some());
 		self.accessed
 			.as_ref()
 			.map(|accessed| accessed.accessed_addresses())
 	}
 
 	fn accessed_storages(&self) -> Option<alloc::collections::btree_set::Iter<'_, (H160, H256)>> {
-		debug_assert!(self.accessed.is_some());
 		self.accessed
 			.as_ref()
 			.map(|accessed| accessed.accessed_storages())
