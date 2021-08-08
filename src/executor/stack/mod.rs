@@ -820,7 +820,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 				opcode,
 				stack,
 				is_static,
-				&self.config,
+				self.config,
 				self,
 			)?;
 
