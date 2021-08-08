@@ -92,31 +92,25 @@ pub struct PrecompileOutput {
 ///  * Address
 ///  * Input
 ///  * Context
-///  * State
-///  * Is static
-type PrecompileFn<S> = fn(
+pub type PrecompileFn = fn(
 	H160,
 	&[u8],
 	Option<u64>,
 	&Context,
-	&mut S,
-	bool,
 ) -> Option<Result<PrecompileOutput, ExitError>>;
 
 /// Stack-based executor.
 pub struct StackExecutor<'config, S> {
 	config: &'config Config,
-	precompile: PrecompileFn<S>,
+	precompile: PrecompileFn,
 	state: S,
 }
 
-fn no_precompile<S>(
+fn no_precompile(
 	_address: H160,
 	_input: &[u8],
 	_target_gas: Option<u64>,
 	_context: &Context,
-	_state: &mut S,
-	_is_static: bool,
 ) -> Option<Result<PrecompileOutput, ExitError>> {
 	None
 }
@@ -136,7 +130,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	pub fn new_with_precompile(
 		state: S,
 		config: &'config Config,
-		precompile: PrecompileFn<S>,
+		precompile: PrecompileFn,
 	) -> Self {
 		Self {
 			config,
@@ -598,8 +592,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			&input,
 			Some(gas_limit),
 			&context,
-			&mut self.state,
-			is_static,
 		) {
 			match ret {
 				Ok(PrecompileOutput {

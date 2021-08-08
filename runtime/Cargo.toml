@@ -1,6 +1,6 @@
 [package]
 name = "evm-runtime"
-version = "0.29.0"
+version = "0.30.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -9,7 +9,7 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-evm-core = { version = "0.29", path = "../core", default-features = false }
+evm-core = { version = "0.30", path = "../core", default-features = false }
 primitive-types = { version = "0.10", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 environmental = { version = "1.1.2", default-features = false, optional = true}
