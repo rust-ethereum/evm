@@ -84,7 +84,7 @@ pub fn sar(shift: U256, value: U256) -> U256 {
 		let I256(sign, _) = value;
 		match sign {
 			// value is 0 or >=1, pushing 0
-			Sign::Plus | Sign::NoSign => U256::zero(),
+			Sign::Plus | Sign::Zero => U256::zero(),
 			// value is <0, pushing -1
 			Sign::Minus => I256(Sign::Minus, U256::one()).into(),
 		}
@@ -92,7 +92,7 @@ pub fn sar(shift: U256, value: U256) -> U256 {
 		let shift: u64 = shift.as_u64();
 
 		match value.0 {
-			Sign::Plus | Sign::NoSign => value.1 >> shift as usize,
+			Sign::Plus | Sign::Zero => value.1 >> shift as usize,
 			Sign::Minus => {
 				let shifted = ((value.1.overflowing_sub(U256::one()).0) >> shift as usize)
 					.overflowing_add(U256::one())
