@@ -92,12 +92,8 @@ pub struct PrecompileOutput {
 ///  * Address
 ///  * Input
 ///  * Context
-pub type PrecompileFn = fn(
-	H160,
-	&[u8],
-	Option<u64>,
-	&Context,
-) -> Option<Result<PrecompileOutput, ExitError>>;
+pub type PrecompileFn =
+	fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<PrecompileOutput, ExitError>>;
 
 /// Stack-based executor.
 pub struct StackExecutor<'config, S> {
@@ -587,12 +583,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			}
 		}
 
-		if let Some(ret) = (self.precompile)(
-			code_address,
-			&input,
-			Some(gas_limit),
-			&context,
-		) {
+		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
 			match ret {
 				Ok(PrecompileOutput {
 					exit_status,
