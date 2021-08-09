@@ -6,7 +6,7 @@ use primitive_types::U256;
 pub enum Sign {
 	Plus,
 	Minus,
-	No,
+	Zero,
 }
 
 const SIGN_BIT_MASK: U256 = U256([
@@ -22,7 +22,7 @@ pub struct I256(pub Sign, pub U256);
 impl I256 {
 	/// Zero value of I256.
 	pub fn zero() -> I256 {
-		I256(Sign::No, U256::zero())
+		I256(Sign::Zero, U256::zero())
 	}
 	/// Minimum value of I256.
 	pub fn min_value() -> I256 {
@@ -33,14 +33,14 @@ impl I256 {
 impl Ord for I256 {
 	fn cmp(&self, other: &I256) -> Ordering {
 		match (self.0, other.0) {
-			(Sign::No, Sign::No) => Ordering::Equal,
-			(Sign::No, Sign::Plus) => Ordering::Less,
-			(Sign::No, Sign::Minus) => Ordering::Greater,
-			(Sign::Minus, Sign::No) => Ordering::Less,
+			(Sign::Zero, Sign::Zero) => Ordering::Equal,
+			(Sign::Zero, Sign::Plus) => Ordering::Less,
+			(Sign::Zero, Sign::Minus) => Ordering::Greater,
+			(Sign::Minus, Sign::Zero) => Ordering::Less,
 			(Sign::Minus, Sign::Plus) => Ordering::Less,
 			(Sign::Minus, Sign::Minus) => self.1.cmp(&other.1).reverse(),
 			(Sign::Plus, Sign::Minus) => Ordering::Greater,
-			(Sign::Plus, Sign::No) => Ordering::Greater,
+			(Sign::Plus, Sign::Zero) => Ordering::Greater,
 			(Sign::Plus, Sign::Plus) => self.1.cmp(&other.1),
 		}
 	}
@@ -73,7 +73,7 @@ impl From<U256> for I256 {
 impl From<I256> for U256 {
 	fn from(value: I256) -> U256 {
 		let sign = value.0;
-		if sign == Sign::No {
+		if sign == Sign::Zero {
 			U256::zero()
 		} else if sign == Sign::Plus {
 			value.1
@@ -102,14 +102,14 @@ impl Div for I256 {
 		}
 
 		match (self.0, other.0) {
-			(Sign::No, Sign::Plus)
-			| (Sign::Plus, Sign::No)
-			| (Sign::No, Sign::No)
+			(Sign::Zero, Sign::Plus)
+			| (Sign::Plus, Sign::Zero)
+			| (Sign::Zero, Sign::Zero)
 			| (Sign::Plus, Sign::Plus)
 			| (Sign::Minus, Sign::Minus) => I256(Sign::Plus, d),
-			(Sign::No, Sign::Minus)
+			(Sign::Zero, Sign::Minus)
 			| (Sign::Plus, Sign::Minus)
-			| (Sign::Minus, Sign::No)
+			| (Sign::Minus, Sign::Zero)
 			| (Sign::Minus, Sign::Plus) => I256(Sign::Minus, d),
 		}
 	}
@@ -148,10 +148,10 @@ mod tests {
 		assert_eq!(100i8 / 2, 50i8);
 
 		// Now the same calculations based on i256
-		let one = I256(Sign::No, U256::from(1));
-		let one_hundred = I256(Sign::No, U256::from(100));
+		let one = I256(Sign::Zero, U256::from(1));
+		let one_hundred = I256(Sign::Zero, U256::from(100));
 		let fifty = I256(Sign::Plus, U256::from(50));
-		let two = I256(Sign::No, U256::from(2));
+		let two = I256(Sign::Zero, U256::from(2));
 		let neg_one_hundred = I256(Sign::Minus, U256::from(100));
 		let minus_one = I256(Sign::Minus, U256::from(1));
 		let max_value = I256(Sign::Plus, U256::from(2).pow(U256::from(255)) - 1);

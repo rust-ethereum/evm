@@ -1,6 +1,6 @@
 [package]
 name = "evm"
-version = "0.28.0"
+version = "0.30.1"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -10,15 +10,15 @@ edition = "2018"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-evm-core = { version = "0.28", path = "core", default-features = false }
-evm-gasometer = { version = "0.28", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.28", path = "runtime", default-features = false }
+evm-core = { version = "0.30", path = "core", default-features = false }
+evm-gasometer = { version = "0.30", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.30", path = "runtime", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 rlp = { version = "0.5", default-features = false }
-primitive-types = { version = "0.9", default-features = false, features = ["rlp"] }
+primitive-types = { version = "0.10", default-features = false, features = ["rlp"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"], optional = true }
-ethereum = { version = "0.7", default-features = false }
+ethereum = { version = ">= 0.8, <= 0.9", default-features = false }
 environmental = { version = "1.1.2", default-features = false, optional = true }
 
 [dev-dependencies]
@@ -43,4 +43,5 @@ members = [
   "core",
   "gasometer",
   "runtime",
+  "fuzzer"
 ]
