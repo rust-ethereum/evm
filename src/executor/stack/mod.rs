@@ -7,7 +7,11 @@ use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
 	Runtime, Stack, Transfer,
 };
-use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
+use alloc::{
+	collections::{BTreeMap, BTreeSet},
+	rc::Rc,
+	vec::Vec,
+};
 use core::{cmp::min, convert::Infallible};
 use ethereum::Log;
 use primitive_types::{H160, H256, U256};
@@ -167,71 +171,35 @@ pub struct PrecompileOutput {
 	pub logs: Vec<Log>,
 }
 
-/// Precompiles trait which allows for the execution of a precompile.
-pub trait Precompiles {
-	/// Runs the precompile at the given address with input and context.
-	fn run<S>(
-		&self,
-		address: H160,
-		input: &[u8],
-		gas_limit: Option<u64>,
-		context: &Context,
-		state: &mut S,
-		is_static: bool,
-	) -> Option<Result<PrecompileOutput, ExitError>>;
+/// A precompile result.
+pub type PrecompileResult = Result<PrecompileOutput, ExitError>;
 
-	/// Returns the set of precompile addresses.
-	fn addresses(&self) -> &[H160];
-}
+/// Precompiles function signature. Expected input arguments are:
+///  * Input
+///  * Context
+pub type PrecompileFn = fn(&[u8], Option<u64>, &Context) -> PrecompileResult;
 
-#[derive(Default)]
-pub struct NoPrecompile {
-	addresses: Vec<H160>,
-}
-
-impl Precompiles for NoPrecompile {
-	fn run<S>(
-		&self,
-		_address: H160,
-		_input: &[u8],
-		_gas_limit: Option<u64>,
-		_context: &Context,
-		_state: &mut S,
-		_is_static: bool,
-	) -> Option<Result<PrecompileOutput, ExitError>> {
-		None
-	}
-
-	fn addresses(&self) -> &[H160] {
-		&self.addresses
-	}
-}
+/// A map of address keys to precompile function values.
+pub type Precompile = BTreeMap<H160, PrecompileFn>;
 
 /// Stack-based executor.
-pub struct StackExecutor<'config, S, P: Precompiles> {
+pub struct StackExecutor<'config, S> {
 	config: &'config Config,
-	precompiles: P,
+	precompile: Precompile,
 	state: S,
 }
 
-impl<'config, S: StackState<'config>> StackExecutor<'config, S, NoPrecompile> {
-	/// Create a new stack-based executor.
-	pub fn new(state: S, config: &'config Config) -> Self {
-		Self::new_with_precompile(state, config, NoPrecompile::default())
-	}
-}
-
-impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, P> {
+impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	/// Return a reference of the Config.
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
 
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new_with_precompile(state: S, config: &'config Config, precompile: P) -> Self {
+	pub fn new_with_precompile(state: S, config: &'config Config, precompile: Precompile) -> Self {
 		Self {
 			config,
-			precompiles: precompile,
+			precompile,
 			state,
 		}
 	}
@@ -369,10 +337,10 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 		// Initialize initial addresses for EIP-2929
 		if self.config.increase_state_access_gas {
 			let addresses = self
-				.precompiles
-				.addresses()
-				.iter()
-				.copied()
+				.precompile
+				.clone()
+				.into_keys()
+				.into_iter()
 				.chain(core::iter::once(caller))
 				.chain(core::iter::once(address));
 			self.state.metadata_mut().access_addresses(addresses);
@@ -489,9 +457,11 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 
 		self.state.metadata_mut().access_address(caller);
 		self.state.metadata_mut().access_address(address);
+
+		let addresses: Vec<H160> = self.precompile.clone().into_keys().collect();
 		self.state
 			.metadata_mut()
-			.access_addresses(self.precompiles.addresses().iter().copied());
+			.access_addresses(addresses.iter().copied());
 
 		event!(Create {
 			caller,
@@ -715,15 +685,8 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 			}
 		}
 
-		if let Some(ret) = self.precompiles.run(
-			code_address,
-			&input,
-			Some(gas_limit),
-			&context,
-			&mut self.state,
-			is_static,
-		) {
-			return match ret {
+		if let Some(precompile) = self.precompile.get(&code_address) {
+			return match (*precompile)(&input, Some(gas_limit), &context) {
 				Ok(PrecompileOutput {
 					exit_status,
 					output,
@@ -782,7 +745,7 @@ impl<'config, S: StackState<'config>, P: Precompiles> StackExecutor<'config, S, 
 	}
 }
 
-impl<'config, S: StackState<'config>, P: Precompiles> Handler for StackExecutor<'config, S, P> {
+impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
