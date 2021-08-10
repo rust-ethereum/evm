@@ -141,20 +141,20 @@ impl Memory {
 		len: U256,
 		data: &[u8],
 	) -> Result<(), ExitFatal> {
-		let memory_offset = if memory_offset > U256::from(usize::MAX) {
+		let memory_offset = if memory_offset > crate::utils::U256_USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			memory_offset.as_usize()
 		};
 
-		let ulen = if len > U256::from(usize::MAX) {
+		let ulen = if len > crate::utils::U256_USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			len.as_usize()
 		};
 
 		let data = if let Some(end) = data_offset.checked_add(len) {
-			if end > U256::from(usize::MAX) {
+			if end > crate::utils::U256_USIZE_MAX {
 				&[]
 			} else {
 				let data_offset = data_offset.as_usize();
