@@ -1,7 +1,7 @@
 //! Allows to listen to runtime events.
 
 use crate::Context;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::cell::RefCell;
 use evm_runtime::{CreateScheme, Transfer};
 use primitive_types::{H160, U256};
 
@@ -9,20 +9,22 @@ environmental::environmental!(listener: dyn EventListener + 'static);
 
 #[cfg(feature = "std")]
 std::thread_local! {
-	static ENABLE_TRACING: AtomicBool = AtomicBool::new(false);
+	static ENABLE_TRACING: RefCell<bool> = RefCell::new(false);
 }
 
+// We assume wasm is not multi-threaded.
+// This is the same assumption as the environmental crate.
 #[cfg(not(feature = "std"))]
-static ENABLE_TRACING: AtomicBool = AtomicBool::new(false);
+static ENABLE_TRACING: RefCell<bool> = RefCell::new(false);
 
 #[cfg(feature = "std")]
 pub fn enable_tracing(enable: bool) {
-	ENABLE_TRACING.with(|s| s.store(enable, Ordering::Relaxed));
+	ENABLE_TRACING.with(|s| s.replace(enable));
 }
 
 #[cfg(not(feature = "std"))]
 pub fn enable_tracing(enable: bool) {
-	ENABLE_TRACING.store(enable, Ordering::Relaxed);
+	ENABLE_TRACING.replace(enable);
 }
 
 pub trait EventListener {
@@ -58,7 +60,7 @@ impl<'a> Event<'a> {
 	#[cfg(feature = "std")]
 	pub(crate) fn emit(self) {
 		ENABLE_TRACING.with(|s| {
-			if s.load(Ordering::Relaxed) {
+			if *s.borrow() {
 				listener::with(|listener| listener.event(self));
 			}
 		})
@@ -66,7 +68,7 @@ impl<'a> Event<'a> {
 
 	#[cfg(not(feature = "std"))]
 	pub(crate) fn emit(self) {
-		if ENABLE_TRACING.load(Ordering::Relaxed) {
+		if *ENABLE_TRACING.borrow() {
 			listener::with(|listener| listener.event(self));
 		}
 	}
