@@ -92,8 +92,9 @@ pub struct PrecompileOutput {
 ///  * Address
 ///  * Input
 ///  * Context
+///  * Is static
 pub type PrecompileFn =
-	fn(H160, &[u8], Option<u64>, &Context) -> Option<Result<PrecompileOutput, ExitError>>;
+	fn(H160, &[u8], Option<u64>, &Context, bool) -> Option<Result<PrecompileOutput, ExitError>>;
 
 /// Stack-based executor.
 pub struct StackExecutor<'config, S> {
@@ -107,6 +108,7 @@ fn no_precompile(
 	_input: &[u8],
 	_target_gas: Option<u64>,
 	_context: &Context,
+	_is_static: bool,
 ) -> Option<Result<PrecompileOutput, ExitError>> {
 	None
 }
@@ -583,8 +585,10 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			}
 		}
 
-		if let Some(ret) = (self.precompile)(code_address, &input, Some(gas_limit), &context) {
-			match ret {
+		if let Some(ret) =
+			(self.precompile)(code_address, &input, Some(gas_limit), &context, is_static)
+		{
+			return match ret {
 				Ok(PrecompileOutput {
 					exit_status,
 					output,
@@ -607,13 +611,13 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 
 					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Succeeded);
-					return Capture::Exit((ExitReason::Succeed(exit_status), output));
+					Capture::Exit((ExitReason::Succeed(exit_status), output))
 				}
 				Err(e) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					return Capture::Exit((ExitReason::Error(e), Vec::new()));
+					Capture::Exit((ExitReason::Error(e), Vec::new()))
 				}
-			}
+			};
 		}
 
 		let mut runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
