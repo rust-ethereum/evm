@@ -1,7 +1,8 @@
 //! Ethereum Virtual Machine implementation in Rust
 
 #![deny(warnings)]
-#![forbid(unsafe_code, unused_variables)]
+#![forbid(unused_variables)]
+
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;

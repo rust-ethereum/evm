@@ -15,7 +15,13 @@ std::thread_local! {
 // We assume wasm is not multi-threaded.
 // This is the same assumption as the environmental crate.
 #[cfg(not(feature = "std"))]
-static ENABLE_TRACING: RefCell<bool> = RefCell::new(false);
+struct WasmCell(RefCell<bool>);
+
+#[cfg(not(feature = "std"))]
+unsafe impl Sync for WasmCell {}
+
+#[cfg(not(feature = "std"))]
+static ENABLE_TRACING: WasmCell = WasmCell(RefCell::new(false));
 
 #[cfg(feature = "std")]
 pub fn enable_tracing(enable: bool) {
@@ -24,7 +30,7 @@ pub fn enable_tracing(enable: bool) {
 
 #[cfg(not(feature = "std"))]
 pub fn enable_tracing(enable: bool) {
-	ENABLE_TRACING.replace(enable);
+	ENABLE_TRACING.0.replace(enable);
 }
 
 pub trait EventListener {
@@ -68,7 +74,7 @@ impl<'a> Event<'a> {
 
 	#[cfg(not(feature = "std"))]
 	pub(crate) fn emit(self) {
-		if *ENABLE_TRACING.borrow() {
+		if *ENABLE_TRACING.0.borrow() {
 			listener::with(|listener| listener.event(self));
 		}
 	}
