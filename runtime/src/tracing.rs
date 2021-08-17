@@ -32,6 +32,16 @@ pub fn enable_tracing(enable: bool) {
 	ENABLE_TRACING.0.replace(enable);
 }
 
+#[cfg(feature = "std")]
+pub fn is_tracing_enabled() -> bool {
+	ENABLE_TRACING.with(|s| *s.borrow())
+}
+
+#[cfg(not(feature = "std"))]
+pub fn is_tracing_enabled() -> bool {
+	*ENABLE_TRACING.0.borrow()
+}
+
 pub trait EventListener {
 	fn event(&mut self, event: Event);
 }
@@ -64,18 +74,12 @@ pub enum Event<'a> {
 impl<'a> Event<'a> {
 	#[cfg(feature = "std")]
 	pub(crate) fn emit(self) {
-		ENABLE_TRACING.with(|s| {
-			if *s.borrow() {
-				listener::with(|listener| listener.event(self));
-			}
-		})
+		listener::with(|listener| listener.event(self));
 	}
 
 	#[cfg(not(feature = "std"))]
 	pub(crate) fn emit(self) {
-		if *ENABLE_TRACING.0.borrow() {
-			listener::with(|listener| listener.event(self));
-		}
+		listener::with(|listener| listener.event(self));
 	}
 }
 
