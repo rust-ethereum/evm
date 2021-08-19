@@ -247,6 +247,8 @@ pub struct Config {
 	pub has_self_balance: bool,
 	/// Has ext code hash.
 	pub has_ext_code_hash: bool,
+	/// Has ext block fee. See [EIP-3198](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3198.md)
+	pub has_base_fee: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
 }
@@ -296,6 +298,7 @@ impl Config {
 			has_chain_id: false,
 			has_self_balance: false,
 			has_ext_code_hash: false,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
@@ -344,6 +347,7 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
@@ -392,6 +396,7 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
@@ -440,6 +445,7 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee: true,
 			estimate: false,
 		}
 	}
