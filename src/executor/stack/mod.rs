@@ -243,6 +243,28 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		self.state.metadata().gasometer.gas()
 	}
 
+	fn create_init_and_check(
+		&mut self,
+		init_code: &[u8],
+		access_list: Vec<(H160, Vec<H256>)>,
+	) -> Result<(), ExitError> {
+		let transaction_cost = gasometer::create_transaction_cost(init_code, &access_list);
+		let gasometer = &mut self.state.metadata_mut().gasometer;
+		gasometer.record_transaction(transaction_cost)?;
+
+		if self.config.disallow_executable_format {
+			if let Some(byte) = init_code.get(0) {
+				if *byte == 0xef {
+					return Err(ExitError::InvalidCode);
+				}
+			}
+		}
+
+		self.initialize_with_access_list(access_list);
+
+		Ok(())
+	}
+
 	/// Execute a `CREATE` transaction.
 	pub fn transact_create(
 		&mut self,
@@ -252,14 +274,9 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
-		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
-		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
-			Ok(()) => (),
-			Err(e) => return e.into(),
+		if let Err(e) = self.create_init_and_check(&init_code, access_list) {
+			return e.into();
 		}
-
-		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
 			caller,
@@ -284,15 +301,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
-		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
-		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
-			Ok(()) => (),
-			Err(e) => return e.into(),
+		if let Err(e) = self.create_init_and_check(&init_code, access_list) {
+			return e.into();
 		}
-		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 
-		self.initialize_with_access_list(access_list);
+		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 
 		match self.create_inner(
 			caller,
