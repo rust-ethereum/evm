@@ -439,6 +439,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	fn block_gas_limit(&self) -> U256 {
 		self.backend.block_gas_limit()
 	}
+	fn block_base_fee_per_gas(&self) -> U256 {
+		todo!()
+	}
+
 	fn chain_id(&self) -> U256 {
 		self.backend.chain_id()
 	}
