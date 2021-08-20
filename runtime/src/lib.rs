@@ -209,6 +209,8 @@ pub struct Config {
 	pub sstore_revert_under_stipend: bool,
 	/// EIP-2929
 	pub increase_state_access_gas: bool,
+	/// EIP-3541
+	pub disallow_executable_format: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -245,6 +247,8 @@ pub struct Config {
 	pub has_self_balance: bool,
 	/// Has ext code hash.
 	pub has_ext_code_hash: bool,
+	/// Has ext block fee. See [EIP-3198](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3198.md)
+	pub has_base_fee: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
 }
@@ -276,6 +280,7 @@ impl Config {
 			sstore_gas_metering: false,
 			sstore_revert_under_stipend: false,
 			increase_state_access_gas: false,
+			disallow_executable_format: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
@@ -293,6 +298,7 @@ impl Config {
 			has_chain_id: false,
 			has_self_balance: false,
 			has_ext_code_hash: false,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
@@ -323,6 +329,7 @@ impl Config {
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: false,
+			disallow_executable_format: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -340,6 +347,7 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
@@ -370,6 +378,7 @@ impl Config {
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: true,
+			disallow_executable_format: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -387,6 +396,56 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee: false,
+			estimate: false,
+		}
+	}
+
+	/// london hard fork configuration.
+	pub const fn london() -> Config {
+		Config {
+			gas_ext_code: 0,
+			gas_ext_code_hash: 0,
+			gas_balance: 0,
+			gas_sload: 0,
+			gas_sload_cold: 2100,
+			gas_sstore_set: 20000,
+			gas_sstore_reset: 5000,
+			refund_sstore_clears: 15000,
+			gas_suicide: 5000,
+			gas_suicide_new_account: 25000,
+			gas_call: 0,
+			gas_expbyte: 50,
+			gas_transaction_create: 53000,
+			gas_transaction_call: 21000,
+			gas_transaction_zero_data: 4,
+			gas_transaction_non_zero_data: 16,
+			gas_access_list_address: 2400,
+			gas_access_list_storage_key: 1900,
+			gas_account_access_cold: 2600,
+			gas_storage_read_warm: 100,
+			sstore_gas_metering: true,
+			sstore_revert_under_stipend: true,
+			increase_state_access_gas: true,
+			disallow_executable_format: true,
+			err_on_call_with_more_gas: false,
+			empty_considered_exists: false,
+			create_increase_nonce: true,
+			call_l64_after_gas: true,
+			stack_limit: 1024,
+			memory_limit: usize::MAX,
+			call_stack_limit: 1024,
+			create_contract_limit: Some(0x6000),
+			call_stipend: 2300,
+			has_delegate_call: true,
+			has_create2: true,
+			has_revert: true,
+			has_return_data: true,
+			has_bitwise_shifting: true,
+			has_chain_id: true,
+			has_self_balance: true,
+			has_ext_code_hash: true,
+			has_base_fee: true,
 			estimate: false,
 		}
 	}

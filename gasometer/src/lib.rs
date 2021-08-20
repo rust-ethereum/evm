@@ -458,6 +458,9 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
 		Opcode::SELFBALANCE => GasCost::Invalid,
 
+		Opcode::BASEFEE if config.has_base_fee => GasCost::Base,
+		Opcode::BASEFEE => GasCost::Invalid,
+
 		Opcode::EXTCODESIZE => {
 			let target = stack.peek(0)?.into();
 			storage_target = StorageTarget::Address(target);
