@@ -141,6 +141,15 @@ impl Memory {
 		len: U256,
 		data: &[u8],
 	) -> Result<(), ExitFatal> {
+		// Needed to pass ethereum test defined in
+		// https://github.com/ethereum/tests/commit/17f7e7a6c64bb878c1b6af9dc8371b46c133e46d
+		// (regardless of other inputs, a zero-length copy is defined to be a no-op).
+		// TODO: refactor `set` and `copy_large` (see
+		// https://github.com/rust-blockchain/evm/pull/40#discussion_r677180794)
+		if len.is_zero() {
+			return Ok(());
+		}
+
 		let memory_offset = if memory_offset > U256::from(usize::MAX) {
 			return Err(ExitFatal::NotSupported);
 		} else {
