@@ -362,16 +362,43 @@ impl Config {
 
 	/// Berlin hard fork configuration.
 	pub const fn berlin() -> Config {
+		Self::config_with_derived_values(100, 2100, 1900, false, false)
+	}
+
+	/// london hard fork configuration.
+	pub const fn london() -> Config {
+		Self::config_with_derived_values(100, 2100, 1900, true, true)
+	}
+
+	const fn config_with_derived_values(
+		gas_storage_read_warm: u64,
+		gas_sload_cold: u64,
+		gas_access_list_storage_key: u64,
+		decrease_clears_refund: bool,
+		has_base_fee: bool,
+	) -> Config {
+		// See https://eips.ethereum.org/EIPS/eip-2929
+		let gas_sload = gas_storage_read_warm;
+		let gas_sstore_reset = 5000 - gas_sload_cold;
+
+		// See https://eips.ethereum.org/EIPS/eip-3529
+		let refund_sstore_clears = if decrease_clears_refund {
+			(gas_sstore_reset + gas_access_list_storage_key) as i64
+		} else {
+			15000
+		};
+		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
+
 		Config {
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,
-			gas_sload: 0,
-			gas_sload_cold: 2100,
+			gas_sload,
+			gas_sload_cold,
 			gas_sstore_set: 20000,
-			gas_sstore_reset: 5000,
-			refund_sstore_clears: 15000,
-			max_refund_quotient: 2,
+			gas_sstore_reset,
+			refund_sstore_clears,
+			max_refund_quotient,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 0,
@@ -381,13 +408,13 @@ impl Config {
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
 			gas_access_list_address: 2400,
-			gas_access_list_storage_key: 1900,
+			gas_access_list_storage_key,
 			gas_account_access_cold: 2600,
-			gas_storage_read_warm: 100,
+			gas_storage_read_warm,
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: true,
-			decrease_clears_refund: false,
+			decrease_clears_refund,
 			disallow_executable_format: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
@@ -406,58 +433,7 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
-			has_base_fee: false,
-			estimate: false,
-		}
-	}
-
-	/// london hard fork configuration.
-	pub const fn london() -> Config {
-		Config {
-			gas_ext_code: 0,
-			gas_ext_code_hash: 0,
-			gas_balance: 0,
-			gas_sload: 0,
-			gas_sload_cold: 2100,
-			gas_sstore_set: 20000,
-			gas_sstore_reset: 5000,
-			refund_sstore_clears: 15000,
-			max_refund_quotient: 5,
-			gas_suicide: 5000,
-			gas_suicide_new_account: 25000,
-			gas_call: 0,
-			gas_expbyte: 50,
-			gas_transaction_create: 53000,
-			gas_transaction_call: 21000,
-			gas_transaction_zero_data: 4,
-			gas_transaction_non_zero_data: 16,
-			gas_access_list_address: 2400,
-			gas_access_list_storage_key: 1900,
-			gas_account_access_cold: 2600,
-			gas_storage_read_warm: 100,
-			sstore_gas_metering: true,
-			sstore_revert_under_stipend: true,
-			increase_state_access_gas: true,
-			decrease_clears_refund: true,
-			disallow_executable_format: true,
-			err_on_call_with_more_gas: false,
-			empty_considered_exists: false,
-			create_increase_nonce: true,
-			call_l64_after_gas: true,
-			stack_limit: 1024,
-			memory_limit: usize::MAX,
-			call_stack_limit: 1024,
-			create_contract_limit: Some(0x6000),
-			call_stipend: 2300,
-			has_delegate_call: true,
-			has_create2: true,
-			has_revert: true,
-			has_return_data: true,
-			has_bitwise_shifting: true,
-			has_chain_id: true,
-			has_self_balance: true,
-			has_ext_code_hash: true,
-			has_base_fee: true,
+			has_base_fee,
 			estimate: false,
 		}
 	}
