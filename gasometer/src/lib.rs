@@ -832,7 +832,7 @@ impl<'config> Inner<'config> {
 			} => costs::sstore_refund(original, current, new, self.config),
 			GasCost::Suicide {
 				already_removed, ..
-			} => costs::suicide_refund(already_removed),
+			} if !self.config.decrease_clears_refund => costs::suicide_refund(already_removed),
 			_ => 0,
 		}
 	}
