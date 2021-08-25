@@ -392,7 +392,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	pub fn used_gas(&self) -> u64 {
 		self.state.metadata().gasometer.total_used_gas()
 			- min(
-				self.state.metadata().gasometer.total_used_gas() / 2,
+				self.state.metadata().gasometer.total_used_gas() / self.config.max_refund_quotient,
 				self.state.metadata().gasometer.refunded_gas() as u64,
 			)
 	}

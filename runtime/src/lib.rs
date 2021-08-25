@@ -173,6 +173,8 @@ pub struct Config {
 	pub gas_sstore_reset: u64,
 	/// Gas paid for sstore refund.
 	pub refund_sstore_clears: i64,
+	/// EIP-3529
+	pub max_refund_quotient: u64,
 	/// Gas paid for BALANCE opcode.
 	pub gas_balance: u64,
 	/// Gas paid for SLOAD opcode.
@@ -265,6 +267,7 @@ impl Config {
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
+			max_refund_quotient: 2,
 			gas_suicide: 0,
 			gas_suicide_new_account: 0,
 			gas_call: 40,
@@ -314,6 +317,7 @@ impl Config {
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
+			max_refund_quotient: 2,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 700,
@@ -363,6 +367,7 @@ impl Config {
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
+			max_refund_quotient: 2,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 0,
@@ -412,6 +417,7 @@ impl Config {
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
+			max_refund_quotient: 5,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 0,
