@@ -211,6 +211,8 @@ pub struct Config {
 	pub sstore_revert_under_stipend: bool,
 	/// EIP-2929
 	pub increase_state_access_gas: bool,
+	/// EIP-3529
+	pub decrease_clears_refund: bool,
 	/// EIP-3541
 	pub disallow_executable_format: bool,
 	/// Whether to throw out of gas error when
@@ -283,6 +285,7 @@ impl Config {
 			sstore_gas_metering: false,
 			sstore_revert_under_stipend: false,
 			increase_state_access_gas: false,
+			decrease_clears_refund: false,
 			disallow_executable_format: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
@@ -333,6 +336,7 @@ impl Config {
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: false,
+			decrease_clears_refund: false,
 			disallow_executable_format: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
@@ -383,6 +387,7 @@ impl Config {
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: true,
+			decrease_clears_refund: false,
 			disallow_executable_format: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
@@ -433,6 +438,7 @@ impl Config {
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: true,
+			decrease_clears_refund: true,
 			disallow_executable_format: true,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,

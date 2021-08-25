@@ -21,20 +21,26 @@ pub fn suicide_refund(already_removed: bool) -> i64 {
 
 #[allow(clippy::collapsible_else_if)]
 pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> i64 {
+	let refund_sstore_clears = if config.decrease_clears_refund {
+		(config.gas_sstore_reset - config.gas_sload_cold + config.gas_access_list_storage_key)
+			as i64
+	} else {
+		config.refund_sstore_clears
+	};
 	if config.sstore_gas_metering {
 		if current == new {
 			0
 		} else {
 			if original == current && new == H256::default() {
-				config.refund_sstore_clears
+				refund_sstore_clears
 			} else {
 				let mut refund = 0;
 
 				if original != H256::default() {
 					if current == H256::default() {
-						refund -= config.refund_sstore_clears;
+						refund -= refund_sstore_clears;
 					} else if new == H256::default() {
-						refund += config.refund_sstore_clears;
+						refund += refund_sstore_clears;
 					}
 				}
 
@@ -59,7 +65,7 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 		}
 	} else {
 		if current != H256::default() && new == H256::default() {
-			config.refund_sstore_clears
+			refund_sstore_clears
 		} else {
 			0
 		}
