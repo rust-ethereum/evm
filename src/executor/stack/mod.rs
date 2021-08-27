@@ -177,7 +177,8 @@ pub type PrecompileResult = Result<PrecompileOutput, ExitError>;
 /// Precompiles function signature. Expected input arguments are:
 ///  * Input
 ///  * Context
-pub type PrecompileFn = fn(&[u8], Option<u64>, &Context) -> PrecompileResult;
+///  * Is static
+pub type PrecompileFn = fn(&[u8], Option<u64>, &Context, bool) -> PrecompileResult;
 
 /// A map of address keys to precompile function values.
 pub type Precompile = BTreeMap<H160, PrecompileFn>;
@@ -699,7 +700,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 
 		if let Some(precompile) = self.precompile.get(&code_address) {
-			return match (*precompile)(&input, Some(gas_limit), &context) {
+			return match (*precompile)(&input, Some(gas_limit), &context, is_static) {
 				Ok(PrecompileOutput {
 					exit_status,
 					output,
