@@ -244,7 +244,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		self.state.metadata().gasometer.gas()
 	}
 
-	fn create_init_and_check(
+	fn create_init(
 		&mut self,
 		init_code: &[u8],
 		access_list: Vec<(H160, Vec<H256>)>,
@@ -252,14 +252,6 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		let transaction_cost = gasometer::create_transaction_cost(init_code, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		gasometer.record_transaction(transaction_cost)?;
-
-		if self.config.disallow_executable_format {
-			if let Some(byte) = init_code.get(0) {
-				if *byte == 0xef {
-					return Err(ExitError::InvalidCode);
-				}
-			}
-		}
 
 		self.initialize_with_access_list(access_list);
 
@@ -275,7 +267,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
-		if let Err(e) = self.create_init_and_check(&init_code, access_list) {
+		if let Err(e) = self.create_init(&init_code, access_list) {
 			return e.into();
 		}
 
@@ -302,7 +294,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
-		if let Err(e) = self.create_init_and_check(&init_code, access_list) {
+		if let Err(e) = self.create_init(&init_code, access_list) {
 			return e.into();
 		}
 
@@ -463,6 +455,15 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			};
 		}
 
+		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
+			if config.disallow_executable_format {
+				if let Some(0xef) = code.get(0) {
+					return Err(ExitError::InvalidCode);
+				}
+			}
+			Ok(())
+		}
+
 		fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
@@ -567,6 +568,13 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		match reason {
 			ExitReason::Succeed(s) => {
 				let out = runtime.machine().return_value();
+
+				// As of EIP-3541 code starting with 0xef cannot be deployed
+				if let Err(e) = check_first_byte(self.config, &out) {
+					self.state.metadata_mut().gasometer.fail();
+					let _ = self.exit_substate(StackExitKind::Failed);
+					return Capture::Exit((e.into(), None, Vec::new()));
+				}
 
 				if let Some(limit) = self.config.create_contract_limit {
 					if out.len() > limit {

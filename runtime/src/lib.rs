@@ -362,12 +362,12 @@ impl Config {
 
 	/// Berlin hard fork configuration.
 	pub const fn berlin() -> Config {
-		Self::config_with_derived_values(100, 2100, 1900, false, false)
+		Self::config_with_derived_values(100, 2100, 1900, false, false, false)
 	}
 
 	/// london hard fork configuration.
 	pub const fn london() -> Config {
-		Self::config_with_derived_values(100, 2100, 1900, true, true)
+		Self::config_with_derived_values(100, 2100, 1900, true, true, true)
 	}
 
 	const fn config_with_derived_values(
@@ -376,6 +376,7 @@ impl Config {
 		gas_access_list_storage_key: u64,
 		decrease_clears_refund: bool,
 		has_base_fee: bool,
+		disallow_executable_format: bool,
 	) -> Config {
 		// See https://eips.ethereum.org/EIPS/eip-2929
 		let gas_sload = gas_storage_read_warm;
@@ -415,7 +416,7 @@ impl Config {
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: true,
 			decrease_clears_refund,
-			disallow_executable_format: false,
+			disallow_executable_format,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
