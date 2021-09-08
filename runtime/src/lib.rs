@@ -111,7 +111,7 @@ pub struct Runtime<'config> {
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
 	context: Context,
-	_config: &'config Config,
+	config: &'config Config,
 }
 
 impl<'config> Runtime<'config> {
@@ -127,7 +127,7 @@ impl<'config> Runtime<'config> {
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
 			context,
-			_config: config,
+			config,
 		}
 	}
 

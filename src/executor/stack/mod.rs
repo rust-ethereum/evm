@@ -846,6 +846,9 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 	fn block_gas_limit(&self) -> U256 {
 		self.state.block_gas_limit()
 	}
+	fn block_base_fee_per_gas(&self) -> U256 {
+		self.state.block_base_fee_per_gas()
+	}
 	fn chain_id(&self) -> U256 {
 		self.state.chain_id()
 	}
