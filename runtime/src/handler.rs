@@ -75,9 +75,13 @@ pub trait Handler {
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
-	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
+	fn mark_delete<const CALL_TRACE: bool>(
+		&mut self,
+		address: H160,
+		target: H160,
+	) -> Result<(), ExitError>;
 	/// Invoke a create operation.
-	fn create(
+	fn create<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
 		&mut self,
 		caller: H160,
 		scheme: CreateScheme,
@@ -90,7 +94,7 @@ pub trait Handler {
 		Ok(())
 	}
 	/// Invoke a call operation.
-	fn call(
+	fn call<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
@@ -105,7 +109,7 @@ pub trait Handler {
 	}
 
 	/// Pre-validation step for the runtime.
-	fn pre_validate(
+	fn pre_validate<const GAS_PRICE: bool>(
 		&mut self,
 		context: &Context,
 		opcode: Opcode,

@@ -117,11 +117,11 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.parent = Some(Box::new(entering));
 	}
 
-	pub fn exit_commit(&mut self) -> Result<(), ExitError> {
+	pub fn exit_commit<const GAS_TRACE: bool>(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot commit on root substate");
 		mem::swap(&mut exited, self);
 
-		self.metadata.swallow_commit(exited.metadata)?;
+		self.metadata.swallow_commit::<GAS_TRACE>(exited.metadata)?;
 		self.logs.append(&mut exited.logs);
 
 		let mut resets = BTreeSet::new();
@@ -147,11 +147,11 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	pub fn exit_revert(&mut self) -> Result<(), ExitError> {
+	pub fn exit_revert<const GAS_TRACE: bool>(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
 		mem::swap(&mut exited, self);
 
-		self.metadata.swallow_revert(exited.metadata)?;
+		self.metadata.swallow_revert::<GAS_TRACE>(exited.metadata)?;
 
 		Ok(())
 	}
@@ -389,8 +389,8 @@ pub trait StackState<'config>: Backend {
 	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
 
 	fn enter(&mut self, gas_limit: u64, is_static: bool);
-	fn exit_commit(&mut self) -> Result<(), ExitError>;
-	fn exit_revert(&mut self) -> Result<(), ExitError>;
+	fn exit_commit<const GAS_TRACE: bool>(&mut self) -> Result<(), ExitError>;
+	fn exit_revert<const GAS_PRICE: bool>(&mut self) -> Result<(), ExitError>;
 	fn exit_discard(&mut self) -> Result<(), ExitError>;
 
 	fn is_empty(&self, address: H160) -> bool;
@@ -487,12 +487,12 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.enter(gas_limit, is_static)
 	}
 
-	fn exit_commit(&mut self) -> Result<(), ExitError> {
-		self.substate.exit_commit()
+	fn exit_commit<const GAS_TRACE: bool>(&mut self) -> Result<(), ExitError> {
+		self.substate.exit_commit::<GAS_TRACE>()
 	}
 
-	fn exit_revert(&mut self) -> Result<(), ExitError> {
-		self.substate.exit_revert()
+	fn exit_revert<const GAS_TRACE: bool>(&mut self) -> Result<(), ExitError> {
+		self.substate.exit_revert::<GAS_TRACE>()
 	}
 
 	fn exit_discard(&mut self) -> Result<(), ExitError> {

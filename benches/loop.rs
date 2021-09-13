@@ -45,7 +45,7 @@ fn run_loop_contract() {
 	let state = MemoryStackState::new(metadata, &backend);
 	let mut executor = StackExecutor::new(state, &config);
 
-	let _reason = executor.transact_call(
+	let _reason = executor.transact_call::<false, false, false>(
 		H160::from_str("0xf000000000000000000000000000000000000000").unwrap(),
 		H160::from_str("0x1000000000000000000000000000000000000000").unwrap(),
 		U256::zero(),

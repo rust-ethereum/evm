@@ -22,6 +22,3 @@ std = [
   "primitive-types/std",
   "environmental/std"
 ]
-tracing = [
-  "environmental"
-]

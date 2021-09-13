@@ -34,9 +34,6 @@ default = ["std"]
 with-codec = ["codec", "evm-core/with-codec", "primitive-types/codec", "ethereum/with-codec"]
 with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
 std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std"]
-tracing = [
-  "environmental"
-]
 
 [workspace]
 members = [

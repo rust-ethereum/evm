@@ -183,28 +183,36 @@ pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
-pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn sload<H: Handler, const OPCODE_TRACE: bool>(
+	runtime: &mut Runtime,
+	handler: &H,
+) -> Control<H> {
 	pop!(runtime, index);
 	let value = handler.storage(runtime.context.address, index);
 	push!(runtime, value);
-
-	event!(SLoad {
-		address: runtime.context.address,
-		index,
-		value
-	});
+	if OPCODE_TRACE {
+		event!(SLoad {
+			address: runtime.context.address,
+			index,
+			value
+		});
+	}
 
 	Control::Continue
 }
 
-pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+pub fn sstore<H: Handler, const OPCODE_TRACE: bool>(
+	runtime: &mut Runtime,
+	handler: &mut H,
+) -> Control<H> {
 	pop!(runtime, index, value);
-
-	event!(SStore {
-		address: runtime.context.address,
-		index,
-		value
-	});
+	if OPCODE_TRACE {
+		event!(SStore {
+			address: runtime.context.address,
+			index,
+			value
+		});
+	}
 
 	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
@@ -247,10 +255,13 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	}
 }
 
-pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+pub fn suicide<H: Handler, const CALL_TRACE: bool>(
+	runtime: &mut Runtime,
+	handler: &mut H,
+) -> Control<H> {
 	pop!(runtime, target);
 
-	match handler.mark_delete(runtime.context.address, target.into()) {
+	match handler.mark_delete::<CALL_TRACE>(runtime.context.address, target.into()) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	}
@@ -258,7 +269,16 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	Control::Exit(ExitSucceed::Suicided.into())
 }
 
-pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
+pub fn create<
+	H: Handler,
+	const CALL_TRACE: bool,
+	const GAS_TRACE: bool,
+	const OPCODE_TRACE: bool,
+>(
+	runtime: &mut Runtime,
+	is_create2: bool,
+	handler: &mut H,
+) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, value, code_offset, len);
@@ -287,7 +307,13 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 		}
 	};
 
-	match handler.create(runtime.context.address, scheme, value, code, None) {
+	match handler.create::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
+		runtime.context.address,
+		scheme,
+		value,
+		code,
+		None,
+	) {
 		Capture::Exit((reason, address, return_data)) => {
 			runtime.return_data_buffer = return_data;
 			let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
@@ -318,7 +344,11 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	}
 }
 
-pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut H) -> Control<H> {
+pub fn call<H: Handler, const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
+	runtime: &mut Runtime,
+	scheme: CallScheme,
+	handler: &mut H,
+) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, gas);
@@ -391,7 +421,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		None
 	};
 
-	match handler.call(
+	match handler.call::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
 		to.into(),
 		transfer,
 		input,

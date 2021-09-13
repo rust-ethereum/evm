@@ -18,7 +18,11 @@ fn handle_other<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H
 	}
 }
 
-pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) -> Control<H> {
+pub fn eval<H: Handler, const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
+	state: &mut Runtime,
+	opcode: Opcode,
+	handler: &mut H,
+) -> Control<H> {
 	match opcode {
 		Opcode::SHA3 => system::sha3(state),
 		Opcode::ADDRESS => system::address(state),
@@ -39,21 +43,39 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::NUMBER => system::number(state, handler),
 		Opcode::DIFFICULTY => system::difficulty(state, handler),
 		Opcode::GASLIMIT => system::gaslimit(state, handler),
-		Opcode::SLOAD => system::sload(state, handler),
-		Opcode::SSTORE => system::sstore(state, handler),
+		Opcode::SLOAD => system::sload::<H, OPCODE_TRACE>(state, handler),
+		Opcode::SSTORE => system::sstore::<H, OPCODE_TRACE>(state, handler),
 		Opcode::GAS => system::gas(state, handler),
 		Opcode::LOG0 => system::log(state, 0, handler),
 		Opcode::LOG1 => system::log(state, 1, handler),
 		Opcode::LOG2 => system::log(state, 2, handler),
 		Opcode::LOG3 => system::log(state, 3, handler),
 		Opcode::LOG4 => system::log(state, 4, handler),
-		Opcode::SUICIDE => system::suicide(state, handler),
-		Opcode::CREATE => system::create(state, false, handler),
-		Opcode::CREATE2 => system::create(state, true, handler),
-		Opcode::CALL => system::call(state, CallScheme::Call, handler),
-		Opcode::CALLCODE => system::call(state, CallScheme::CallCode, handler),
-		Opcode::DELEGATECALL => system::call(state, CallScheme::DelegateCall, handler),
-		Opcode::STATICCALL => system::call(state, CallScheme::StaticCall, handler),
+		Opcode::SUICIDE => system::suicide::<H, CALL_TRACE>(state, handler),
+		Opcode::CREATE => {
+			system::create::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(state, false, handler)
+		}
+		Opcode::CREATE2 => {
+			system::create::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(state, true, handler)
+		}
+		Opcode::CALL => {
+			system::call::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(state, CallScheme::Call, handler)
+		}
+		Opcode::CALLCODE => system::call::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
+			state,
+			CallScheme::CallCode,
+			handler,
+		),
+		Opcode::DELEGATECALL => system::call::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
+			state,
+			CallScheme::DelegateCall,
+			handler,
+		),
+		Opcode::STATICCALL => system::call::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
+			state,
+			CallScheme::StaticCall,
+			handler,
+		),
 		Opcode::CHAINID => system::chainid(state, handler),
 		_ => handle_other(state, opcode, handler),
 	}

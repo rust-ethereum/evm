@@ -17,6 +17,3 @@ environmental = { version = "1.1.2", default-features = false, optional = true}
 [features]
 default = ["std"]
 std = ["evm-core/std", "primitive-types/std", "sha3/std", "environmental/std"]
-tracing = [
-  "environmental"
-]

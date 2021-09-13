@@ -75,10 +75,11 @@ impl<'config> StackSubstateMetadata<'config> {
 		}
 	}
 
-	pub fn swallow_commit(&mut self, other: Self) -> Result<(), ExitError> {
-		self.gasometer.record_stipend(other.gasometer.gas())?;
+	pub fn swallow_commit<const GAS_TRACE: bool>(&mut self, other: Self) -> Result<(), ExitError> {
 		self.gasometer
-			.record_refund(other.gasometer.refunded_gas())?;
+			.record_stipend::<GAS_TRACE>(other.gasometer.gas())?;
+		self.gasometer
+			.record_refund::<GAS_TRACE>(other.gasometer.refunded_gas())?;
 
 		if let (Some(mut other_accessed), Some(self_accessed)) =
 			(other.accessed, self.accessed.as_mut())
@@ -94,8 +95,9 @@ impl<'config> StackSubstateMetadata<'config> {
 		Ok(())
 	}
 
-	pub fn swallow_revert(&mut self, other: Self) -> Result<(), ExitError> {
-		self.gasometer.record_stipend(other.gasometer.gas())?;
+	pub fn swallow_revert<const GAS_TRACE: bool>(&mut self, other: Self) -> Result<(), ExitError> {
+		self.gasometer
+			.record_stipend::<GAS_TRACE>(other.gasometer.gas())?;
 
 		Ok(())
 	}
@@ -223,17 +225,23 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 
 	/// Exit a substate. Panic if it results an empty substate stack.
-	pub fn exit_substate(&mut self, kind: StackExitKind) -> Result<(), ExitError> {
+	pub fn exit_substate<const GAS_TRACE: bool>(
+		&mut self,
+		kind: StackExitKind,
+	) -> Result<(), ExitError> {
 		match kind {
-			StackExitKind::Succeeded => self.state.exit_commit(),
-			StackExitKind::Reverted => self.state.exit_revert(),
+			StackExitKind::Succeeded => self.state.exit_commit::<GAS_TRACE>(),
+			StackExitKind::Reverted => self.state.exit_revert::<GAS_TRACE>(),
 			StackExitKind::Failed => self.state.exit_discard(),
 		}
 	}
 
 	/// Execute the runtime until it returns.
-	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
-		match runtime.run(self) {
+	pub fn execute<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
+		&mut self,
+		runtime: &mut Runtime,
+	) -> ExitReason {
+		match runtime.run::<Self, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(self) {
 			Capture::Exit(s) => s,
 			Capture::Trap(_) => unreachable!("Trap is Infallible"),
 		}
@@ -245,7 +253,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 
 	/// Execute a `CREATE` transaction.
-	pub fn transact_create(
+	pub fn transact_create<
+		const CALL_TRACE: bool,
+		const GAS_TRACE: bool,
+		const OPCODE_TRACE: bool,
+	>(
 		&mut self,
 		caller: H160,
 		value: U256,
@@ -255,14 +267,14 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	) -> ExitReason {
 		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
+		match gasometer.record_transaction::<GAS_TRACE>(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return e.into(),
 		}
 
 		self.initialize_with_access_list(access_list);
 
-		match self.create_inner(
+		match self.create_inner::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
 			caller,
 			CreateScheme::Legacy { caller },
 			value,
@@ -276,7 +288,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 
 	/// Execute a `CREATE2` transaction.
-	pub fn transact_create2(
+	pub fn transact_create2<
+		const CALL_TRACE: bool,
+		const GAS_TRACE: bool,
+		const OPCODE_TRACE: bool,
+	>(
 		&mut self,
 		caller: H160,
 		value: U256,
@@ -287,7 +303,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	) -> ExitReason {
 		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
+		match gasometer.record_transaction::<GAS_TRACE>(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return e.into(),
 		}
@@ -295,7 +311,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 
 		self.initialize_with_access_list(access_list);
 
-		match self.create_inner(
+		match self.create_inner::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
 			caller,
 			CreateScheme::Create2 {
 				caller,
@@ -318,7 +334,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	/// Takes in an additional `access_list` parameter for EIP-2930 which was
 	/// introduced in the Ethereum Berlin hard fork. If you do not wish to use
 	/// this functionality, just pass in an empty vector.
-	pub fn transact_call(
+	pub fn transact_call<
+		const CALL_TRACE: bool,
+		const GAS_TRACE: bool,
+		const OPCODE_TRACE: bool,
+	>(
 		&mut self,
 		caller: H160,
 		address: H160,
@@ -330,7 +350,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 
 		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
+		match gasometer.record_transaction::<GAS_TRACE>(transaction_cost) {
 			Ok(()) => (),
 			Err(e) => return (e.into(), Vec::new()),
 		}
@@ -357,7 +377,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			apparent_value: value,
 		};
 
-		match self.call_inner(
+		match self.call_inner::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
 			address,
 			Some(Transfer {
 				source: caller,
@@ -432,7 +452,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		self.state.metadata_mut().access_storages(storage_keys);
 	}
 
-	fn create_inner(
+	fn create_inner<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
 		&mut self,
 		caller: H160,
 		scheme: CreateScheme,
@@ -463,15 +483,16 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		self.state
 			.metadata_mut()
 			.access_addresses(addresses.iter().copied());
-
-		event!(Create {
-			caller,
-			address,
-			scheme,
-			value,
-			init_code: &init_code,
-			target_gas
-		});
+		if CALL_TRACE {
+			event!(Create {
+				caller,
+				address,
+				scheme,
+				value,
+				init_code: &init_code,
+				target_gas
+			});
+		}
 
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
@@ -487,7 +508,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
 				let diff = initial_after_gas - l64(initial_after_gas);
-				try_or_fail!(self.state.metadata_mut().gasometer.record_cost(diff));
+				try_or_fail!(self
+					.state
+					.metadata_mut()
+					.gasometer
+					.record_cost::<GAS_TRACE>(diff));
 				self.state.metadata().gasometer.gas()
 			} else {
 				l64(self.state.metadata().gasometer.gas())
@@ -499,7 +524,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		let target_gas = target_gas.unwrap_or(after_gas);
 
 		let gas_limit = min(after_gas, target_gas);
-		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
+		try_or_fail!(self
+			.state
+			.metadata_mut()
+			.gasometer
+			.record_cost::<GAS_TRACE>(gas_limit));
 
 		self.state.inc_nonce(caller);
 
@@ -507,12 +536,12 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 
 		{
 			if self.code_size(address) != U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}
 
 			if self.nonce(address) > U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}
 
@@ -532,7 +561,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		match self.state.transfer(transfer) {
 			Ok(()) => (),
 			Err(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Reverted);
 				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
 			}
 		}
@@ -548,7 +577,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			self.config,
 		);
 
-		let reason = self.execute(&mut runtime);
+		let reason = self.execute::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(&mut runtime);
 		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
 
 		match reason {
@@ -558,7 +587,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 				if let Some(limit) = self.config.create_contract_limit {
 					if out.len() > limit {
 						self.state.metadata_mut().gasometer.fail();
-						let _ = self.exit_substate(StackExitKind::Failed);
+						let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 						return Capture::Exit((
 							ExitError::CreateContractLimit.into(),
 							None,
@@ -571,27 +600,27 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 					.state
 					.metadata_mut()
 					.gasometer
-					.record_deposit(out.len())
+					.record_deposit::<GAS_TRACE>(out.len())
 				{
 					Ok(()) => {
-						let e = self.exit_substate(StackExitKind::Succeeded);
+						let e = self.exit_substate::<GAS_TRACE>(StackExitKind::Succeeded);
 						self.state.set_code(address, out);
 						try_or_fail!(e);
 						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
 					}
 					Err(e) => {
-						let _ = self.exit_substate(StackExitKind::Failed);
+						let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 					}
 				}
 			}
 			ExitReason::Error(e) => {
 				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
 			}
 			ExitReason::Revert(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Reverted);
 				Capture::Exit((
 					ExitReason::Revert(e),
 					None,
@@ -600,14 +629,14 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			}
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
 			}
 		}
 	}
 
 	#[allow(clippy::too_many_arguments)]
-	fn call_inner(
+	fn call_inner<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
@@ -630,21 +659,26 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
-
-		event!(Call {
-			code_address,
-			transfer: &transfer,
-			input: &input,
-			target_gas,
-			is_static,
-			context: &context,
-		});
+		if CALL_TRACE {
+			event!(Call {
+				code_address,
+				transfer: &transfer,
+				input: &input,
+				target_gas,
+				is_static,
+				context: &context,
+			});
+		}
 
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
 				let diff = initial_after_gas - l64(initial_after_gas);
-				try_or_fail!(self.state.metadata_mut().gasometer.record_cost(diff));
+				try_or_fail!(self
+					.state
+					.metadata_mut()
+					.gasometer
+					.record_cost::<GAS_TRACE>(diff));
 				self.state.metadata().gasometer.gas()
 			} else {
 				l64(self.state.metadata().gasometer.gas())
@@ -656,7 +690,11 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		let target_gas = target_gas.unwrap_or(after_gas);
 		let mut gas_limit = min(target_gas, after_gas);
 
-		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
+		try_or_fail!(self
+			.state
+			.metadata_mut()
+			.gasometer
+			.record_cost::<GAS_TRACE>(gas_limit));
 
 		if let Some(transfer) = transfer.as_ref() {
 			if take_stipend && transfer.value != U256::zero() {
@@ -671,7 +709,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
-				let _ = self.exit_substate(StackExitKind::Reverted);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Reverted);
 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()));
 			}
 		}
@@ -680,7 +718,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			match self.state.transfer(transfer) {
 				Ok(()) => (),
 				Err(e) => {
-					let _ = self.exit_substate(StackExitKind::Reverted);
+					let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Reverted);
 					return Capture::Exit((ExitReason::Error(e), Vec::new()));
 				}
 			}
@@ -708,12 +746,16 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 						}
 					}
 
-					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
-					let _ = self.exit_substate(StackExitKind::Succeeded);
+					let _ = self
+						.state
+						.metadata_mut()
+						.gasometer
+						.record_cost::<GAS_TRACE>(cost);
+					let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Succeeded);
 					Capture::Exit((ExitReason::Succeed(exit_status), output))
 				}
 				Err(e) => {
-					let _ = self.exit_substate(StackExitKind::Failed);
+					let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 					Capture::Exit((ExitReason::Error(e), Vec::new()))
 				}
 			};
@@ -721,25 +763,25 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 
 		let mut runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
 
-		let reason = self.execute(&mut runtime);
+		let reason = self.execute::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(&mut runtime);
 		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
 
 		match reason {
 			ExitReason::Succeed(s) => {
-				let _ = self.exit_substate(StackExitKind::Succeeded);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Succeeded);
 				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
 			}
 			ExitReason::Error(e) => {
-				let _ = self.exit_substate(StackExitKind::Failed);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Error(e), Vec::new()))
 			}
 			ExitReason::Revert(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Reverted);
 				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
 			}
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
+				let _ = self.exit_substate::<GAS_TRACE>(StackExitKind::Failed);
 				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
 			}
 		}
@@ -843,14 +885,19 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		Ok(())
 	}
 
-	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
+	fn mark_delete<const CALL_TRACE: bool>(
+		&mut self,
+		address: H160,
+		target: H160,
+	) -> Result<(), ExitError> {
 		let balance = self.balance(address);
-
-		event!(Suicide {
-			target,
-			address,
-			balance,
-		});
+		if CALL_TRACE {
+			event!(Suicide {
+				target,
+				address,
+				balance,
+			});
+		}
 
 		self.state.transfer(Transfer {
 			source: address,
@@ -863,7 +910,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		Ok(())
 	}
 
-	fn create(
+	fn create<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
 		&mut self,
 		caller: H160,
 		scheme: CreateScheme,
@@ -871,10 +918,12 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
-		self.create_inner(caller, scheme, value, init_code, target_gas, true)
+		self.create_inner::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
+			caller, scheme, value, init_code, target_gas, true,
+		)
 	}
 
-	fn call(
+	fn call<const CALL_TRACE: bool, const GAS_TRACE: bool, const OPCODE_TRACE: bool>(
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
@@ -883,7 +932,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
-		self.call_inner(
+		self.call_inner::<CALL_TRACE, GAS_TRACE, OPCODE_TRACE>(
 			code_address,
 			transfer,
 			input,
@@ -896,7 +945,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 	}
 
 	#[inline]
-	fn pre_validate(
+	fn pre_validate<const GAS_PRICE: bool>(
 		&mut self,
 		context: &Context,
 		opcode: Opcode,
@@ -905,7 +954,10 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
 
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
-			self.state.metadata_mut().gasometer.record_cost(cost)?;
+			self.state
+				.metadata_mut()
+				.gasometer
+				.record_cost::<GAS_PRICE>(cost)?;
 		} else {
 			let is_static = self.state.metadata().is_static;
 			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
@@ -919,7 +971,7 @@ impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
 
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 
-			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
+			gasometer.record_dynamic_cost::<GAS_PRICE>(gas_cost, memory_cost)?;
 			match target {
 				StorageTarget::Address(address) => {
 					self.state.metadata_mut().access_address(address)

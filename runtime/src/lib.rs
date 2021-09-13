@@ -6,20 +6,12 @@
 
 extern crate alloc;
 
-#[cfg(feature = "tracing")]
 pub mod tracing;
-
-#[cfg(feature = "tracing")]
 macro_rules! event {
 	($x:expr) => {
 		use crate::tracing::Event::*;
 		$x.emit();
 	};
-}
-
-#[cfg(not(feature = "tracing"))]
-macro_rules! event {
-	($x:expr) => {};
 }
 
 mod context;
@@ -39,15 +31,17 @@ use alloc::vec::Vec;
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
 		if let Some((opcode, stack)) = $self.machine.inspect() {
-			event!(Step {
-				context: &$self.context,
-				opcode,
-				position: $self.machine.position(),
-				stack,
-				memory: $self.machine.memory()
-			});
+			if OPCODE_TRACE {
+				event!(Step {
+					context: &$self.context,
+					opcode,
+					position: $self.machine.position(),
+					stack,
+					memory: $self.machine.memory()
+				});
+			}
 
-			match $handler.pre_validate(&$self.context, opcode, stack) {
+			match $handler.pre_validate::<GAS_TRACE>(&$self.context, opcode, stack) {
 				Ok(()) => (),
 				Err(e) => {
 					$self.machine.exit(e.clone().into());
@@ -65,11 +59,12 @@ macro_rules! step {
 		}
 
 		let result = $self.machine.step();
-
-		event!(StepResult {
-			result: &result,
-			return_value: &$self.machine.return_value(),
-		});
+		if OPCODE_TRACE {
+			event!(StepResult {
+				result: &result,
+				return_value: &$self.machine.return_value(),
+			});
+		}
 
 		match result {
 			Ok(()) => $($ok)?(()),
@@ -79,7 +74,7 @@ macro_rules! step {
 				$return $($err)*(Capture::Exit(e))
 			},
 			Err(Capture::Trap(opcode)) => {
-				match eval::eval($self, opcode, $handler) {
+				match eval::eval::<H, CALL_TRACE, GAS_TRACE, OPCODE_TRACE>($self, opcode, $handler) {
 					eval::Control::Continue => $($ok)?(()),
 					eval::Control::CallInterrupt(interrupt) => {
 						let resolve = ResolveCall::new($self);
@@ -142,7 +137,13 @@ impl<'config> Runtime<'config> {
 	}
 
 	/// Step the runtime.
-	pub fn step<'a, H: Handler>(
+	pub fn step<
+		'a,
+		H: Handler,
+		const CALL_TRACE: bool,
+		const GAS_TRACE: bool,
+		const OPCODE_TRACE: bool,
+	>(
 		&'a mut self,
 		handler: &mut H,
 	) -> Result<(), Capture<ExitReason, Resolve<'a, 'config, H>>> {
@@ -150,7 +151,13 @@ impl<'config> Runtime<'config> {
 	}
 
 	/// Loop stepping the runtime until it stops.
-	pub fn run<'a, H: Handler>(
+	pub fn run<
+		'a,
+		H: Handler,
+		const CALL_TRACE: bool,
+		const GAS_TRACE: bool,
+		const OPCODE_TRACE: bool,
+	>(
 		&'a mut self,
 		handler: &mut H,
 	) -> Capture<ExitReason, Resolve<'a, 'config, H>> {

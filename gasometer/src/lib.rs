@@ -6,10 +6,10 @@
 
 extern crate alloc;
 
-#[cfg(feature = "tracing")]
+//#[cfg(feature = "tracing")]
 pub mod tracing;
 
-#[cfg(feature = "tracing")]
+//#[cfg(feature = "tracing")]
 macro_rules! event {
 	($x:expr) => {
 		use crate::tracing::Event::*;
@@ -17,10 +17,10 @@ macro_rules! event {
 	};
 }
 
-#[cfg(not(feature = "tracing"))]
-macro_rules! event {
-	($x:expr) => {};
-}
+// #[cfg(not(feature = "tracing"))]
+// macro_rules! event {
+// 	($x:expr) => {};
+// }
 
 mod consts;
 mod costs;
@@ -131,11 +131,13 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Record an explict cost.
-	pub fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
-		event!(RecordCost {
-			cost,
-			snapshot: self.snapshot()?,
-		});
+	pub fn record_cost<const GAS_TRACE: bool>(&mut self, cost: u64) -> Result<(), ExitError> {
+		if GAS_TRACE {
+			event!(RecordCost {
+				cost,
+				snapshot: self.snapshot()?,
+			});
+		}
 
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
@@ -149,11 +151,13 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Record an explict refund.
-	pub fn record_refund(&mut self, refund: i64) -> Result<(), ExitError> {
-		event!(RecordRefund {
-			refund,
-			snapshot: self.snapshot()?,
-		});
+	pub fn record_refund<const GAS_TRACE: bool>(&mut self, refund: i64) -> Result<(), ExitError> {
+		if GAS_TRACE {
+			event!(RecordRefund {
+				refund,
+				snapshot: self.snapshot()?,
+			});
+		}
 
 		self.inner_mut()?.refunded_gas += refund;
 		Ok(())
@@ -161,13 +165,13 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Record `CREATE` code deposit.
-	pub fn record_deposit(&mut self, len: usize) -> Result<(), ExitError> {
+	pub fn record_deposit<const GAS_TRACE: bool>(&mut self, len: usize) -> Result<(), ExitError> {
 		let cost = len as u64 * consts::G_CODEDEPOSIT;
-		self.record_cost(cost)
+		self.record_cost::<GAS_TRACE>(cost)
 	}
 
 	/// Record opcode gas cost.
-	pub fn record_dynamic_cost(
+	pub fn record_dynamic_cost<const GAS_TRACE: bool>(
 		&mut self,
 		cost: GasCost,
 		memory: Option<MemoryCost>,
@@ -181,13 +185,14 @@ impl<'config> Gasometer<'config> {
 		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost, gas));
 		let gas_refund = self.inner_mut()?.gas_refund(cost);
 		let used_gas = self.inner_mut()?.used_gas;
-
-		event!(RecordDynamicCost {
-			gas_cost,
-			memory_gas,
-			gas_refund,
-			snapshot: self.snapshot()?,
-		});
+		if GAS_TRACE {
+			event!(RecordDynamicCost {
+				gas_cost,
+				memory_gas,
+				gas_refund,
+				snapshot: self.snapshot()?,
+			});
+		}
 
 		let all_gas_cost = memory_gas + used_gas + gas_cost;
 		if self.gas_limit < all_gas_cost {
@@ -207,18 +212,23 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Record opcode stipend.
-	pub fn record_stipend(&mut self, stipend: u64) -> Result<(), ExitError> {
-		event!(RecordStipend {
-			stipend,
-			snapshot: self.snapshot()?,
-		});
+	pub fn record_stipend<const GAS_TRACE: bool>(&mut self, stipend: u64) -> Result<(), ExitError> {
+		if GAS_TRACE {
+			event!(RecordStipend {
+				stipend,
+				snapshot: self.snapshot()?,
+			});
+		}
 
 		self.inner_mut()?.used_gas -= stipend;
 		Ok(())
 	}
 
 	/// Record transaction cost.
-	pub fn record_transaction(&mut self, cost: TransactionCost) -> Result<(), ExitError> {
+	pub fn record_transaction<const GAS_TRACE: bool>(
+		&mut self,
+		cost: TransactionCost,
+	) -> Result<(), ExitError> {
 		let gas_cost = match cost {
 			TransactionCost::Call {
 				zero_data_len,
@@ -245,11 +255,12 @@ impl<'config> Gasometer<'config> {
 					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
 			}
 		};
-
-		event!(RecordTransaction {
-			cost: gas_cost,
-			snapshot: self.snapshot()?,
-		});
+		if GAS_TRACE {
+			event!(RecordTransaction {
+				cost: gas_cost,
+				snapshot: self.snapshot()?,
+			});
+		}
 
 		if self.gas() < gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
