@@ -340,8 +340,8 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			let addresses = self
 				.precompile
 				.clone()
-				.into_keys()
 				.into_iter()
+				.map(|(k, _)| k)
 				.chain(core::iter::once(caller))
 				.chain(core::iter::once(address));
 			self.state.metadata_mut().access_addresses(addresses);
@@ -459,7 +459,12 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		self.state.metadata_mut().access_address(caller);
 		self.state.metadata_mut().access_address(address);
 
-		let addresses: Vec<H160> = self.precompile.clone().into_keys().collect();
+		let addresses: Vec<H160> = self
+			.precompile
+			.clone()
+			.into_iter()
+			.map(|(k, _)| k)
+			.collect();
 		self.state
 			.metadata_mut()
 			.access_addresses(addresses.iter().copied());
