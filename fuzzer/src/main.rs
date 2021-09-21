@@ -1,5 +1,4 @@
-use evm_core::{Capture, ExitSucceed, Machine};
-use honggfuzz::fuzz;
+use evm_core::Machine;
 use std::rc::Rc;
 
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -17,10 +16,10 @@ fn split_at_delim(sequence: &[u8], delim: &[u8]) -> (Vec<u8>, Vec<u8>) {
 		current_pos = found_index + delim.len();
 	}
 	if current_pos == 0 {
-		return (sequence.to_vec(), Vec::new());
+		(sequence.to_vec(), Vec::new())
 	} else {
 		res_vec.push(sequence[current_pos..].to_vec());
-		return (res_vec[0].to_owned(), res_vec[1].to_owned());
+		(res_vec[0].to_owned(), res_vec[1].to_owned())
 	}
 }
 
@@ -39,6 +38,8 @@ fn handle_data(sequence: &[u8]) {
 fn main() {
 	#[cfg(fuzzing)]
 	{
+		use honggfuzz::fuzz;
+
 		loop {
 			fuzz!(|data: &[u8]| {
 				handle_data(data);

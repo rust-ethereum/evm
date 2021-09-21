@@ -117,7 +117,9 @@ pub enum ExitError {
 	OutOfFund,
 
 	/// PC underflowed (unused).
+	#[allow(clippy::upper_case_acronyms)]
 	PCUnderflow,
+
 	/// Attempt to create an empty account (runtime, unused).
 	CreateEmpty,
 
