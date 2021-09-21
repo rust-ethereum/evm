@@ -61,10 +61,11 @@ pub enum Event<'a> {
 	},
 }
 
-impl<'a> Event<'a> {
-	pub(crate) fn emit(self) {
-		listener::with(|listener| listener.event(self));
-	}
+// Expose `listener::with` to the crate only.
+pub(crate) fn with<F: FnOnce(&mut (dyn EventListener + 'static))>(
+	f: F
+) {
+	listener::with(f);
 }
 
 /// Run closure with provided listener.
