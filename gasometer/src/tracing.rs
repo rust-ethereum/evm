@@ -41,9 +41,7 @@ pub enum Event {
 }
 
 // Expose `listener::with` to the crate only.
-pub(crate) fn with<F: FnOnce(&mut (dyn EventListener + 'static))>(
-	f: F
-) {
+pub(crate) fn with<F: FnOnce(&mut (dyn EventListener + 'static))>(f: F) {
 	listener::with(f);
 }
 
