@@ -44,6 +44,7 @@ pub enum StackExitKind {
 }
 
 #[derive(Default)]
+#[derive(Clone, Debug)]
 struct Accessed {
 	accessed_addresses: BTreeSet<H160>,
 	accessed_storage: BTreeSet<(H160, H256)>,
@@ -73,6 +74,7 @@ impl Accessed {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct StackSubstateMetadata<'config> {
 	gasometer: Gasometer<'config>,
 	is_static: bool,

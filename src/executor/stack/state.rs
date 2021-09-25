@@ -16,6 +16,7 @@ struct MemoryStackAccount {
 	pub reset: bool,
 }
 
+#[derive(Clone, Debug)]
 pub struct MemoryStackSubstate<'config> {
 	metadata: StackSubstateMetadata<'config>,
 	parent: Option<Box<MemoryStackSubstate<'config>>>,
@@ -409,6 +410,7 @@ pub trait StackState<'config>: Backend {
 	fn touch(&mut self, address: H160);
 }
 
+#[derive(Clone, Debug)]
 pub struct MemoryStackState<'backend, 'config, B> {
 	backend: &'backend B,
 	substate: MemoryStackSubstate<'config>,
