@@ -1,6 +1,6 @@
 mod state;
 
-pub use self::state::{MemoryStackState, MemoryStackSubstate, StackState};
+pub use self::state::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate, StackState};
 
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::{
