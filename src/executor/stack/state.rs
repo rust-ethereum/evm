@@ -166,7 +166,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
+	pub fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
 		if let Some(account) = self.accounts.get(&address) {
 			Some(account)
 		} else if let Some(parent) = self.parent.as_ref() {
