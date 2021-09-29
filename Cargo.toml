@@ -15,11 +15,12 @@ evm-gasometer = { version = "0.30", path = "gasometer", default-features = false
 evm-runtime = { version = "0.30", path = "runtime", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 rlp = { version = "0.5", default-features = false }
-primitive-types = { version = "0.10", default-features = false, features = ["rlp"] }
+primitive-types = { version = "0.10", default-features = false, features = ["rlp", "scale-info"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"], optional = true }
-ethereum = { version = "~0.8", default-features = false }
+ethereum = { version = "0.9", default-features = false }
 environmental = { version = "1.1.2", default-features = false, optional = true }
+scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -33,7 +34,7 @@ harness = false
 default = ["std"]
 with-codec = ["codec", "evm-core/with-codec", "primitive-types/codec", "ethereum/with-codec"]
 with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
-std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std"]
+std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std", "scale-info/std"]
 tracing = [
   "environmental"
 ]
@@ -45,3 +46,13 @@ members = [
   "runtime",
   "fuzzer"
 ]
+
+# Use scale-info compatible crates that I hacked together.
+[patch.crates-io]
+ethereum = { git = "https://github.com/purestake/ethereum", branch = "joshy-scale-info"}
+
+# These are cumulative. I need to also override the ones that I did in dependencies.
+ethereum-types = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
+rlp = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
+rlp-derive = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
+primitive-types = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}

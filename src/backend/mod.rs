@@ -10,7 +10,7 @@ use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 /// Basic account information.
-#[derive(Clone, Eq, PartialEq, Debug, Default)]
+#[derive(Clone, Eq, PartialEq, Debug, Default, scale_info::TypeInfo)]
 #[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Basic {
