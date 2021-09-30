@@ -14,6 +14,7 @@ pub struct Transfer {
 }
 
 /// EVM context handler.
+#[auto_impl::auto_impl(&mut, Box)]
 pub trait Handler {
 	/// Type of `CREATE` interrupt.
 	type CreateInterrupt;

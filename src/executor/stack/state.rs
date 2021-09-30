@@ -385,6 +385,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
+#[auto_impl::auto_impl(&mut, Box)]
 pub trait StackState<'config>: Backend {
 	fn metadata(&self) -> &StackSubstateMetadata<'config>;
 	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
