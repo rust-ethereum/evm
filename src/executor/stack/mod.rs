@@ -51,11 +51,11 @@ struct Accessed {
 }
 
 impl Accessed {
-	fn access_address(&mut self, address: H160) {
+	pub fn access_address(&mut self, address: H160) {
 		self.accessed_addresses.insert(address);
 	}
 
-	fn access_addresses<I>(&mut self, addresses: I)
+	pub fn access_addresses<I>(&mut self, addresses: I)
 	where
 		I: Iterator<Item = H160>,
 	{
@@ -64,7 +64,7 @@ impl Accessed {
 		}
 	}
 
-	fn access_storages<I>(&mut self, storages: I)
+	pub fn access_storages<I>(&mut self, storages: I)
 	where
 		I: Iterator<Item = (H160, H256)>,
 	{
@@ -154,13 +154,13 @@ impl<'config> StackSubstateMetadata<'config> {
 		self.depth
 	}
 
-	fn access_address(&mut self, address: H160) {
+	pub fn access_address(&mut self, address: H160) {
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_address(address)
 		}
 	}
 
-	fn access_addresses<I>(&mut self, addresses: I)
+	pub fn access_addresses<I>(&mut self, addresses: I)
 	where
 		I: Iterator<Item = H160>,
 	{
@@ -169,13 +169,13 @@ impl<'config> StackSubstateMetadata<'config> {
 		}
 	}
 
-	fn access_storage(&mut self, address: H160, key: H256) {
+	pub fn access_storage(&mut self, address: H160, key: H256) {
 		if let Some(accessed) = &mut self.accessed {
 			accessed.accessed_storage.insert((address, key));
 		}
 	}
 
-	fn access_storages<I>(&mut self, storages: I)
+	pub fn access_storages<I>(&mut self, storages: I)
 	where
 		I: Iterator<Item = (H160, H256)>,
 	{
@@ -216,6 +216,10 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	/// Return a reference of the Config.
 	pub fn config(&self) -> &'config Config {
 		self.config
+	}
+
+	pub fn precompile(&self) -> &Precompile {
+		&self.precompile
 	}
 
 	/// Create a new stack-based executor with given precompiles.
@@ -473,7 +477,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	fn initialize_with_access_list(&mut self, access_list: Vec<(H160, Vec<H256>)>) {
+	pub fn initialize_with_access_list(&mut self, access_list: Vec<(H160, Vec<H256>)>) {
 		let addresses = access_list.iter().map(|a| a.0);
 		self.state.metadata_mut().access_addresses(addresses);
 
