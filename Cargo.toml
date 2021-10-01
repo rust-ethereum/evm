@@ -50,9 +50,3 @@ members = [
 # Use scale-info compatible crates that I hacked together.
 [patch.crates-io]
 ethereum = { git = "https://github.com/purestake/ethereum", branch = "joshy-scale-info"}
-
-# These are cumulative. I need to also override the ones that I did in dependencies.
-ethereum-types = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
-rlp = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
-rlp-derive = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
-primitive-types = { git = "https://github.com/purestake/parity-common", branch = "joshy-scale-info-ethereum"}
