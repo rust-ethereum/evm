@@ -43,8 +43,7 @@ pub enum StackExitKind {
 	Failed,
 }
 
-#[derive(Default)]
-#[derive(Clone, Debug)]
+#[derive(Default, Clone, Debug)]
 struct Accessed {
 	accessed_addresses: BTreeSet<H160>,
 	accessed_storage: BTreeSet<(H160, H256)>,

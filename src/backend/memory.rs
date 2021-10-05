@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 /// Vivinity value of a memory backend.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 #[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryVicinity {
@@ -64,6 +64,11 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 	/// Get the underlying `BTreeMap` storing the state.
 	pub fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
 		&self.state
+	}
+
+	/// Get a mutable reference to the underlying `BTreeMap` storing the state.
+	pub fn state_mut(&mut self) -> &mut BTreeMap<H160, MemoryAccount> {
+		&mut self.state
 	}
 }
 
