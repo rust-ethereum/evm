@@ -43,7 +43,8 @@ fn run_loop_contract() {
 	let backend = MemoryBackend::new(&vicinity, state);
 	let metadata = StackSubstateMetadata::new(u64::MAX, &config);
 	let state = MemoryStackState::new(metadata, &backend);
-	let mut executor = StackExecutor::new_with_precompile(state, &config, executor::Precompile::new());
+	let mut executor =
+		StackExecutor::new_with_precompile(state, &config, executor::Precompile::new());
 
 	let _reason = executor.transact_call(
 		H160::from_str("0xf000000000000000000000000000000000000000").unwrap(),
