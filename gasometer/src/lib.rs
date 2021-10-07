@@ -272,6 +272,7 @@ impl<'config> Gasometer<'config> {
 }
 
 /// Calculate the call transaction cost.
+#[allow(clippy::naive_bytecount)]
 pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
@@ -286,6 +287,7 @@ pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> 
 }
 
 /// Calculate the create transaction cost.
+#[allow(clippy::naive_bytecount)]
 pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;

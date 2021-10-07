@@ -36,6 +36,7 @@ jobs:
     - name: Submodules
       run: |
         cd evm
+        git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
         git fetch origin $GITHUB_SHA
         git checkout $GITHUB_SHA
     - name: Run tests
