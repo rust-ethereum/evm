@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 /// Vivinity value of a memory backend.
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryVicinity {
