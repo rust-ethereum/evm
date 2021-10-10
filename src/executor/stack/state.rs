@@ -38,6 +38,10 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
+    pub fn logs(&self) -> &[Log] {
+        &self.logs
+    }
+
 	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
 		&self.metadata
 	}
