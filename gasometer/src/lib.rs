@@ -54,7 +54,7 @@ pub struct Snapshot {
 }
 
 /// EVM gasometer.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Gasometer<'config> {
 	gas_limit: u64,
 	config: &'config Config,
@@ -676,7 +676,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 }
 
 /// Holds the gas consumption for a Gasometer instance.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct Inner<'config> {
 	memory_gas: u64,
 	used_gas: u64,
