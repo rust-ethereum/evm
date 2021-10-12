@@ -42,6 +42,10 @@ impl<'config> MemoryStackSubstate<'config> {
 		&self.logs
 	}
 
+	pub fn logs_mut(&mut self) -> &mut Vec<Log> {
+		&mut self.logs
+	}
+
 	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
 		&self.metadata
 	}
