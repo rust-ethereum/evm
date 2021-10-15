@@ -15,8 +15,11 @@ pub enum Capture<E, T> {
 }
 
 /// Exit reason.
-#[derive(Clone, Debug, Eq, PartialEq, scale_info::TypeInfo)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitReason {
 	/// Machine has succeeded.
@@ -53,8 +56,11 @@ impl ExitReason {
 }
 
 /// Exit succeed reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, scale_info::TypeInfo)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitSucceed {
 	/// Machine encountered an explict stop.
@@ -72,8 +78,11 @@ impl From<ExitSucceed> for ExitReason {
 }
 
 /// Exit revert reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, scale_info::TypeInfo)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitRevert {
 	/// Machine encountered an explict revert.
@@ -87,8 +96,11 @@ impl From<ExitRevert> for ExitReason {
 }
 
 /// Exit error reason.
-#[derive(Clone, Debug, Eq, PartialEq, scale_info::TypeInfo)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitError {
 	/// Trying to pop from an empty stack.
@@ -132,8 +144,11 @@ impl From<ExitError> for ExitReason {
 }
 
 /// Exit fatal reason.
-#[derive(Clone, Debug, Eq, PartialEq, scale_info::TypeInfo)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitFatal {
 	/// The operation is not supported.
