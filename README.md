@@ -21,8 +21,8 @@
 
 ## Dependencies
 
-Ensure you have at least `rustc 1.33.0 (2aa4c46cf 2019-02-28)`. Rust 1.32.0 and
-before is not supported.
+Ensure you have at least `rustc 1.51.0 (2fd73fabe 2021-03-23)`. Rust 1.50.0 and
+before are not supported.
 
 ## Documentation
 
