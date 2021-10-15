@@ -20,7 +20,7 @@ serde = { version = "1.0", default-features = false, features = ["derive"], opti
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"], optional = true }
 ethereum = { version = "0.9", default-features = false }
 environmental = { version = "1.1.2", default-features = false, optional = true }
-scale-info = { version = "1.0.0", default-features = false, features = ["derive"] }
+scale-info = { version = "1.0.0", default-features = false, features = ["derive"], optional = true }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -32,7 +32,7 @@ harness = false
 
 [features]
 default = ["std"]
-with-codec = ["codec", "evm-core/with-codec", "primitive-types/codec", "ethereum/with-codec"]
+with-codec = ["codec", "scale-info", "evm-core/with-codec", "primitive-types/codec", "ethereum/with-codec"]
 with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
 std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std", "scale-info/std"]
 tracing = [
