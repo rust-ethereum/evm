@@ -47,6 +47,6 @@ members = [
   "fuzzer"
 ]
 
-# Use scale-info compatible crates that I hacked together.
+# Use not-yet-released scale-info-compatible `ethereum` crate.
 [patch.crates-io]
-ethereum = { git = "https://github.com/purestake/ethereum", branch = "joshy-scale-info"}
+ethereum = { git = "https://github.com/purestake/ethereum", branch = "master"}
