@@ -1,6 +1,6 @@
 mod state;
 
-pub use self::state::{MemoryStackState, MemoryStackSubstate, StackState};
+pub use self::state::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate, StackState};
 
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::{
@@ -43,18 +43,18 @@ pub enum StackExitKind {
 	Failed,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone, Debug)]
 struct Accessed {
 	accessed_addresses: BTreeSet<H160>,
 	accessed_storage: BTreeSet<(H160, H256)>,
 }
 
 impl Accessed {
-	fn access_address(&mut self, address: H160) {
+	pub fn access_address(&mut self, address: H160) {
 		self.accessed_addresses.insert(address);
 	}
 
-	fn access_addresses<I>(&mut self, addresses: I)
+	pub fn access_addresses<I>(&mut self, addresses: I)
 	where
 		I: Iterator<Item = H160>,
 	{
@@ -63,7 +63,7 @@ impl Accessed {
 		}
 	}
 
-	fn access_storages<I>(&mut self, storages: I)
+	pub fn access_storages<I>(&mut self, storages: I)
 	where
 		I: Iterator<Item = (H160, H256)>,
 	{
@@ -73,6 +73,7 @@ impl Accessed {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct StackSubstateMetadata<'config> {
 	gasometer: Gasometer<'config>,
 	is_static: bool,
@@ -152,13 +153,13 @@ impl<'config> StackSubstateMetadata<'config> {
 		self.depth
 	}
 
-	fn access_address(&mut self, address: H160) {
+	pub fn access_address(&mut self, address: H160) {
 		if let Some(accessed) = &mut self.accessed {
 			accessed.access_address(address)
 		}
 	}
 
-	fn access_addresses<I>(&mut self, addresses: I)
+	pub fn access_addresses<I>(&mut self, addresses: I)
 	where
 		I: Iterator<Item = H160>,
 	{
@@ -167,13 +168,13 @@ impl<'config> StackSubstateMetadata<'config> {
 		}
 	}
 
-	fn access_storage(&mut self, address: H160, key: H256) {
+	pub fn access_storage(&mut self, address: H160, key: H256) {
 		if let Some(accessed) = &mut self.accessed {
 			accessed.accessed_storage.insert((address, key));
 		}
 	}
 
-	fn access_storages<I>(&mut self, storages: I)
+	pub fn access_storages<I>(&mut self, storages: I)
 	where
 		I: Iterator<Item = (H160, H256)>,
 	{
@@ -214,6 +215,10 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	/// Return a reference of the Config.
 	pub fn config(&self) -> &'config Config {
 		self.config
+	}
+
+	pub fn precompile(&self) -> &Precompile {
+		&self.precompile
 	}
 
 	/// Create a new stack-based executor with given precompiles.
@@ -392,8 +397,8 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 			let addresses = self
 				.precompile
 				.clone()
-				.into_keys()
 				.into_iter()
+				.map(|(k, _)| k)
 				.chain(core::iter::once(caller))
 				.chain(core::iter::once(address));
 			self.state.metadata_mut().access_addresses(addresses);
@@ -474,7 +479,7 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		}
 	}
 
-	fn initialize_with_access_list(&mut self, access_list: Vec<(H160, Vec<H256>)>) {
+	pub fn initialize_with_access_list(&mut self, access_list: Vec<(H160, Vec<H256>)>) {
 		let addresses = access_list.iter().map(|a| a.0);
 		self.state.metadata_mut().access_addresses(addresses);
 
@@ -520,7 +525,12 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 		self.state.metadata_mut().access_address(caller);
 		self.state.metadata_mut().access_address(address);
 
-		let addresses: Vec<H160> = self.precompile.clone().into_keys().collect();
+		let addresses: Vec<H160> = self
+			.precompile
+			.clone()
+			.into_iter()
+			.map(|(k, _)| k)
+			.collect();
 		self.state
 			.metadata_mut()
 			.access_addresses(addresses.iter().copied());

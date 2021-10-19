@@ -6,6 +6,8 @@
 mod stack;
 
 pub use self::stack::{
-	MemoryStackState, Precompile, PrecompileOutput, StackExecutor, StackExitKind, StackState,
-	StackSubstateMetadata,
+	MemoryStackAccount, MemoryStackState, MemoryStackSubstate, Precompile, PrecompileOutput,
+	StackExecutor, StackExitKind, StackState, StackSubstateMetadata,
 };
+
+pub use ethereum::Log;

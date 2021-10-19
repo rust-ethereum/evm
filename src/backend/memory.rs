@@ -67,6 +67,11 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 	pub fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
 		&self.state
 	}
+
+	/// Get a mutable reference to the underlying `BTreeMap` storing the state.
+	pub fn state_mut(&mut self) -> &mut BTreeMap<H160, MemoryAccount> {
+		&mut self.state
+	}
 }
 
 impl<'vicinity> Backend for MemoryBackend<'vicinity> {

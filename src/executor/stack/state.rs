@@ -10,12 +10,13 @@ use core::mem;
 use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
-struct MemoryStackAccount {
+pub struct MemoryStackAccount {
 	pub basic: Basic,
 	pub code: Option<Vec<u8>>,
 	pub reset: bool,
 }
 
+#[derive(Clone, Debug)]
 pub struct MemoryStackSubstate<'config> {
 	metadata: StackSubstateMetadata<'config>,
 	parent: Option<Box<MemoryStackSubstate<'config>>>,
@@ -35,6 +36,14 @@ impl<'config> MemoryStackSubstate<'config> {
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
 		}
+	}
+
+	pub fn logs(&self) -> &[Log] {
+		&self.logs
+	}
+
+	pub fn logs_mut(&mut self) -> &mut Vec<Log> {
+		&mut self.logs
 	}
 
 	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
@@ -165,7 +174,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
+	pub fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
 		if let Some(account) = self.accounts.get(&address) {
 			Some(account)
 		} else if let Some(parent) = self.parent.as_ref() {
@@ -384,6 +393,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
+#[auto_impl::auto_impl(&mut, Box)]
 pub trait StackState<'config>: Backend {
 	fn metadata(&self) -> &StackSubstateMetadata<'config>;
 	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
@@ -409,6 +419,7 @@ pub trait StackState<'config>: Backend {
 	fn touch(&mut self, address: H160);
 }
 
+#[derive(Clone, Debug)]
 pub struct MemoryStackState<'backend, 'config, B> {
 	backend: &'backend B,
 	substate: MemoryStackSubstate<'config>,
