@@ -47,7 +47,3 @@ members = [
   "runtime",
   "fuzzer"
 ]
-
-# Use not-yet-released scale-info-compatible `ethereum` crate.
-[patch.crates-io]
-ethereum = { git = "https://github.com/purestake/ethereum", branch = "master"}
