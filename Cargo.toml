@@ -15,7 +15,7 @@ evm-gasometer = { version = "0.31", path = "gasometer", default-features = false
 evm-runtime = { version = "0.31", path = "runtime", default-features = false }
 sha3 = { version = "0.8", default-features = false }
 rlp = { version = "0.5", default-features = false }
-primitive-types = { version = "0.10", default-features = false, features = ["rlp", "scale-info"] }
+primitive-types = { version = "0.10", default-features = false, features = ["rlp"] }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "2.0", default-features = false, features = ["derive"], optional = true }
 ethereum = { version = "0.10", default-features = false }
@@ -33,7 +33,7 @@ harness = false
 
 [features]
 default = ["std"]
-with-codec = ["codec", "scale-info", "evm-core/with-codec", "primitive-types/codec", "ethereum/with-codec"]
+with-codec = ["codec", "scale-info", "evm-core/with-codec", "primitive-types/codec", "primitive-types/scale-info", "ethereum/with-codec"]
 with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
 std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std", "scale-info/std"]
 tracing = [
