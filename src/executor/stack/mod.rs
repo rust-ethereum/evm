@@ -222,7 +222,11 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 	}
 
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new_with_precompile(state: S, config: &'config Config, precompile: &'precompile Precompile) -> Self {
+	pub fn new_with_precompile(
+		state: S,
+		config: &'config Config,
+		precompile: &'precompile Precompile,
+	) -> Self {
 		Self {
 			config,
 			precompile,
@@ -805,7 +809,9 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 	}
 }
 
-impl<'config, 'precompile, S: StackState<'config>> Handler for StackExecutor<'config, 'precompile, S> {
+impl<'config, 'precompile, S: StackState<'config>> Handler
+	for StackExecutor<'config, 'precompile, S>
+{
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
