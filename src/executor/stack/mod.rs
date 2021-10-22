@@ -205,24 +205,28 @@ pub type PrecompileFn = fn(&[u8], Option<u64>, &Context, bool) -> PrecompileResu
 pub type Precompile = BTreeMap<H160, PrecompileFn>;
 
 /// Stack-based executor.
-pub struct StackExecutor<'config, S> {
+pub struct StackExecutor<'config, 'precompile, S> {
 	config: &'config Config,
-	precompile: Precompile,
+	precompile: &'precompile Precompile,
 	state: S,
 }
 
-impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
+impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'precompile, S> {
 	/// Return a reference of the Config.
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
 
-	pub fn precompile(&self) -> &Precompile {
-		&self.precompile
+	pub fn precompile(&self) -> &'precompile Precompile {
+		self.precompile
 	}
 
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new_with_precompile(state: S, config: &'config Config, precompile: Precompile) -> Self {
+	pub fn new_with_precompile(
+		state: S,
+		config: &'config Config,
+		precompile: &'precompile Precompile,
+	) -> Self {
 		Self {
 			config,
 			precompile,
@@ -805,7 +809,9 @@ impl<'config, S: StackState<'config>> StackExecutor<'config, S> {
 	}
 }
 
-impl<'config, S: StackState<'config>> Handler for StackExecutor<'config, S> {
+impl<'config, 'precompile, S: StackState<'config>> Handler
+	for StackExecutor<'config, 'precompile, S>
+{
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
