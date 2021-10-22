@@ -50,7 +50,6 @@ pub enum Apply<I> {
 }
 
 /// EVM backend.
-#[auto_impl::auto_impl(&, Arc, Box)]
 pub trait Backend {
 	/// Gas price.
 	fn gas_price(&self) -> U256;
