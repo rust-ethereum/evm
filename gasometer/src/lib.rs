@@ -45,7 +45,7 @@ macro_rules! try_or_fail {
 	};
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Default)]
 pub struct Snapshot {
 	pub gas_limit: u64,
 	pub memory_gas: u64,
@@ -134,7 +134,7 @@ impl<'config> Gasometer<'config> {
 	pub fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
 		event!(RecordCost {
 			cost,
-			snapshot: self.snapshot()?,
+			snapshot: self.snapshot(),
 		});
 
 		let all_gas_cost = self.total_used_gas() + cost;
@@ -152,7 +152,7 @@ impl<'config> Gasometer<'config> {
 	pub fn record_refund(&mut self, refund: i64) -> Result<(), ExitError> {
 		event!(RecordRefund {
 			refund,
-			snapshot: self.snapshot()?,
+			snapshot: self.snapshot(),
 		});
 
 		self.inner_mut()?.refunded_gas += refund;
@@ -186,7 +186,7 @@ impl<'config> Gasometer<'config> {
 			gas_cost,
 			memory_gas,
 			gas_refund,
-			snapshot: self.snapshot()?,
+			snapshot: self.snapshot(),
 		});
 
 		let all_gas_cost = memory_gas + used_gas + gas_cost;
@@ -210,7 +210,7 @@ impl<'config> Gasometer<'config> {
 	pub fn record_stipend(&mut self, stipend: u64) -> Result<(), ExitError> {
 		event!(RecordStipend {
 			stipend,
-			snapshot: self.snapshot()?,
+			snapshot: self.snapshot(),
 		});
 
 		self.inner_mut()?.used_gas -= stipend;
@@ -248,7 +248,7 @@ impl<'config> Gasometer<'config> {
 
 		event!(RecordTransaction {
 			cost: gas_cost,
-			snapshot: self.snapshot()?,
+			snapshot: self.snapshot(),
 		});
 
 		if self.gas() < gas_cost {
@@ -260,14 +260,16 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
-	pub fn snapshot(&self) -> Result<Snapshot, ExitError> {
-		let inner = self.inner.as_ref().map_err(|e| e.clone())?;
-		Ok(Snapshot {
-			gas_limit: self.gas_limit,
-			memory_gas: inner.memory_gas,
-			used_gas: inner.used_gas,
-			refunded_gas: inner.refunded_gas,
-		})
+	pub fn snapshot(&self) -> Snapshot {
+		match self.inner.as_ref() {
+			Ok(inner) => Snapshot {
+				gas_limit: self.gas_limit,
+				memory_gas: inner.memory_gas,
+				used_gas: inner.used_gas,
+				refunded_gas: inner.refunded_gas,
+			},
+			Err(_) => Default::default(),
+		}
 	}
 }
 
