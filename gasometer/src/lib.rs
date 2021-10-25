@@ -263,15 +263,16 @@ impl<'config> Gasometer<'config> {
 
 	#[cfg(feature = "tracing")]
 	pub fn snapshot(&self) -> Snapshot {
-		match self.inner.as_ref() {
-			Ok(inner) => Snapshot {
+		self.inner
+			.as_ref()
+			.ok()
+			.map(|inner| Snapshot {
 				gas_limit: self.gas_limit,
 				memory_gas: inner.memory_gas,
 				used_gas: inner.used_gas,
 				refunded_gas: inner.refunded_gas,
-			},
-			Err(_) => Default::default(),
-		}
+			})
+			.unwrap_or_default()
 	}
 }
 
