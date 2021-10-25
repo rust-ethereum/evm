@@ -36,7 +36,9 @@ with-codec = ["codec", "scale-info", "evm-core/with-codec", "primitive-types/cod
 with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
 std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std", "scale-info/std"]
 tracing = [
-  "environmental"
+  "environmental",
+  "evm-gasometer/tracing",
+  "evm-runtime/tracing"
 ]
 
 [workspace]
