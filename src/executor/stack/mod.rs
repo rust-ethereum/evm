@@ -12,6 +12,7 @@ use core::{cmp::min, convert::Infallible};
 use ethereum::Log;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+use std::collections::BTreeMap;
 
 macro_rules! emit_exit {
 	($reason:expr) => {{
@@ -198,21 +199,23 @@ pub trait PrecompileSet {
 	/// Tries to execute a precompile in the precompile set.
 	/// If the provided address is not a precompile, returns None.
 	fn execute(
+		&self,
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
-		contex: &Context,
+		context: &Context,
 		is_static: bool,
 	) -> Option<PrecompileResult>;
 
 	/// Check if the given address is a precompile. Should only be called to
 	/// perform the check while not executing the precompile afterward, since
 	/// `execute` already performs a check internally.
-	fn is_precompile(address: H160) -> bool;
+	fn is_precompile(&self, address: H160) -> bool;
 }
 
 impl PrecompileSet for () {
 	fn execute(
+		&self,
 		_: H160,
 		_: &[u8],
 		_: Option<u64>,
@@ -222,30 +225,69 @@ impl PrecompileSet for () {
 		None
 	}
 
-	fn is_precompile(_: H160) -> bool {
+	fn is_precompile(&self, _: H160) -> bool {
 		false
 	}
 }
 
-/// Stack-based executor.
-pub struct StackExecutor<'config, S, P = ()> {
-	config: &'config Config,
-	state: S,
-	_phantom: core::marker::PhantomData<P>,
+/// Precompiles function signature. Expected input arguments are:
+///  * Input
+///  * Gas limit
+///  * Context
+///  * Is static
+pub type PrecompileFn = fn(&[u8], Option<u64>, &Context, bool) -> PrecompileResult;
+
+impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
+	fn execute(
+		&self,
+		address: H160,
+		input: &[u8],
+		gas_limit: Option<u64>,
+		context: &Context,
+		is_static: bool,
+	) -> Option<PrecompileResult> {
+		self.get(&address)
+			.map(|precompile| (*precompile)(input, gas_limit, context, is_static))
+	}
+
+	/// Check if the given address is a precompile. Should only be called to
+	/// perform the check while not executing the precompile afterward, since
+	/// `execute` already performs a check internally.
+	fn is_precompile(&self, address: H160) -> bool {
+		self.contains_key(&address)
+	}
 }
 
-impl<'config, S: StackState<'config>, P: PrecompileSet> StackExecutor<'config, S, P> {
+/// Stack-based executor.
+pub struct StackExecutor<'config, 'precompiles, S, P> {
+	config: &'config Config,
+	state: S,
+	precompile_set: &'precompiles P,
+}
+
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
+	StackExecutor<'config, 'precompiles, S, P>
+{
 	/// Return a reference of the Config.
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
 
+	/// Return a reference to the precompile set.
+	pub fn precompiles(&self) -> &'precompiles P {
+		self.precompile_set
+	}
+
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new(state: S, config: &'config Config) -> Self {
+	pub fn new_with_precompiles(
+		state: S,
+		config: &'config Config,
+		precompile_set: &'precompiles P,
+	) -> Self {
 		Self {
 			config,
 			state,
-			_phantom: Default::default(),
+			precompile_set,
 		}
 	}
 
@@ -748,7 +790,9 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> StackExecutor<'config, S
 			}
 		}
 
-		if let Some(result) = P::execute(code_address, &input, Some(gas_limit), &context, is_static)
+		if let Some(result) =
+			self.precompile_set
+				.execute(code_address, &input, Some(gas_limit), &context, is_static)
 		{
 			return match result {
 				Ok(PrecompileOutput {
@@ -809,7 +853,9 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> StackExecutor<'config, S
 	}
 }
 
-impl<'config, S: StackState<'config>, P: PrecompileSet> Handler for StackExecutor<'config, S, P> {
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
+	for StackExecutor<'config, 'precompiles, S, P>
+{
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
 	type CallInterrupt = Infallible;
@@ -855,7 +901,7 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler for StackExecuto
 
 	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
 		match maybe_index {
-			None => !P::is_precompile(address) && self.state.is_cold(address),
+			None => !self.precompile_set.is_precompile(address) && self.state.is_cold(address),
 			Some(index) => self.state.is_storage_cold(address, index),
 		}
 	}
