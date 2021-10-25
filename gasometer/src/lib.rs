@@ -45,6 +45,7 @@ macro_rules! try_or_fail {
 	};
 }
 
+#[cfg(feature = "tracing")]
 #[derive(Debug, Copy, Clone, Default)]
 pub struct Snapshot {
 	pub gas_limit: u64,
