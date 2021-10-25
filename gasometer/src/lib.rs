@@ -260,6 +260,7 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
+	#[cfg(feature = "tracing")]
 	pub fn snapshot(&self) -> Snapshot {
 		match self.inner.as_ref() {
 			Ok(inner) => Snapshot {
