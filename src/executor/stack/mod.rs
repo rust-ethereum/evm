@@ -192,8 +192,27 @@ pub struct PrecompileOutput {
 	pub logs: Vec<Log>,
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct PrecompileError {
+	pub error: ExitError,
+	pub cost: u64,
+}
+
+/// Extension trait to easily convert an `ExitError` into
+/// a `PrecompileError`.
+pub trait PrecompileErrorExt {
+	/// Converts an `ExitError` into a `PrecompileError` with provided cost.
+	fn with_cost(self, cost: u64) -> PrecompileError;
+}
+
+impl PrecompileErrorExt for ExitError {
+	fn with_cost(self, cost: u64) -> PrecompileError {
+		PrecompileError { error: self, cost }
+	}
+}
+
 /// A precompile result.
-pub type PrecompileResult = Result<PrecompileOutput, ExitError>;
+pub type PrecompileResult = Result<PrecompileOutput, PrecompileError>;
 
 /// Precompiles function signature. Expected input arguments are:
 ///  * Input
@@ -775,9 +794,10 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 					let _ = self.exit_substate(StackExitKind::Succeeded);
 					Capture::Exit((ExitReason::Succeed(exit_status), output))
 				}
-				Err(e) => {
+				Err(PrecompileError { error, cost }) => {
+					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(e), Vec::new()))
+					Capture::Exit((ExitReason::Error(error), Vec::new()))
 				}
 			};
 		}
