@@ -6,7 +6,7 @@
 mod stack;
 
 pub use self::stack::{
-	MemoryStackAccount, MemoryStackState, MemoryStackSubstate, Precompile, PrecompileOutput,
+	MemoryStackAccount, MemoryStackState, MemoryStackSubstate, PrecompileOutput, PrecompileSet,
 	StackExecutor, StackExitKind, StackState, StackSubstateMetadata,
 };
 
