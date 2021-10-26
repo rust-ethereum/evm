@@ -14,6 +14,7 @@ use alloc::{
 };
 use core::{cmp::min, convert::Infallible};
 use ethereum::Log;
+use evm_core::{ExitFatal, ExitRevert};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -184,6 +185,7 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
+/// Data returned by a precompile on success.
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PrecompileOutput {
 	pub exit_status: ExitSucceed,
@@ -192,27 +194,24 @@ pub struct PrecompileOutput {
 	pub logs: Vec<Log>,
 }
 
+/// Data returned by a precompile in case of failure.
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct PrecompileError {
-	pub error: ExitError,
-	pub cost: u64,
-}
-
-/// Extension trait to easily convert an `ExitError` into
-/// a `PrecompileError`.
-pub trait PrecompileErrorExt {
-	/// Converts an `ExitError` into a `PrecompileError` with provided cost.
-	fn with_cost(self, cost: u64) -> PrecompileError;
-}
-
-impl PrecompileErrorExt for ExitError {
-	fn with_cost(self, cost: u64) -> PrecompileError {
-		PrecompileError { error: self, cost }
-	}
+pub enum PrecompileFailure {
+	/// Reverts the state changes and consume all the gas.
+	Error { exit_status: ExitError },
+	/// Reverts the state changes and consume the provided `cost`.
+	/// Returns the provided error message.
+	Revert {
+		exit_status: ExitRevert,
+		output: Vec<u8>,
+		cost: u64,
+	},
+	/// Mark this failure as fatal, and all EVM execution stacks must be exited.
+	Fatal { exit_status: ExitFatal },
 }
 
 /// A precompile result.
-pub type PrecompileResult = Result<PrecompileOutput, PrecompileError>;
+pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 
 /// Precompiles function signature. Expected input arguments are:
 ///  * Input
@@ -794,10 +793,23 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 					let _ = self.exit_substate(StackExitKind::Succeeded);
 					Capture::Exit((ExitReason::Succeed(exit_status), output))
 				}
-				Err(PrecompileError { error, cost }) => {
-					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
+				Err(PrecompileFailure::Error { exit_status }) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(error), Vec::new()))
+					Capture::Exit((ExitReason::Error(exit_status), Vec::new()))
+				}
+				Err(PrecompileFailure::Revert {
+					exit_status,
+					output,
+					cost,
+				}) => {
+					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
+					let _ = self.exit_substate(StackExitKind::Reverted);
+					Capture::Exit((ExitReason::Revert(exit_status), output))
+				}
+				Err(PrecompileFailure::Fatal { exit_status }) => {
+					self.state.metadata_mut().gasometer.fail();
+					let _ = self.exit_substate(StackExitKind::Failed);
+					Capture::Exit((ExitReason::Fatal(exit_status), Vec::new()))
 				}
 			};
 		}
