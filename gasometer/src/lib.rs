@@ -46,7 +46,7 @@ macro_rules! try_or_fail {
 }
 
 #[cfg(feature = "tracing")]
-#[derive(Debug, Copy, Clone, Default)]
+#[derive(Debug, Copy, Clone)]
 pub struct Snapshot {
 	pub gas_limit: u64,
 	pub memory_gas: u64,
@@ -262,17 +262,13 @@ impl<'config> Gasometer<'config> {
 	}
 
 	#[cfg(feature = "tracing")]
-	pub fn snapshot(&self) -> Snapshot {
-		self.inner
-			.as_ref()
-			.ok()
-			.map(|inner| Snapshot {
-				gas_limit: self.gas_limit,
-				memory_gas: inner.memory_gas,
-				used_gas: inner.used_gas,
-				refunded_gas: inner.refunded_gas,
-			})
-			.unwrap_or_default()
+	pub fn snapshot(&self) -> Option<Snapshot> {
+		self.inner.as_ref().ok().map(|inner| Snapshot {
+			gas_limit: self.gas_limit,
+			memory_gas: inner.memory_gas,
+			used_gas: inner.used_gas,
+			refunded_gas: inner.refunded_gas,
+		})
 	}
 }
 
