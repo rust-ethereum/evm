@@ -213,42 +213,102 @@ pub enum PrecompileFailure {
 /// A precompile result.
 pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 
+/// A set of precompiles.
+/// Checks of the provided address being in the precompile set should be
+/// as cheap as possible since it may be called often.
+pub trait PrecompileSet {
+	/// Tries to execute a precompile in the precompile set.
+	/// If the provided address is not a precompile, returns None.
+	fn execute(
+		&self,
+		address: H160,
+		input: &[u8],
+		gas_limit: Option<u64>,
+		context: &Context,
+		is_static: bool,
+	) -> Option<PrecompileResult>;
+
+	/// Check if the given address is a precompile. Should only be called to
+	/// perform the check while not executing the precompile afterward, since
+	/// `execute` already performs a check internally.
+	fn is_precompile(&self, address: H160) -> bool;
+}
+
+impl PrecompileSet for () {
+	fn execute(
+		&self,
+		_: H160,
+		_: &[u8],
+		_: Option<u64>,
+		_: &Context,
+		_: bool,
+	) -> Option<PrecompileResult> {
+		None
+	}
+
+	fn is_precompile(&self, _: H160) -> bool {
+		false
+	}
+}
+
 /// Precompiles function signature. Expected input arguments are:
 ///  * Input
+///  * Gas limit
 ///  * Context
 ///  * Is static
 pub type PrecompileFn = fn(&[u8], Option<u64>, &Context, bool) -> PrecompileResult;
 
-/// A map of address keys to precompile function values.
-pub type Precompile = BTreeMap<H160, PrecompileFn>;
+impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
+	fn execute(
+		&self,
+		address: H160,
+		input: &[u8],
+		gas_limit: Option<u64>,
+		context: &Context,
+		is_static: bool,
+	) -> Option<PrecompileResult> {
+		self.get(&address)
+			.map(|precompile| (*precompile)(input, gas_limit, context, is_static))
+	}
 
-/// Stack-based executor.
-pub struct StackExecutor<'config, 'precompile, S> {
-	config: &'config Config,
-	precompile: &'precompile Precompile,
-	state: S,
+	/// Check if the given address is a precompile. Should only be called to
+	/// perform the check while not executing the precompile afterward, since
+	/// `execute` already performs a check internally.
+	fn is_precompile(&self, address: H160) -> bool {
+		self.contains_key(&address)
+	}
 }
 
-impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'precompile, S> {
+/// Stack-based executor.
+pub struct StackExecutor<'config, 'precompiles, S, P> {
+	config: &'config Config,
+	state: S,
+	precompile_set: &'precompiles P,
+}
+
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
+	StackExecutor<'config, 'precompiles, S, P>
+{
 	/// Return a reference of the Config.
 	pub fn config(&self) -> &'config Config {
 		self.config
 	}
 
-	pub fn precompile(&self) -> &'precompile Precompile {
-		self.precompile
+	/// Return a reference to the precompile set.
+	pub fn precompiles(&self) -> &'precompiles P {
+		self.precompile_set
 	}
 
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new_with_precompile(
+	pub fn new_with_precompiles(
 		state: S,
 		config: &'config Config,
-		precompile: &'precompile Precompile,
+		precompile_set: &'precompiles P,
 	) -> Self {
 		Self {
 			config,
-			precompile,
 			state,
+			precompile_set,
 		}
 	}
 
@@ -413,13 +473,7 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 
 		// Initialize initial addresses for EIP-2929
 		if self.config.increase_state_access_gas {
-			let addresses = self
-				.precompile
-				.clone()
-				.into_iter()
-				.map(|(k, _)| k)
-				.chain(core::iter::once(caller))
-				.chain(core::iter::once(address));
+			let addresses = core::iter::once(caller).chain(core::iter::once(address));
 			self.state.metadata_mut().access_addresses(addresses);
 
 			self.initialize_with_access_list(access_list);
@@ -534,16 +588,6 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 
 		self.state.metadata_mut().access_address(caller);
 		self.state.metadata_mut().access_address(address);
-
-		let addresses: Vec<H160> = self
-			.precompile
-			.clone()
-			.into_iter()
-			.map(|(k, _)| k)
-			.collect();
-		self.state
-			.metadata_mut()
-			.access_addresses(addresses.iter().copied());
 
 		event!(Create {
 			caller,
@@ -767,8 +811,11 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 			}
 		}
 
-		if let Some(precompile) = self.precompile.get(&code_address) {
-			return match (*precompile)(&input, Some(gas_limit), &context, is_static) {
+		if let Some(result) =
+			self.precompile_set
+				.execute(code_address, &input, Some(gas_limit), &context, is_static)
+		{
+			return match result {
 				Ok(PrecompileOutput {
 					exit_status,
 					output,
@@ -841,8 +888,8 @@ impl<'config, 'precompile, S: StackState<'config>> StackExecutor<'config, 'preco
 	}
 }
 
-impl<'config, 'precompile, S: StackState<'config>> Handler
-	for StackExecutor<'config, 'precompile, S>
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
+	for StackExecutor<'config, 'precompiles, S, P>
 {
 	type CreateInterrupt = Infallible;
 	type CreateFeedback = Infallible;
@@ -889,7 +936,7 @@ impl<'config, 'precompile, S: StackState<'config>> Handler
 
 	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
 		match maybe_index {
-			None => self.state.is_cold(address),
+			None => !self.precompile_set.is_precompile(address) && self.state.is_cold(address),
 			Some(index) => self.state.is_storage_cold(address, index),
 		}
 	}
