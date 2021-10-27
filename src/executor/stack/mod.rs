@@ -351,18 +351,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.metadata().gasometer.gas()
 	}
 
-	fn create_init(
+	fn record_create_transaction_cost(
 		&mut self,
 		init_code: &[u8],
-		access_list: Vec<(H160, Vec<H256>)>,
+		access_list: &[(H160, Vec<H256>)],
 	) -> Result<(), ExitError> {
-		let transaction_cost = gasometer::create_transaction_cost(init_code, &access_list);
+		let transaction_cost = gasometer::create_transaction_cost(init_code, access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
-		gasometer.record_transaction(transaction_cost)?;
-
-		self.initialize_with_access_list(access_list);
-
-		Ok(())
+		gasometer.record_transaction(transaction_cost)
 	}
 
 	/// Execute a `CREATE` transaction.
@@ -382,9 +378,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			address: self.create_address(CreateScheme::Legacy { caller }),
 		});
 
-		if let Err(e) = self.create_init(&init_code, access_list) {
+		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into());
 		}
+		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
 			caller,
@@ -423,9 +420,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}),
 		});
 
-		if let Err(e) = self.create_init(&init_code, access_list) {
+		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into());
 		}
+		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
 			caller,
