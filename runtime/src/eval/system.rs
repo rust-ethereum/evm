@@ -84,10 +84,6 @@ pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 }
 
 pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
-	if !runtime.config.has_base_fee {
-		return Control::Exit(ExitReason::Fatal(ExitFatal::NotSupported));
-	}
-
 	let mut ret = H256::default();
 	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
 	push!(runtime, ret);
