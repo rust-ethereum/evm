@@ -351,6 +351,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.metadata().gasometer.gas()
 	}
 
+	fn record_create_transaction_cost(
+		&mut self,
+		init_code: &[u8],
+		access_list: &[(H160, Vec<H256>)],
+	) -> Result<(), ExitError> {
+		let transaction_cost = gasometer::create_transaction_cost(init_code, access_list);
+		let gasometer = &mut self.state.metadata_mut().gasometer;
+		gasometer.record_transaction(transaction_cost)
+	}
+
 	/// Execute a `CREATE` transaction.
 	pub fn transact_create(
 		&mut self,
@@ -368,13 +378,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			address: self.create_address(CreateScheme::Legacy { caller }),
 		});
 
-		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
-		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
-			Ok(()) => (),
-			Err(e) => return emit_exit!(e.into()),
+		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+			return emit_exit!(e.into());
 		}
-
 		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
@@ -400,6 +406,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> ExitReason {
+		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 		event!(TransactCreate2 {
 			caller,
 			value,
@@ -408,20 +415,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 			address: self.create_address(CreateScheme::Create2 {
 				caller,
-				code_hash: H256::from_slice(Keccak256::digest(&init_code).as_slice()),
+				code_hash,
 				salt,
 			}),
 		});
 
-		let transaction_cost = gasometer::create_transaction_cost(&init_code, &access_list);
-		let gasometer = &mut self.state.metadata_mut().gasometer;
-		match gasometer.record_transaction(transaction_cost) {
-			Ok(()) => (),
-			Err(e) => return emit_exit!(e.into()),
+		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+			return emit_exit!(e.into());
 		}
-
-		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
-
 		self.initialize_with_access_list(access_list);
 
 		match self.create_inner(
@@ -510,7 +511,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	pub fn used_gas(&self) -> u64 {
 		self.state.metadata().gasometer.total_used_gas()
 			- min(
-				self.state.metadata().gasometer.total_used_gas() / 2,
+				self.state.metadata().gasometer.total_used_gas() / self.config.max_refund_quotient,
 				self.state.metadata().gasometer.refunded_gas() as u64,
 			)
 	}
@@ -578,6 +579,15 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
 				}
 			};
+		}
+
+		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
+			if config.disallow_executable_format {
+				if let Some(0xef) = code.get(0) {
+					return Err(ExitError::InvalidCode);
+				}
+			}
+			Ok(())
 		}
 
 		fn l64(gas: u64) -> u64 {
@@ -679,6 +689,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		match reason {
 			ExitReason::Succeed(s) => {
 				let out = runtime.machine().return_value();
+
+				// As of EIP-3541 code starting with 0xef cannot be deployed
+				if let Err(e) = check_first_byte(self.config, &out) {
+					self.state.metadata_mut().gasometer.fail();
+					let _ = self.exit_substate(StackExitKind::Failed);
+					return Capture::Exit((e.into(), None, Vec::new()));
+				}
 
 				if let Some(limit) = self.config.create_contract_limit {
 					if out.len() > limit {
@@ -968,6 +985,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 	fn block_gas_limit(&self) -> U256 {
 		self.state.block_gas_limit()
+	}
+	fn block_base_fee_per_gas(&self) -> U256 {
+		self.state.block_base_fee_per_gas()
 	}
 	fn chain_id(&self) -> U256 {
 		self.state.chain_id()

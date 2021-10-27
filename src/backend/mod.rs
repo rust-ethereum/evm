@@ -51,7 +51,7 @@ pub enum Apply<I> {
 
 /// EVM backend.
 pub trait Backend {
-	/// Gas price.
+	/// Gas price. Unused for London.
 	fn gas_price(&self) -> U256;
 	/// Origin.
 	fn origin(&self) -> H160;
@@ -67,6 +67,8 @@ pub trait Backend {
 	fn block_difficulty(&self) -> U256;
 	/// Environmental block gas limit.
 	fn block_gas_limit(&self) -> U256;
+	/// Environmental block base fee.
+	fn block_base_fee_per_gas(&self) -> U256;
 	/// Environmental chain ID.
 	fn chain_id(&self) -> U256;
 

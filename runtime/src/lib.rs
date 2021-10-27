@@ -173,6 +173,8 @@ pub struct Config {
 	pub gas_sstore_reset: u64,
 	/// Gas paid for sstore refund.
 	pub refund_sstore_clears: i64,
+	/// EIP-3529
+	pub max_refund_quotient: u64,
 	/// Gas paid for BALANCE opcode.
 	pub gas_balance: u64,
 	/// Gas paid for SLOAD opcode.
@@ -209,6 +211,10 @@ pub struct Config {
 	pub sstore_revert_under_stipend: bool,
 	/// EIP-2929
 	pub increase_state_access_gas: bool,
+	/// EIP-3529
+	pub decrease_clears_refund: bool,
+	/// EIP-3541
+	pub disallow_executable_format: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -245,6 +251,8 @@ pub struct Config {
 	pub has_self_balance: bool,
 	/// Has ext code hash.
 	pub has_ext_code_hash: bool,
+	/// Has ext block fee. See [EIP-3198](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3198.md)
+	pub has_base_fee: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
 }
@@ -261,6 +269,7 @@ impl Config {
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
+			max_refund_quotient: 2,
 			gas_suicide: 0,
 			gas_suicide_new_account: 0,
 			gas_call: 40,
@@ -276,6 +285,8 @@ impl Config {
 			sstore_gas_metering: false,
 			sstore_revert_under_stipend: false,
 			increase_state_access_gas: false,
+			decrease_clears_refund: false,
+			disallow_executable_format: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
@@ -293,6 +304,7 @@ impl Config {
 			has_chain_id: false,
 			has_self_balance: false,
 			has_ext_code_hash: false,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
@@ -308,6 +320,7 @@ impl Config {
 			gas_sstore_set: 20000,
 			gas_sstore_reset: 5000,
 			refund_sstore_clears: 15000,
+			max_refund_quotient: 2,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 700,
@@ -323,6 +336,8 @@ impl Config {
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: false,
+			decrease_clears_refund: false,
+			disallow_executable_format: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -340,21 +355,53 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee: false,
 			estimate: false,
 		}
 	}
 
 	/// Berlin hard fork configuration.
 	pub const fn berlin() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::berlin())
+	}
+
+	/// london hard fork configuration.
+	pub const fn london() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::london())
+	}
+
+	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
+		let DerivedConfigInputs {
+			gas_storage_read_warm,
+			gas_sload_cold,
+			gas_access_list_storage_key,
+			decrease_clears_refund,
+			has_base_fee,
+			disallow_executable_format,
+		} = inputs;
+
+		// See https://eips.ethereum.org/EIPS/eip-2929
+		let gas_sload = gas_storage_read_warm;
+		let gas_sstore_reset = 5000 - gas_sload_cold;
+
+		// See https://eips.ethereum.org/EIPS/eip-3529
+		let refund_sstore_clears = if decrease_clears_refund {
+			(gas_sstore_reset + gas_access_list_storage_key) as i64
+		} else {
+			15000
+		};
+		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
+
 		Config {
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,
-			gas_sload: 0,
-			gas_sload_cold: 2100,
+			gas_sload,
+			gas_sload_cold,
 			gas_sstore_set: 20000,
-			gas_sstore_reset: 5000,
-			refund_sstore_clears: 15000,
+			gas_sstore_reset,
+			refund_sstore_clears,
+			max_refund_quotient,
 			gas_suicide: 5000,
 			gas_suicide_new_account: 25000,
 			gas_call: 0,
@@ -364,12 +411,14 @@ impl Config {
 			gas_transaction_zero_data: 4,
 			gas_transaction_non_zero_data: 16,
 			gas_access_list_address: 2400,
-			gas_access_list_storage_key: 1900,
+			gas_access_list_storage_key,
 			gas_account_access_cold: 2600,
-			gas_storage_read_warm: 100,
+			gas_storage_read_warm,
 			sstore_gas_metering: true,
 			sstore_revert_under_stipend: true,
 			increase_state_access_gas: true,
+			decrease_clears_refund,
+			disallow_executable_format,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -387,7 +436,43 @@ impl Config {
 			has_chain_id: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
+			has_base_fee,
 			estimate: false,
+		}
+	}
+}
+
+/// Independent inputs that are used to derive other config values.
+/// See `Config::config_with_derived_values` implementation for details.
+struct DerivedConfigInputs {
+	gas_storage_read_warm: u64,
+	gas_sload_cold: u64,
+	gas_access_list_storage_key: u64,
+	decrease_clears_refund: bool,
+	has_base_fee: bool,
+	disallow_executable_format: bool,
+}
+
+impl DerivedConfigInputs {
+	const fn berlin() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: false,
+			has_base_fee: false,
+			disallow_executable_format: false,
+		}
+	}
+
+	const fn london() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			disallow_executable_format: true,
 		}
 	}
 }

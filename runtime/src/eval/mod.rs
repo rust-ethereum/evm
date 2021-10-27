@@ -55,6 +55,7 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::DELEGATECALL => system::call(state, CallScheme::DelegateCall, handler),
 		Opcode::STATICCALL => system::call(state, CallScheme::StaticCall, handler),
 		Opcode::CHAINID => system::chainid(state, handler),
+		Opcode::BASEFEE => system::base_fee(state, handler),
 		_ => handle_other(state, opcode, handler),
 	}
 }

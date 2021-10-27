@@ -55,6 +55,8 @@ pub trait Handler {
 	fn block_difficulty(&self) -> U256;
 	/// Get environmental gas limit.
 	fn block_gas_limit(&self) -> U256;
+	/// Environmental block base fee.
+	fn block_base_fee_per_gas(&self) -> U256;
 	/// Get environmental chain ID.
 	fn chain_id(&self) -> U256;
 

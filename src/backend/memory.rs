@@ -26,6 +26,8 @@ pub struct MemoryVicinity {
 	pub block_difficulty: U256,
 	/// Environmental block gas limit.
 	pub block_gas_limit: U256,
+	/// Environmental base fee per gas.
+	pub block_base_fee_per_gas: U256,
 }
 
 /// Account information of a memory backend.
@@ -104,6 +106,9 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	}
 	fn block_gas_limit(&self) -> U256 {
 		self.vicinity.block_gas_limit
+	}
+	fn block_base_fee_per_gas(&self) -> U256 {
+		self.vicinity.block_base_fee_per_gas
 	}
 
 	fn chain_id(&self) -> U256 {

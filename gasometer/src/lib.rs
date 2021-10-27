@@ -461,6 +461,9 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
 		Opcode::SELFBALANCE => GasCost::Invalid,
 
+		Opcode::BASEFEE if config.has_base_fee => GasCost::Base,
+		Opcode::BASEFEE => GasCost::Invalid,
+
 		Opcode::EXTCODESIZE => {
 			let target = stack.peek(0)?.into();
 			storage_target = StorageTarget::Address(target);
@@ -832,7 +835,7 @@ impl<'config> Inner<'config> {
 			} => costs::sstore_refund(original, current, new, self.config),
 			GasCost::Suicide {
 				already_removed, ..
-			} => costs::suicide_refund(already_removed),
+			} if !self.config.decrease_clears_refund => costs::suicide_refund(already_removed),
 			_ => 0,
 		}
 	}

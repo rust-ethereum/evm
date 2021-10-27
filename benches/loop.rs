@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use evm::backend::{MemoryAccount, MemoryBackend, MemoryVicinity};
-use evm::executor::{self, MemoryStackState, StackExecutor, StackSubstateMetadata};
+use evm::executor::{MemoryStackState, StackExecutor, StackSubstateMetadata};
 use evm::Config;
 use primitive_types::{H160, U256};
 use std::{collections::BTreeMap, str::FromStr};
@@ -18,6 +18,7 @@ fn run_loop_contract() {
 		block_difficulty: Default::default(),
 		block_gas_limit: Default::default(),
 		chain_id: U256::one(),
+		block_base_fee_per_gas: U256::zero(),
 	};
 
 	let mut state = BTreeMap::new();
@@ -43,8 +44,8 @@ fn run_loop_contract() {
 	let backend = MemoryBackend::new(&vicinity, state);
 	let metadata = StackSubstateMetadata::new(u64::MAX, &config);
 	let state = MemoryStackState::new(metadata, &backend);
-	let mut executor =
-		StackExecutor::new_with_precompile(state, &config, executor::Precompile::new());
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
 
 	let _reason = executor.transact_call(
 		H160::from_str("0xf000000000000000000000000000000000000000").unwrap(),
