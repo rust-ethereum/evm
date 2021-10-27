@@ -692,7 +692,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 				// As of EIP-3541 code starting with 0xef cannot be deployed
 				if let Err(e) = check_first_byte(self.config, &out) {
-					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(StackExitKind::Failed);
 					return Capture::Exit((e.into(), None, Vec::new()));
 				}
