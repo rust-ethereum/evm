@@ -18,25 +18,25 @@ impl Snapshot {
 pub enum Event {
 	RecordCost {
 		cost: u64,
-		snapshot: Snapshot,
+		snapshot: Option<Snapshot>,
 	},
 	RecordRefund {
 		refund: i64,
-		snapshot: Snapshot,
+		snapshot: Option<Snapshot>,
 	},
 	RecordStipend {
 		stipend: u64,
-		snapshot: Snapshot,
+		snapshot: Option<Snapshot>,
 	},
 	RecordDynamicCost {
 		gas_cost: u64,
 		memory_gas: u64,
 		gas_refund: i64,
-		snapshot: Snapshot,
+		snapshot: Option<Snapshot>,
 	},
 	RecordTransaction {
 		cost: u64,
-		snapshot: Snapshot,
+		snapshot: Option<Snapshot>,
 	},
 }
 
