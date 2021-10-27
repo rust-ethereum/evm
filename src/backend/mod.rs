@@ -11,7 +11,10 @@ use primitive_types::{H160, H256, U256};
 
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Basic {
 	/// Account balance.
@@ -47,7 +50,6 @@ pub enum Apply<I> {
 }
 
 /// EVM backend.
-#[auto_impl::auto_impl(&, Arc, Box)]
 pub trait Backend {
 	/// Gas price. Unused for London.
 	fn gas_price(&self) -> U256;
