@@ -362,22 +362,24 @@ impl Config {
 
 	/// Berlin hard fork configuration.
 	pub const fn berlin() -> Config {
-		Self::config_with_derived_values(100, 2100, 1900, false, false, false)
+		Self::config_with_derived_values(DerivedConfigInputs::berlin())
 	}
 
 	/// london hard fork configuration.
 	pub const fn london() -> Config {
-		Self::config_with_derived_values(100, 2100, 1900, true, true, true)
+		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
-	const fn config_with_derived_values(
-		gas_storage_read_warm: u64,
-		gas_sload_cold: u64,
-		gas_access_list_storage_key: u64,
-		decrease_clears_refund: bool,
-		has_base_fee: bool,
-		disallow_executable_format: bool,
-	) -> Config {
+	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
+		let DerivedConfigInputs {
+			gas_storage_read_warm,
+			gas_sload_cold,
+			gas_access_list_storage_key,
+			decrease_clears_refund,
+			has_base_fee,
+			disallow_executable_format,
+		} = inputs;
+
 		// See https://eips.ethereum.org/EIPS/eip-2929
 		let gas_sload = gas_storage_read_warm;
 		let gas_sstore_reset = 5000 - gas_sload_cold;
@@ -436,6 +438,41 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee,
 			estimate: false,
+		}
+	}
+}
+
+/// Independent inputs that are used to derive other config values.
+/// See `Config::config_with_derived_values` implementation for details.
+struct DerivedConfigInputs {
+	gas_storage_read_warm: u64,
+	gas_sload_cold: u64,
+	gas_access_list_storage_key: u64,
+	decrease_clears_refund: bool,
+	has_base_fee: bool,
+	disallow_executable_format: bool,
+}
+
+impl DerivedConfigInputs {
+	const fn berlin() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: false,
+			has_base_fee: false,
+			disallow_executable_format: false,
+		}
+	}
+
+	const fn london() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			disallow_executable_format: true,
 		}
 	}
 }
