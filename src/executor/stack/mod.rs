@@ -7,13 +7,16 @@ use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
 	Runtime, Stack, Transfer,
 };
-use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
+use alloc::{
+	collections::{BTreeMap, BTreeSet},
+	rc::Rc,
+	vec::Vec,
+};
 use core::{cmp::min, convert::Infallible};
 use ethereum::Log;
 use evm_core::{ExitFatal, ExitRevert};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
-use std::collections::BTreeMap;
 
 macro_rules! emit_exit {
 	($reason:expr) => {{
