@@ -1,5 +1,5 @@
 use crate::backend::{Apply, Backend, Basic, Log};
-use crate::executor::stack::{Accessed, StackSubstateMetadata};
+use crate::executor::stack::{Accessed, StackState, StackSubstateMetadata};
 use crate::{ExitError, Transfer};
 use alloc::{
 	boxed::Box,
@@ -255,7 +255,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	fn recursive_is_cold<F: Fn(&Accessed) -> bool>(&self, f: &F) -> bool {
-		let local_is_accessed = self.metadata.accessed.as_ref().map(f).unwrap_or(false);
+		let local_is_accessed = self.metadata.accessed().as_ref().map(f).unwrap_or(false);
 		if local_is_accessed {
 			false
 		} else {
@@ -391,31 +391,6 @@ impl<'config> MemoryStackSubstate<'config> {
 	pub fn touch<B: Backend>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend);
 	}
-}
-
-pub trait StackState<'config>: Backend {
-	fn metadata(&self) -> &StackSubstateMetadata<'config>;
-	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
-
-	fn enter(&mut self, gas_limit: u64, is_static: bool);
-	fn exit_commit(&mut self) -> Result<(), ExitError>;
-	fn exit_revert(&mut self) -> Result<(), ExitError>;
-	fn exit_discard(&mut self) -> Result<(), ExitError>;
-
-	fn is_empty(&self, address: H160) -> bool;
-	fn deleted(&self, address: H160) -> bool;
-	fn is_cold(&self, address: H160) -> bool;
-	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
-
-	fn inc_nonce(&mut self, address: H160);
-	fn set_storage(&mut self, address: H160, key: H256, value: H256);
-	fn reset_storage(&mut self, address: H160);
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
-	fn set_deleted(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>);
-	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
-	fn reset_balance(&mut self, address: H160);
-	fn touch(&mut self, address: H160);
 }
 
 #[derive(Clone, Debug)]

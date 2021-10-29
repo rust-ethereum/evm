@@ -1,7 +1,4 @@
-mod state;
-
-pub use self::state::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate, StackState};
-
+use crate::backend::Backend;
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
@@ -45,9 +42,9 @@ pub enum StackExitKind {
 }
 
 #[derive(Default, Clone, Debug)]
-struct Accessed {
-	accessed_addresses: BTreeSet<H160>,
-	accessed_storage: BTreeSet<(H160, H256)>,
+pub struct Accessed {
+	pub accessed_addresses: BTreeSet<H160>,
+	pub accessed_storage: BTreeSet<(H160, H256)>,
 }
 
 impl Accessed {
@@ -183,6 +180,35 @@ impl<'config> StackSubstateMetadata<'config> {
 			accessed.access_storages(storages);
 		}
 	}
+
+	pub fn accessed(&self) -> &Option<Accessed> {
+		&self.accessed
+	}
+}
+
+pub trait StackState<'config>: Backend {
+	fn metadata(&self) -> &StackSubstateMetadata<'config>;
+	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
+
+	fn enter(&mut self, gas_limit: u64, is_static: bool);
+	fn exit_commit(&mut self) -> Result<(), ExitError>;
+	fn exit_revert(&mut self) -> Result<(), ExitError>;
+	fn exit_discard(&mut self) -> Result<(), ExitError>;
+
+	fn is_empty(&self, address: H160) -> bool;
+	fn deleted(&self, address: H160) -> bool;
+	fn is_cold(&self, address: H160) -> bool;
+	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
+
+	fn inc_nonce(&mut self, address: H160);
+	fn set_storage(&mut self, address: H160, key: H256, value: H256);
+	fn reset_storage(&mut self, address: H160);
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
+	fn set_deleted(&mut self, address: H160);
+	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
+	fn reset_balance(&mut self, address: H160);
+	fn touch(&mut self, address: H160);
 }
 
 /// Data returned by a precompile on success.
