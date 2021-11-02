@@ -1,5 +1,5 @@
 use crate::backend::{Apply, Backend, Basic, Log};
-use crate::executor::stack::{Accessed, StackState, StackSubstateMetadata};
+use crate::executor::stack::executor::{Accessed, StackState, StackSubstateMetadata};
 use crate::{ExitError, Transfer};
 use alloc::{
 	boxed::Box,
