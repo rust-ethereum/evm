@@ -40,6 +40,11 @@ tracing = [
   "evm-gasometer/tracing",
   "evm-runtime/tracing"
 ]
+tracing-step = [
+  "environmental",
+  "evm-gasometer/tracing",
+  "evm-runtime/tracing-step"
+]
 
 [workspace]
 members = [

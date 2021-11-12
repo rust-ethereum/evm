@@ -39,6 +39,7 @@ use alloc::vec::Vec;
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
 		if let Some((opcode, stack)) = $self.machine.inspect() {
+			#[cfg(feature = "tracing-step")]
 			event!(Step {
 				context: &$self.context,
 				opcode,
