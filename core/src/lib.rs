@@ -87,7 +87,7 @@ impl Machine {
 		}
 	}
 
-	/// Explict exit of the machine. Further step will return error.
+	/// Explicit exit of the machine. Further step will return error.
 	pub fn exit(&mut self, reason: ExitReason) {
 		self.position = Err(reason);
 	}
