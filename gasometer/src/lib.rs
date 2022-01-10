@@ -782,7 +782,6 @@ impl<'config> Inner<'config> {
 				target_exists,
 				..
 			} => costs::suicide_cost(value, target_is_cold, target_exists, self.config),
-			GasCost::SStore { .. } if self.config.estimate => self.config.gas_sstore_set,
 			GasCost::SStore {
 				original,
 				current,
