@@ -396,7 +396,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-	) -> ExitReason {
+	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
 			caller,
 			value,
@@ -406,7 +406,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
-			return emit_exit!(e.into());
+			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
 
@@ -418,7 +418,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Some(gas_limit),
 			false,
 		) {
-			Capture::Exit((s, _, _)) => emit_exit!(s),
+			Capture::Exit((s, _, v)) => emit_exit!(s, v),
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
@@ -432,7 +432,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		salt: H256,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-	) -> ExitReason {
+	) -> (ExitReason, Vec<u8>) {
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 		event!(TransactCreate2 {
 			caller,
@@ -448,7 +448,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
-			return emit_exit!(e.into());
+			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
 
@@ -464,7 +464,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Some(gas_limit),
 			false,
 		) {
-			Capture::Exit((s, _, _)) => emit_exit!(s),
+			Capture::Exit((s, _, v)) => emit_exit!(s, v),
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
