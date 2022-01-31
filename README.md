@@ -30,7 +30,7 @@ before are not supported.
 
 ## Build from sources
 
-SputnikVM is written Rust. If you are not familiar with Rust please
+SputnikVM is written in Rust. If you are not familiar with Rust please
 see the
 [getting started guide](https://doc.rust-lang.org/book/getting-started.html).
 
