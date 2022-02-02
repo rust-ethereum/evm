@@ -119,8 +119,6 @@ pub enum ExitError {
 	CreateCollision,
 	/// Create init code exceeds limit (runtime).
 	CreateContractLimit,
-	/// Starting byte must not begin with 0xef. See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md).
-	InvalidCode,
 
 	/// An opcode accesses external information, but the request is off offset
 	/// limit (runtime).
@@ -139,6 +137,9 @@ pub enum ExitError {
 
 	/// Other normal errors.
 	Other(Cow<'static, str>),
+
+	/// Starting byte must not begin with 0xef. See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md).
+	InvalidCode,
 }
 
 impl From<ExitError> for ExitReason {
