@@ -555,6 +555,11 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		}
 	}
 
+	/// Returns a mutable reference to an account given its address
+	pub fn account_mut(&mut self, address: H160) -> &mut MemoryStackAccount {
+		self.substate.account_mut(address, self.backend)
+	}
+
 	#[must_use]
 	pub fn deconstruct(
 		self,
