@@ -206,29 +206,33 @@ pub fn sstore_cost(
 	is_cold: bool,
 	config: &Config,
 ) -> Result<u64, ExitError> {
-	let gas_cost = if config.sstore_gas_metering {
-		if config.sstore_revert_under_stipend && gas <= config.call_stipend {
-			return Err(ExitError::OutOfGas);
-		}
-
-		if new == current {
-			config.gas_sload
-		} else {
-			if original == current {
-				if original == H256::zero() {
-					config.gas_sstore_set
-				} else {
-					config.gas_sstore_reset
-				}
-			} else {
-				config.gas_sload
-			}
-		}
+	let gas_cost = if config.estimate {
+		config.gas_sstore_set
 	} else {
-		if current == H256::zero() && new != H256::zero() {
-			config.gas_sstore_set
+		if config.sstore_gas_metering {
+			if config.sstore_revert_under_stipend && gas <= config.call_stipend {
+				return Err(ExitError::OutOfGas);
+			}
+
+			if new == current {
+				config.gas_sload
+			} else {
+				if original == current {
+					if original == H256::zero() {
+						config.gas_sstore_set
+					} else {
+						config.gas_sstore_reset
+					}
+				} else {
+					config.gas_sload
+				}
+			}
 		} else {
-			config.gas_sstore_reset
+			if current == H256::zero() && new != H256::zero() {
+				config.gas_sstore_set
+			} else {
+				config.gas_sstore_reset
+			}
 		}
 	};
 	Ok(
