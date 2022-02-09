@@ -128,7 +128,7 @@ impl<'config> StackSubstateMetadata<'config> {
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
 			is_static: is_static || self.is_static,
 			depth: match self.depth {
-				None => Some(0),
+				None => Some(1),
 				Some(n) => Some(n + 1),
 			},
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
