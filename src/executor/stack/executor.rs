@@ -839,7 +839,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.touch(context.address);
 
 		if let Some(depth) = self.state.metadata().depth {
-			if depth >= self.config.call_stack_limit {
+			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()));
 			}
