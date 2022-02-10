@@ -128,7 +128,7 @@ impl<'config> StackSubstateMetadata<'config> {
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
 			is_static: is_static || self.is_static,
 			depth: match self.depth {
-				None => Some(1),
+				None => Some(0),
 				Some(n) => Some(n + 1),
 			},
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
@@ -636,7 +636,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Some(depth) = self.state.metadata().depth {
-			if depth > self.config.call_stack_limit {
+			if depth >= self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()));
 			}
 		}
@@ -839,7 +839,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.touch(context.address);
 
 		if let Some(depth) = self.state.metadata().depth {
-			if depth > self.config.call_stack_limit {
+			if depth >= self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
 				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()));
 			}
