@@ -279,7 +279,11 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	#[allow(clippy::map_entry)]
-	pub fn account_mut<B: Backend>(&mut self, address: H160, backend: &B) -> &mut MemoryStackAccount {
+	pub fn account_mut<B: Backend>(
+		&mut self,
+		address: H160,
+		backend: &B,
+	) -> &mut MemoryStackAccount {
 		if !self.accounts.contains_key(&address) {
 			let account = self
 				.known_account(address)
