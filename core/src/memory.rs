@@ -82,35 +82,27 @@ impl Memory {
 	pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
 		let mut ret = Vec::new();
 		ret.resize(size, 0);
-
-		#[allow(clippy::needless_range_loop)]
-		for index in 0..size {
-			let position = offset + index;
-			if position >= self.data.len() {
-				break;
-			}
-
-			ret[index] = self.data[position];
-		}
-
+		self.get_to(offset, &mut ret);
 		ret
 	}
 
 	/// Get `H256` from a specific offset in memory.
 	pub fn get_h256(&self, offset: usize) -> H256 {
 		let mut ret = [0; 32];
+		self.get_to(offset, &mut ret);
+		H256(ret)
+	}
 
+	fn get_to(&self, offset: usize, buf: &mut [u8]) {
 		#[allow(clippy::needless_range_loop)]
-		for index in 0..32 {
+		for index in 0..buf.len() {
 			let position = offset + index;
 			if position >= self.data.len() {
 				break;
 			}
 
-			ret[index] = self.data[position];
+			buf[index] = self.data[position];
 		}
-
-		H256(ret)
 	}
 
 	/// Set memory region at given offset. The offset and value is considered
