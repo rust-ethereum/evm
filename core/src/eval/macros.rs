@@ -7,11 +7,15 @@ macro_rules! try_or_fail {
 	};
 }
 
-macro_rules! pop {
+macro_rules! pop_h256 {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(
 			let $x = match $machine.stack.pop() {
-				Ok(value) => value,
+				Ok(value) => {
+					let mut res = H256([0; 32]);
+					value.to_big_endian(&mut res[..]);
+					res
+				},
 				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
@@ -22,17 +26,17 @@ macro_rules! pop_u256 {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(
 			let $x = match $machine.stack.pop() {
-				Ok(value) => U256::from_big_endian(&value[..]),
+				Ok(value) => value,
 				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
 	);
 }
 
-macro_rules! push {
+macro_rules! push_h256 {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			match $machine.stack.push($x) {
+			match $machine.stack.push(U256::from_big_endian(&$x[..])) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}
@@ -43,9 +47,7 @@ macro_rules! push {
 macro_rules! push_u256 {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			let mut value = H256::default();
-			$x.to_big_endian(&mut value[..]);
-			match $machine.stack.push(value) {
+			match $machine.stack.push($x) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}
