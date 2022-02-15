@@ -41,7 +41,7 @@ pub fn calldataload(state: &mut Machine) -> Control {
 		}
 	}
 
-	push!(state, H256::from(load));
+	push_h256!(state, H256::from(load));
 	Control::Continue(1)
 }
 
@@ -72,7 +72,7 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn pop(state: &mut Machine) -> Control {
-	pop!(state, _val);
+	pop_u256!(state, _val);
 	Control::Continue(1)
 }
 
@@ -81,15 +81,15 @@ pub fn mload(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
-	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
-	push!(state, value);
+	let value = state.memory.get_h256(index);
+	push_h256!(state, value);
 	Control::Continue(1)
 }
 
 #[inline]
 pub fn mstore(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
-	pop!(state, value);
+	pop_h256!(state, value);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
 	match state.memory.set(index, &value[..], Some(32)) {
@@ -125,9 +125,9 @@ pub fn jump(state: &mut Machine) -> Control {
 #[inline]
 pub fn jumpi(state: &mut Machine) -> Control {
 	pop_u256!(state, dest);
-	pop!(state, value);
+	pop_u256!(state, value);
 
-	if value != H256::zero() {
+	if value != U256::zero() {
 		let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
@@ -157,8 +157,9 @@ pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 	let slice = &state.code[(position + 1)..end];
 	let mut val = [0u8; 32];
 	val[(32 - n)..(32 - n + slice.len())].copy_from_slice(slice);
+	let val = U256::from_big_endian(&val);
 
-	push!(state, H256(val));
+	push_u256!(state, val);
 	Control::Continue(1 + n)
 }
 
@@ -168,7 +169,7 @@ pub fn dup(state: &mut Machine, n: usize) -> Control {
 		Ok(value) => value,
 		Err(e) => return Control::Exit(e.into()),
 	};
-	push!(state, value);
+	push_u256!(state, value);
 	Control::Continue(1)
 }
 

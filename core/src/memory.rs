@@ -2,7 +2,7 @@ use crate::{ExitError, ExitFatal};
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
-use primitive_types::U256;
+use primitive_types::{H256, U256};
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
@@ -94,6 +94,23 @@ impl Memory {
 		}
 
 		ret
+	}
+
+	/// Get `H256` from a specific offset in memory.
+	pub fn get_h256(&self, offset: usize) -> H256 {
+		let mut ret = [0; 32];
+
+		#[allow(clippy::needless_range_loop)]
+		for index in 0..32 {
+			let position = offset + index;
+			if position >= self.data.len() {
+				break;
+			}
+
+			ret[index] = self.data[position];
+		}
+
+		H256(ret)
 	}
 
 	/// Set memory region at given offset. The offset and value is considered
