@@ -1369,7 +1369,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 
 		// We record the length of the input.
 		let memory_cost = Some(crate::gasometer::MemoryCost {
-			offset: U256::zero(),
+			offset: 0,
 			len: input.len().into(),
 		});
 

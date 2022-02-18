@@ -94,6 +94,18 @@ impl Stack {
 	}
 
 	#[inline]
+	/// Peek a value at given index for the stack as usize.
+	///
+	/// If the value is larger than `usize::MAX`, `OutOfGas` error is returned.
+	pub fn peek_usize(&self, no_from_top: usize) -> Result<usize, ExitError> {
+		let u = self.peek(no_from_top)?;
+		if u > usize::MAX.into() {
+			return Err(ExitError::OutOfGas);
+		}
+		Ok(u.as_usize())
+	}
+
+	#[inline]
 	/// Set a value at given index for the stack, where the top of the
 	/// stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
