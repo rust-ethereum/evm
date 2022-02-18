@@ -55,20 +55,17 @@ macro_rules! push_u256 {
 	)
 }
 
-macro_rules! as_usize_or_fail {
-	( $v:expr ) => {{
-		if $v > U256::from(usize::MAX) {
-			return Control::Exit(ExitFatal::NotSupported.into());
-		}
-
-		$v.as_usize()
-	}};
-
-	( $v:expr, $reason:expr ) => {{
-		if $v > U256::from(usize::MAX) {
-			return Control::Exit($reason.into());
-		}
-
-		$v.as_usize()
-	}};
+/// Pops top element of the stack and converts it to `usize`.
+///
+/// The top element **must** be not greater than `usize::MAX`.
+/// This non-local invariant is enforced by gas metering infrastructure.
+macro_rules! pop_usize {
+	( $machine:expr, $( $x:ident ),* ) => (
+		$(
+			let $x = match $machine.machine.stack_mut().pop() {
+				Ok(value) => value.as_usize(),
+				Err(e) => return Control::Exit(e.into()),
+			};
+		)*
+	);
 }

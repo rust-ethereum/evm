@@ -1,22 +1,25 @@
 use super::Control;
 use crate::{
-	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitSucceed, Handler,
-	Runtime, Transfer,
+	CallScheme, Capture, Context, CreateScheme, ExitError, ExitSucceed, Handler, Runtime, Transfer,
 };
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	pop_u256!(runtime, from, len);
+	pop_u256!(runtime, from);
+	pop_usize!(runtime, len);
+
+	let from = if len == 0 {
+		usize::MAX
+	} else {
+		from.as_usize()
+	};
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
-	let data = if len == U256::zero() {
+	let data = if len == 0 {
 		Vec::new()
 	} else {
-		let from = as_usize_or_fail!(from);
-		let len = as_usize_or_fail!(len);
-
 		runtime.machine.memory_mut().get(from, len)
 	};
 
@@ -106,7 +109,15 @@ pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 
 pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop_h256!(runtime, address);
-	pop_u256!(runtime, memory_offset, code_offset, len);
+	pop_u256!(runtime, memory_offset);
+	pop_u256!(runtime, code_offset);
+	pop_usize!(runtime, len);
+
+	if len == 0 {
+		return Control::Continue;
+	}
+
+	let memory_offset = memory_offset.as_usize();
 
 	try_or_fail!(runtime
 		.machine
@@ -133,14 +144,16 @@ pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 }
 
 pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	pop_u256!(runtime, memory_offset, data_offset, len);
+	pop_usize!(runtime, memory_offset);
+	pop_u256!(runtime, data_offset);
+	pop_usize!(runtime, len);
 
 	try_or_fail!(runtime
 		.machine
 		.memory_mut()
 		.resize_offset(memory_offset, len));
 	if data_offset
-		.checked_add(len)
+		.checked_add(len.into())
 		.map(|l| l > U256::from(runtime.return_data_buffer.len()))
 		.unwrap_or(true)
 	{
@@ -235,15 +248,19 @@ pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 }
 
 pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
-	pop_u256!(runtime, offset, len);
+	pop_u256!(runtime, offset);
+	pop_usize!(runtime, len);
+
+	let offset = if len == 0 {
+		usize::MAX
+	} else {
+		offset.as_usize()
+	};
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
-	let data = if len == U256::zero() {
+	let data = if len == 0 {
 		Vec::new()
 	} else {
-		let offset = as_usize_or_fail!(offset);
-		let len = as_usize_or_fail!(len);
-
 		runtime.machine.memory().get(offset, len)
 	};
 
@@ -277,15 +294,20 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
-	pop_u256!(runtime, value, code_offset, len);
+	pop_u256!(runtime, value);
+	pop_u256!(runtime, code_offset);
+	pop_usize!(runtime, len);
+
+	let code_offset = if len == 0 {
+		usize::MAX
+	} else {
+		code_offset.as_usize()
+	};
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(code_offset, len));
-	let code = if len == U256::zero() {
+	let code = if len == 0 {
 		Vec::new()
 	} else {
-		let code_offset = as_usize_or_fail!(code_offset);
-		let len = as_usize_or_fail!(len);
-
 		runtime.machine.memory().get(code_offset, len)
 	};
 
@@ -333,7 +355,21 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		CallScheme::DelegateCall | CallScheme::StaticCall => U256::zero(),
 	};
 
-	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
+	pop_u256!(runtime, in_offset);
+	pop_usize!(runtime, in_len);
+	pop_u256!(runtime, out_offset);
+	pop_usize!(runtime, out_len);
+
+	let in_offset = if in_len == 0 {
+		usize::MAX
+	} else {
+		in_offset.as_usize()
+	};
+	let out_offset = if out_len == 0 {
+		usize::MAX
+	} else {
+		out_offset.as_usize()
+	};
 
 	try_or_fail!(runtime
 		.machine
@@ -344,12 +380,9 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		.memory_mut()
 		.resize_offset(out_offset, out_len));
 
-	let input = if in_len == U256::zero() {
+	let input = if in_len == 0 {
 		Vec::new()
 	} else {
-		let in_offset = as_usize_or_fail!(in_offset);
-		let in_len = as_usize_or_fail!(in_len);
-
 		runtime.machine.memory().get(in_offset, in_len)
 	};
 

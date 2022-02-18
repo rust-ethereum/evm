@@ -9,7 +9,7 @@ use primitive_types::{H256, U256};
 #[derive(Clone, Debug)]
 pub struct Memory {
 	data: Vec<u8>,
-	effective_len: U256,
+	effective_len: usize,
 	limit: usize,
 }
 
@@ -18,7 +18,7 @@ impl Memory {
 	pub fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
-			effective_len: U256::zero(),
+			effective_len: 0,
 			limit,
 		}
 	}
@@ -34,7 +34,7 @@ impl Memory {
 	}
 
 	/// Get the effective length.
-	pub fn effective_len(&self) -> U256 {
+	pub fn effective_len(&self) -> usize {
 		self.effective_len
 	}
 
@@ -51,8 +51,8 @@ impl Memory {
 	/// Resize the memory, making it cover the memory region of `offset..(offset
 	/// + len)`, with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
-	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
-		if len == U256::zero() {
+	pub fn resize_offset(&mut self, offset: usize, len: usize) -> Result<(), ExitError> {
+		if len == 0 {
 			return Ok(());
 		}
 
@@ -64,7 +64,7 @@ impl Memory {
 	}
 
 	/// Resize the memory, making it cover to `end`, with 32 bytes as the step.
-	pub fn resize_end(&mut self, end: U256) -> Result<(), ExitError> {
+	pub fn resize_end(&mut self, end: usize) -> Result<(), ExitError> {
 		if end > self.effective_len {
 			let new_end = next_multiple_of_32(end).ok_or(ExitError::InvalidRange)?;
 			self.effective_len = new_end;
@@ -153,9 +153,9 @@ impl Memory {
 	/// Copy `data` into the memory, of given `len`.
 	pub fn copy_large(
 		&mut self,
-		memory_offset: U256,
+		memory_offset: usize,
 		data_offset: U256,
-		len: U256,
+		len: usize,
 		data: &[u8],
 	) -> Result<(), ExitFatal> {
 		// Needed to pass ethereum test defined in
@@ -163,23 +163,11 @@ impl Memory {
 		// (regardless of other inputs, a zero-length copy is defined to be a no-op).
 		// TODO: refactor `set` and `copy_large` (see
 		// https://github.com/rust-blockchain/evm/pull/40#discussion_r677180794)
-		if len.is_zero() {
+		if len == 0 {
 			return Ok(());
 		}
 
-		let memory_offset = if memory_offset > U256::from(usize::MAX) {
-			return Err(ExitFatal::NotSupported);
-		} else {
-			memory_offset.as_usize()
-		};
-
-		let ulen = if len > U256::from(usize::MAX) {
-			return Err(ExitFatal::NotSupported);
-		} else {
-			len.as_usize()
-		};
-
-		let data = if let Some(end) = data_offset.checked_add(len) {
+		let data = if let Some(end) = data_offset.checked_add(len.into()) {
 			if end > U256::from(usize::MAX) {
 				&[]
 			} else {
@@ -196,26 +184,26 @@ impl Memory {
 			&[]
 		};
 
-		self.set(memory_offset, data, Some(ulen))
+		self.set(memory_offset, data, Some(len))
 	}
 }
 
 /// Rounds up `x` to the closest multiple of 32. If `x % 32 == 0` then `x` is returned.
 #[inline]
-fn next_multiple_of_32(x: U256) -> Option<U256> {
-	let r = x.low_u32().bitand(31).not().wrapping_add(1).bitand(31);
-	x.checked_add(r.into())
+fn next_multiple_of_32(x: usize) -> Option<usize> {
+	let r = x.bitand(31).not().wrapping_add(1).bitand(31);
+	x.checked_add(r)
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{next_multiple_of_32, U256};
+	use super::next_multiple_of_32;
 
 	#[test]
 	fn test_next_multiple_of_32() {
 		// next_multiple_of_32 returns x when it is a multiple of 32
 		for i in 0..32 {
-			let x = U256::from(i * 32);
+			let x = i * 32;
 			assert_eq!(Some(x), next_multiple_of_32(x));
 		}
 
@@ -225,16 +213,13 @@ mod tests {
 				continue;
 			}
 			let next_multiple = x + 32 - (x % 32);
-			assert_eq!(
-				Some(U256::from(next_multiple)),
-				next_multiple_of_32(x.into())
-			);
+			assert_eq!(Some(next_multiple), next_multiple_of_32(x.into()));
 		}
 
 		// next_multiple_of_32 returns None when the next multiple of 32 is too big
-		let last_multiple_of_32 = U256::MAX & !U256::from(31);
+		let last_multiple_of_32 = usize::MAX & !31;
 		for i in 0..63 {
-			let x = U256::MAX - U256::from(i);
+			let x = usize::MAX - i;
 			if x > last_multiple_of_32 {
 				assert_eq!(None, next_multiple_of_32(x));
 			} else {

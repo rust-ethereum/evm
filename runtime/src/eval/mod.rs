@@ -97,13 +97,13 @@ pub fn finish_create(
 
 pub fn finish_call(
 	runtime: &mut Runtime,
-	out_len: U256,
-	out_offset: U256,
+	out_len: usize,
+	out_offset: usize,
 	reason: ExitReason,
 	return_data: Vec<u8>,
 ) -> Result<(), ExitReason> {
 	runtime.return_data_buffer = return_data;
-	let target_len = min(out_len, U256::from(runtime.return_data_buffer.len()));
+	let target_len = min(out_len, runtime.return_data_buffer.len());
 
 	match reason {
 		ExitReason::Succeed(_) => {

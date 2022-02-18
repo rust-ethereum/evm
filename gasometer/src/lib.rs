@@ -660,62 +660,56 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		| Opcode::LOG1
 		| Opcode::LOG2
 		| Opcode::LOG3
-		| Opcode::LOG4 => Some(MemoryCost {
-			offset: stack.peek(0)?,
-			len: stack.peek(1)?,
-		}),
+		| Opcode::LOG4 => Some(peek_memory_cost(stack, 0, 1)?),
 
-		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
-			offset: stack.peek(0)?,
-			len: stack.peek(2)?,
-		}),
+		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => {
+			Some(peek_memory_cost(stack, 0, 2)?)
+		}
 
-		Opcode::EXTCODECOPY => Some(MemoryCost {
-			offset: stack.peek(1)?,
-			len: stack.peek(3)?,
-		}),
+		Opcode::EXTCODECOPY => Some(peek_memory_cost(stack, 1, 3)?),
 
 		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
-			offset: stack.peek(0)?,
-			len: U256::from(32),
+			offset: stack.peek_usize(0)?,
+			len: 32,
 		}),
 
 		Opcode::MSTORE8 => Some(MemoryCost {
-			offset: stack.peek(0)?,
-			len: U256::from(1),
+			offset: stack.peek_usize(0)?,
+			len: 1,
 		}),
 
-		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
-			offset: stack.peek(1)?,
-			len: stack.peek(2)?,
-		}),
+		Opcode::CREATE | Opcode::CREATE2 => Some(peek_memory_cost(stack, 1, 2)?),
 
-		Opcode::CALL | Opcode::CALLCODE => Some(
-			MemoryCost {
-				offset: stack.peek(3)?,
-				len: stack.peek(4)?,
-			}
-			.join(MemoryCost {
-				offset: stack.peek(5)?,
-				len: stack.peek(6)?,
-			}),
-		),
+		Opcode::CALL | Opcode::CALLCODE => {
+			Some(peek_memory_cost(stack, 3, 4)?.join(peek_memory_cost(stack, 5, 6)?))
+		}
 
-		Opcode::DELEGATECALL | Opcode::STATICCALL => Some(
-			MemoryCost {
-				offset: stack.peek(2)?,
-				len: stack.peek(3)?,
-			}
-			.join(MemoryCost {
-				offset: stack.peek(4)?,
-				len: stack.peek(5)?,
-			}),
-		),
+		Opcode::DELEGATECALL | Opcode::STATICCALL => {
+			Some(peek_memory_cost(stack, 2, 3)?.join(peek_memory_cost(stack, 4, 5)?))
+		}
 
 		_ => None,
 	};
 
 	Ok((gas_cost, storage_target, memory_cost))
+}
+
+fn peek_memory_cost(
+	stack: &Stack,
+	offset_index: usize,
+	len_index: usize,
+) -> Result<MemoryCost, ExitError> {
+	let len = stack.peek_usize(len_index)?;
+
+	if len == 0 {
+		return Ok(MemoryCost {
+			offset: usize::MAX,
+			len,
+		});
+	}
+
+	let offset = stack.peek_usize(offset_index)?;
+	Ok(MemoryCost { offset, len })
 }
 
 /// Holds the gas consumption for a Gasometer instance.
@@ -732,16 +726,11 @@ impl<'config> Inner<'config> {
 		let from = memory.offset;
 		let len = memory.len;
 
-		if len == U256::zero() {
+		if len == 0 {
 			return Ok(self.memory_gas);
 		}
 
 		let end = from.checked_add(len).ok_or(ExitError::OutOfGas)?;
-
-		if end > U256::from(usize::MAX) {
-			return Err(ExitError::OutOfGas);
-		}
-		let end = end.as_usize();
 
 		let rem = end % 32;
 		let new = if rem == 0 { end / 32 } else { end / 32 + 1 };
@@ -1031,9 +1020,9 @@ pub enum StorageTarget {
 #[derive(Debug, Clone, Copy)]
 pub struct MemoryCost {
 	/// Affected memory offset.
-	pub offset: U256,
+	pub offset: usize,
 	/// Affected length.
-	pub len: U256,
+	pub len: usize,
 }
 
 /// Transaction cost.
@@ -1068,11 +1057,11 @@ pub enum TransactionCost {
 impl MemoryCost {
 	/// Join two memory cost together.
 	pub fn join(self, other: MemoryCost) -> MemoryCost {
-		if self.len == U256::zero() {
+		if self.len == 0 {
 			return other;
 		}
 
-		if other.len == U256::zero() {
+		if other.len == 0 {
 			return self;
 		}
 
