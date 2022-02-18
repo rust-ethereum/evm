@@ -164,6 +164,25 @@ pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 }
 
 #[inline]
+pub fn push1(state: &mut Machine, position: usize) -> Control {
+	let b0 = *state.code.get(position + 1).unwrap_or(&0) as u64;
+	let val = U256::from(b0);
+
+	push_u256!(state, val);
+	Control::Continue(2)
+}
+
+#[inline]
+pub fn push2(state: &mut Machine, position: usize) -> Control {
+	let b0 = *state.code.get(position + 1).unwrap_or(&0) as u64;
+	let b1 = *state.code.get(position + 2).unwrap_or(&0) as u64;
+	let val = U256::from((b0 << 8) | b1);
+
+	push_u256!(state, val);
+	Control::Continue(3)
+}
+
+#[inline]
 pub fn dup(state: &mut Machine, n: usize) -> Control {
 	let value = match state.stack.peek(n - 1) {
 		Ok(value) => value,

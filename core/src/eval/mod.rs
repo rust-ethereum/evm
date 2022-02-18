@@ -181,11 +181,11 @@ fn eval_push0(state: &mut Machine, _opcode: Opcode, position: usize) -> Control 
 }
 
 fn eval_push1(state: &mut Machine, _opcode: Opcode, position: usize) -> Control {
-	self::misc::push(state, 1, position)
+	self::misc::push1(state, position)
 }
 
 fn eval_push2(state: &mut Machine, _opcode: Opcode, position: usize) -> Control {
-	self::misc::push(state, 2, position)
+	self::misc::push2(state, position)
 }
 
 fn eval_push3(state: &mut Machine, _opcode: Opcode, position: usize) -> Control {
