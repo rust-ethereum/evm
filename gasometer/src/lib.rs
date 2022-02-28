@@ -98,6 +98,12 @@ impl<'config> Gasometer<'config> {
 	}
 
 	#[inline]
+	/// Gas limit.
+	pub fn gas_limit(&self) -> u64 {
+		self.gas_limit
+	}
+
+	#[inline]
 	/// Remaining gas.
 	pub fn gas(&self) -> u64 {
 		match self.inner.as_ref() {
@@ -163,7 +169,7 @@ impl<'config> Gasometer<'config> {
 	#[inline]
 	/// Record `CREATE` code deposit.
 	pub fn record_deposit(&mut self, len: usize) -> Result<(), ExitError> {
-		let cost = len as u64 * consts::G_CODEDEPOSIT;
+		let cost = len as u64 * (consts::G_CODEDEPOSIT as u64);
 		self.record_cost(cost)
 	}
 
@@ -325,8 +331,8 @@ fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
 }
 
 #[inline]
-pub fn static_opcode_cost(opcode: Opcode) -> Option<u64> {
-	static TABLE: [Option<u64>; 256] = {
+pub fn static_opcode_cost(opcode: Opcode) -> Option<u32> {
+	static TABLE: [Option<u32>; 256] = {
 		let mut table = [None; 256];
 
 		table[Opcode::STOP.as_usize()] = Some(consts::G_ZERO);
@@ -806,14 +812,14 @@ impl<'config> Inner<'config> {
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
-			GasCost::Create => consts::G_CREATE,
+			GasCost::Create => consts::G_CREATE as u64,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
 			GasCost::SLoad { target_is_cold } => costs::sload_cost(target_is_cold, self.config),
 
-			GasCost::Zero => consts::G_ZERO,
-			GasCost::Base => consts::G_BASE,
-			GasCost::VeryLow => consts::G_VERYLOW,
-			GasCost::Low => consts::G_LOW,
+			GasCost::Zero => consts::G_ZERO as u64,
+			GasCost::Base => consts::G_BASE as u64,
+			GasCost::VeryLow => consts::G_VERYLOW as u64,
+			GasCost::Low => consts::G_LOW as u64,
 			GasCost::Invalid(opcode) => return Err(ExitError::InvalidCode(opcode)),
 
 			GasCost::ExtCodeSize { target_is_cold } => {
@@ -826,7 +832,7 @@ impl<'config> Inner<'config> {
 			GasCost::Balance { target_is_cold } => {
 				costs::address_access_cost(target_is_cold, self.config.gas_balance, self.config)
 			}
-			GasCost::BlockHash => consts::G_BLOCKHASH,
+			GasCost::BlockHash => consts::G_BLOCKHASH as u64,
 			GasCost::ExtCodeHash { target_is_cold } => costs::address_access_cost(
 				target_is_cold,
 				self.config.gas_ext_code_hash,

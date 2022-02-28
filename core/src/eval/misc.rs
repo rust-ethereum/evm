@@ -164,6 +164,14 @@ pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 }
 
 #[inline]
+pub fn push0(state: &mut Machine) -> Control {
+	let val = U256::zero();
+
+	push_u256!(state, val);
+	Control::Continue(2)
+}
+
+#[inline]
 pub fn push1(state: &mut Machine, position: usize) -> Control {
 	let b0 = *state.code.get(position + 1).unwrap_or(&0) as u64;
 	let val = U256::from(b0);

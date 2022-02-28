@@ -6,12 +6,12 @@ use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::maybe_borrowed::MaybeBorrowed;
 use crate::{
-	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime, Stack,
+	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime,
 	Transfer,
 };
 use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
 use core::{cmp::min, convert::Infallible};
-use evm_core::ExitFatal;
+use evm_core::{ExitFatal, InterpreterHandler, Machine, Trap};
 use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -1008,6 +1008,89 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 }
 
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> InterpreterHandler
+	for StackExecutor<'config, 'precompiles, S, P>
+{
+	#[inline]
+	fn before_eval(&mut self) {}
+
+	#[inline]
+	fn after_eval(&mut self) {}
+
+	#[inline]
+	fn before_bytecode(
+		&mut self,
+		opcode: Opcode,
+		_pc: usize,
+		machine: &Machine,
+		address: &H160,
+	) -> Result<(), ExitError> {
+		#[cfg(feature = "tracing")]
+		{
+			use evm_runtime::tracing::Event::Step;
+			evm_runtime::tracing::with(|listener| {
+				listener.event(Step {
+					address: *address,
+					opcode,
+					position: &Ok(_pc),
+					stack: machine.stack(),
+					memory: machine.memory(),
+				})
+			});
+		}
+
+		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
+			self.state
+				.metadata_mut()
+				.gasometer
+				.record_cost(cost as u64)?;
+		} else {
+			let is_static = self.state.metadata().is_static;
+			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
+				*address,
+				opcode,
+				machine.stack(),
+				is_static,
+				self.config,
+				self,
+			)?;
+
+			self.state
+				.metadata_mut()
+				.gasometer
+				.record_dynamic_cost(gas_cost, memory_cost)?;
+			match target {
+				StorageTarget::Address(address) => {
+					self.state.metadata_mut().access_address(address)
+				}
+				StorageTarget::Slot(address, key) => {
+					self.state.metadata_mut().access_storage(address, key)
+				}
+				StorageTarget::None => (),
+			}
+		}
+		Ok(())
+	}
+
+	#[inline]
+	fn after_bytecode(
+		&mut self,
+		_result: &Result<(), Capture<ExitReason, Trap>>,
+		_machine: &Machine,
+	) {
+		#[cfg(feature = "tracing")]
+		{
+			use evm_runtime::tracing::Event::StepResult;
+			evm_runtime::tracing::with(|listener| {
+				listener.event(StepResult {
+					result: _result,
+					return_value: _machine.return_value().as_slice(),
+				})
+			});
+		}
+	}
+}
+
 pub struct StackExecutorCallInterrupt<'borrow>(TaggedRuntime<'borrow>);
 pub struct StackExecutorCreateInterrupt<'borrow>(TaggedRuntime<'borrow>);
 
@@ -1090,9 +1173,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn gas_price(&self) -> U256 {
 		self.state.gas_price()
 	}
+
 	fn origin(&self) -> H160 {
 		self.state.origin()
 	}
+
 	fn block_hash(&self, number: U256) -> H256 {
 		self.state.block_hash(number)
 	}
@@ -1117,7 +1202,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn chain_id(&self) -> U256 {
 		self.state.chain_id()
 	}
-
 	fn deleted(&self, address: H160) -> bool {
 		self.state.deleted(address)
 	}
@@ -1242,45 +1326,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		}
 
 		capture
-	}
-
-	#[inline]
-	fn pre_validate(
-		&mut self,
-		context: &Context,
-		opcode: Opcode,
-		stack: &Stack,
-	) -> Result<(), ExitError> {
-		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
-
-		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
-			self.state.metadata_mut().gasometer.record_cost(cost)?;
-		} else {
-			let is_static = self.state.metadata().is_static;
-			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
-				context.address,
-				opcode,
-				stack,
-				is_static,
-				self.config,
-				self,
-			)?;
-
-			let gasometer = &mut self.state.metadata_mut().gasometer;
-
-			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
-			match target {
-				StorageTarget::Address(address) => {
-					self.state.metadata_mut().access_address(address)
-				}
-				StorageTarget::Slot(address, key) => {
-					self.state.metadata_mut().access_storage(address, key)
-				}
-				StorageTarget::None => (),
-			}
-		}
-
-		Ok(())
 	}
 }
 
