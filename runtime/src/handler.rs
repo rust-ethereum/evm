@@ -1,4 +1,4 @@
-use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
+use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode};
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
@@ -108,14 +108,6 @@ pub trait Handler {
 	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
 		Ok(())
 	}
-
-	/// Pre-validation step for the runtime.
-	fn pre_validate(
-		&mut self,
-		context: &Context,
-		opcode: Opcode,
-		stack: &Stack,
-	) -> Result<(), ExitError>;
 	/// Handle other unknown external opcodes.
 	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
 		Err(ExitError::InvalidCode(opcode))

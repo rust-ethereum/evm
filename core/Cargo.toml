@@ -34,3 +34,4 @@ with-serde = [
 	"serde",
 	"primitive-types/impl-serde",
 ]
+tracing = []

@@ -15,7 +15,7 @@ pub fn suicide_refund(already_removed: bool) -> i64 {
 	if already_removed {
 		0
 	} else {
-		R_SUICIDE
+		R_SUICIDE as i64
 	}
 }
 
@@ -81,7 +81,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 
 pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 	if power == U256::zero() {
-		Ok(G_EXP)
+		Ok(G_EXP as u64)
 	} else {
 		let gas = U256::from(G_EXP)
 			.checked_add(
@@ -152,7 +152,7 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
 				.ok_or(ExitError::OutOfGas)?,
 		)
 		.ok_or(ExitError::OutOfGas)?
-		.checked_add(U256::from(G_LOGTOPIC * n as u64))
+		.checked_add(U256::from(G_LOGTOPIC * n as u32))
 		.ok_or(ExitError::OutOfGas)?;
 
 	if gas > U256::from(u64::MAX) {
@@ -294,7 +294,7 @@ pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -
 
 fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
 	if is_call_or_callcode && transfers_value {
-		G_CALLVALUE
+		G_CALLVALUE as u64
 	} else {
 		0
 	}
@@ -310,12 +310,12 @@ fn new_cost(
 	if is_call_or_staticcall {
 		if eip161 {
 			if transfers_value && new_account {
-				G_NEWACCOUNT
+				G_NEWACCOUNT as u64
 			} else {
 				0
 			}
 		} else if new_account {
-			G_NEWACCOUNT
+			G_NEWACCOUNT as u64
 		} else {
 			0
 		}

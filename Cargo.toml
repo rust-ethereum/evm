@@ -66,6 +66,7 @@ with-serde = [
 ]
 tracing = [
 	"environmental",
+	"evm-core/tracing",
 	"evm-gasometer/tracing",
 	"evm-runtime/tracing",
 ]
