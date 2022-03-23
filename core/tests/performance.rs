@@ -1,8 +1,8 @@
+use evm_core::{Capture, ExitSucceed, Machine};
 use std::rc::Rc;
-use evm_core::{Machine, Capture, ExitSucceed};
 
 macro_rules! ret_test {
-	( $name:ident, $code:expr, $data:expr, $ret:expr ) => (
+	( $name:ident, $code:expr, $data:expr, $ret:expr ) => {
 		#[test]
 		fn $name() {
 			let code = hex::decode($code).unwrap();
@@ -12,7 +12,7 @@ macro_rules! ret_test {
 			assert_eq!(vm.run(), Capture::Exit(ExitSucceed::Returned.into()));
 			assert_eq!(vm.return_value(), hex::decode($ret).unwrap());
 		}
-	);
+	};
 }
 
 ret_test!(

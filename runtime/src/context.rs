@@ -1,4 +1,4 @@
-use primitive_types::{H160, U256, H256};
+use primitive_types::{H160, H256, U256};
 
 /// Create scheme.
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]

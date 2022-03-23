@@ -1,11 +1,14 @@
-use alloc::vec::Vec;
+use super::{Apply, ApplyBackend, Backend, Basic, Log};
 use alloc::collections::BTreeMap;
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use super::{Basic, Backend, ApplyBackend, Apply, Log};
 
 /// Vivinity value of a memory backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryVicinity {
 	/// Gas price.
@@ -26,11 +29,16 @@ pub struct MemoryVicinity {
 	pub block_difficulty: U256,
 	/// Environmental block gas limit.
 	pub block_gas_limit: U256,
+	/// Environmental base fee per gas.
+	pub block_base_fee_per_gas: U256,
 }
 
 /// Account information of a memory backend.
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryAccount {
 	/// Account nonce.
@@ -65,14 +73,24 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 	pub fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
 		&self.state
 	}
+
+	/// Get a mutable reference to the underlying `BTreeMap` storing the state.
+	pub fn state_mut(&mut self) -> &mut BTreeMap<H160, MemoryAccount> {
+		&mut self.state
+	}
 }
 
 impl<'vicinity> Backend for MemoryBackend<'vicinity> {
-	fn gas_price(&self) -> U256 { self.vicinity.gas_price }
-	fn origin(&self) -> H160 { self.vicinity.origin }
+	fn gas_price(&self) -> U256 {
+		self.vicinity.gas_price
+	}
+	fn origin(&self) -> H160 {
+		self.vicinity.origin
+	}
 	fn block_hash(&self, number: U256) -> H256 {
-		if number >= self.vicinity.block_number ||
-			self.vicinity.block_number - number - U256::one() >= U256::from(self.vicinity.block_hashes.len())
+		if number >= self.vicinity.block_number
+			|| self.vicinity.block_number - number - U256::one()
+				>= U256::from(self.vicinity.block_hashes.len())
 		{
 			H256::default()
 		} else {
@@ -80,32 +98,55 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 			self.vicinity.block_hashes[index]
 		}
 	}
-	fn block_number(&self) -> U256 { self.vicinity.block_number }
-	fn block_coinbase(&self) -> H160 { self.vicinity.block_coinbase }
-	fn block_timestamp(&self) -> U256 { self.vicinity.block_timestamp }
-	fn block_difficulty(&self) -> U256 { self.vicinity.block_difficulty }
-	fn block_gas_limit(&self) -> U256 { self.vicinity.block_gas_limit }
+	fn block_number(&self) -> U256 {
+		self.vicinity.block_number
+	}
+	fn block_coinbase(&self) -> H160 {
+		self.vicinity.block_coinbase
+	}
+	fn block_timestamp(&self) -> U256 {
+		self.vicinity.block_timestamp
+	}
+	fn block_difficulty(&self) -> U256 {
+		self.vicinity.block_difficulty
+	}
+	fn block_gas_limit(&self) -> U256 {
+		self.vicinity.block_gas_limit
+	}
+	fn block_base_fee_per_gas(&self) -> U256 {
+		self.vicinity.block_base_fee_per_gas
+	}
 
-	fn chain_id(&self) -> U256 { self.vicinity.chain_id }
+	fn chain_id(&self) -> U256 {
+		self.vicinity.chain_id
+	}
 
 	fn exists(&self, address: H160) -> bool {
 		self.state.contains_key(&address)
 	}
 
 	fn basic(&self, address: H160) -> Basic {
-		self.state.get(&address).map(|a| {
-			Basic { balance: a.balance, nonce: a.nonce }
-		}).unwrap_or_default()
+		self.state
+			.get(&address)
+			.map(|a| Basic {
+				balance: a.balance,
+				nonce: a.nonce,
+			})
+			.unwrap_or_default()
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.state.get(&address).map(|v| v.code.clone()).unwrap_or_default()
+		self.state
+			.get(&address)
+			.map(|v| v.code.clone())
+			.unwrap_or_default()
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
-		self.state.get(&address)
-			.map(|v| v.storage.get(&index).cloned().unwrap_or(H256::default()))
-			.unwrap_or(H256::default())
+		self.state
+			.get(&address)
+			.map(|v| v.storage.get(&index).cloned().unwrap_or_default())
+			.unwrap_or_default()
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
@@ -114,23 +155,23 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 }
 
 impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
-	fn apply<A, I, L>(
-		&mut self,
-		values: A,
-		logs: L,
-		delete_empty: bool,
-	) where
-		A: IntoIterator<Item=Apply<I>>,
-		I: IntoIterator<Item=(H256, H256)>,
-		L: IntoIterator<Item=Log>,
+	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
+	where
+		A: IntoIterator<Item = Apply<I>>,
+		I: IntoIterator<Item = (H256, H256)>,
+		L: IntoIterator<Item = Log>,
 	{
 		for apply in values {
 			match apply {
 				Apply::Modify {
-					address, basic, code, storage, reset_storage,
+					address,
+					basic,
+					code,
+					storage,
+					reset_storage,
 				} => {
 					let is_empty = {
-						let account = self.state.entry(address).or_insert(Default::default());
+						let account = self.state.entry(address).or_insert_with(Default::default);
 						account.balance = basic.balance;
 						account.nonce = basic.nonce;
 						if let Some(code) = code {
@@ -141,9 +182,11 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 							account.storage = BTreeMap::new();
 						}
 
-						let zeros = account.storage.iter()
+						let zeros = account
+							.storage
+							.iter()
 							.filter(|(_, v)| v == &&H256::default())
-							.map(|(k, _)| k.clone())
+							.map(|(k, _)| *k)
 							.collect::<Vec<H256>>();
 
 						for zero in zeros {
@@ -158,20 +201,18 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 							}
 						}
 
-						account.balance == U256::zero() &&
-							account.nonce == U256::zero() &&
-							account.code.len() == 0
+						account.balance == U256::zero()
+							&& account.nonce == U256::zero()
+							&& account.code.is_empty()
 					};
 
 					if is_empty && delete_empty {
 						self.state.remove(&address);
 					}
-				},
-				Apply::Delete {
-					address,
-				} => {
+				}
+				Apply::Delete { address } => {
 					self.state.remove(&address);
-				},
+				}
 			}
 		}
 

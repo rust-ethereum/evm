@@ -1,7 +1,7 @@
+use super::Control;
+use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
-use super::Control;
-use crate::{Machine, ExitError, ExitSucceed, ExitFatal, ExitRevert};
 
 #[inline]
 pub fn codesize(state: &mut Machine) -> Control {
@@ -15,7 +15,10 @@ pub fn codecopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, code_offset, len);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
-	match state.memory.copy_large(memory_offset, code_offset, len, &state.code) {
+	match state
+		.memory
+		.copy_large(memory_offset, code_offset, len, &state.code)
+	{
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -26,9 +29,10 @@ pub fn calldataload(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
 
 	let mut load = [0u8; 32];
+	#[allow(clippy::needless_range_loop)]
 	for i in 0..32 {
 		if let Some(p) = index.checked_add(U256::from(i)) {
-			if p <= U256::from(usize::max_value()) {
+			if p <= U256::from(usize::MAX) {
 				let p = p.as_usize();
 				if p < state.data.len() {
 					load[i] = state.data[p];
@@ -54,10 +58,13 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 	if len == U256::zero() {
-		return Control::Continue(1)
+		return Control::Continue(1);
 	}
 
-	match state.memory.copy_large(memory_offset, data_offset, len, &state.data) {
+	match state
+		.memory
+		.copy_large(memory_offset, data_offset, len, &state.data)
+	{
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -119,9 +126,9 @@ pub fn jump(state: &mut Machine) -> Control {
 pub fn jumpi(state: &mut Machine) -> Control {
 	pop_u256!(state, dest);
 	pop!(state, value);
-	let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 
 	if value != H256::zero() {
+		let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
 		} else {
@@ -140,7 +147,7 @@ pub fn pc(state: &mut Machine, position: usize) -> Control {
 
 #[inline]
 pub fn msize(state: &mut Machine) -> Control {
-	push_u256!(state, U256::from(state.memory.effective_len()));
+	push_u256!(state, state.memory.effective_len());
 	Control::Continue(1)
 }
 

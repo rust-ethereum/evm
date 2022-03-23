@@ -1,9 +1,9 @@
-use std::{str::FromStr, collections::BTreeMap};
 use criterion::{criterion_group, criterion_main, Criterion};
-use primitive_types::{U256, H160};
+use evm::backend::{MemoryAccount, MemoryBackend, MemoryVicinity};
+use evm::executor::{MemoryStackState, StackExecutor, StackSubstateMetadata};
 use evm::Config;
-use evm::executor::{StackExecutor, MemoryStackState, StackSubstateMetadata};
-use evm::backend::{MemoryAccount, MemoryVicinity, MemoryBackend};
+use primitive_types::{H160, U256};
+use std::{collections::BTreeMap, str::FromStr};
 
 fn run_loop_contract() {
 	let config = Config::istanbul();
@@ -18,6 +18,7 @@ fn run_loop_contract() {
 		block_difficulty: Default::default(),
 		block_gas_limit: Default::default(),
 		chain_id: U256::one(),
+		block_base_fee_per_gas: U256::zero(),
 	};
 
 	let mut state = BTreeMap::new();
@@ -41,22 +42,25 @@ fn run_loop_contract() {
 	);
 
 	let backend = MemoryBackend::new(&vicinity, state);
-	let metadata = StackSubstateMetadata::new(u64::max_value(), &config);
+	let metadata = StackSubstateMetadata::new(u64::MAX, &config);
 	let state = MemoryStackState::new(metadata, &backend);
-	let mut executor = StackExecutor::new(state, &config);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
 
 	let _reason = executor.transact_call(
 		H160::from_str("0xf000000000000000000000000000000000000000").unwrap(),
 		H160::from_str("0x1000000000000000000000000000000000000000").unwrap(),
 		U256::zero(),
-		hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000b71b00").unwrap(),
+		hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000b71b00")
+			.unwrap(),
 		// hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000002ee0").unwrap(),
-		u64::max_value(),
+		u64::MAX,
+		Vec::new(),
 	);
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("loop contract", |b| b.iter(|| run_loop_contract()));
+	c.bench_function("loop contract", |b| b.iter(|| run_loop_contract()));
 }
 
 criterion_group!(benches, criterion_benchmark);

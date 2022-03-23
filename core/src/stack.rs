@@ -1,6 +1,6 @@
-use primitive_types::H256;
-use alloc::vec::Vec;
 use crate::ExitError;
+use alloc::vec::Vec;
+use primitive_types::H256;
 
 /// EVM stack.
 #[derive(Clone, Debug)]
@@ -31,6 +31,18 @@ impl Stack {
 	}
 
 	#[inline]
+	/// Whether the stack is empty.
+	pub fn is_empty(&self) -> bool {
+		self.data.is_empty()
+	}
+
+	#[inline]
+	/// Stack data.
+	pub fn data(&self) -> &Vec<H256> {
+		&self.data
+	}
+
+	#[inline]
 	/// Pop a value from the stack. If the stack is already empty, returns the
 	/// `StackUnderflow` error.
 	pub fn pop(&mut self) -> Result<H256, ExitError> {
@@ -42,7 +54,7 @@ impl Stack {
 	/// returns `StackOverflow` error and leaves the stack unchanged.
 	pub fn push(&mut self, value: H256) -> Result<(), ExitError> {
 		if self.data.len() + 1 > self.limit {
-			return Err(ExitError::StackOverflow)
+			return Err(ExitError::StackOverflow);
 		}
 		self.data.push(value);
 		Ok(())

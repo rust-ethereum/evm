@@ -1,0 +1,15 @@
+[package]
+name = "evm-fuzzer"
+version = "0.2.0-dev"
+authors = ["Vincent Ulitzsch <vincent@srlabs.de>"]
+edition = "2018"
+description = "Fuzzer for EVM."
+license = "Apache-2.0"
+
+[dependencies]
+honggfuzz = "0.5"
+evm-core = { version = "0.33", path= "../core" }
+
+[[bin]]
+name = "evm_fuzz"
+path = "src/main.rs"

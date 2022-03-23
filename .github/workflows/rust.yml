@@ -10,12 +10,22 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Rustfmt
+      run: cargo fmt --all -- --check
+    - name: Clippy
+      run: cargo clippy --all
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
+    - name: Build for feature
+      run: cargo build --features tracing --verbose
     - name: Run tests
       run: cargo test --verbose
   jsontests:
@@ -28,7 +38,8 @@ jobs:
     - name: Submodules
       run: |
         cd evm
-        git fetch
+        git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
+        git fetch origin $GITHUB_SHA
         git checkout $GITHUB_SHA
     - name: Run tests
       run: |

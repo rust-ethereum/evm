@@ -4,14 +4,17 @@
 
 mod memory;
 
-pub use self::memory::{MemoryBackend, MemoryVicinity, MemoryAccount};
+pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
 
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
-#[cfg_attr(feature = "with-codec", derive(codec::Encode, codec::Decode))]
+#[cfg_attr(
+	feature = "with-codec",
+	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+)]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Basic {
 	/// Account balance.
@@ -47,8 +50,9 @@ pub enum Apply<I> {
 }
 
 /// EVM backend.
+#[auto_impl::auto_impl(&, Arc, Box)]
 pub trait Backend {
-	/// Gas price.
+	/// Gas price. Unused for London.
 	fn gas_price(&self) -> U256;
 	/// Origin.
 	fn origin(&self) -> H160;
@@ -64,6 +68,8 @@ pub trait Backend {
 	fn block_difficulty(&self) -> U256;
 	/// Environmental block gas limit.
 	fn block_gas_limit(&self) -> U256;
+	/// Environmental block base fee.
+	fn block_base_fee_per_gas(&self) -> U256;
 	/// Environmental chain ID.
 	fn chain_id(&self) -> U256;
 
@@ -82,13 +88,9 @@ pub trait Backend {
 /// EVM backend that can apply changes.
 pub trait ApplyBackend {
 	/// Apply given values and logs at backend.
-	fn apply<A, I, L>(
-		&mut self,
-		values: A,
-		logs: L,
-		delete_empty: bool,
-	) where
-		A: IntoIterator<Item=Apply<I>>,
-		I: IntoIterator<Item=(H256, H256)>,
-		L: IntoIterator<Item=Log>;
+	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
+	where
+		A: IntoIterator<Item = Apply<I>>,
+		I: IntoIterator<Item = (H256, H256)>,
+		L: IntoIterator<Item = Log>;
 }

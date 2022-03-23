@@ -1,10 +1,12 @@
-use core::cmp::min;
-use alloc::vec::Vec;
-use primitive_types::{H256, U256};
-use sha3::{Keccak256, Digest};
-use crate::{Runtime, ExitError, Handler, Capture, Transfer, ExitReason,
-			CreateScheme, CallScheme, Context, ExitSucceed, ExitFatal};
 use super::Control;
+use crate::{
+	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitReason, ExitSucceed,
+	Handler, Runtime, Transfer,
+};
+use alloc::vec::Vec;
+use core::cmp::min;
+use primitive_types::{H256, U256};
+use sha3::{Digest, Keccak256};
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from, len);
@@ -81,6 +83,14 @@ pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
+pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	let mut ret = H256::default();
+	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
+	push!(runtime, ret);
+
+	Control::Continue
+}
+
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	push_u256!(runtime, handler.code_size(address.into()));
@@ -99,12 +109,15 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 	pop!(runtime, address);
 	pop_u256!(runtime, memory_offset, code_offset, len);
 
-	try_or_fail!(runtime.machine.memory_mut().resize_offset(memory_offset, len));
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(memory_offset, len));
 	match runtime.machine.memory_mut().copy_large(
 		memory_offset,
 		code_offset,
 		len,
-		&handler.code(address.into())
+		&handler.code(address.into()),
 	) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
@@ -123,15 +136,24 @@ pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, memory_offset, data_offset, len);
 
-	try_or_fail!(runtime.machine.memory_mut().resize_offset(memory_offset, len));
-	if data_offset.checked_add(len)
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(memory_offset, len));
+	if data_offset
+		.checked_add(len)
 		.map(|l| l > U256::from(runtime.return_data_buffer.len()))
 		.unwrap_or(true)
 	{
-		return Control::Exit(ExitError::OutOfOffset.into())
+		return Control::Exit(ExitError::OutOfOffset.into());
 	}
 
-	match runtime.machine.memory_mut().copy_large(memory_offset, data_offset, len, &runtime.return_data_buffer) {
+	match runtime.machine.memory_mut().copy_large(
+		memory_offset,
+		data_offset,
+		len,
+		&runtime.return_data_buffer,
+	) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -171,13 +193,27 @@ pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, index);
-	push!(runtime, handler.storage(runtime.context.address, index));
+	let value = handler.storage(runtime.context.address, index);
+	push!(runtime, value);
+
+	event!(SLoad {
+		address: runtime.context.address,
+		index,
+		value
+	});
 
 	Control::Continue
 }
 
 pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, index, value);
+
+	event!(SStore {
+		address: runtime.context.address,
+		index,
+		value
+	});
+
 	match handler.set_storage(runtime.context.address, index, value) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
@@ -206,7 +242,9 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	let mut topics = Vec::new();
 	for _ in 0..(n as usize) {
 		match runtime.machine.stack_mut().pop() {
-			Ok(value) => { topics.push(value); }
+			Ok(value) => {
+				topics.push(value);
+			}
 			Err(e) => return Control::Exit(e.into()),
 		}
 	}
@@ -228,11 +266,7 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	Control::Exit(ExitSucceed::Suicided.into())
 }
 
-pub fn create<H: Handler>(
-	runtime: &mut Runtime,
-	is_create2: bool,
-	handler: &mut H,
-) -> Control<H> {
+pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, value, code_offset, len);
@@ -268,40 +302,36 @@ pub fn create<H: Handler>(
 
 			match reason {
 				ExitReason::Succeed(_) => {
-					push!(runtime, create_address.into());
+					push!(runtime, create_address);
 					Control::Continue
-				},
+				}
 				ExitReason::Revert(_) => {
 					push!(runtime, H256::default());
 					Control::Continue
-				},
+				}
 				ExitReason::Error(_) => {
 					push!(runtime, H256::default());
 					Control::Continue
-				},
+				}
 				ExitReason::Fatal(e) => {
 					push!(runtime, H256::default());
 					Control::Exit(e.into())
-				},
+				}
 			}
-		},
+		}
 		Capture::Trap(interrupt) => {
 			push!(runtime, H256::default());
 			Control::CreateInterrupt(interrupt)
-		},
+		}
 	}
 }
 
-pub fn call<'config, H: Handler>(
-	runtime: &mut Runtime,
-	scheme: CallScheme,
-	handler: &mut H,
-) -> Control<H> {
+pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
-	let gas = if gas > U256::from(u64::max_value()) {
+	let gas = if gas > U256::from(u64::MAX) {
 		None
 	} else {
 		Some(gas.as_u64())
@@ -311,16 +341,20 @@ pub fn call<'config, H: Handler>(
 		CallScheme::Call | CallScheme::CallCode => {
 			pop_u256!(runtime, value);
 			value
-		},
-		CallScheme::DelegateCall | CallScheme::StaticCall => {
-			U256::zero()
-		},
+		}
+		CallScheme::DelegateCall | CallScheme::StaticCall => U256::zero(),
 	};
 
 	pop_u256!(runtime, in_offset, in_len, out_offset, out_len);
 
-	try_or_fail!(runtime.machine.memory_mut().resize_offset(in_offset, in_len));
-	try_or_fail!(runtime.machine.memory_mut().resize_offset(out_offset, out_len));
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(in_offset, in_len));
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(out_offset, out_len));
 
 	let input = if in_len == U256::zero() {
 		Vec::new()
@@ -353,19 +387,26 @@ pub fn call<'config, H: Handler>(
 		Some(Transfer {
 			source: runtime.context.address,
 			target: to.into(),
-			value: value.into()
+			value,
 		})
 	} else if scheme == CallScheme::CallCode {
 		Some(Transfer {
 			source: runtime.context.address,
 			target: runtime.context.address,
-			value: value.into()
+			value,
 		})
 	} else {
 		None
 	};
 
-	match handler.call(to.into(), transfer, input, gas, scheme == CallScheme::StaticCall, context) {
+	match handler.call(
+		to.into(),
+		transfer,
+		input,
+		gas,
+		scheme == CallScheme::StaticCall,
+		context,
+	) {
 		Capture::Exit((reason, return_data)) => {
 			runtime.return_data_buffer = return_data;
 			let target_len = min(out_len, U256::from(runtime.return_data_buffer.len()));
@@ -381,13 +422,13 @@ pub fn call<'config, H: Handler>(
 						Ok(()) => {
 							push_u256!(runtime, U256::one());
 							Control::Continue
-						},
+						}
 						Err(_) => {
 							push_u256!(runtime, U256::zero());
 							Control::Continue
-						},
+						}
 					}
-				},
+				}
 				ExitReason::Revert(_) => {
 					push_u256!(runtime, U256::zero());
 
@@ -399,22 +440,22 @@ pub fn call<'config, H: Handler>(
 					);
 
 					Control::Continue
-				},
+				}
 				ExitReason::Error(_) => {
 					push_u256!(runtime, U256::zero());
 
 					Control::Continue
-				},
+				}
 				ExitReason::Fatal(e) => {
 					push_u256!(runtime, U256::zero());
 
 					Control::Exit(e.into())
-				},
+				}
 			}
-		},
+		}
 		Capture::Trap(interrupt) => {
 			push!(runtime, H256::default());
 			Control::CallInterrupt(interrupt)
-		},
+		}
 	}
 }

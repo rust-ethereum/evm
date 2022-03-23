@@ -1,17 +1,22 @@
-use core::mem;
-use alloc::{vec::Vec, boxed::Box, collections::{BTreeMap, BTreeSet}};
-use primitive_types::{H160, H256, U256};
+use crate::backend::{Apply, Backend, Basic, Log};
+use crate::executor::stack::executor::{Accessed, StackState, StackSubstateMetadata};
 use crate::{ExitError, Transfer};
-use crate::backend::{Basic, Log, Backend, Apply};
-use crate::executor::stack::StackSubstateMetadata;
+use alloc::{
+	boxed::Box,
+	collections::{BTreeMap, BTreeSet},
+	vec::Vec,
+};
+use core::mem;
+use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
-struct MemoryStackAccount {
+pub struct MemoryStackAccount {
 	pub basic: Basic,
 	pub code: Option<Vec<u8>>,
 	pub reset: bool,
 }
 
+#[derive(Clone, Debug)]
 pub struct MemoryStackSubstate<'config> {
 	metadata: StackSubstateMetadata<'config>,
 	parent: Option<Box<MemoryStackSubstate<'config>>>,
@@ -33,6 +38,14 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
+	pub fn logs(&self) -> &[Log] {
+		&self.logs
+	}
+
+	pub fn logs_mut(&mut self) -> &mut Vec<Log> {
+		&mut self.logs
+	}
+
 	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
 		&self.metadata
 	}
@@ -45,10 +58,12 @@ impl<'config> MemoryStackSubstate<'config> {
 	/// executor is not in the top-level substate.
 	#[must_use]
 	pub fn deconstruct<B: Backend>(
-		mut self, backend: &B,
-	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
- 		  impl IntoIterator<Item=Log>)
-	{
+		mut self,
+		backend: &B,
+	) -> (
+		impl IntoIterator<Item = Apply<impl IntoIterator<Item = (H256, H256)>>>,
+		impl IntoIterator<Item = Log>,
+	) {
 		assert!(self.parent.is_none());
 
 		let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
@@ -65,7 +80,7 @@ impl<'config> MemoryStackSubstate<'config> {
 
 		for address in addresses {
 			if self.deletes.contains(&address) {
-				continue
+				continue;
 			}
 
 			let mut storage = BTreeMap::new();
@@ -126,7 +141,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 		let mut reset_keys = BTreeSet::new();
 		for (address, key) in self.storages.keys() {
-			if resets.contains(&address) {
+			if resets.contains(address) {
 				reset_keys.insert((*address, *key));
 			}
 		}
@@ -146,7 +161,6 @@ impl<'config> MemoryStackSubstate<'config> {
 		mem::swap(&mut exited, self);
 
 		self.metadata.swallow_revert(exited.metadata)?;
-		self.logs.append(&mut exited.logs);
 
 		Ok(())
 	}
@@ -156,12 +170,11 @@ impl<'config> MemoryStackSubstate<'config> {
 		mem::swap(&mut exited, self);
 
 		self.metadata.swallow_discard(exited.metadata)?;
-		self.logs.append(&mut exited.logs);
 
 		Ok(())
 	}
 
-	fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
+	pub fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
 		if let Some(account) = self.accounts.get(&address) {
 			Some(account)
 		} else if let Some(parent) = self.parent.as_ref() {
@@ -182,19 +195,19 @@ impl<'config> MemoryStackSubstate<'config> {
 	pub fn known_empty(&self, address: H160) -> Option<bool> {
 		if let Some(account) = self.known_account(address) {
 			if account.basic.balance != U256::zero() {
-				return Some(false)
+				return Some(false);
 			}
 
 			if account.basic.nonce != U256::zero() {
-				return Some(false)
+				return Some(false);
 			}
 
 			if let Some(code) = &account.code {
 				return Some(
-					account.basic.balance == U256::zero() &&
-						account.basic.nonce == U256::zero() &&
-						code.len() == 0
-				)
+					account.basic.balance == U256::zero()
+						&& account.basic.nonce == U256::zero()
+						&& code.is_empty(),
+				);
 			}
 		}
 
@@ -203,17 +216,17 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn known_storage(&self, address: H160, key: H256) -> Option<H256> {
 		if let Some(value) = self.storages.get(&(address, key)) {
-			return Some(*value)
+			return Some(*value);
 		}
 
 		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
-				return Some(H256::default())
+				return Some(H256::default());
 			}
 		}
 
 		if let Some(parent) = self.parent.as_ref() {
-			return parent.known_storage(address, key)
+			return parent.known_storage(address, key);
 		}
 
 		None
@@ -222,32 +235,54 @@ impl<'config> MemoryStackSubstate<'config> {
 	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
 		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
-				return Some(H256::default())
+				return Some(H256::default());
 			}
 		}
 
 		if let Some(parent) = self.parent.as_ref() {
-			return parent.known_original_storage(address, key)
+			return parent.known_original_storage(address, key);
 		}
 
 		None
 	}
 
+	pub fn is_cold(&self, address: H160) -> bool {
+		self.recursive_is_cold(&|a| a.accessed_addresses.contains(&address))
+	}
+
+	pub fn is_storage_cold(&self, address: H160, key: H256) -> bool {
+		self.recursive_is_cold(&|a: &Accessed| a.accessed_storage.contains(&(address, key)))
+	}
+
+	fn recursive_is_cold<F: Fn(&Accessed) -> bool>(&self, f: &F) -> bool {
+		let local_is_accessed = self.metadata.accessed().as_ref().map(f).unwrap_or(false);
+		if local_is_accessed {
+			false
+		} else {
+			self.parent
+				.as_ref()
+				.map(|p| p.recursive_is_cold(f))
+				.unwrap_or(true)
+		}
+	}
+
 	pub fn deleted(&self, address: H160) -> bool {
 		if self.deletes.contains(&address) {
-			return true
+			return true;
 		}
 
 		if let Some(parent) = self.parent.as_ref() {
-			return parent.deleted(address)
+			return parent.deleted(address);
 		}
 
 		false
 	}
 
+	#[allow(clippy::map_entry)]
 	fn account_mut<B: Backend>(&mut self, address: H160, backend: &B) -> &mut MemoryStackAccount {
 		if !self.accounts.contains_key(&address) {
-			let account = self.known_account(address)
+			let account = self
+				.known_account(address)
 				.cloned()
 				.map(|mut v| {
 					v.reset = false;
@@ -261,7 +296,9 @@ impl<'config> MemoryStackSubstate<'config> {
 			self.accounts.insert(address, account);
 		}
 
-		self.accounts.get_mut(&address).expect("New account was just inserted")
+		self.accounts
+			.get_mut(&address)
+			.expect("New account was just inserted")
 	}
 
 	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) {
@@ -290,7 +327,9 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
 		self.logs.push(Log {
-			address, topics, data,
+			address,
+			topics,
+			data,
 		});
 	}
 
@@ -302,11 +341,15 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(address, backend).code = Some(code);
 	}
 
-	pub fn transfer<B: Backend>(&mut self, transfer: Transfer, backend: &B) -> Result<(), ExitError> {
+	pub fn transfer<B: Backend>(
+		&mut self,
+		transfer: Transfer,
+		backend: &B,
+	) -> Result<(), ExitError> {
 		{
 			let source = self.account_mut(transfer.source, backend);
 			if source.basic.balance < transfer.value {
-				return Err(ExitError::OutOfFund)
+				return Err(ExitError::OutOfFund);
 			}
 			source.basic.balance -= transfer.value;
 		}
@@ -320,10 +363,15 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	// Only needed for jsontests.
-	pub fn withdraw<B: Backend>(&mut self, address: H160, value: U256, backend: &B) -> Result<(), ExitError> {
+	pub fn withdraw<B: Backend>(
+		&mut self,
+		address: H160,
+		value: U256,
+		backend: &B,
+	) -> Result<(), ExitError> {
 		let source = self.account_mut(address, backend);
 		if source.basic.balance < value {
-			return Err(ExitError::OutOfFund)
+			return Err(ExitError::OutOfFund);
 		}
 		source.basic.balance -= value;
 
@@ -345,65 +393,70 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
-pub trait StackState<'config>: Backend {
-	fn metadata(&self) -> &StackSubstateMetadata<'config>;
-	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
-
-	fn enter(&mut self, gas_limit: u64, is_static: bool);
-	fn exit_commit(&mut self) -> Result<(), ExitError>;
-	fn exit_revert(&mut self) -> Result<(), ExitError>;
-	fn exit_discard(&mut self) -> Result<(), ExitError>;
-
-	fn is_empty(&self, address: H160) -> bool;
-	fn deleted(&self, address: H160) -> bool;
-
-	fn inc_nonce(&mut self, address: H160);
-	fn set_storage(&mut self, address: H160, key: H256, value: H256);
-	fn reset_storage(&mut self, address: H160);
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
-	fn set_deleted(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>);
-	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
-	fn reset_balance(&mut self, address: H160);
-	fn touch(&mut self, address: H160);
-}
-
+#[derive(Clone, Debug)]
 pub struct MemoryStackState<'backend, 'config, B> {
 	backend: &'backend B,
 	substate: MemoryStackSubstate<'config>,
 }
 
 impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'config, B> {
-	fn gas_price(&self) -> U256 { self.backend.gas_price() }
-	fn origin(&self) -> H160 { self.backend.origin() }
-	fn block_hash(&self, number: U256) -> H256 { self.backend.block_hash(number) }
-	fn block_number(&self) -> U256 { self.backend.block_number() }
-	fn block_coinbase(&self) -> H160 { self.backend.block_coinbase() }
-	fn block_timestamp(&self) -> U256 { self.backend.block_timestamp() }
-	fn block_difficulty(&self) -> U256 { self.backend.block_difficulty() }
-	fn block_gas_limit(&self) -> U256 { self.backend.block_gas_limit() }
-	fn chain_id(&self) -> U256 { self.backend.chain_id() }
+	fn gas_price(&self) -> U256 {
+		self.backend.gas_price()
+	}
+	fn origin(&self) -> H160 {
+		self.backend.origin()
+	}
+	fn block_hash(&self, number: U256) -> H256 {
+		self.backend.block_hash(number)
+	}
+	fn block_number(&self) -> U256 {
+		self.backend.block_number()
+	}
+	fn block_coinbase(&self) -> H160 {
+		self.backend.block_coinbase()
+	}
+	fn block_timestamp(&self) -> U256 {
+		self.backend.block_timestamp()
+	}
+	fn block_difficulty(&self) -> U256 {
+		self.backend.block_difficulty()
+	}
+	fn block_gas_limit(&self) -> U256 {
+		self.backend.block_gas_limit()
+	}
+	fn block_base_fee_per_gas(&self) -> U256 {
+		self.backend.block_base_fee_per_gas()
+	}
+
+	fn chain_id(&self) -> U256 {
+		self.backend.chain_id()
+	}
 
 	fn exists(&self, address: H160) -> bool {
 		self.substate.known_account(address).is_some() || self.backend.exists(address)
 	}
 
 	fn basic(&self, address: H160) -> Basic {
-		self.substate.known_basic(address).unwrap_or_else(|| self.backend.basic(address))
+		self.substate
+			.known_basic(address)
+			.unwrap_or_else(|| self.backend.basic(address))
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.substate.known_code(address).unwrap_or_else(|| self.backend.code(address))
+		self.substate
+			.known_code(address)
+			.unwrap_or_else(|| self.backend.code(address))
 	}
 
 	fn storage(&self, address: H160, key: H256) -> H256 {
-		self.substate.known_storage(address, key)
+		self.substate
+			.known_storage(address, key)
 			.unwrap_or_else(|| self.backend.storage(address, key))
 	}
 
 	fn original_storage(&self, address: H160, key: H256) -> Option<H256> {
 		if let Some(value) = self.substate.known_original_storage(address, key) {
-			return Some(value)
+			return Some(value);
 		}
 
 		self.backend.original_storage(address, key)
@@ -437,16 +490,24 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 
 	fn is_empty(&self, address: H160) -> bool {
 		if let Some(known_empty) = self.substate.known_empty(address) {
-			return known_empty
+			return known_empty;
 		}
 
-		self.backend.basic(address).balance == U256::zero() &&
-			self.backend.basic(address).nonce == U256::zero() &&
-			self.backend.code(address).len() == 0
+		self.backend.basic(address).balance == U256::zero()
+			&& self.backend.basic(address).nonce == U256::zero()
+			&& self.backend.code(address).len() == 0
 	}
 
 	fn deleted(&self, address: H160) -> bool {
 		self.substate.deleted(address)
+	}
+
+	fn is_cold(&self, address: H160) -> bool {
+		self.substate.is_cold(address)
+	}
+
+	fn is_storage_cold(&self, address: H160, key: H256) -> bool {
+		self.substate.is_storage_cold(address, key)
 	}
 
 	fn inc_nonce(&mut self, address: H160) {
@@ -494,12 +555,18 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		}
 	}
 
+	/// Returns a mutable reference to an account given its address
+	pub fn account_mut(&mut self, address: H160) -> &mut MemoryStackAccount {
+		self.substate.account_mut(address, self.backend)
+	}
+
 	#[must_use]
 	pub fn deconstruct(
-		self
-	) -> (impl IntoIterator<Item=Apply<impl IntoIterator<Item=(H256, H256)>>>,
- 		  impl IntoIterator<Item=Log>)
-	{
+		self,
+	) -> (
+		impl IntoIterator<Item = Apply<impl IntoIterator<Item = (H256, H256)>>>,
+		impl IntoIterator<Item = Log>,
+	) {
 		self.substate.deconstruct(self.backend)
 	}
 
