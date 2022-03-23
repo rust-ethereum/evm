@@ -214,11 +214,20 @@ pub trait StackState<'config>: Backend {
 
 /// Data returned by a precompile on success.
 #[derive(Debug, Eq, PartialEq, Clone)]
-pub struct PrecompileOutput {
-	pub exit_status: ExitSucceed,
-	pub cost: u64,
-	pub output: Vec<u8>,
-	pub logs: Vec<Log>,
+pub enum PrecompileOutput {
+	/// Exit the precompile execution and return an output.
+	Exit {
+		exit_status: ExitSucceed,
+		cost: u64,
+		output: Vec<u8>,
+		logs: Vec<Log>,
+	},
+	/// Execute a set of EVM code in the context of the precompile.
+	Execute {
+		code: Vec<u8>,
+		input: Vec<u8>,
+		cost: u64,
+	},
 }
 
 /// Data returned by a precompile in case of failure.
@@ -855,12 +864,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Some(result) =
+		let (code, input) = if let Some(result) =
 			self.precompile_set
 				.execute(code_address, &input, Some(gas_limit), &context, is_static)
 		{
-			return match result {
-				Ok(PrecompileOutput {
+			match result {
+				Ok(PrecompileOutput::Exit {
 					exit_status,
 					output,
 					cost,
@@ -882,11 +891,19 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Succeeded);
-					Capture::Exit((ExitReason::Succeed(exit_status), output))
+					return Capture::Exit((ExitReason::Succeed(exit_status), output))
+				}
+				Ok(PrecompileOutput::Execute {
+					input: precompile_input,
+					code: precompile_code,
+					cost,
+				}) => {
+					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
+					(precompile_code, precompile_input)
 				}
 				Err(PrecompileFailure::Error { exit_status }) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(exit_status), Vec::new()))
+					return Capture::Exit((ExitReason::Error(exit_status), Vec::new()))
 				}
 				Err(PrecompileFailure::Revert {
 					exit_status,
@@ -895,15 +912,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				}) => {
 					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Reverted);
-					Capture::Exit((ExitReason::Revert(exit_status), output))
+					return Capture::Exit((ExitReason::Revert(exit_status), output))
 				}
 				Err(PrecompileFailure::Fatal { exit_status }) => {
 					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Fatal(exit_status), Vec::new()))
+					return Capture::Exit((ExitReason::Fatal(exit_status), Vec::new()))
 				}
-			};
-		}
+			}
+		} else {
+			(code, input)
+		};
 
 		let mut runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
 
