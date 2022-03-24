@@ -104,40 +104,55 @@ impl From<ExitRevert> for ExitReason {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitError {
 	/// Trying to pop from an empty stack.
+	#[cfg_attr(feature = "with-codec", codec(index = 0))]
 	StackUnderflow,
 	/// Trying to push into a stack over stack limit.
+	#[cfg_attr(feature = "with-codec", codec(index = 1))]
 	StackOverflow,
 	/// Jump destination is invalid.
+	#[cfg_attr(feature = "with-codec", codec(index = 2))]
 	InvalidJump,
 	/// An opcode accesses memory region, but the region is invalid.
+	#[cfg_attr(feature = "with-codec", codec(index = 3))]
 	InvalidRange,
 	/// Encountered the designated invalid opcode.
+	#[cfg_attr(feature = "with-codec", codec(index = 4))]
 	DesignatedInvalid,
 	/// Call stack is too deep (runtime).
+	#[cfg_attr(feature = "with-codec", codec(index = 5))]
 	CallTooDeep,
 	/// Create opcode encountered collision (runtime).
+	#[cfg_attr(feature = "with-codec", codec(index = 6))]
 	CreateCollision,
 	/// Create init code exceeds limit (runtime).
+	#[cfg_attr(feature = "with-codec", codec(index = 7))]
 	CreateContractLimit,
 	/// Starting byte must not begin with 0xef. See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md).
+	#[cfg_attr(feature = "with-codec", codec(index = 14))]
 	InvalidCode,
 
 	/// An opcode accesses external information, but the request is off offset
 	/// limit (runtime).
+	#[cfg_attr(feature = "with-codec", codec(index = 8))]
 	OutOfOffset,
 	/// Execution runs out of gas (runtime).
+	#[cfg_attr(feature = "with-codec", codec(index = 9))]
 	OutOfGas,
 	/// Not enough fund to start the execution (runtime).
+	#[cfg_attr(feature = "with-codec", codec(index = 10))]
 	OutOfFund,
 
 	/// PC underflowed (unused).
 	#[allow(clippy::upper_case_acronyms)]
+	#[cfg_attr(feature = "with-codec", codec(index = 11))]
 	PCUnderflow,
 
 	/// Attempt to create an empty account (runtime, unused).
+	#[cfg_attr(feature = "with-codec", codec(index = 12))]
 	CreateEmpty,
 
 	/// Other normal errors.
+	#[cfg_attr(feature = "with-codec", codec(index = 13))]
 	Other(Cow<'static, str>),
 }
 
