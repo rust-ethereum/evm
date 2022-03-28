@@ -3,7 +3,7 @@ use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
-/// Vivinity value of a memory backend.
+/// Vicinity value of a memory backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
 	feature = "with-codec",
