@@ -264,7 +264,7 @@ impl Opcode {
 
 impl core::fmt::Debug for Opcode {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-		write!(f, "0x{:X?}", self.0)
+		write!(f, "{:x?}", self.0)
 	}
 }
 
@@ -437,7 +437,7 @@ mod tests {
 
 	#[test]
 	fn debug_should_be_hex() {
-		assert_eq!(format!("{:?}", Opcode::STATICCALL), "0xFA");
+		assert_eq!(format!("{:?}", Opcode::STATICCALL), "fa");
 	}
 
 	#[test]
