@@ -33,7 +33,8 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        repository: "rust-blockchain/evm-tests"
+        repository: "PureStake/evm-tests"
+        ref: "tgm-dependency-update"
         submodules: true
     - name: Submodules
       run: |
