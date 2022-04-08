@@ -484,6 +484,57 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>,
 	) -> (ExitReason, Vec<u8>) {
+		let context = Context {
+			caller,
+			address,
+			apparent_value: value,
+		};
+
+		let transfer = 	Some(Transfer {
+			source: caller,
+			target: address,
+			value,
+		});
+
+		self.transact_call_with_context(caller, address, data, gas_limit, access_list, context, transfer)
+	}
+
+	/// Execute a `DELEGATECALL` transaction with a given caller, address, value and
+	/// gas limit and data.
+	///
+	/// Takes in an additional `access_list` parameter for EIP-2930 which was
+	/// introduced in the Ethereum Berlin hard fork. If you do not wish to use
+	/// this functionality, just pass in an empty vector.
+	pub fn transact_delegatecall(
+		&mut self,
+		caller: H160,
+		address: H160,
+		value: U256,
+		data: Vec<u8>,
+		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>,
+	) -> (ExitReason, Vec<u8>) {
+		let context = Context {
+			caller,
+			address: caller,
+			apparent_value: value,
+		};
+
+		let transfer = None;
+
+		self.transact_call_with_context(caller, address, data, gas_limit, access_list, context, transfer)
+	}
+
+	fn transact_call_with_context(
+		&mut self,
+		caller: H160,
+		address: H160,
+		data: Vec<u8>,
+		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>,
+		context: Context,
+		transfer: Option<Transfer>,
+	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCall {
 			caller,
 			address,
@@ -509,19 +560,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		self.state.inc_nonce(caller);
 
-		let context = Context {
-			caller,
-			address,
-			apparent_value: value,
-		};
-
 		match self.call_inner(
 			address,
-			Some(Transfer {
-				source: caller,
-				target: address,
-				value,
-			}),
+			transfer,
 			data,
 			Some(gas_limit),
 			false,
