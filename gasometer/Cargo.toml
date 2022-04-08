@@ -20,8 +20,8 @@ std = [
   "evm-core/std",
   "evm-runtime/std",
   "primitive-types/std",
-  "environmental/std"
+  "environmental?/std"
 ]
 tracing = [
-  "environmental"
+  "dep:environmental"
 ]

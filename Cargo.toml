@@ -33,11 +33,11 @@ harness = false
 
 [features]
 default = ["std"]
-with-codec = ["codec", "scale-info", "evm-core/with-codec", "primitive-types/codec", "primitive-types/scale-info", "ethereum/with-codec"]
-with-serde = ["serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
-std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde/std", "codec/std", "log/std", "ethereum/std", "environmental/std", "scale-info/std"]
+with-codec = ["dep:codec", "dep:scale-info", "evm-core/with-codec", "primitive-types/codec", "primitive-types/scale-info", "ethereum/with-codec"]
+with-serde = ["dep:serde", "evm-core/with-serde", "primitive-types/serde", "ethereum/with-serde"]
+std = ["evm-core/std", "evm-gasometer/std", "evm-runtime/std", "sha3/std", "primitive-types/std", "serde?/std", "codec?/std", "log/std", "ethereum/std", "environmental?/std", "scale-info?/std"]
 tracing = [
-  "environmental",
+  "dep:environmental",
   "evm-gasometer/tracing",
   "evm-runtime/tracing"
 ]

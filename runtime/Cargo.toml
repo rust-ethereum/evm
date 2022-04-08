@@ -17,7 +17,7 @@ auto_impl = "0.5.0"
 
 [features]
 default = ["std"]
-std = ["evm-core/std", "primitive-types/std", "sha3/std", "environmental/std"]
+std = ["evm-core/std", "primitive-types/std", "sha3/std", "environmental?/std"]
 tracing = [
-  "environmental"
+  "dep:environmental"
 ]

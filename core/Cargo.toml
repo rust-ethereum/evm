@@ -19,6 +19,6 @@ hex = "0.4"
 
 [features]
 default = ["std"]
-with-codec = ["codec", "scale-info", "primitive-types/impl-codec"]
-with-serde = ["serde", "primitive-types/impl-serde"]
-std = ["primitive-types/std", "codec/std", "serde/std", "scale-info/std"]
+with-codec = ["dep:codec", "dep:scale-info", "primitive-types/impl-codec"]
+with-serde = ["dep:serde", "primitive-types/impl-serde"]
+std = ["primitive-types/std", "codec?/std", "serde?/std", "scale-info?/std"]
