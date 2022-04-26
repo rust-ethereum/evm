@@ -243,11 +243,12 @@ pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 /// A set of precompiles.
 /// Checks of the provided address being in the precompile set should be
 /// as cheap as possible since it may be called often.
-pub trait PrecompileSet {
+pub trait PrecompileSet<H: PrecompileHandle> {
 	/// Tries to execute a precompile in the precompile set.
 	/// If the provided address is not a precompile, returns None.
 	fn execute(
 		&self,
+		handle: &mut H,
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
@@ -261,9 +262,10 @@ pub trait PrecompileSet {
 	fn is_precompile(&self, address: H160) -> bool;
 }
 
-impl PrecompileSet for () {
+impl<H: PrecompileHandle> PrecompileSet<H> for () {
 	fn execute(
 		&self,
+		_: &mut H,
 		_: H160,
 		_: &[u8],
 		_: Option<u64>,
@@ -285,9 +287,10 @@ impl PrecompileSet for () {
 ///  * Is static
 pub type PrecompileFn = fn(&[u8], Option<u64>, &Context, bool) -> PrecompileResult;
 
-impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
+impl<H: PrecompileHandle> PrecompileSet<H> for BTreeMap<H160, PrecompileFn> {
 	fn execute(
 		&self,
+		_handle: &mut H,
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
@@ -313,7 +316,7 @@ pub struct StackExecutor<'config, 'precompiles, S, P> {
 	precompile_set: &'precompiles P,
 }
 
-impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>>
 	StackExecutor<'config, 'precompiles, S, P>
 {
 	/// Return a reference of the Config.
@@ -855,10 +858,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Some(result) =
-			self.precompile_set
-				.execute(code_address, &input, Some(gas_limit), &context, is_static)
-		{
+		if let Some(result) = self.precompile_set.execute(
+			self,
+			code_address,
+			&input,
+			Some(gas_limit),
+			&context,
+			is_static,
+		) {
 			return match result {
 				Ok(PrecompileOutput {
 					exit_status,
@@ -932,7 +939,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 }
 
-impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>> Handler
 	for StackExecutor<'config, 'precompiles, S, P>
 {
 	type CreateInterrupt = Infallible;
@@ -1171,5 +1178,77 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		}
 
 		Ok(())
+	}
+}
+
+pub trait PrecompileHandle {
+	fn call(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: Vec<u8>,
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: Context,
+	) -> (ExitReason, Vec<u8>);
+}
+
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>> PrecompileHandle
+	for StackExecutor<'config, 'precompiles, S, P>
+{
+	fn call(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: Vec<u8>,
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: Context,
+	) -> (ExitReason, Vec<u8>) {
+		match self.call_inner(
+			code_address,
+			transfer,
+			input,
+			target_gas,
+			is_static,
+			true,
+			true,
+			context,
+		) {
+			Capture::Exit((s, v)) => emit_exit!(s, v),
+			Capture::Trap(_) => unreachable!(),
+		}
+	}
+}
+
+pub struct ExemplePrecompileSet<H>(core::marker::PhantomData<H>);
+
+impl<H: PrecompileHandle> PrecompileSet<H> for ExemplePrecompileSet<H> {
+	fn execute(
+		&self,
+		handle: &mut H,
+		address: H160,
+		input: &[u8],
+		gas_limit: Option<u64>,
+		context: &Context,
+		is_static: bool,
+	) -> Option<PrecompileResult> {
+		let (_s, _v) = handle.call(
+			address,
+			None,
+			input.to_vec(),
+			gas_limit,
+			is_static,
+			context.clone(),
+		);
+
+		todo!()
+	}
+
+	/// Check if the given address is a precompile. Should only be called to
+	/// perform the check while not executing the precompile afterward, since
+	/// `execute` already performs a check internally.
+	fn is_precompile(&self, _address: H160) -> bool {
+		todo!()
 	}
 }
