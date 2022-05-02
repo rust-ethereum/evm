@@ -1,8 +1,8 @@
 use crate::backend::Backend;
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::{
-	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
-	Runtime, Stack, Transfer,
+	CallScheme, Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed,
+	Handler, Opcode, Runtime, Stack, Transfer,
 };
 use alloc::{
 	collections::{BTreeMap, BTreeSet},
@@ -237,6 +237,31 @@ pub enum PrecompileFailure {
 	Fatal { exit_status: ExitFatal },
 }
 
+/// Wraps an EVM context and prevents its construction from foreign code.
+/// Prevents the precompile to modify its context when doing subcalls.
+pub struct PrecompileContext(Context);
+
+impl core::ops::Deref for PrecompileContext {
+	type Target = Context;
+
+	fn deref(&self) -> &Context {
+		&self.0
+	}
+}
+
+/// Handle provided to a precompile to interact with the EVM.
+pub trait PrecompileHandle {
+	fn call(
+		&mut self,
+		to: H160,
+		scheme: CallScheme,
+		input: Vec<u8>,
+		value: U256,
+		target_gas: Option<u64>,
+		context: &PrecompileContext,
+	) -> (ExitReason, Vec<u8>);
+}
+
 /// A precompile result.
 pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 
@@ -252,7 +277,7 @@ pub trait PrecompileSet<H: PrecompileHandle> {
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
-		context: &Context,
+		context: &PrecompileContext,
 		is_static: bool,
 	) -> Option<PrecompileResult>;
 
@@ -269,7 +294,7 @@ impl<H: PrecompileHandle> PrecompileSet<H> for () {
 		_: H160,
 		_: &[u8],
 		_: Option<u64>,
-		_: &Context,
+		_: &PrecompileContext,
 		_: bool,
 	) -> Option<PrecompileResult> {
 		None
@@ -294,7 +319,7 @@ impl<H: PrecompileHandle> PrecompileSet<H> for BTreeMap<H160, PrecompileFn> {
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
-		context: &Context,
+		context: &PrecompileContext,
 		is_static: bool,
 	) -> Option<PrecompileResult> {
 		self.get(&address)
@@ -863,7 +888,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>>
 			code_address,
 			&input,
 			Some(gas_limit),
-			&context,
+			&PrecompileContext(context.clone()),
 			is_static,
 		) {
 			return match result {
@@ -1181,38 +1206,61 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>> Hand
 	}
 }
 
-pub trait PrecompileHandle {
-	fn call(
-		&mut self,
-		code_address: H160,
-		transfer: Option<Transfer>,
-		input: Vec<u8>,
-		target_gas: Option<u64>,
-		is_static: bool,
-		context: Context,
-	) -> (ExitReason, Vec<u8>);
-}
-
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>> PrecompileHandle
 	for StackExecutor<'config, 'precompiles, S, P>
 {
 	fn call(
 		&mut self,
-		code_address: H160,
-		transfer: Option<Transfer>,
+		to: H160,
+		scheme: CallScheme,
 		input: Vec<u8>,
+		value: U256,
 		target_gas: Option<u64>,
-		is_static: bool,
-		context: Context,
+		context: &PrecompileContext,
 	) -> (ExitReason, Vec<u8>) {
-		match self.call_inner(
-			code_address,
+		let context = context.0.clone();
+
+		let context = match scheme {
+			CallScheme::Call | CallScheme::StaticCall => Context {
+				address: to.into(),
+				caller: context.address,
+				apparent_value: value,
+			},
+			CallScheme::CallCode => Context {
+				address: context.address,
+				caller: context.address,
+				apparent_value: value,
+			},
+			CallScheme::DelegateCall => Context {
+				address: context.address,
+				caller: context.caller,
+				apparent_value: context.apparent_value,
+			},
+		};
+
+		let transfer = if scheme == CallScheme::Call {
+			Some(Transfer {
+				source: context.address,
+				target: to.into(),
+				value,
+			})
+		} else if scheme == CallScheme::CallCode {
+			Some(Transfer {
+				source: context.address,
+				target: context.address,
+				value,
+			})
+		} else {
+			None
+		};
+
+		match Handler::call(
+			self,
+			to.into(),
 			transfer,
 			input,
 			target_gas,
-			is_static,
-			true,
-			true,
+			scheme == CallScheme::StaticCall,
 			context,
 		) {
 			Capture::Exit((s, v)) => emit_exit!(s, v),
@@ -1227,22 +1275,23 @@ impl<H: PrecompileHandle> PrecompileSet<H> for ExemplePrecompileSet<H> {
 	fn execute(
 		&self,
 		handle: &mut H,
-		address: H160,
-		input: &[u8],
+		_address: H160,
+		_input: &[u8],
 		gas_limit: Option<u64>,
-		context: &Context,
-		is_static: bool,
+		context: &PrecompileContext,
+		_is_static: bool,
 	) -> Option<PrecompileResult> {
-		let (_s, _v) = handle.call(
-			address,
-			None,
-			input.to_vec(),
+		// Subcall
+		let (_status, _data) = handle.call(
+			H160::repeat_byte(0x11), // exemple
+			CallScheme::Call,
+			b"Test".to_vec(),
+			U256::zero(),
 			gas_limit,
-			is_static,
-			context.clone(),
+			context,
 		);
 
-		todo!()
+		todo!("do stuff with the result")
 	}
 
 	/// Check if the given address is a precompile. Should only be called to
