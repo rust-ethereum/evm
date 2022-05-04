@@ -255,6 +255,8 @@ pub trait PrecompileHandle {
 
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
 
+	fn remaining_gas(&self) -> u64;
+
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 }
 
@@ -1225,37 +1227,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Precompile
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
 		let _ = Handler::log(self, address, topics, data);
 	}
-}
 
-pub struct ExemplePrecompileSet;
-
-impl PrecompileSet for ExemplePrecompileSet {
-	fn execute<H: PrecompileHandle>(
-		&self,
-		handle: &mut H,
-		_address: H160,
-		_input: &[u8],
-		gas_limit: Option<u64>,
-		context: &Context,
-		_is_static: bool,
-	) -> Option<PrecompileResult> {
-		// Subcall
-		let (_status, _data) = handle.call(
-			H160::repeat_byte(0x11), // exemple,
-			None,
-			b"Test".to_vec(),
-			gas_limit,
-			false,
-			context,
-		);
-
-		todo!("do stuff with the result")
-	}
-
-	/// Check if the given address is a precompile. Should only be called to
-	/// perform the check while not executing the precompile afterward, since
-	/// `execute` already performs a check internally.
-	fn is_precompile(&self, _address: H160) -> bool {
-		todo!()
+	fn remaining_gas(&self) -> u64  {
+		self.state.metadata().gasometer.gas()
 	}
 }
