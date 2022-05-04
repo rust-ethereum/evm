@@ -1,8 +1,8 @@
 use crate::backend::Backend;
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::{
-	CallScheme, Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed,
-	Handler, Opcode, Runtime, Stack, Transfer,
+	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
+	Runtime, Stack, Transfer,
 };
 use alloc::{
 	collections::{BTreeMap, BTreeSet},
@@ -10,7 +10,6 @@ use alloc::{
 	vec::Vec,
 };
 use core::{cmp::min, convert::Infallible};
-use ethereum::Log;
 use evm_core::{ExitFatal, ExitRevert};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -216,9 +215,7 @@ pub trait StackState<'config>: Backend {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PrecompileOutput {
 	pub exit_status: ExitSucceed,
-	pub cost: u64,
 	pub output: Vec<u8>,
-	pub logs: Vec<Log>,
 }
 
 /// Data returned by a precompile in case of failure.
@@ -226,40 +223,33 @@ pub struct PrecompileOutput {
 pub enum PrecompileFailure {
 	/// Reverts the state changes and consume all the gas.
 	Error { exit_status: ExitError },
-	/// Reverts the state changes and consume the provided `cost`.
+	/// Reverts the state changes.
 	/// Returns the provided error message.
 	Revert {
 		exit_status: ExitRevert,
 		output: Vec<u8>,
-		cost: u64,
 	},
 	/// Mark this failure as fatal, and all EVM execution stacks must be exited.
 	Fatal { exit_status: ExitFatal },
 }
 
-/// Wraps an EVM context and prevents its construction from foreign code.
-/// Prevents the precompile to modify its context when doing subcalls.
-pub struct PrecompileContext(Context);
-
-impl core::ops::Deref for PrecompileContext {
-	type Target = Context;
-
-	fn deref(&self) -> &Context {
-		&self.0
-	}
-}
-
 /// Handle provided to a precompile to interact with the EVM.
 pub trait PrecompileHandle {
+	/// Perform subcall in provided context.
+	/// Precompile specifies in which context the subcall is executed.
 	fn call(
 		&mut self,
 		to: H160,
-		scheme: CallScheme,
+		transfer: Option<Transfer>,
 		input: Vec<u8>,
-		value: U256,
-		target_gas: Option<u64>,
-		context: &PrecompileContext,
+		gas_limit: Option<u64>,
+		is_static: bool,
+		context: &Context,
 	) -> (ExitReason, Vec<u8>);
+
+	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
+
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 }
 
 /// A precompile result.
@@ -277,7 +267,7 @@ pub trait PrecompileSet<H: PrecompileHandle> {
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
-		context: &PrecompileContext,
+		context: &Context,
 		is_static: bool,
 	) -> Option<PrecompileResult>;
 
@@ -294,7 +284,7 @@ impl<H: PrecompileHandle> PrecompileSet<H> for () {
 		_: H160,
 		_: &[u8],
 		_: Option<u64>,
-		_: &PrecompileContext,
+		_: &Context,
 		_: bool,
 	) -> Option<PrecompileResult> {
 		None
@@ -319,7 +309,7 @@ impl<H: PrecompileHandle> PrecompileSet<H> for BTreeMap<H160, PrecompileFn> {
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
-		context: &PrecompileContext,
+		context: &Context,
 		is_static: bool,
 	) -> Option<PrecompileResult> {
 		self.get(&address)
@@ -888,31 +878,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>>
 			code_address,
 			&input,
 			Some(gas_limit),
-			&PrecompileContext(context.clone()),
+			&context,
 			is_static,
 		) {
 			return match result {
 				Ok(PrecompileOutput {
 					exit_status,
 					output,
-					cost,
-					logs,
 				}) => {
-					for Log {
-						address,
-						topics,
-						data,
-					} in logs
-					{
-						match self.log(address, topics, data) {
-							Ok(_) => continue,
-							Err(error) => {
-								return Capture::Exit((ExitReason::Error(error), output));
-							}
-						}
-					}
-
-					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Succeeded);
 					Capture::Exit((ExitReason::Succeed(exit_status), output))
 				}
@@ -923,9 +896,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>>
 				Err(PrecompileFailure::Revert {
 					exit_status,
 					output,
-					cost,
 				}) => {
-					let _ = self.state.metadata_mut().gasometer.record_cost(cost);
 					let _ = self.exit_substate(StackExitKind::Reverted);
 					Capture::Exit((ExitReason::Revert(exit_status), output))
 				}
@@ -1212,60 +1183,32 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet<Self>> Prec
 	fn call(
 		&mut self,
 		to: H160,
-		scheme: CallScheme,
+		transfer: Option<Transfer>,
 		input: Vec<u8>,
-		value: U256,
-		target_gas: Option<u64>,
-		context: &PrecompileContext,
+		gas_limit: Option<u64>,
+		is_static: bool,
+		context: &Context,
 	) -> (ExitReason, Vec<u8>) {
-		let context = context.0.clone();
-
-		let context = match scheme {
-			CallScheme::Call | CallScheme::StaticCall => Context {
-				address: to.into(),
-				caller: context.address,
-				apparent_value: value,
-			},
-			CallScheme::CallCode => Context {
-				address: context.address,
-				caller: context.address,
-				apparent_value: value,
-			},
-			CallScheme::DelegateCall => Context {
-				address: context.address,
-				caller: context.caller,
-				apparent_value: context.apparent_value,
-			},
-		};
-
-		let transfer = if scheme == CallScheme::Call {
-			Some(Transfer {
-				source: context.address,
-				target: to.into(),
-				value,
-			})
-		} else if scheme == CallScheme::CallCode {
-			Some(Transfer {
-				source: context.address,
-				target: context.address,
-				value,
-			})
-		} else {
-			None
-		};
-
 		match Handler::call(
 			self,
 			to.into(),
 			transfer,
 			input,
-			target_gas,
-			scheme == CallScheme::StaticCall,
-			context,
+			gas_limit,
+			is_static,
+			context.clone(),
 		) {
 			Capture::Exit((s, v)) => emit_exit!(s, v),
 			Capture::Trap(_) => unreachable!(),
 		}
+	}
+
+	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
+		self.state.metadata_mut().gasometer.record_cost(cost)
+	}
+
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
+		let _ = Handler::log(self, address, topics, data);
 	}
 }
 
@@ -1278,16 +1221,16 @@ impl<H: PrecompileHandle> PrecompileSet<H> for ExemplePrecompileSet<H> {
 		_address: H160,
 		_input: &[u8],
 		gas_limit: Option<u64>,
-		context: &PrecompileContext,
+		context: &Context,
 		_is_static: bool,
 	) -> Option<PrecompileResult> {
 		// Subcall
 		let (_status, _data) = handle.call(
-			H160::repeat_byte(0x11), // exemple
-			CallScheme::Call,
+			H160::repeat_byte(0x11), // exemple,
+			None,
 			b"Test".to_vec(),
-			U256::zero(),
 			gas_limit,
+			false,
 			context,
 		);
 
