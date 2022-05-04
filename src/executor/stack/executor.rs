@@ -269,9 +269,9 @@ pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 pub trait PrecompileSet {
 	/// Tries to execute a precompile in the precompile set.
 	/// If the provided address is not a precompile, returns None.
-	fn execute<H: PrecompileHandle>(
+	fn execute(
 		&self,
-		handle: &mut H,
+		handle: &mut impl PrecompileHandle,
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
@@ -286,9 +286,9 @@ pub trait PrecompileSet {
 }
 
 impl PrecompileSet for () {
-	fn execute<H: PrecompileHandle>(
+	fn execute(
 		&self,
-		_: &mut H,
+		_: &mut impl PrecompileHandle,
 		_: H160,
 		_: &[u8],
 		_: Option<u64>,
@@ -314,9 +314,9 @@ pub type PrecompileFn =
 	fn(&[u8], Option<u64>, &Context, bool) -> Result<(PrecompileOutput, u64), PrecompileFailure>;
 
 impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
-	fn execute<H: PrecompileHandle>(
+	fn execute(
 		&self,
-		handle: &mut H,
+		handle: &mut impl PrecompileHandle,
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
