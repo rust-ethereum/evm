@@ -304,11 +304,12 @@ impl PrecompileSet for () {
 }
 
 /// Precompiles function signature. Expected input arguments are:
-///  * Handle
 ///  * Input
 ///  * Gas limit
 ///  * Context
 ///  * Is static
+///
+/// In case of success returns the output and the cost.
 pub type PrecompileFn =
 	fn(&[u8], Option<u64>, &Context, bool) -> Result<(PrecompileOutput, u64), PrecompileFailure>;
 
