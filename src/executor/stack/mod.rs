@@ -7,7 +7,7 @@ mod memory;
 
 pub use self::executor::{
 	Accessed, PrecompileFailure, PrecompileFn, PrecompileOutput, PrecompileSet, StackExecutor,
-	StackExitKind, StackState, StackSubstateMetadata,
+	StackExitKind, StackState, StackSubstateMetadata, PrecompileHandle,
 };
 
 pub use self::memory::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate};

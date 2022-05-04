@@ -233,6 +233,12 @@ pub enum PrecompileFailure {
 	Fatal { exit_status: ExitFatal },
 }
 
+impl From<ExitError> for PrecompileFailure {
+	fn from(error: ExitError) -> PrecompileFailure {
+		PrecompileFailure::Error { exit_status: error }
+	}
+}
+
 /// Handle provided to a precompile to interact with the EVM.
 pub trait PrecompileHandle {
 	/// Perform subcall in provided context.
@@ -296,16 +302,17 @@ impl<H: PrecompileHandle> PrecompileSet<H> for () {
 }
 
 /// Precompiles function signature. Expected input arguments are:
+///  * Handle
 ///  * Input
 ///  * Gas limit
 ///  * Context
 ///  * Is static
-pub type PrecompileFn = fn(&[u8], Option<u64>, &Context, bool) -> PrecompileResult;
+pub type PrecompileFn<H> = fn(&mut H, &[u8], Option<u64>, &Context, bool) -> PrecompileResult;
 
-impl<H: PrecompileHandle> PrecompileSet<H> for BTreeMap<H160, PrecompileFn> {
+impl<H: PrecompileHandle> PrecompileSet<H> for BTreeMap<H160, PrecompileFn<H>> {
 	fn execute(
 		&self,
-		_handle: &mut H,
+		handle: &mut H,
 		address: H160,
 		input: &[u8],
 		gas_limit: Option<u64>,
@@ -313,7 +320,7 @@ impl<H: PrecompileHandle> PrecompileSet<H> for BTreeMap<H160, PrecompileFn> {
 		is_static: bool,
 	) -> Option<PrecompileResult> {
 		self.get(&address)
-			.map(|precompile| (*precompile)(input, gas_limit, context, is_static))
+			.map(|precompile| (*precompile)(handle, input, gas_limit, context, is_static))
 	}
 
 	/// Check if the given address is a precompile. Should only be called to
