@@ -892,7 +892,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if let Some(result) = self.precompile_set.execute(
-			self,
+			&mut StackExecutorHandle(self),
 			code_address,
 			&input,
 			Some(gas_limit),
@@ -1195,8 +1195,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 }
 
-impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
-	for StackExecutor<'config, 'precompiles, S, P>
+struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P>(
+	&'inner mut StackExecutor<'config, 'precompiles, S, P>,
+);
+
+impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
+	for StackExecutorHandle<'inner, 'config, 'precompiles, S, P>
 {
 	fn call(
 		&mut self,
@@ -1208,7 +1212,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Precompile
 		context: &Context,
 	) -> (ExitReason, Vec<u8>) {
 		match Handler::call(
-			self,
+			self.0,
 			to.into(),
 			transfer,
 			input,
@@ -1222,14 +1226,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Precompile
 	}
 
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
-		self.state.metadata_mut().gasometer.record_cost(cost)
+		self.0.state.metadata_mut().gasometer.record_cost(cost)
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
-		let _ = Handler::log(self, address, topics, data);
+		let _ = Handler::log(self.0, address, topics, data);
 	}
 
-	fn remaining_gas(&self) -> u64  {
-		self.state.metadata().gasometer.gas()
+	fn remaining_gas(&self) -> u64 {
+		self.0.state.metadata().gasometer.gas()
 	}
 }
