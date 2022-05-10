@@ -1213,7 +1213,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 	) -> (ExitReason, Vec<u8>) {
 		match Handler::call(
 			self.0,
-			to.into(),
+			to,
 			transfer,
 			input,
 			gas_limit,
