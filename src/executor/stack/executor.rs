@@ -1238,6 +1238,15 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			return (ExitReason::Error(error), vec![]);
 		}
 
+		event!(PrecompileSubcall {
+			to: to.clone(),
+			transfer: &transfer,
+			input: &input,
+			target_gas: gas_limit,
+			is_static,
+			context
+		});
+
 		// Perform the subcall
 		match Handler::call(
 			self.0,
