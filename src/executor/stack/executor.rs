@@ -1211,6 +1211,34 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		is_static: bool,
 		context: &Context,
 	) -> (ExitReason, Vec<u8>) {
+		// For normal calls the cost is recorded at opcode level.
+		// Since we don't go throught opcodes we need manually record the call
+		// cost. Not doing so will make the code panic as recording the call stipend
+		// will do an underflow.
+		let gas_cost = crate::gasometer::GasCost::Call {
+			value: transfer.clone().map(|x| x.value).unwrap_or(U256::zero()),
+			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
+			target_is_cold: self.0.is_cold(to, None),
+			target_exists: self.0.exists(to),
+		};
+
+		// We're not reading from EVM memory, so we record the minimum MemoryCost.
+		let memory_cost = Some(crate::gasometer::MemoryCost {
+			offset: U256::zero(),
+			len: U256::zero(),
+		});
+
+		if let Err(error) = self
+			.0
+			.state
+			.metadata_mut()
+			.gasometer
+			.record_dynamic_cost(gas_cost, memory_cost)
+		{
+			return (ExitReason::Error(error), vec![]);
+		}
+
+		// Perform the subcall
 		match Handler::call(
 			self.0,
 			to,
