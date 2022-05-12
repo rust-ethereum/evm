@@ -1257,7 +1257,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			is_static,
 			context.clone(),
 		) {
-			Capture::Exit((s, v)) => emit_exit!(s, v),
+			Capture::Exit((s, v)) => (s, v),
 			Capture::Trap(_) => unreachable!(),
 		}
 	}
