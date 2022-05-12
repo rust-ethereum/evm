@@ -1204,7 +1204,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 {
 	fn call(
 		&mut self,
-		to: H160,
+		code_address: H160,
 		transfer: Option<Transfer>,
 		input: Vec<u8>,
 		gas_limit: Option<u64>,
@@ -1218,8 +1218,8 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
-			target_is_cold: self.0.is_cold(to, None),
-			target_exists: self.0.exists(to),
+			target_is_cold: self.0.is_cold(code_address, None),
+			target_exists: self.0.exists(code_address),
 		};
 
 		// We're not reading from EVM memory, so we record the minimum MemoryCost.
@@ -1235,11 +1235,11 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.gasometer
 			.record_dynamic_cost(gas_cost, memory_cost)
 		{
-			return (ExitReason::Error(error), vec![]);
+			return (ExitReason::Error(error), Vec::new());
 		}
 
 		event!(PrecompileSubcall {
-			to: to.clone(),
+			code_address: code_address.clone(),
 			transfer: &transfer,
 			input: &input,
 			target_gas: gas_limit,
@@ -1250,7 +1250,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		// Perform the subcall
 		match Handler::call(
 			self.0,
-			to,
+			code_address,
 			transfer,
 			input,
 			gas_limit,
