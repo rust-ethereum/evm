@@ -1216,7 +1216,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		// cost. Not doing so will make the code panic as recording the call stipend
 		// will do an underflow.
 		let gas_cost = crate::gasometer::GasCost::Call {
-			value: transfer.clone().map(|x| x.value).unwrap_or(U256::zero()),
+			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
 			target_is_cold: self.0.is_cold(to, None),
 			target_exists: self.0.exists(to),
