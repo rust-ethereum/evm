@@ -253,11 +253,29 @@ pub trait PrecompileHandle {
 		context: &Context,
 	) -> (ExitReason, Vec<u8>);
 
+	/// Record cost to the Runtime gasometer.
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
 
+	/// Retreive the remaining gas.
 	fn remaining_gas(&self) -> u64;
 
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
+	/// Record a log.
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
+
+	/// Retreive the code address (what is the address of the precompile being called).
+	fn code_address(&self) -> H160;
+
+	/// Retreive the input data the precompile is called with.
+	fn input(&self) -> &[u8];
+
+	/// Retreive the context in which the precompile is executed.
+	fn context(&self) -> &Context;
+
+	/// Is the precompile call is done statically.
+	fn is_static(&self) -> bool;
+
+	/// Retreive the gas limit of this call.
+	fn gas_limit(&self) -> Option<u64>;
 }
 
 /// A precompile result.
@@ -269,15 +287,7 @@ pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 pub trait PrecompileSet {
 	/// Tries to execute a precompile in the precompile set.
 	/// If the provided address is not a precompile, returns None.
-	fn execute(
-		&self,
-		handle: &mut impl PrecompileHandle,
-		address: H160,
-		input: &[u8],
-		gas_limit: Option<u64>,
-		context: &Context,
-		is_static: bool,
-	) -> Option<PrecompileResult>;
+	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult>;
 
 	/// Check if the given address is a precompile. Should only be called to
 	/// perform the check while not executing the precompile afterward, since
@@ -286,15 +296,7 @@ pub trait PrecompileSet {
 }
 
 impl PrecompileSet for () {
-	fn execute(
-		&self,
-		_: &mut impl PrecompileHandle,
-		_: H160,
-		_: &[u8],
-		_: Option<u64>,
-		_: &Context,
-		_: bool,
-	) -> Option<PrecompileResult> {
+	fn execute(&self, _: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
 		None
 	}
 
@@ -314,16 +316,15 @@ pub type PrecompileFn =
 	fn(&[u8], Option<u64>, &Context, bool) -> Result<(PrecompileOutput, u64), PrecompileFailure>;
 
 impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
-	fn execute(
-		&self,
-		handle: &mut impl PrecompileHandle,
-		address: H160,
-		input: &[u8],
-		gas_limit: Option<u64>,
-		context: &Context,
-		is_static: bool,
-	) -> Option<PrecompileResult> {
+	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
+		let address = handle.code_address();
+
 		self.get(&address).map(|precompile| {
+			let input = handle.input();
+			let gas_limit = handle.gas_limit();
+			let context = handle.context();
+			let is_static = handle.is_static();
+
 			match (*precompile)(input, gas_limit, context, is_static) {
 				Ok((output, cost)) => {
 					handle.record_cost(cost)?;
@@ -891,14 +892,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Some(result) = self.precompile_set.execute(
-			&mut StackExecutorHandle(self),
+		if let Some(result) = self.precompile_set.execute(&mut StackExecutorHandle {
+			executor: self,
 			code_address,
-			&input,
-			Some(gas_limit),
-			&context,
+			input: &input,
+			gas_limit: Some(gas_limit),
+			context: &context,
 			is_static,
-		) {
+		}) {
 			return match result {
 				Ok(PrecompileOutput {
 					exit_status,
@@ -1195,13 +1196,20 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 }
 
-struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P>(
-	&'inner mut StackExecutor<'config, 'precompiles, S, P>,
-);
+struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
+	executor: &'inner mut StackExecutor<'config, 'precompiles, S, P>,
+	code_address: H160,
+	input: &'inner [u8],
+	gas_limit: Option<u64>,
+	context: &'inner Context,
+	is_static: bool,
+}
 
 impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
 	for StackExecutorHandle<'inner, 'config, 'precompiles, S, P>
 {
+	// Perform subcall in provided context.
+	/// Precompile specifies in which context the subcall is executed.
 	fn call(
 		&mut self,
 		code_address: H160,
@@ -1212,14 +1220,14 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		context: &Context,
 	) -> (ExitReason, Vec<u8>) {
 		// For normal calls the cost is recorded at opcode level.
-		// Since we don't go throught opcodes we need manually record the call
+		// Since we don't go through opcodes we need manually record the call
 		// cost. Not doing so will make the code panic as recording the call stipend
 		// will do an underflow.
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
-			target_is_cold: self.0.is_cold(code_address, None),
-			target_exists: self.0.exists(code_address),
+			target_is_cold: self.executor.is_cold(code_address, None),
+			target_exists: self.executor.exists(code_address),
 		};
 
 		// We're not reading from EVM memory, so we record the minimum MemoryCost.
@@ -1229,7 +1237,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		});
 
 		if let Err(error) = self
-			.0
+			.executor
 			.state
 			.metadata_mut()
 			.gasometer
@@ -1249,7 +1257,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 
 		// Perform the subcall
 		match Handler::call(
-			self.0,
+			self.executor,
 			code_address,
 			transfer,
 			input,
@@ -1258,19 +1266,51 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			context.clone(),
 		) {
 			Capture::Exit((s, v)) => (s, v),
-			Capture::Trap(_) => unreachable!(),
+			Capture::Trap(_) => unreachable!("Trap is infaillible since StackExecutor is sync"),
 		}
 	}
 
+	/// Record cost to the Runtime gasometer.
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
-		self.0.state.metadata_mut().gasometer.record_cost(cost)
+		self.executor
+			.state
+			.metadata_mut()
+			.gasometer
+			.record_cost(cost)
 	}
 
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
-		let _ = Handler::log(self.0, address, topics, data);
-	}
-
+	/// Retreive the remaining gas.
 	fn remaining_gas(&self) -> u64 {
-		self.0.state.metadata().gasometer.gas()
+		self.executor.state.metadata().gasometer.gas()
+	}
+
+	/// Record a log.
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
+		Handler::log(self.executor, address, topics, data)
+	}
+
+	/// Retreive the code address (what is the address of the precompile being called).
+	fn code_address(&self) -> H160 {
+		self.code_address
+	}
+
+	/// Retreive the input data the precompile is called with.
+	fn input(&self) -> &[u8] {
+		self.input
+	}
+
+	/// Retreive the context in which the precompile is executed.
+	fn context(&self) -> &Context {
+		self.context
+	}
+
+	/// Is the precompile call is done statically.
+	fn is_static(&self) -> bool {
+		self.is_static
+	}
+
+	/// Retreive the gas limit of this call.
+	fn gas_limit(&self) -> Option<u64> {
+		self.gas_limit
 	}
 }
