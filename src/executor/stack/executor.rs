@@ -1230,10 +1230,10 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			target_exists: self.executor.exists(code_address),
 		};
 
-		// We're not reading from EVM memory, so we record the minimum MemoryCost.
+		// We record the length of the input.
 		let memory_cost = Some(crate::gasometer::MemoryCost {
 			offset: U256::zero(),
-			len: U256::zero(),
+			len: input.len().into(),
 		});
 
 		if let Err(error) = self
