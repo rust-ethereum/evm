@@ -59,6 +59,14 @@ pub enum Event<'a> {
 		gas_limit: u64,
 		address: H160,
 	},
+	PrecompileSubcall {
+		code_address: H160,
+		transfer: &'a Option<Transfer>,
+		input: &'a [u8],
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: &'a Context,
+	},
 }
 
 // Expose `listener::with` to the crate only.
