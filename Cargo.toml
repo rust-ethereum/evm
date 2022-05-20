@@ -10,9 +10,9 @@ edition = "2018"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-evm-core = { version = "0.35", path = "core", default-features = false }
-evm-gasometer = { version = "0.35", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.35", path = "runtime", default-features = false }
+evm-core = { version = "0.36", path = "core", default-features = false }
+evm-gasometer = { version = "0.36", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.36", path = "runtime", default-features = false }
 sha3 = { version = "0.10", default-features = false }
 rlp = { version = "0.5", default-features = false }
 primitive-types = { version = "0.11", default-features = false, features = ["rlp"] }
