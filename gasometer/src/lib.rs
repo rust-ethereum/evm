@@ -610,7 +610,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			}
 		}
 
-		_ => GasCost::Invalid,
+		_ => return Err(ExitError::InvalidCode(opcode.0)),
 	};
 
 	let memory_cost = match opcode {
