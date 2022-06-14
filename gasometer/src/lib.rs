@@ -450,19 +450,19 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::MLOAD | Opcode::MSTORE | Opcode::MSTORE8 => GasCost::VeryLow,
 
 		Opcode::REVERT if config.has_revert => GasCost::Zero,
-		Opcode::REVERT => GasCost::Invalid,
+		Opcode::REVERT => GasCost::Invalid(opcode.0),
 
 		Opcode::CHAINID if config.has_chain_id => GasCost::Base,
-		Opcode::CHAINID => GasCost::Invalid,
+		Opcode::CHAINID => GasCost::Invalid(opcode.0),
 
 		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.has_bitwise_shifting => GasCost::VeryLow,
-		Opcode::SHL | Opcode::SHR | Opcode::SAR => GasCost::Invalid,
+		Opcode::SHL | Opcode::SHR | Opcode::SAR => GasCost::Invalid(opcode.0),
 
 		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
-		Opcode::SELFBALANCE => GasCost::Invalid,
+		Opcode::SELFBALANCE => GasCost::Invalid(opcode.0),
 
 		Opcode::BASEFEE if config.has_base_fee => GasCost::Base,
-		Opcode::BASEFEE => GasCost::Invalid,
+		Opcode::BASEFEE => GasCost::Invalid(opcode.0),
 
 		Opcode::EXTCODESIZE => {
 			let target = stack.peek(0)?.into();
@@ -487,7 +487,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_is_cold: handler.is_cold(target, None),
 			}
 		}
-		Opcode::EXTCODEHASH => GasCost::Invalid,
+		Opcode::EXTCODEHASH => GasCost::Invalid(opcode.0),
 
 		Opcode::CALLCODE => {
 			let target = stack.peek(1)?.into();
@@ -542,13 +542,13 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_exists: handler.exists(target),
 			}
 		}
-		Opcode::DELEGATECALL => GasCost::Invalid,
+		Opcode::DELEGATECALL => GasCost::Invalid(opcode.0),
 
 		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
 		Opcode::RETURNDATACOPY if config.has_return_data => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
-		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid,
+		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode.0),
 
 		Opcode::SSTORE if !is_static => {
 			let index = stack.peek(0)?;
@@ -610,7 +610,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			}
 		}
 
-		_ => return Err(ExitError::InvalidCode(opcode.0)),
+		_ => GasCost::Invalid(opcode.0),
 	};
 
 	let memory_cost = match opcode {
@@ -801,7 +801,7 @@ impl<'config> Inner<'config> {
 			GasCost::Base => consts::G_BASE,
 			GasCost::VeryLow => consts::G_VERYLOW,
 			GasCost::Low => consts::G_LOW,
-			GasCost::Invalid => return Err(ExitError::OutOfGas),
+			GasCost::Invalid(opcode) => return Err(ExitError::InvalidCode(opcode)),
 
 			GasCost::ExtCodeSize { target_is_cold } => {
 				costs::address_access_cost(target_is_cold, self.config.gas_ext_code, self.config)
@@ -852,7 +852,7 @@ pub enum GasCost {
 	/// Low gas cost.
 	Low,
 	/// Fail the gasometer.
-	Invalid,
+	Invalid(u8),
 
 	/// Gas cost for `EXTCODESIZE`.
 	ExtCodeSize {
