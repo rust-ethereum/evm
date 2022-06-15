@@ -171,6 +171,9 @@ impl Opcode {
 
 	/// `INVALID`
 	pub const INVALID: Opcode = Opcode(0xfe);
+
+	/// See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md)
+	pub const EOFMAGIC: Opcode = Opcode(0xef);
 }
 
 // External opcodes
