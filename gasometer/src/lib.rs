@@ -54,6 +54,18 @@ pub struct Snapshot {
 	pub refunded_gas: i64,
 }
 
+#[cfg(feature = "tracing")]
+impl Snapshot {
+	fn new<'config>(gas_limit: u64, inner: &'config Inner<'config>) -> Snapshot {
+		Snapshot {
+			gas_limit,
+			memory_gas: inner.memory_gas,
+			used_gas: inner.used_gas,
+			refunded_gas: inner.refunded_gas,
+		}
+	}
+}
+
 /// EVM gasometer.
 #[derive(Clone, Debug)]
 pub struct Gasometer<'config> {
@@ -180,20 +192,28 @@ impl<'config> Gasometer<'config> {
 		memory: Option<MemoryCost>,
 	) -> Result<(), ExitError> {
 		let gas = self.gas();
+		// Extract a mutable reference to `Inner` to avoid checking `Result`
+		// repeatedly. Tuning performance as this function is on the hot path.
+		let mut inner_mut = match &mut self.inner {
+			Ok(inner) => inner,
+			Err(err) => return Err(err.clone()),
+		};
 
 		let memory_gas = match memory {
-			Some(memory) => try_or_fail!(self.inner, self.inner_mut()?.memory_gas(memory)),
-			None => self.inner_mut()?.memory_gas,
+			Some(memory) => try_or_fail!(self.inner, inner_mut.memory_gas(memory)),
+			None => inner_mut.memory_gas,
 		};
-		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost, gas));
-		let gas_refund = self.inner_mut()?.gas_refund(cost);
-		let used_gas = self.inner_mut()?.used_gas;
+		let gas_cost = try_or_fail!(self.inner, inner_mut.gas_cost(cost, gas));
+		let gas_refund = inner_mut.gas_refund(cost);
+		let used_gas = inner_mut.used_gas;
 
+		#[cfg(feature = "tracing")]
+		let gas_limit = self.gas_limit;
 		event!(RecordDynamicCost {
 			gas_cost,
 			memory_gas,
 			gas_refund,
-			snapshot: self.snapshot(),
+			snapshot: Some(Snapshot::new(gas_limit, inner_mut)),
 		});
 
 		let all_gas_cost = memory_gas
@@ -205,11 +225,11 @@ impl<'config> Gasometer<'config> {
 		}
 
 		let after_gas = self.gas_limit - all_gas_cost;
-		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
+		try_or_fail!(self.inner, inner_mut.extra_check(cost, after_gas));
 
-		self.inner_mut()?.used_gas += gas_cost;
-		self.inner_mut()?.memory_gas = memory_gas;
-		self.inner_mut()?.refunded_gas += gas_refund;
+		inner_mut.used_gas += gas_cost;
+		inner_mut.memory_gas = memory_gas;
+		inner_mut.refunded_gas += gas_refund;
 
 		Ok(())
 	}
@@ -276,12 +296,10 @@ impl<'config> Gasometer<'config> {
 
 	#[cfg(feature = "tracing")]
 	pub fn snapshot(&self) -> Option<Snapshot> {
-		self.inner.as_ref().ok().map(|inner| Snapshot {
-			gas_limit: self.gas_limit,
-			memory_gas: inner.memory_gas,
-			used_gas: inner.used_gas,
-			refunded_gas: inner.refunded_gas,
-		})
+		self.inner
+			.as_ref()
+			.ok()
+			.map(|inner| Snapshot::new(self.gas_limit, inner))
 	}
 }
 
