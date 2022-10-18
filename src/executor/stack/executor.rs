@@ -646,7 +646,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.get(0) {
+			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
+			{
 				return Err(ExitError::InvalidCode(Opcode::EOFMAGIC));
 			}
 			Ok(())
@@ -890,13 +891,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
+		// At this point, the state has been modified in enter_substate to
+		// reflect both the is_static parameter of this call and the is_static
+		// of the caller context.
+		let precompile_is_static = self.state.metadata().is_static();
 		if let Some(result) = self.precompile_set.execute(&mut StackExecutorHandle {
 			executor: self,
 			code_address,
 			input: &input,
 			gas_limit: Some(gas_limit),
 			context: &context,
-			is_static,
+			is_static: precompile_is_static,
 		}) {
 			return match result {
 				Ok(PrecompileOutput {
