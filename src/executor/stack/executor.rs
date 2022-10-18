@@ -890,13 +890,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
+		// At this point, the state has been modified in enter_substate to
+		// reflect both the is_static parameter of this call and the is_static
+		// of the caller context.
+		let precompile_is_static = self.state.metadata().is_static();
 		if let Some(result) = self.precompile_set.execute(&mut StackExecutorHandle {
 			executor: self,
 			code_address,
 			input: &input,
 			gas_limit: Some(gas_limit),
 			context: &context,
-			is_static,
+			is_static: precompile_is_static,
 		}) {
 			return match result {
 				Ok(PrecompileOutput {
