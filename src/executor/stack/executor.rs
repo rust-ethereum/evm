@@ -646,7 +646,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.get(0) {
+			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
 				return Err(ExitError::InvalidCode(Opcode::EOFMAGIC));
 			}
 			Ok(())
