@@ -1,5 +1,5 @@
 use crate::backend::Backend;
-use crate::gasometer::{self, Gasometer, StorageTarget};
+use crate::gasometer::{self, GasCost, Gasometer, MemoryCost, StorageTarget};
 use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
 	Runtime, Stack, Transfer,
@@ -209,6 +209,19 @@ pub trait StackState<'config>: Backend {
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
+
+	/// Allows the StackState/Backend to hook on dynamic opcode costs to record
+	/// additional (non standard) costs or perform other checks.
+	/// Defaults to no-op for backward compatibility.
+	fn on_dynamic_opcode_cost(
+		&mut self,
+		_context: &Context,
+		_gas_cost: GasCost,
+		_target: StorageTarget,
+		_memory_cost: Option<MemoryCost>,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
 }
 
 /// Data returned by a precompile on success.
@@ -1180,6 +1193,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 				self.config,
 				self,
 			)?;
+
+			self.state
+				.on_dynamic_opcode_cost(context, gas_cost, target, memory_cost)?;
 
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 
