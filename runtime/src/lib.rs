@@ -35,6 +35,7 @@ pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
+use primitive_types::{H160, U256};
 
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
@@ -110,6 +111,8 @@ pub struct Runtime<'config> {
 	machine: Machine,
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
+	return_data_len: U256,
+	return_dat_offset: U256,
 	context: Context,
 	_config: &'config Config,
 }
@@ -126,6 +129,8 @@ impl<'config> Runtime<'config> {
 			machine: Machine::new(code, data, config.stack_limit, config.memory_limit),
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
+			return_data_len: U256::zero(),
+			return_dat_offset: U256::zero(),
 			context,
 			_config: config,
 		}
@@ -157,6 +162,29 @@ impl<'config> Runtime<'config> {
 		loop {
 			step!(self, handler, return;)
 		}
+	}
+
+	pub fn finish_create(
+		&mut self,
+		reason: ExitReason,
+		address: Option<H160>,
+		return_data: Vec<u8>,
+	) -> Result<(), ExitReason> {
+		eval::finish_create(self, reason, address, return_data)
+	}
+
+	pub fn finish_call(
+		&mut self,
+		reason: ExitReason,
+		return_data: Vec<u8>,
+	) -> Result<(), ExitReason> {
+		eval::finish_call(
+			self,
+			self.return_data_len,
+			self.return_dat_offset,
+			reason,
+			return_data,
+		)
 	}
 }
 
