@@ -156,7 +156,7 @@ pub fn push(state: &mut Machine, n: usize, position: usize) -> Control {
 	let end = min(position + 1 + n, state.code.len());
 	let slice = &state.code[(position + 1)..end];
 	let mut val = [0u8; 32];
-	val[(32 - slice.len())..32].copy_from_slice(slice);
+	val[(32 - n)..(32 - n + slice.len())].copy_from_slice(slice);
 
 	push!(state, H256(val));
 	Control::Continue(1 + n)

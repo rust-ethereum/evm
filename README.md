@@ -5,7 +5,7 @@
 
 | Name          | Description                                                     | Crates.io                                                                                                 | Documentation                                                                              |
 |---------------|:---------------------------------------------------------------:|:---------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------------:|
-| evm           | Main library that re-export most things.                        | [![crates.io](https://img.shields.io/crates/v/evm.svg)](https://crates.io/crates/evm)                     | [![Documentation](https://docs.rs/evm/badge.svg)](https://docs.rs/evm)                     |
+| evm           | Main library that re-exports most things.                        | [![crates.io](https://img.shields.io/crates/v/evm.svg)](https://crates.io/crates/evm)                     | [![Documentation](https://docs.rs/evm/badge.svg)](https://docs.rs/evm)                     |
 | evm-core      | Core library defining the basic execution rules.                | [![crates.io](https://img.shields.io/crates/v/evm-core.svg)](https://crates.io/crates/evm-core)           | [![Documentation](https://docs.rs/evm-core/badge.svg)](https://docs.rs/evm-core)           |
 | evm-gasometer | Integration of Ethereum gas rules.                              | [![crates.io](https://img.shields.io/crates/v/evm-gasometer.svg)](https://crates.io/crates/evm-gasometer) | [![Documentation](https://docs.rs/evm-gasometer/badge.svg)](https://docs.rs/evm-gasometer) |
 | evm-runtime   | Runtime defining interface for block, transaction, and storage. | [![crates.io](https://img.shields.io/crates/v/evm-runtime.svg)](https://crates.io/crates/evm-runtime)     | [![Documentation](https://docs.rs/evm-runtime/badge.svg)](https://docs.rs/evm-runtime)     |
@@ -30,9 +30,8 @@ before are not supported.
 
 ## Build from sources
 
-SputnikVM is written in Rust. If you are not familiar with Rust please
-see the
-[getting started guide](https://doc.rust-lang.org/book/getting-started.html).
+SputnikVM is written in Rust. If you are not familiar with Rust, please
+see the [starting documentation](https://www.rust-lang.org/learn).
 
 ### Build
 
