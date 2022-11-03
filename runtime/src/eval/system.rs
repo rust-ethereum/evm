@@ -301,10 +301,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 				Err(e) => Control::Exit(e),
 			}
 		}
-		Capture::Trap(interrupt) => {
-			push_h256!(runtime, H256::default());
-			Control::CreateInterrupt(interrupt)
-		}
+		Capture::Trap(interrupt) => Control::CreateInterrupt(interrupt),
 	}
 }
 
