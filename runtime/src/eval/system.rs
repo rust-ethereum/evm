@@ -310,10 +310,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 				Err(e) => Control::Exit(e),
 			}
 		}
-		Capture::Trap(interrupt) => {
-			push_h256!(runtime, H256::default());
-			Control::CreateInterrupt(interrupt)
-		}
+		Capture::Trap(interrupt) => Control::CreateInterrupt(interrupt),
 	}
 }
 
@@ -405,7 +402,8 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 			}
 		}
 		Capture::Trap(interrupt) => {
-			push_h256!(runtime, H256::default());
+			runtime.return_data_len = out_len;
+			runtime.return_data_offset = out_offset;
 			Control::CallInterrupt(interrupt)
 		}
 	}
