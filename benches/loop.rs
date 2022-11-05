@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use evm::backend::{MemoryAccount, MemoryBackend, MemoryVicinity};
-use evm::executor::{MemoryStackState, StackExecutor, StackSubstateMetadata};
+use evm::executor::stack::{MemoryStackState, StackExecutor, StackSubstateMetadata};
 use evm::Config;
 use primitive_types::{H160, U256};
 use std::{collections::BTreeMap, str::FromStr};
