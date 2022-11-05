@@ -18,7 +18,7 @@ pub enum Capture<E, T> {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
 	feature = "with-codec",
-	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitReason {
@@ -59,7 +59,7 @@ impl ExitReason {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
 	feature = "with-codec",
-	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitSucceed {
@@ -81,7 +81,7 @@ impl From<ExitSucceed> for ExitReason {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
 	feature = "with-codec",
-	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitRevert {
@@ -99,7 +99,7 @@ impl From<ExitRevert> for ExitReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
 	feature = "with-codec",
-	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitError {
@@ -166,7 +166,7 @@ impl From<ExitError> for ExitReason {
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
 	feature = "with-codec",
-	derive(codec::Encode, codec::Decode, scale_info::TypeInfo)
+	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitFatal {

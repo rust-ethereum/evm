@@ -8,7 +8,8 @@ license = "Apache-2.0"
 
 [dependencies]
 honggfuzz = "0.5"
-evm-core = { version = "0.36", path= "../core" }
+
+evm-core = { version = "0.36", path = "../core" }
 
 [[bin]]
 name = "evm_fuzz"

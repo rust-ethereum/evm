@@ -9,16 +9,28 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-primitive-types = { version = "0.11", default-features = false }
-codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive", "full"], optional = true }
+primitive-types = { version = "0.12", default-features = false }
+scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
+scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
-scale-info = { version = "2.0.0", default-features = false, features = ["derive"], optional = true }
 
 [dev-dependencies]
 hex = "0.4"
 
 [features]
 default = ["std"]
-with-codec = ["codec", "scale-info", "primitive-types/impl-codec"]
-with-serde = ["serde", "primitive-types/impl-serde"]
-std = ["primitive-types/std", "codec/std", "serde/std", "scale-info/std"]
+std = [
+	"primitive-types/std",
+	"serde/std",
+	"scale-codec/std",
+	"scale-info/std",
+]
+with-codec = [
+	"scale-codec",
+	"scale-info",
+	"primitive-types/impl-codec",
+]
+with-serde = [
+	"serde",
+	"primitive-types/impl-serde",
+]

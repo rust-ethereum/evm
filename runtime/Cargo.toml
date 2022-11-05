@@ -9,15 +9,21 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-evm-core = { version = "0.36", path = "../core", default-features = false }
-primitive-types = { version = "0.11", default-features = false }
+auto_impl = "1.0"
+environmental = { version = "1.1.2", default-features = false, optional = true }
+primitive-types = { version = "0.12", default-features = false }
 sha3 = { version = "0.10", default-features = false }
-environmental = { version = "1.1.2", default-features = false, optional = true}
-auto_impl = "0.5.0"
+
+evm-core = { version = "0.36", path = "../core", default-features = false }
 
 [features]
 default = ["std"]
-std = ["evm-core/std", "primitive-types/std", "sha3/std", "environmental/std"]
+std = [
+	"environmental/std",
+	"primitive-types/std",
+	"sha3/std",
+	"evm-core/std",
+]
 tracing = [
-  "environmental"
+	"environmental",
 ]
