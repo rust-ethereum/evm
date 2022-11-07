@@ -1,6 +1,5 @@
 //! Allows to listen to runtime events.
 
-//use crate::Context;
 use evm_runtime::{Context, CreateScheme, ExitReason, Transfer};
 use primitive_types::{H160, H256, U256};
 
@@ -66,9 +65,6 @@ pub enum Event<'a> {
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: &'a Context,
-	},
-	Tick {
-		message: &'a str,
 	},
 }
 
