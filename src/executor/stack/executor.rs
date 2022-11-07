@@ -1014,10 +1014,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		U256::from(self.state.metadata().gasometer.gas())
 	}
 
-	//fn gas(&self) -> U256 {
-	//	U256::from(self.state.metadata().gasometer.gas())
-	//}
-
 	fn gas_price(&self) -> U256 {
 		self.state.gas_price()
 	}
@@ -1162,14 +1158,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 		capture
 	}
-
-	//#[inline]
-	//fn pre_validate(
-	//	&mut self,
-	//	context: &Context,
-	//	opcode: Opcode,
-	//	stack: &Stack,
-	//) -> Result<u64, ExitError> {
 
 	#[inline]
 	fn pre_validate(

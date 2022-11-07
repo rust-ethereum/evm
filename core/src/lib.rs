@@ -110,11 +110,6 @@ impl Machine {
 	#[cfg(not(feature = "tracing"))]
 	fn add_trace(&mut self, opcode : Opcode, position: usize) -> Control {
 
-		println!("opcode {}", opcode);
-		println!("position {}", position);
-		//let to_push : String = "traceme".to_string();
-		//self.extended_tracing.push(to_push);
-
 		self.extended_tracing.structLogs.push(ProgramState{
 			depth: 1,
 			error: "".to_string(),
@@ -222,19 +217,7 @@ impl Machine {
 			.as_ref()
 			.map_err(|reason| Capture::Exit(reason.clone()))?;
 
-		//event!(Tick {
-		//	"here we are",
-		//});
-
-		let opcode = self.code.get(position).map(|v| Opcode(*v));
-
-		//println!("opcode {:?}", opcode);
-		//println!("opcode {}", opcode);
-		//println!();
-
-		//self.add_trace();
-
-		match opcode {
+		match self.code.get(position).map(|v| Opcode(*v)) {
 			Some(opcode) => match self.add_trace(opcode, position) {
 				Control::Continue(p) => {
 					self.position = Ok(position + p);
