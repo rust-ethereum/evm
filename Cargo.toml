@@ -5,23 +5,47 @@ license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
 repository = "https://github.com/sorpaas/rust-evm"
-keywords = ["no_std", "ethereum"]
+keywords = ["no_std", "ethereum", "tracing", "with-serde", "with-codec"]
 edition = "2018"
 
 [dependencies]
 log = { version = "0.4", default-features = false }
-evm-core = { version = "0.36", path = "core", default-features = false }
-evm-gasometer = { version = "0.36", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.36", path = "runtime", default-features = false }
+evm-core = { version = "0.36", path = "core", default-features = false, features = ["with-serde"] }
+evm-gasometer = { version = "0.36", path = "gasometer", default-features = false, features = ["tracing"] }
+evm-runtime = { version = "0.36", path = "runtime", default-features = false, features = ["tracing"] }
 sha3 = { version = "0.10", default-features = false }
 rlp = { version = "0.5", default-features = false }
-primitive-types = { version = "0.11", default-features = false, features = ["rlp"] }
-serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+primitive-types = { version = "0.11.1", default-features = false, features = ["rlp", "serde"] }
+serde = { version = "1.0.137", features = ["derive"], optional = true }
 codec = { package = "parity-scale-codec", version = "3.0", default-features = false, features = ["derive"], optional = true }
 ethereum = { version = "0.12", default-features = false }
 environmental = { version = "1.1.2", default-features = false, optional = true }
 scale-info = { version = "2.0.0", default-features = false, features = ["derive"], optional = true }
 auto_impl = "0.5.0"
+anyhow = { version = "1.0.56", default-features = false }
+base64 = "0.13.0"
+witnet-bn = "0.4.5"
+bytes = "1.1.0"
+clap = { version = "3.1.6", features = ["derive"] }
+log4rs = { version = "1.1.1", features = ["all_components", "gzip"] }
+serde_yaml = "0.8.25"
+futures = { version = "0.3.21", features = ["executor", "thread-pool"] }
+jsonrpc-core = "18.0.0"
+jsonrpc-core-client = { version = "18.0.0", features = ["ipc"] }
+jsonrpc-client-transports = "18.0.0"
+jsonrpc-derive = "18.0.0"
+jsonrpc-ipc-server = "18.0.0"
+jsonrpc-http-server = "18.0.0"
+jsonrpc-server-utils = "18.0.0"
+hex = "0.4"
+libsecp256k1 = "0.7.0"
+num-bigint = "0.4"
+num-integer = "0.1.45"
+parity-tokio-ipc = "0.9"
+protobuf = { version = "2.27.1",  features = ["with-bytes"] }
+ripemd = "0.1.3"
+sha2 = "0.10.6"
+tokio = { version = "1.17", features = ["full"] }
 
 [dev-dependencies]
 criterion = "0.3"
@@ -49,3 +73,14 @@ members = [
   "runtime",
   "fuzzer"
 ]
+
+[build-dependencies]
+protoc-rust = "2"
+
+[patch.crates-io]
+jsonrpc-ipc-server = { git = 'https://github.com/valeryz/jsonrpc', branch = "valeryz_fix_stream_eof" }
+jsonrpc-http-server = { git = 'https://github.com/valeryz/jsonrpc', branch = "valeryz_fix_stream_eof" }
+jsonrpc-server-utils = { git = 'https://github.com/valeryz/jsonrpc', branch = "valeryz_fix_stream_eof" }
+jsonrpc-core = { git = 'https://github.com/valeryz/jsonrpc', branch = "valeryz_fix_stream_eof" }
+jsonrpc-core-client = { git = 'https://github.com/valeryz/jsonrpc', branch = "valeryz_fix_stream_eof" }
+jsonrpc-client-transports = { git = 'https://github.com/valeryz/jsonrpc', branch = "valeryz_fix_stream_eof" }

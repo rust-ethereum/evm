@@ -21,11 +21,35 @@ pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
+use std::collections::HashMap;
 use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::ops::Range;
 use primitive_types::U256;
+use serde::{Deserialize, Serialize};
+
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ProgramState {
+	depth: usize,
+	error: String,
+	gas: u64,
+	gasCost: u64,
+	memory: Vec<u8>,
+	op: String,
+	pc: usize,
+	stack: Vec<primitive_types::H256>,
+	storage: HashMap<String, String>,
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ExtendedTracing {
+	gas: usize,
+	returnValue: String,
+	structLogs: Vec<ProgramState>,
+}
 
 /// Core execution layer for EVM.
 pub struct Machine {
@@ -43,6 +67,12 @@ pub struct Machine {
 	memory: Memory,
 	/// Stack.
 	stack: Stack,
+	/// Gas.
+	gas: u64,
+	/// Gas cost of current op.
+	gas_cost: u64,
+	/// Extended tracing.
+	extended_tracing: ExtendedTracing,
 }
 
 impl Machine {
@@ -59,12 +89,52 @@ impl Machine {
 		&self.memory
 	}
 	/// Mutable reference of machine memory.
-	pub fn memory_mut(&mut self) -> &mut Memory {
-		&mut self.memory
-	}
+	pub fn memory_mut(&mut self) -> &mut Memory { &mut self.memory }
 	/// Return a reference of the program counter.
 	pub fn position(&self) -> &Result<usize, ExitReason> {
 		&self.position
+	}
+	/// Reference of extended tracing.
+	pub fn extended_tracing(&self) -> &ExtendedTracing {
+		&self.extended_tracing
+	}
+
+	pub fn set_gas_cost(&mut self, gas_cost: u64) {
+		self.gas_cost = gas_cost;
+	}
+
+	pub fn set_gas(&mut self, gas: u64) {
+		self.gas = gas;
+	}
+
+	#[cfg(not(feature = "tracing"))]
+	fn add_trace(&mut self, opcode : Opcode, position: usize) -> Control {
+
+		println!("opcode {}", opcode);
+		println!("position {}", position);
+		//let to_push : String = "traceme".to_string();
+		//self.extended_tracing.push(to_push);
+
+		self.extended_tracing.structLogs.push(ProgramState{
+			depth: 1,
+			error: "".to_string(),
+			gas: self.gas,
+			gasCost: self.gas_cost,
+			memory: self.memory.data().to_vec(),
+			op: format!("{}", opcode),
+			pc: position,
+			stack: self.stack.data().to_vec(),
+			storage: HashMap::from([("A".to_string(), "B".to_string()), ("C".to_string(), "D".to_string())]),
+		});
+
+		eval(self, opcode, position)
+	}
+
+	#[cfg(feature = "tracing")]
+	fn add_trace(&mut self, opcode : Opcode, position: usize) -> Control {
+		let to_push : String = "traceme2".to_string();
+		self.extended_tracing.push(to_push);
+		eval(self, opcode, position)
 	}
 
 	/// Create a new machine with given code and data.
@@ -84,6 +154,13 @@ impl Machine {
 			valids,
 			memory: Memory::new(memory_limit),
 			stack: Stack::new(stack_limit),
+			gas: 0,
+			gas_cost: 0,
+			extended_tracing: ExtendedTracing{
+				gas: 0,
+				returnValue: "".to_string(),
+				structLogs: vec![]
+			},
 		}
 	}
 
@@ -145,8 +222,20 @@ impl Machine {
 			.as_ref()
 			.map_err(|reason| Capture::Exit(reason.clone()))?;
 
-		match self.code.get(position).map(|v| Opcode(*v)) {
-			Some(opcode) => match eval(self, opcode, position) {
+		//event!(Tick {
+		//	"here we are",
+		//});
+
+		let opcode = self.code.get(position).map(|v| Opcode(*v));
+
+		//println!("opcode {:?}", opcode);
+		//println!("opcode {}", opcode);
+		//println!();
+
+		//self.add_trace();
+
+		match opcode {
+			Some(opcode) => match self.add_trace(opcode, position) {
 				Control::Continue(p) => {
 					self.position = Ok(position + p);
 					Ok(())

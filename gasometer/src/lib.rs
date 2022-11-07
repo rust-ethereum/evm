@@ -172,7 +172,7 @@ impl<'config> Gasometer<'config> {
 		&mut self,
 		cost: GasCost,
 		memory: Option<MemoryCost>,
-	) -> Result<(), ExitError> {
+	) -> Result<u64, ExitError> {
 		let gas = self.gas();
 
 		let memory_gas = match memory {
@@ -203,7 +203,7 @@ impl<'config> Gasometer<'config> {
 		self.inner_mut()?.memory_gas = memory_gas;
 		self.inner_mut()?.refunded_gas += gas_refund;
 
-		Ok(())
+		Ok(all_gas_cost)
 	}
 
 	#[inline]

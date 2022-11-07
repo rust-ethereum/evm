@@ -1014,6 +1014,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		U256::from(self.state.metadata().gasometer.gas())
 	}
 
+	//fn gas(&self) -> U256 {
+	//	U256::from(self.state.metadata().gasometer.gas())
+	//}
+
 	fn gas_price(&self) -> U256 {
 		self.state.gas_price()
 	}
@@ -1159,16 +1163,27 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		capture
 	}
 
+	//#[inline]
+	//fn pre_validate(
+	//	&mut self,
+	//	context: &Context,
+	//	opcode: Opcode,
+	//	stack: &Stack,
+	//) -> Result<u64, ExitError> {
+
 	#[inline]
 	fn pre_validate(
 		&mut self,
 		context: &Context,
 		opcode: Opcode,
 		stack: &Stack,
-	) -> Result<(), ExitError> {
+	) -> Result<u64, ExitError> {
 		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
 
+		let mut gas_cost_final: u64 = 0;
+
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
+			gas_cost_final = cost;
 			self.state.metadata_mut().gasometer.record_cost(cost)?;
 		} else {
 			let is_static = self.state.metadata().is_static;
@@ -1183,7 +1198,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 
-			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
+			match gasometer.record_dynamic_cost(gas_cost, memory_cost) {
+				Ok(cost) => gas_cost_final = cost,
+				Err(_) => {},
+			}
+
 			match target {
 				StorageTarget::Address(address) => {
 					self.state.metadata_mut().access_address(address)
@@ -1195,7 +1214,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			}
 		}
 
-		Ok(())
+		Ok(gas_cost_final)
 	}
 }
 

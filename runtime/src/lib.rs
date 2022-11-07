@@ -48,12 +48,14 @@ macro_rules! step {
 			});
 
 			match $handler.pre_validate(&$self.context, opcode, stack) {
-				Ok(()) => (),
+				Ok(gas_cost) => $self.machine.set_gas_cost(gas_cost),
 				Err(e) => {
 					$self.machine.exit(e.clone().into());
 					$self.status = Err(e.into());
 				},
 			}
+
+			$self.machine.set_gas($handler.gas_left().low_u64());
 		}
 
 		match &$self.status {
@@ -114,6 +116,37 @@ pub struct Runtime<'config> {
 	_config: &'config Config,
 }
 
+//{
+//  gas: 85301,
+//  returnValue: "",
+//  structLogs: [{
+//      depth: 1,
+//      error: "",
+//      gas: 162106,
+//      gasCost: 3,
+//      memory: null,
+//      op: "PUSH1",
+//      pc: 0,
+//      stack: [],
+//      storage: {}
+//  },
+//    /* snip */
+//  {
+//      depth: 1,
+//      error: "",
+//      gas: 100000,
+//      gasCost: 0,
+//      memory: ["0000000000000000000000000000000000000000000000000000000000000006", "0000000000000000000000000000000000000000000000000000000000000000", "0000000000000000000000000000000000000000000000000000000000000060"],
+//      op: "STOP",
+//      pc: 120,
+//      stack: ["00000000000000000000000000000000000000000000000000000000d67cbec9"],
+//      storage: {
+//        0000000000000000000000000000000000000000000000000000000000000004: "8241fa522772837f0d05511f20caa6da1d5a3209000000000000000400000001",
+//        0000000000000000000000000000000000000000000000000000000000000006: "0000000000000000000000000000000000000000000000000000000000000001",
+//        f652222313e28459528d920b65115c16c04f3efc82aaedc97be59f3f377c0d3f: "00000000000000000000000002e816afc1b5c0f39852131959d946eb3b07b5ad"
+//      }
+//  }]
+
 impl<'config> Runtime<'config> {
 	/// Create a new runtime with given code and data.
 	pub fn new(
@@ -155,6 +188,7 @@ impl<'config> Runtime<'config> {
 		handler: &mut H,
 	) -> Capture<ExitReason, Resolve<'a, 'config, H>> {
 		loop {
+			//println!("thing thing");
 			step!(self, handler, return;)
 		}
 	}

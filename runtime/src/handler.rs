@@ -113,7 +113,7 @@ pub trait Handler {
 		context: &Context,
 		opcode: Opcode,
 		stack: &Stack,
-	) -> Result<(), ExitError>;
+	) -> Result<u64, ExitError>;
 	/// Handle other unknown external opcodes.
 	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
 		Err(ExitError::InvalidCode(opcode))

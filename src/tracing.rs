@@ -1,7 +1,7 @@
 //! Allows to listen to runtime events.
 
-use crate::Context;
-use evm_runtime::{CreateScheme, ExitReason, Transfer};
+//use crate::Context;
+use evm_runtime::{Context, CreateScheme, ExitReason, Transfer};
 use primitive_types::{H160, H256, U256};
 
 environmental::environmental!(listener: dyn EventListener + 'static);
@@ -66,6 +66,9 @@ pub enum Event<'a> {
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: &'a Context,
+	},
+	Tick {
+		message: &'a str,
 	},
 }
 
