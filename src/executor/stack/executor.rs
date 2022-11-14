@@ -1250,7 +1250,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		}
 
 		event!(PrecompileSubcall {
-			code_address: code_address.clone(),
+			code_address,
 			transfer: &transfer,
 			input: &input,
 			target_gas: gas_limit,
