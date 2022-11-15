@@ -196,7 +196,9 @@ impl<'config> Gasometer<'config> {
 			snapshot: self.snapshot(),
 		});
 
-		let all_gas_cost = memory_gas + used_gas + gas_cost;
+		let all_gas_cost = memory_gas
+			.checked_add(used_gas.saturating_add(gas_cost))
+			.ok_or(ExitError::OutOfGas)?;
 		if self.gas_limit < all_gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
 			return Err(ExitError::OutOfGas);
