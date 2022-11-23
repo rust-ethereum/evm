@@ -209,6 +209,22 @@ pub trait StackState<'config>: Backend {
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
+
+	/// Fetch the code size of an address.
+	/// Provide a default implementation by fetching the code, but
+	/// can be customized to use a more performant approach that don't need to
+	/// fetch the code.
+	fn code_size(&self, address: H160) -> U256 {
+		U256::from(self.code(address).len())
+	}
+
+	/// Fetch the code hash of an address.
+	/// Provide a default implementation by fetching the code, but
+	/// can be customized to use a more performant approach that don't need to
+	/// fetch the code.
+	fn code_hash(&self, address: H160) -> H256 {
+		H256::from_slice(Keccak256::digest(&self.code(address)).as_slice())
+	}
 }
 
 /// Data returned by a precompile on success.
@@ -970,7 +986,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		U256::from(self.state.code(address).len())
+		self.state.code_size(address)
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
@@ -978,7 +994,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			return H256::default();
 		}
 
-		H256::from_slice(Keccak256::digest(&self.state.code(address)).as_slice())
+		self.state.code_hash(address)
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
