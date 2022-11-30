@@ -50,7 +50,7 @@ ziggy::fuzz!(|evminput: EvmInput| {
 	let mut state = BTreeMap::new();
 	for i in 0..NB_ACCOUNTS {
 		state.insert(
-			H160::from_str(&format!("0x000000000000000000000000000000000000000{}", i)).unwrap(),
+			H160::from_str(&format!("0x{}000000000000000000000000000000000000000", i)).unwrap(),
 			MemoryAccount {
 				nonce: U256::one(),
 				balance: BALANCES,
@@ -63,7 +63,7 @@ ziggy::fuzz!(|evminput: EvmInput| {
 	// Create one smart contract
 	state.insert(
 		H160::from_str(&format!(
-			"0x000000000000000000000000000000000000000{}",
+			"0x{}000000000000000000000000000000000000000",
 			NB_ACCOUNTS
 		))
 		.unwrap(),
@@ -81,12 +81,12 @@ ziggy::fuzz!(|evminput: EvmInput| {
 	let precompiles = BTreeMap::new();
 	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
 	let from = H160::from_str(&format!(
-		"0x000000000000000000000000000000000000000{}",
+		"0x{}000000000000000000000000000000000000000",
 		evminput.transact_from % NB_ACCOUNTS + 1
 	))
 	.unwrap();
 	let to = H160::from_str(&format!(
-		"0x000000000000000000000000000000000000000{}",
+		"0x{}000000000000000000000000000000000000000",
 		evminput.transact_to % NB_ACCOUNTS + 1
 	))
 	.unwrap();
