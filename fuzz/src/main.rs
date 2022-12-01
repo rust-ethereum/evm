@@ -48,7 +48,7 @@ ziggy::fuzz!(|evminput: EvmInput| {
 
 	// Create initial state with NB_ACCOUNTS accounts
 	let mut state = BTreeMap::new();
-	for i in 0..NB_ACCOUNTS {
+	for i in 1..NB_ACCOUNTS + 1 {
 		state.insert(
 			H160::from_str(&format!("0x{}000000000000000000000000000000000000000", i)).unwrap(),
 			MemoryAccount {
@@ -64,7 +64,7 @@ ziggy::fuzz!(|evminput: EvmInput| {
 	state.insert(
 		H160::from_str(&format!(
 			"0x{}000000000000000000000000000000000000000",
-			NB_ACCOUNTS
+			NB_ACCOUNTS + 2
 		))
 		.unwrap(),
 		MemoryAccount {
@@ -82,12 +82,12 @@ ziggy::fuzz!(|evminput: EvmInput| {
 	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
 	let from = H160::from_str(&format!(
 		"0x{}000000000000000000000000000000000000000",
-		evminput.transact_from % NB_ACCOUNTS + 1
+		evminput.transact_from % NB_ACCOUNTS + 2
 	))
 	.unwrap();
 	let to = H160::from_str(&format!(
 		"0x{}000000000000000000000000000000000000000",
-		evminput.transact_to % NB_ACCOUNTS + 1
+		evminput.transact_to % NB_ACCOUNTS + 2
 	))
 	.unwrap();
 
