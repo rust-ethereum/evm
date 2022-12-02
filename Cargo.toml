@@ -9,26 +9,26 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-auto_impl = "1.0"
-ethereum = { version = "0.14", default-features = false }
-log = { version = "0.4", default-features = false }
-primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
-rlp = { version = "0.5", default-features = false }
-sha3 = { version = "0.10", default-features = false }
+auto_impl = "1.0.1"
+ethereum = { version = "0.14.0", default-features = false }
+log = { version = "0.4.17", default-features = false }
+primitive-types = { version = "0.12.1", default-features = false, features = ["rlp"] }
+rlp = { version = "0.5.2", default-features = false }
+sha3 = { version = "0.10.6", default-features = false }
 
 # Optional dependencies
 environmental = { version = "1.1.2", default-features = false, optional = true }
-scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive"], optional = true }
-scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
-serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+scale-codec = { package = "parity-scale-codec", version = "3.2.1", default-features = false, features = ["derive"], optional = true }
+scale-info = { version = "2.3.0", default-features = false, features = ["derive"], optional = true }
+serde = { version = "1.0.147", default-features = false, features = ["derive"], optional = true }
 
-evm-core = { version = "0.37", path = "core", default-features = false }
-evm-gasometer = { version = "0.37", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.37", path = "runtime", default-features = false }
+evm-core = { version = "0.37.0", path = "core", default-features = false }
+evm-gasometer = { version = "0.37.0", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.37.0", path = "runtime", default-features = false }
 
 [dev-dependencies]
-criterion = "0.4"
-hex = "0.4"
+criterion = "0.4.0"
+hex = "0.4.0"
 
 [[bench]]
 name = "loop"
