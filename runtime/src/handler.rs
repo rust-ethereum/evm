@@ -1,5 +1,6 @@
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
-use alloc::vec::Vec;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+
 use primitive_types::{H160, H256, U256};
 
 /// Transfer from source to target, with given value.
@@ -15,7 +16,7 @@ pub struct Transfer {
 
 /// EVM context handler.
 #[auto_impl::auto_impl(&mut, Box)]
-pub trait Handler {
+pub trait Handler<M> {
 	/// Type of `CREATE` interrupt.
 	type CreateInterrupt;
 	/// Feedback value for `CREATE` interrupt.
@@ -32,7 +33,7 @@ pub trait Handler {
 	/// Get code hash of address.
 	fn code_hash(&self, address: H160) -> H256;
 	/// Get code of address.
-	fn code(&self, address: H160) -> Vec<u8>;
+	fn code(&self, address: H160) -> ManagedVec<M, u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index.
@@ -76,7 +77,12 @@ pub trait Handler {
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
+	fn log(
+		&mut self,
+		address: H160,
+		topics: ManagedVec<H256>,
+		data: ManagedVec<u8>,
+	) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
 	/// Invoke a create operation.
@@ -85,9 +91,9 @@ pub trait Handler {
 		caller: H160,
 		scheme: CreateScheme,
 		value: U256,
-		init_code: Vec<u8>,
+		init_code: ManagedVec<u8>,
 		target_gas: Option<u64>,
-	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
+	) -> Capture<(ExitReason, Option<H160>, ManagedVec<u8>), Self::CreateInterrupt>;
 	/// Feed in create feedback.
 	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
 		Ok(())
@@ -97,11 +103,11 @@ pub trait Handler {
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: Vec<u8>,
+		input: ManagedVec<u8>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
-	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
+	) -> Capture<(ExitReason, ManagedVec<u8>), Self::CallInterrupt>;
 	/// Feed in call feedback.
 	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
 		Ok(())

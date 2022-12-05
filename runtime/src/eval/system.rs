@@ -3,8 +3,9 @@ use crate::{
 	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitReason, ExitSucceed,
 	Handler, Runtime, Transfer,
 };
-use alloc::vec::Vec;
+
 use core::cmp::min;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -13,7 +14,7 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
 	let data = if len == U256::zero() {
-		Vec::new()
+		ManagedVec::new()
 	} else {
 		let from = as_usize_or_fail!(from);
 		let len = as_usize_or_fail!(len);
@@ -231,7 +232,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
 	let data = if len == U256::zero() {
-		Vec::new()
+		ManagedVec::new()
 	} else {
 		let offset = as_usize_or_fail!(offset);
 		let len = as_usize_or_fail!(len);
@@ -239,7 +240,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 		runtime.machine.memory().get(offset, len)
 	};
 
-	let mut topics = Vec::new();
+	let mut topics = ManagedVec::new();
 	for _ in 0..(n as usize) {
 		match runtime.machine.stack_mut().pop() {
 			Ok(value) => {
@@ -267,13 +268,13 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 }
 
 pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
-	runtime.return_data_buffer = Vec::new();
+	runtime.return_data_buffer = ManagedVec::new();
 
 	pop_u256!(runtime, value, code_offset, len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(code_offset, len));
 	let code = if len == U256::zero() {
-		Vec::new()
+		ManagedVec::new()
 	} else {
 		let code_offset = as_usize_or_fail!(code_offset);
 		let len = as_usize_or_fail!(len);
@@ -327,7 +328,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 }
 
 pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut H) -> Control<H> {
-	runtime.return_data_buffer = Vec::new();
+	runtime.return_data_buffer = ManagedVec::new();
 
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
@@ -357,7 +358,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		.resize_offset(out_offset, out_len));
 
 	let input = if in_len == U256::zero() {
-		Vec::new()
+		ManagedVec::new()
 	} else {
 		let in_offset = as_usize_or_fail!(in_offset);
 		let in_len = as_usize_or_fail!(in_len);
