@@ -25,10 +25,11 @@ use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::ops::Range;
+use elrond_wasm::api::ManagedTypeApi;
 use primitive_types::U256;
 
 /// Core execution layer for EVM.
-pub struct Machine {
+pub struct Machine<M: ManagedTypeApi> {
 	/// Program data.
 	data: Rc<Vec<u8>>,
 	/// Program code.
@@ -38,14 +39,14 @@ pub struct Machine {
 	/// Return value.
 	return_range: Range<U256>,
 	/// Code validity maps.
-	valids: Valids,
+	valids: Valids<M>,
 	/// Memory.
 	memory: Memory,
 	/// Stack.
 	stack: Stack,
 }
 
-impl Machine {
+impl<M: ManagedTypeApi> Machine<M> {
 	/// Reference of machine stack.
 	pub fn stack(&self) -> &Stack {
 		&self.stack

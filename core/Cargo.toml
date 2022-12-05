@@ -13,6 +13,7 @@ primitive-types = { version = "0.12", default-features = false }
 scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+elrond-wasm = { version = "0.36.0" }
 
 [dev-dependencies]
 hex = "0.4"

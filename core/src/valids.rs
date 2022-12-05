@@ -1,21 +1,21 @@
 use crate::Opcode;
-use alloc::vec::Vec;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 
 /// Mapping of valid jump destination from code.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Valids(Vec<bool>);
+pub struct Valids<M: ManagedTypeApi>(ManagedVec<M, bool>);
 
-impl Valids {
+impl<M: ManagedTypeApi> Valids<M> {
 	/// Create a new valid mapping from given code bytes.
 	pub fn new(code: &[u8]) -> Self {
-		let mut valids: Vec<bool> = Vec::with_capacity(code.len());
-		valids.resize(code.len(), false);
+		let mut valids: ManagedVec<M, bool> = ManagedVec::new();
+		// valids.resize(code.len(), false);
 
 		let mut i = 0;
 		while i < code.len() {
 			let opcode = Opcode(code[i]);
 			if opcode == Opcode::JUMPDEST {
-				valids[i] = true;
+				valids.set(i, &true);
 				i += 1;
 			} else if let Some(v) = opcode.is_push() {
 				i += v as usize + 1;
@@ -47,7 +47,7 @@ impl Valids {
 			return false;
 		}
 
-		if !self.0[position] {
+		if !self.0.get(position) {
 			return false;
 		}
 
