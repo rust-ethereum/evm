@@ -27,7 +27,6 @@ mod costs;
 mod memory;
 mod utils;
 
-// use alloc::vec::Vec;
 use core::cmp::max;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use evm_core::{ExitError, Opcode, Stack};
