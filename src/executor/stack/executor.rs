@@ -624,10 +624,36 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 			CreateScheme::Legacy { caller } => {
 				let nonce = self.nonce(caller);
-				let mut stream = rlp::RlpStream::new_list(2);
-				stream.append(&caller);
-				stream.append(&nonce);
-				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+
+				let nonce_len = (nonce.bits() as u8) / 8 + 1;
+
+				let mut len = 22 + nonce_len;
+				if nonce >= U256::from(128) {
+					len += 1;
+				}
+
+				let mut data = Vec::<u8>::with_capacity(len as usize);
+
+				data.push(192 + len - 1);
+				data.push(148);
+				data.append(&mut caller.0.to_vec());
+
+				if nonce < U256::from(128) {
+					data.push(nonce.byte(0));
+				} else {
+					data.push(128 + nonce_len);
+
+					for i in 0..nonce_len as usize {
+						let b = nonce.byte(i);
+						if b == 0 {
+							data.push(128);
+						} else {
+							data.push(b);
+						}
+					}
+				}
+
+				H256::from_slice(Keccak256::digest(&data).as_slice()).into()
 			}
 			CreateScheme::Fixed(naddress) => naddress,
 		}
