@@ -14,6 +14,7 @@ primitive-types = { version = "0.12", default-features = false }
 
 evm-core = { version = "0.37", path = "../core", default-features = false }
 evm-runtime = { version = "0.37", path = "../runtime", default-features = false }
+elrond-wasm = { version = "0.36.0" }
 
 [features]
 default = ["std"]
