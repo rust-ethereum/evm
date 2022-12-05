@@ -27,8 +27,9 @@ mod costs;
 mod memory;
 mod utils;
 
-use alloc::vec::Vec;
+// use alloc::vec::Vec;
 use core::cmp::max;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use evm_core::{ExitError, Opcode, Stack};
 use evm_runtime::{Config, Handler};
 use primitive_types::{H160, H256, U256};
@@ -274,7 +275,13 @@ impl<'config> Gasometer<'config> {
 
 /// Calculate the call transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+pub fn call_transaction_cost(
+	data: &[u8],
+	access_list: &[(H160, ManagedVec<M, H256>)],
+) -> TransactionCost
+where
+	M: ManagedTypeApi,
+{
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
@@ -289,7 +296,13 @@ pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> 
 
 /// Calculate the create transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+pub fn create_transaction_cost(
+	data: &[u8],
+	access_list: &[(H160, ManagedVec<M, H256>)],
+) -> TransactionCost
+where
+	M: ManagedTypeApi,
+{
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
@@ -303,7 +316,10 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 }
 
 /// Counts the number of addresses and storage keys in the access list
-fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
+fn count_access_list(access_list: &[(H160, ManagedVec<M, H256>)]) -> (usize, usize)
+where
+	M: ManagedTypeApi,
+{
 	let access_list_address_len = access_list.len();
 	let access_list_storage_len = access_list.iter().map(|(_, keys)| keys.len()).sum();
 
