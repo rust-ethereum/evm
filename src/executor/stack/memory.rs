@@ -7,31 +7,32 @@ use alloc::{
 	vec::Vec,
 };
 use core::mem;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
-pub struct MemoryStackAccount {
+pub struct MemoryStackAccount<M> {
 	pub basic: Basic,
-	pub code: Option<Vec<u8>>,
+	pub code: Option<ManagedVec<M, u8>>,
 	pub reset: bool,
 }
 
 #[derive(Clone, Debug)]
-pub struct MemoryStackSubstate<'config> {
+pub struct MemoryStackSubstate<'config, M> {
 	metadata: StackSubstateMetadata<'config>,
 	parent: Option<Box<MemoryStackSubstate<'config>>>,
-	logs: Vec<Log>,
+	logs: ManagedVec<M, Log>,
 	accounts: BTreeMap<H160, MemoryStackAccount>,
 	storages: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
 }
 
-impl<'config> MemoryStackSubstate<'config> {
+impl<'config, M: ManagedTypeApi> MemoryStackSubstate<'config, M: ManagedTypeApi> {
 	pub fn new(metadata: StackSubstateMetadata<'config>) -> Self {
 		Self {
 			metadata,
 			parent: None,
-			logs: Vec::new(),
+			logs: ManagedVecn::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
@@ -42,7 +43,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		&self.logs
 	}
 
-	pub fn logs_mut(&mut self) -> &mut Vec<Log> {
+	pub fn logs_mut(&mut self) -> &mut ManagedVec<M, Log> {
 		&mut self.logs
 	}
 
@@ -116,7 +117,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		let mut entering = Self {
 			metadata: self.metadata.spit_child(gas_limit, is_static),
 			parent: None,
-			logs: Vec::new(),
+			logs: ManagedVec::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
@@ -188,7 +189,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.known_account(address).map(|acc| acc.basic.clone())
 	}
 
-	pub fn known_code(&self, address: H160) -> Option<Vec<u8>> {
+	pub fn known_code(&self, address: H160) -> Option<ManagedVec<M, u8>> {
 		self.known_account(address).and_then(|acc| acc.code.clone())
 	}
 
@@ -310,7 +311,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	pub fn reset_storage<B: Backend>(&mut self, address: H160, backend: &B) {
-		let mut removing = Vec::new();
+		let mut removing = ManagedVec::new();
 
 		for (oa, ok) in self.storages.keys() {
 			if *oa == address {
@@ -325,7 +326,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(address, backend).reset = true;
 	}
 
-	pub fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
+	pub fn log(&mut self, address: H160, topics: ManagedVec<M, H256>, data: ManagedVec<M, u8>) {
 		self.logs.push(Log {
 			address,
 			topics,
@@ -337,7 +338,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.deletes.insert(address);
 	}
 
-	pub fn set_code<B: Backend>(&mut self, address: H160, code: Vec<u8>, backend: &B) {
+	pub fn set_code<B: Backend>(&mut self, address: H160, code: ManagedVec<M, u8>, backend: &B) {
 		self.account_mut(address, backend).code = Some(code);
 	}
 
@@ -442,7 +443,7 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.basic(address))
 	}
 
-	fn code(&self, address: H160) -> Vec<u8> {
+	fn code(&self, address: H160) -> ManagedVec<M, u8> {
 		self.substate
 			.known_code(address)
 			.unwrap_or_else(|| self.backend.code(address))
@@ -522,7 +523,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.reset_storage(address, self.backend);
 	}
 
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
+	fn log(&mut self, address: H160, topics: ManagedVec<M, H256>, data: ManagedVec<M, u8>) {
 		self.substate.log(address, topics, data);
 	}
 
@@ -530,7 +531,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.set_deleted(address)
 	}
 
-	fn set_code(&mut self, address: H160, code: Vec<u8>) {
+	fn set_code(&mut self, address: H160, code: ManagedVec<M, u8>) {
 		self.substate.set_code(address, code, self.backend)
 	}
 

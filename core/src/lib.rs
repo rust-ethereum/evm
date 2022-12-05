@@ -23,17 +23,17 @@ pub use crate::valids::Valids;
 
 use crate::eval::{eval, Control};
 use alloc::rc::Rc;
-use alloc::vec::Vec;
 use core::ops::Range;
 use elrond_wasm::api::ManagedTypeApi;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::U256;
 
 /// Core execution layer for EVM.
 pub struct Machine<M: ManagedTypeApi> {
 	/// Program data.
-	data: Rc<Vec<u8>>,
+	data: Rc<ManagedVec<M, u8>>,
 	/// Program code.
-	code: Rc<Vec<u8>>,
+	code: Rc<ManagedVec<M, u8>>,
 	/// Program counter.
 	position: Result<usize, ExitReason>,
 	/// Return value.
@@ -70,8 +70,8 @@ impl<M: ManagedTypeApi> Machine<M> {
 
 	/// Create a new machine with given code and data.
 	pub fn new(
-		code: Rc<Vec<u8>>,
-		data: Rc<Vec<u8>>,
+		code: Rc<ManagedVec<M, u8>>,
+		data: Rc<ManagedVec<M, u8>>,
 		stack_limit: usize,
 		memory_limit: usize,
 	) -> Self {
@@ -103,9 +103,9 @@ impl<M: ManagedTypeApi> Machine<M> {
 	}
 
 	/// Copy and get the return value of the machine, if any.
-	pub fn return_value(&self) -> Vec<u8> {
+	pub fn return_value(&self) -> ManagedVec<M, u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
-			let mut ret = Vec::new();
+			let mut ret = ManagedVec::new();
 			ret.resize(
 				(self.return_range.end - self.return_range.start).as_usize(),
 				0,

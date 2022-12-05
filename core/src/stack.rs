@@ -1,19 +1,19 @@
 use crate::ExitError;
-use alloc::vec::Vec;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::H256;
 
 /// EVM stack.
 #[derive(Clone, Debug)]
-pub struct Stack {
-	data: Vec<H256>,
+pub struct Stack<M> {
+	data: ManagedVec<M, H256>,
 	limit: usize,
 }
 
-impl Stack {
+impl<M: ManagedTypeApi> Stack<M> {
 	/// Create a new stack with given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: ManagedVec::new(),
 			limit,
 		}
 	}
@@ -38,7 +38,7 @@ impl Stack {
 
 	#[inline]
 	/// Stack data.
-	pub fn data(&self) -> &Vec<H256> {
+	pub fn data(&self) -> &ManagedVec<M, H256> {
 		&self.data
 	}
 

@@ -1,14 +1,14 @@
 use crate::{ExitError, ExitFatal};
-use alloc::vec::Vec;
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
 #[derive(Clone, Debug)]
-pub struct Memory {
-	data: Vec<u8>,
+pub struct Memory<M> {
+	data: ManagedVec<M, u8>,
 	effective_len: U256,
 	limit: usize,
 }
@@ -17,7 +17,7 @@ impl Memory {
 	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: ManagedVec::new(),
 			effective_len: U256::zero(),
 			limit,
 		}
@@ -44,7 +44,7 @@ impl Memory {
 	}
 
 	/// Return the full memory.
-	pub fn data(&self) -> &Vec<u8> {
+	pub fn data(&self) -> &ManagedVec<M, u8> {
 		&self.data
 	}
 
@@ -79,8 +79,8 @@ impl Memory {
 	///
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
-	pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
-		let mut ret = Vec::new();
+	pub fn get(&self, offset: usize, size: usize) -> ManagedVec<M, u8> {
+		let mut ret = ManagedVec::new();
 		ret.resize(size, 0);
 
 		#[allow(clippy::needless_range_loop)]
