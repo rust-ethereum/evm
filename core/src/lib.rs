@@ -26,6 +26,7 @@ use alloc::rc::Rc;
 use core::ops::Range;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::U256;
+use utils::AdvangeManagedVec;
 
 /// Core execution layer for EVM.
 pub struct Machine<M: ManagedTypeApi> {
@@ -106,10 +107,10 @@ impl<M: ManagedTypeApi> Machine<M> {
 	pub fn return_value(&self) -> ManagedVec<M, u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
 			let mut ret = ManagedVec::new();
-			let size = (self.return_range.end - self.return_range.start).as_usize();
-			for i in 0..size {
-				ret.push(0);
-			}
+			ret.resize(
+				(self.return_range.end - self.return_range.start).as_usize(),
+				0,
+			);
 			ret
 		} else if self.return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.memory.get(

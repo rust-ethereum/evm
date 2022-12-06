@@ -131,17 +131,26 @@ impl Rem for I256 {
 	}
 }
 
-pub trait Resize<M: ManagedTypeApi, T: ManagedVecItem> {
+pub trait AdvangeManagedVec<M: ManagedTypeApi, T: ManagedVecItem> {
 	fn resize(&self, size: usize, value: T) -> ManagedVec<M, T>;
+	fn as_bytes(&self) -> &[<T as ManagedVecItem>::Ref<'_>];
 }
 
-impl<M: ManagedTypeApi, T: ManagedVecItem> Resize<M, T> for ManagedVec<M, T> {
+impl<M: ManagedTypeApi, T: ManagedVecItem> AdvangeManagedVec<M, T> for ManagedVec<M, T> {
 	fn resize(&self, size: usize, value: T) -> ManagedVec<M, T> {
 		let result = ManagedVec::new();
 		for i in 0..size {
 			result.push(value);
 		}
 		result
+	}
+
+	fn as_bytes(&self) -> &[<T as ManagedVecItem>::Ref<'_>] {
+		let mut data = Vec::<<T as ManagedVecItem>::Ref<'_>>::with_capacity(self.len());
+		for i in 0..self.len() {
+			data.push(self.try_get(i).unwrap());
+		}
+		data.as_slice()
 	}
 }
 

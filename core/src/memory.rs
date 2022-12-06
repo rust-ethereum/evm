@@ -1,4 +1,4 @@
-use crate::utils::Resize;
+use crate::utils::AdvangeManagedVec;
 use crate::{ExitError, ExitFatal};
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
@@ -93,7 +93,6 @@ impl<M: ManagedTypeApi> Memory<M> {
 
 			ret.set(index, &self.data.get(position));
 		}
-
 		ret
 	}
 
@@ -102,7 +101,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 	pub fn set(
 		&mut self,
 		offset: usize,
-		value: &[u8],
+		value: &ManagedVec<M, u8>,
 		target_size: Option<usize>,
 	) -> Result<(), ExitFatal> {
 		let target_size = target_size.unwrap_or(value.len());
@@ -123,12 +122,18 @@ impl<M: ManagedTypeApi> Memory<M> {
 		}
 
 		if target_size > value.len() {
-			self.data[offset..((value.len()) + offset)].clone_from_slice(value);
+			for i in offset..(value.len() + offset) {
+				self.data.set(i, &value.get(i - offset));
+			}
 			for index in (value.len())..target_size {
 				self.data.set(offset + index, &0);
 			}
 		} else {
-			self.data[offset..(target_size + offset)].clone_from_slice(&value[..target_size]);
+			for i in offset..(value.len() + offset) {
+				if (i - offset) < target_size {
+					self.data.set(i, &value.get(i - offset));
+				}
+			}
 		}
 
 		Ok(())
@@ -140,7 +145,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 		memory_offset: U256,
 		data_offset: U256,
 		len: U256,
-		data: &[u8],
+		data: &ManagedVec<M, u8>,
 	) -> Result<(), ExitFatal> {
 		// Needed to pass ethereum test defined in
 		// https://github.com/ethereum/tests/commit/17f7e7a6c64bb878c1b6af9dc8371b46c133e46d
@@ -165,19 +170,19 @@ impl<M: ManagedTypeApi> Memory<M> {
 
 		let data = if let Some(end) = data_offset.checked_add(len) {
 			if end > U256::from(usize::MAX) {
-				&[]
+				&ManagedVec::new()
 			} else {
 				let data_offset = data_offset.as_usize();
 				let end = end.as_usize();
 
 				if data_offset > data.len() {
-					&[]
+					&ManagedVec::new()
 				} else {
-					&data[data_offset..min(end, data.len())]
+					&data.slice(data_offset, min(end, data.len())).unwrap()
 				}
 			}
 		} else {
-			&[]
+			&ManagedVec::new()
 		};
 
 		self.set(memory_offset, data, Some(ulen))

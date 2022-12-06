@@ -1,4 +1,3 @@
-use eltypes::ToEH256;
 macro_rules! try_or_fail {
 	( $e:expr ) => {
 		match $e {
@@ -23,7 +22,7 @@ macro_rules! pop_u256 {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(
 			let $x = match $machine.stack.pop() {
-				Ok(value) => U256::from_big_endian(&value[..]),
+				Ok(value) => U256::from_big_endian(&value.as_bytes()),
 				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
@@ -33,7 +32,7 @@ macro_rules! pop_u256 {
 macro_rules! push {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			match $machine.stack.push($x.to_eh256()) {
+			match $machine.stack.push($x) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}

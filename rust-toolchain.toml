@@ -1,4 +1,4 @@
 [toolchain]
-channel = "1.64.0"
+channel = "nightly-2022-10-18-aarch64-apple-darwin"
 profile = "minimal"
 components = [ "rustfmt", "clippy" ]
