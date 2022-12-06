@@ -7,13 +7,13 @@ pub struct Valids<M: ManagedTypeApi>(ManagedVec<M, bool>);
 
 impl<M: ManagedTypeApi> Valids<M> {
 	/// Create a new valid mapping from given code bytes.
-	pub fn new(code: &[u8]) -> Self {
+	pub fn new(code: &ManagedVec<M, u8>) -> Self {
 		let mut valids: ManagedVec<M, bool> = ManagedVec::new();
 		// valids.resize(code.len(), false);
 
 		let mut i = 0;
 		while i < code.len() {
-			let opcode = Opcode(code[i]);
+			let opcode = Opcode(code.get(i));
 			if opcode == Opcode::JUMPDEST {
 				valids.set(i, &true);
 				i += 1;

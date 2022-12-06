@@ -7,6 +7,7 @@ mod misc;
 use crate::{ExitError, ExitReason, ExitSucceed, Machine, Opcode};
 use core::ops::{BitAnd, BitOr, BitXor};
 use elrond_wasm::api::ManagedTypeApi;
+use eltypes::ToEH256;
 use primitive_types::{H256, U256};
 
 #[derive(Clone, Eq, PartialEq, Debug)]

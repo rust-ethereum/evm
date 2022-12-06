@@ -1,5 +1,7 @@
 use core::cmp::Ordering;
 use core::ops::{Div, Rem};
+use elrond_wasm::api::ManagedTypeApi;
+use elrond_wasm::types::{ManagedVec, ManagedVecItem};
 use primitive_types::U256;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -126,6 +128,20 @@ impl Rem for I256 {
 		}
 
 		I256(self.0, r)
+	}
+}
+
+pub trait Resize<M: ManagedTypeApi, T: ManagedVecItem> {
+	fn resize(&self, size: usize, value: T) -> ManagedVec<M, T>;
+}
+
+impl<M: ManagedTypeApi, T: ManagedVecItem> Resize<M, T> for ManagedVec<M, T> {
+	fn resize(&self, size: usize, value: T) -> ManagedVec<M, T> {
+		let result = ManagedVec::new();
+		for i in 0..size {
+			result.push(value);
+		}
+		result
 	}
 }
 

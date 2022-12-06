@@ -24,7 +24,6 @@ pub use crate::valids::Valids;
 use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use core::ops::Range;
-use elrond_wasm::api::ManagedTypeApi;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::U256;
 
@@ -41,26 +40,26 @@ pub struct Machine<M: ManagedTypeApi> {
 	/// Code validity maps.
 	valids: Valids<M>,
 	/// Memory.
-	memory: Memory,
+	memory: Memory<M>,
 	/// Stack.
-	stack: Stack,
+	stack: Stack<M>,
 }
 
 impl<M: ManagedTypeApi> Machine<M> {
 	/// Reference of machine stack.
-	pub fn stack(&self) -> &Stack {
+	pub fn stack(&self) -> &Stack<M> {
 		&self.stack
 	}
 	/// Mutable reference of machine stack.
-	pub fn stack_mut(&mut self) -> &mut Stack {
+	pub fn stack_mut(&mut self) -> &mut Stack<M> {
 		&mut self.stack
 	}
 	/// Reference of machine memory.
-	pub fn memory(&self) -> &Memory {
+	pub fn memory(&self) -> &Memory<M> {
 		&self.memory
 	}
 	/// Mutable reference of machine memory.
-	pub fn memory_mut(&mut self) -> &mut Memory {
+	pub fn memory_mut(&mut self) -> &mut Memory<M> {
 		&mut self.memory
 	}
 	/// Return a reference of the program counter.
@@ -75,7 +74,7 @@ impl<M: ManagedTypeApi> Machine<M> {
 		stack_limit: usize,
 		memory_limit: usize,
 	) -> Self {
-		let valids = Valids::new(&code[..]);
+		let valids = Valids::new(&code);
 
 		Self {
 			data,
@@ -94,22 +93,23 @@ impl<M: ManagedTypeApi> Machine<M> {
 	}
 
 	/// Inspect the machine's next opcode and current stack.
-	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
+	pub fn inspect(&self) -> Option<(Opcode, &Stack<M>)> {
 		let position = match self.position {
 			Ok(position) => position,
 			Err(_) => return None,
 		};
-		self.code.get(position).map(|v| (Opcode(*v), &self.stack))
+		let value = self.code.get(position);
+		Some((Opcode(value), &self.stack))
 	}
 
 	/// Copy and get the return value of the machine, if any.
 	pub fn return_value(&self) -> ManagedVec<M, u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
 			let mut ret = ManagedVec::new();
-			ret.resize(
-				(self.return_range.end - self.return_range.start).as_usize(),
-				0,
-			);
+			let size = (self.return_range.end - self.return_range.start).as_usize();
+			for i in 0..size {
+				ret.push(0);
+			}
 			ret
 		} else if self.return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.memory.get(
@@ -146,7 +146,9 @@ impl<M: ManagedTypeApi> Machine<M> {
 			.as_ref()
 			.map_err(|reason| Capture::Exit(reason.clone()))?;
 
-		match self.code.get(position).map(|v| Opcode(*v)) {
+		let v = self.code.get(position);
+
+		match Some(Opcode(v)) {
 			Some(opcode) => match eval(self, opcode, position) {
 				Control::Continue(p) => {
 					self.position = Ok(position + p);

@@ -42,7 +42,7 @@ pub fn calldataload<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 		}
 	}
 
-	push!(state, H256::from(load));
+	push!(state, H256::from(load).to_eh256());
 	Control::Continue(1)
 }
 

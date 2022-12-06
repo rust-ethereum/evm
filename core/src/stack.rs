@@ -1,11 +1,11 @@
 use crate::ExitError;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
-use primitive_types::H256;
+use eltypes::EH256;
 
 /// EVM stack.
 #[derive(Clone, Debug)]
-pub struct Stack<M> {
-	data: ManagedVec<M, H256>,
+pub struct Stack<M: ManagedTypeApi> {
+	data: ManagedVec<M, EH256>,
 	limit: usize,
 }
 
@@ -38,21 +38,27 @@ impl<M: ManagedTypeApi> Stack<M> {
 
 	#[inline]
 	/// Stack data.
-	pub fn data(&self) -> &ManagedVec<M, H256> {
+	pub fn data(&self) -> &ManagedVec<M, EH256> {
 		&self.data
 	}
 
 	#[inline]
 	/// Pop a value from the stack. If the stack is already empty, returns the
 	/// `StackUnderflow` error.
-	pub fn pop(&mut self) -> Result<H256, ExitError> {
-		self.data.pop().ok_or(ExitError::StackUnderflow)
+	pub fn pop(&mut self) -> Result<EH256, ExitError> {
+		let last_index = self.data().len() - 1;
+		if last_index <= 0 {
+			ExitError::StackUnderflow;
+		}
+		let remove = self.data().get(last_index);
+		self.data.remove(last_index);
+		Ok(remove)
 	}
 
 	#[inline]
 	/// Push a new value into the stack. If it will exceed the stack limit,
 	/// returns `StackOverflow` error and leaves the stack unchanged.
-	pub fn push(&mut self, value: H256) -> Result<(), ExitError> {
+	pub fn push(&mut self, value: EH256) -> Result<(), ExitError> {
 		if self.data.len() + 1 > self.limit {
 			return Err(ExitError::StackOverflow);
 		}
@@ -64,9 +70,9 @@ impl<M: ManagedTypeApi> Stack<M> {
 	/// Peek a value at given index for the stack, where the top of
 	/// the stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
-	pub fn peek(&self, no_from_top: usize) -> Result<H256, ExitError> {
+	pub fn peek(&self, no_from_top: usize) -> Result<EH256, ExitError> {
 		if self.data.len() > no_from_top {
-			Ok(self.data[self.data.len() - no_from_top - 1])
+			Ok(self.data.get(self.data.len() - no_from_top - 1))
 		} else {
 			Err(ExitError::StackUnderflow)
 		}
@@ -76,10 +82,10 @@ impl<M: ManagedTypeApi> Stack<M> {
 	/// Set a value at given index for the stack, where the top of the
 	/// stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
-	pub fn set(&mut self, no_from_top: usize, val: H256) -> Result<(), ExitError> {
+	pub fn set(&mut self, no_from_top: usize, val: EH256) -> Result<(), ExitError> {
 		if self.data.len() > no_from_top {
 			let len = self.data.len();
-			self.data[len - no_from_top - 1] = val;
+			self.data.set(len - no_from_top - 1, &val);
 			Ok(())
 		} else {
 			Err(ExitError::StackUnderflow)

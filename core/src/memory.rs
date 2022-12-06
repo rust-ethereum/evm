@@ -1,3 +1,4 @@
+use crate::utils::Resize;
 use crate::{ExitError, ExitFatal};
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
@@ -7,13 +8,13 @@ use primitive_types::U256;
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
 #[derive(Clone, Debug)]
-pub struct Memory<M> {
+pub struct Memory<M: ManagedTypeApi> {
 	data: ManagedVec<M, u8>,
 	effective_len: U256,
 	limit: usize,
 }
 
-impl Memory {
+impl<M: ManagedTypeApi> Memory<M> {
 	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
@@ -90,7 +91,7 @@ impl Memory {
 				break;
 			}
 
-			ret[index] = self.data[position];
+			ret.set(index, &self.data.get(position));
 		}
 
 		ret
@@ -124,7 +125,7 @@ impl Memory {
 		if target_size > value.len() {
 			self.data[offset..((value.len()) + offset)].clone_from_slice(value);
 			for index in (value.len())..target_size {
-				self.data[offset + index] = 0;
+				self.data.set(offset + index, &0);
 			}
 		} else {
 			self.data[offset..(target_size + offset)].clone_from_slice(&value[..target_size]);

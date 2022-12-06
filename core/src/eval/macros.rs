@@ -1,3 +1,4 @@
+use eltypes::ToEH256;
 macro_rules! try_or_fail {
 	( $e:expr ) => {
 		match $e {
@@ -32,7 +33,7 @@ macro_rules! pop_u256 {
 macro_rules! push {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			match $machine.stack.push($x) {
+			match $machine.stack.push($x.to_eh256()) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}
@@ -45,7 +46,7 @@ macro_rules! push_u256 {
 		$(
 			let mut value = H256::default();
 			$x.to_big_endian(&mut value[..]);
-			match $machine.stack.push(value) {
+			match $machine.stack.push(value.to_eh256()) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}
