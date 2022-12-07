@@ -168,24 +168,26 @@ impl<M: ManagedTypeApi> Memory<M> {
 			len.as_usize()
 		};
 
+		let empty_managed_vec = ManagedVec::new();
 		let data = if let Some(end) = data_offset.checked_add(len) {
 			if end > U256::from(usize::MAX) {
-				&ManagedVec::new()
+				empty_managed_vec
 			} else {
 				let data_offset = data_offset.as_usize();
 				let end = end.as_usize();
 
 				if data_offset > data.len() {
-					&ManagedVec::new()
+					empty_managed_vec
 				} else {
-					&data.slice(data_offset, min(end, data.len())).unwrap()
+					let returned_data = data.slice(data_offset, min(end, data.len())).unwrap();
+					returned_data
 				}
 			}
 		} else {
-			&ManagedVec::new()
+			empty_managed_vec
 		};
 
-		self.set(memory_offset, data, Some(ulen))
+		self.set(memory_offset, &data, Some(ulen))
 	}
 }
 

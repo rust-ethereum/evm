@@ -1,6 +1,6 @@
 //! Core layer for EVM.
 
-#![deny(warnings)]
+// #![deny(warnings)]
 // #![forbid(unsafe_code, unused_variables, unused_imports)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
@@ -106,7 +106,7 @@ impl<M: ManagedTypeApi> Machine<M> {
 	/// Copy and get the return value of the machine, if any.
 	pub fn return_value(&self) -> ManagedVec<M, u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
-			let mut ret = ManagedVec::new();
+			let ret = ManagedVec::new();
 			ret.resize(
 				(self.return_range.end - self.return_range.start).as_usize(),
 				0,

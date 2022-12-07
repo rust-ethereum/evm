@@ -1,5 +1,5 @@
 use super::Control;
-use crate::{utils::AdvangeManagedVec, ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
+use crate::{utils::AsBytes, ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use eltypes::{ManagedVecforEH256, ToEH256};
@@ -106,7 +106,7 @@ pub fn mstore8<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	try_or_fail!(state.memory.resize_offset(index, U256::one()));
 	let index = as_usize_or_fail!(index);
 	let value = (value.low_u32() & 0xff) as u8;
-	let vec = ManagedVec::new();
+	let mut vec = ManagedVec::new();
 	vec.push(value);
 	match state.memory.set(index, &vec, Some(1)) {
 		Ok(()) => Control::Continue(1),
