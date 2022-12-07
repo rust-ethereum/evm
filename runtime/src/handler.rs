@@ -1,5 +1,5 @@
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use elrond_wasm::types::ManagedVec;
 
 use primitive_types::{H160, H256, U256};
 
@@ -80,8 +80,8 @@ pub trait Handler<M> {
 	fn log(
 		&mut self,
 		address: H160,
-		topics: ManagedVec<H256>,
-		data: ManagedVec<u8>,
+		topics: ManagedVec<M, H256>,
+		data: ManagedVec<M, u8>,
 	) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
@@ -91,9 +91,9 @@ pub trait Handler<M> {
 		caller: H160,
 		scheme: CreateScheme,
 		value: U256,
-		init_code: ManagedVec<u8>,
+		init_code: ManagedVec<M, u8>,
 		target_gas: Option<u64>,
-	) -> Capture<(ExitReason, Option<H160>, ManagedVec<u8>), Self::CreateInterrupt>;
+	) -> Capture<(ExitReason, Option<H160>, ManagedVec<M, u8>), Self::CreateInterrupt>;
 	/// Feed in create feedback.
 	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
 		Ok(())
@@ -103,11 +103,11 @@ pub trait Handler<M> {
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<u8>,
+		input: ManagedVec<M, u8>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
-	) -> Capture<(ExitReason, ManagedVec<u8>), Self::CallInterrupt>;
+	) -> Capture<(ExitReason, ManagedVec<M, u8>), Self::CallInterrupt>;
 	/// Feed in call feedback.
 	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
 		Ok(())
@@ -118,10 +118,10 @@ pub trait Handler<M> {
 		&mut self,
 		context: &Context,
 		opcode: Opcode,
-		stack: &Stack,
+		stack: &Stack<M>,
 	) -> Result<(), ExitError>;
 	/// Handle other unknown external opcodes.
-	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
+	fn other(&mut self, opcode: Opcode, _stack: &mut Machine<M>) -> Result<(), ExitError> {
 		Err(ExitError::InvalidCode(opcode))
 	}
 }
