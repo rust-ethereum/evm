@@ -1,0 +1,15 @@
+[package]
+name = "eltypes"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+primitive-types = { version = "0.12.1", default-features = false, features = ["rlp"] }
+elrond-wasm = { version = "0.36.0", features = ["alloc"] }
+hex = { version = "=0.4.0", default-features = false }
+
+[dev-dependencies]
+elrond-wasm-debug = "0.36.0"
+

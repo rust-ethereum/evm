@@ -1,7 +1,8 @@
 use super::Control;
-use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
+use crate::{utils::AsBytes, ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
-use elrond_wasm::api::ManagedTypeApi;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use eltypes::{ManagedVecforEH256, ToEH256};
 use primitive_types::{H256, U256};
 
 #[inline]
@@ -36,13 +37,13 @@ pub fn calldataload<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 			if p <= U256::from(usize::MAX) {
 				let p = p.as_usize();
 				if p < state.data.len() {
-					load[i] = state.data[p];
+					load[i] = state.data.get(p);
 				}
 			}
 		}
 	}
 
-	push!(state, H256::from(load));
+	push!(state, H256::from(load).to_eh256());
 	Control::Continue(1)
 }
 
@@ -82,8 +83,8 @@ pub fn mload<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	pop_u256!(state, index);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
-	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
-	push!(state, value);
+	let value = H256::from_slice(&state.memory.get(index, 32).as_bytes());
+	push!(state, value.to_eh256());
 	Control::Continue(1)
 }
 
@@ -93,7 +94,7 @@ pub fn mstore<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	pop!(state, value);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
-	match state.memory.set(index, &value[..], Some(32)) {
+	match state.memory.set(index, &value.managedvec_bytes(), Some(32)) {
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -105,7 +106,9 @@ pub fn mstore8<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	try_or_fail!(state.memory.resize_offset(index, U256::one()));
 	let index = as_usize_or_fail!(index);
 	let value = (value.low_u32() & 0xff) as u8;
-	match state.memory.set(index, &[value], Some(1)) {
+	let mut vec = ManagedVec::new();
+	vec.push(value);
+	match state.memory.set(index, &vec, Some(1)) {
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -128,7 +131,7 @@ pub fn jumpi<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	pop_u256!(state, dest);
 	pop!(state, value);
 
-	if value != H256::zero() {
+	if value.to_h256() != H256::zero() {
 		let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
@@ -155,11 +158,13 @@ pub fn msize<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 #[inline]
 pub fn push<M: ManagedTypeApi>(state: &mut Machine<M>, n: usize, position: usize) -> Control {
 	let end = min(position + 1 + n, state.code.len());
-	let slice = &state.code[(position + 1)..end];
+	let slice = &state.code.slice(position + 1, end).unwrap();
 	let mut val = [0u8; 32];
-	val[(32 - n)..(32 - n + slice.len())].copy_from_slice(slice);
 
-	push!(state, H256(val));
+	for i in 0..slice.len() {
+		val[i] = slice.get(i);
+	}
+	push!(state, eltypes::EH256 { data: val });
 	Control::Continue(1 + n)
 }
 
