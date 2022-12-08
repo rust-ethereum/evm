@@ -1,5 +1,6 @@
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
-use elrond_wasm::types::ManagedVec;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use eltypes::EH256;
 
 use primitive_types::{H160, H256, U256};
 
@@ -16,7 +17,7 @@ pub struct Transfer {
 
 /// EVM context handler.
 #[auto_impl::auto_impl(&mut, Box)]
-pub trait Handler<M> {
+pub trait Handler<M: ManagedTypeApi> {
 	/// Type of `CREATE` interrupt.
 	type CreateInterrupt;
 	/// Feedback value for `CREATE` interrupt.
@@ -35,7 +36,7 @@ pub trait Handler<M> {
 	/// Get code of address.
 	fn code(&self, address: H160) -> ManagedVec<M, u8>;
 	/// Get storage value of address at index.
-	fn storage(&self, address: H160, index: H256) -> H256;
+	fn storage(&self, address: H160, index: EH256) -> H256;
 	/// Get original storage value of address at index.
 	fn original_storage(&self, address: H160, index: H256) -> H256;
 
@@ -46,7 +47,7 @@ pub trait Handler<M> {
 	/// Get execution origin.
 	fn origin(&self) -> H160;
 	/// Get environmental block hash.
-	fn block_hash(&self, number: U256) -> H256;
+	fn block_hash(&self, number: U256) -> EH256;
 	/// Get environmental block number.
 	fn block_number(&self) -> U256;
 	/// Get environmental coinbase.
@@ -75,12 +76,12 @@ pub trait Handler<M> {
 	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
 
 	/// Set storage value of address at index.
-	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
+	fn set_storage(&mut self, address: H160, index: EH256, value: EH256) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
 	fn log(
 		&mut self,
 		address: H160,
-		topics: ManagedVec<M, H256>,
+		topics: ManagedVec<M, EH256>,
 		data: ManagedVec<M, u8>,
 	) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.

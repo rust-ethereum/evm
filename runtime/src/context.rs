@@ -1,7 +1,7 @@
 use primitive_types::{H160, H256, U256};
 
 /// Create scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum CreateScheme {
 	/// Legacy create scheme of `CREATE`.
 	Legacy {

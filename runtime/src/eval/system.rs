@@ -5,11 +5,15 @@ use crate::{
 };
 
 use core::cmp::min;
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use elrond_wasm::{
+	api::{HandleConstraints, ManagedTypeApi},
+	types::ManagedVec,
+};
+use eltypes::EH256;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
-pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn sha3<H: Handler<M>, M: ManagedTypeApi>(runtime: &mut Runtime<M>) -> Control<M, H> {
 	pop_u256!(runtime, from, len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
@@ -23,90 +27,123 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	};
 
 	let ret = Keccak256::digest(data.as_slice());
-	push!(runtime, H256::from_slice(ret.as_slice()));
+	push!(runtime, EH256::from(H256::from_slice(ret.as_slice())));
 
 	Control::Continue
 }
 
-pub fn chainid<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn chainid<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.chain_id());
 
 	Control::Continue
 }
 
-pub fn address<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn address<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+) -> Control<M, H> {
 	let ret = H256::from(runtime.context.address);
-	push!(runtime, ret);
+	push!(runtime, EH256::from(ret));
 
 	Control::Continue
 }
 
-pub fn balance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn balance<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	pop!(runtime, address);
-	push_u256!(runtime, handler.balance(address.into()));
+	push_u256!(runtime, handler.balance(address.to_h256().into()));
 
 	Control::Continue
 }
 
-pub fn selfbalance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn selfbalance<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.balance(runtime.context.address));
 
 	Control::Continue
 }
 
-pub fn origin<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn origin<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	let ret = H256::from(handler.origin());
-	push!(runtime, ret);
+	push!(runtime, EH256::from(ret));
 
 	Control::Continue
 }
 
-pub fn caller<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn caller<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+) -> Control<M, H> {
 	let ret = H256::from(runtime.context.caller);
-	push!(runtime, ret);
+	push!(runtime, EH256::from(ret));
 
 	Control::Continue
 }
 
-pub fn callvalue<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn callvalue<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+) -> Control<M, H> {
 	let mut ret = H256::default();
 	runtime.context.apparent_value.to_big_endian(&mut ret[..]);
-	push!(runtime, ret);
+	push!(runtime, EH256::from(ret));
 
 	Control::Continue
 }
 
-pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn gasprice<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	let mut ret = H256::default();
 	handler.gas_price().to_big_endian(&mut ret[..]);
-	push!(runtime, ret);
+	push!(runtime, EH256::from(ret));
 
 	Control::Continue
 }
 
-pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn base_fee<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	let mut ret = H256::default();
 	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
-	push!(runtime, ret);
+	push!(runtime, EH256::from(ret));
 
 	Control::Continue
 }
 
-pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodesize<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	pop!(runtime, address);
-	push_u256!(runtime, handler.code_size(address.into()));
+	push_u256!(runtime, handler.code_size(address.to_h256().into()));
 
 	Control::Continue
 }
 
-pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodehash<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	pop!(runtime, address);
-	push!(runtime, handler.code_hash(address.into()));
+	push!(runtime, handler.code_hash(address.to_h256().into()));
 
 	Control::Continue
 }
 
-pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodecopy<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	pop!(runtime, address);
 	pop_u256!(runtime, memory_offset, code_offset, len);
 
@@ -118,7 +155,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 		memory_offset,
 		code_offset,
 		len,
-		&handler.code(address.into()),
+		&handler.code(address.to_h256().into()),
 	) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
@@ -127,14 +164,18 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 	Control::Continue
 }
 
-pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn returndatasize<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+) -> Control<M, H> {
 	let size = U256::from(runtime.return_data_buffer.len());
 	push_u256!(runtime, size);
 
 	Control::Continue
 }
 
-pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+pub fn returndatacopy<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+) -> Control<M, H> {
 	pop_u256!(runtime, memory_offset, data_offset, len);
 
 	try_or_fail!(runtime
@@ -160,42 +201,63 @@ pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	}
 }
 
-pub fn blockhash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn blockhash<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	pop_u256!(runtime, number);
 	push!(runtime, handler.block_hash(number));
 
 	Control::Continue
 }
 
-pub fn coinbase<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn coinbase<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push!(runtime, handler.block_coinbase().into());
 	Control::Continue
 }
 
-pub fn timestamp<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn timestamp<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.block_timestamp());
 	Control::Continue
 }
 
-pub fn number<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn number<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.block_number());
 	Control::Continue
 }
 
-pub fn difficulty<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn difficulty<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.block_difficulty());
 	Control::Continue
 }
 
-pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn gaslimit<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.block_gas_limit());
 	Control::Continue
 }
 
-pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn sload<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	pop!(runtime, index);
 	let value = handler.storage(runtime.context.address, index);
-	push!(runtime, value);
+	push!(runtime, EH256::from(value));
 
 	event!(SLoad {
 		address: runtime.context.address,
@@ -206,7 +268,10 @@ pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
-pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+pub fn sstore<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &mut H,
+) -> Control<M, H> {
 	pop!(runtime, index, value);
 
 	event!(SStore {
@@ -221,13 +286,20 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 	}
 }
 
-pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn gas<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &H,
+) -> Control<M, H> {
 	push_u256!(runtime, handler.gas_left());
 
 	Control::Continue
 }
 
-pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
+pub fn log<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	n: u8,
+	handler: &mut H,
+) -> Control<M, H> {
 	pop_u256!(runtime, offset, len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
@@ -256,10 +328,13 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	}
 }
 
-pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+pub fn suicide<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	handler: &mut H,
+) -> Control<M, H> {
 	pop!(runtime, target);
 
-	match handler.mark_delete(runtime.context.address, target.into()) {
+	match handler.mark_delete(runtime.context.address, target.to_h256().into()) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	}
@@ -267,7 +342,11 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	Control::Exit(ExitSucceed::Suicided.into())
 }
 
-pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
+pub fn create<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	is_create2: bool,
+	handler: &mut H,
+) -> Control<M, H> {
 	runtime.return_data_buffer = ManagedVec::new();
 
 	pop_u256!(runtime, value, code_offset, len);
@@ -303,31 +382,35 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 
 			match reason {
 				ExitReason::Succeed(_) => {
-					push!(runtime, create_address);
+					push!(runtime, EH256::from(create_address));
 					Control::Continue
 				}
 				ExitReason::Revert(_) => {
-					push!(runtime, H256::default());
+					push!(runtime, EH256::from(H256::default()));
 					Control::Continue
 				}
 				ExitReason::Error(_) => {
-					push!(runtime, H256::default());
+					push!(runtime, EH256::from(H256::default()));
 					Control::Continue
 				}
 				ExitReason::Fatal(e) => {
-					push!(runtime, H256::default());
+					push!(runtime, EH256::from(H256::default()));
 					Control::Exit(e.into())
 				}
 			}
 		}
 		Capture::Trap(interrupt) => {
-			push!(runtime, H256::default());
+			push!(runtime, EH256::from(H256::default()));
 			Control::CreateInterrupt(interrupt)
 		}
 	}
 }
 
-pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut H) -> Control<H> {
+pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
+	runtime: &mut Runtime<'config, M>,
+	scheme: CallScheme,
+	handler: &mut H,
+) -> Control<M, H> {
 	runtime.return_data_buffer = ManagedVec::new();
 
 	pop_u256!(runtime, gas);
@@ -387,7 +470,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 	let transfer = if scheme == CallScheme::Call {
 		Some(Transfer {
 			source: runtime.context.address,
-			target: to.into(),
+			target: to.to_h256().into(),
 			value,
 		})
 	} else if scheme == CallScheme::CallCode {
@@ -401,7 +484,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 	};
 
 	match handler.call(
-		to.into(),
+		to.to_h256().into(),
 		transfer,
 		input,
 		gas,
@@ -455,7 +538,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 			}
 		}
 		Capture::Trap(interrupt) => {
-			push!(runtime, H256::default());
+			push!(runtime, EH256::from(H256::default()));
 			Control::CallInterrupt(interrupt)
 		}
 	}
