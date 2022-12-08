@@ -5,10 +5,7 @@ use crate::{
 };
 
 use core::cmp::min;
-use elrond_wasm::{
-	api::{HandleConstraints, ManagedTypeApi},
-	types::ManagedVec,
-};
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use eltypes::EH256;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
@@ -26,7 +23,7 @@ pub fn sha3<H: Handler<M>, M: ManagedTypeApi>(runtime: &mut Runtime<M>) -> Contr
 		runtime.machine.memory_mut().get(from, len)
 	};
 
-	let ret = Keccak256::digest(data.as_slice());
+	let ret = Keccak256::digest(data.into_vec());
 	push!(runtime, EH256::from(H256::from_slice(ret.as_slice())));
 
 	Control::Continue
@@ -135,7 +132,10 @@ pub fn extcodehash<'config, H: Handler<M>, M: ManagedTypeApi>(
 	handler: &H,
 ) -> Control<M, H> {
 	pop!(runtime, address);
-	push!(runtime, handler.code_hash(address.to_h256().into()));
+	push!(
+		runtime,
+		EH256::from(handler.code_hash(address.to_h256().into()))
+	);
 
 	Control::Continue
 }
@@ -206,7 +206,7 @@ pub fn blockhash<'config, H: Handler<M>, M: ManagedTypeApi>(
 	handler: &H,
 ) -> Control<M, H> {
 	pop_u256!(runtime, number);
-	push!(runtime, handler.block_hash(number));
+	push!(runtime, EH256::from(handler.block_hash(number)));
 
 	Control::Continue
 }
@@ -215,7 +215,7 @@ pub fn coinbase<'config, H: Handler<M>, M: ManagedTypeApi>(
 	runtime: &mut Runtime<'config, M>,
 	handler: &H,
 ) -> Control<M, H> {
-	push!(runtime, handler.block_coinbase().into());
+	push!(runtime, EH256::from(handler.block_coinbase().into()));
 	Control::Continue
 }
 
@@ -363,7 +363,7 @@ pub fn create<'config, H: Handler<M>, M: ManagedTypeApi>(
 
 	let scheme = if is_create2 {
 		pop!(runtime, salt);
-		let code_hash = H256::from_slice(Keccak256::digest(&code).as_slice());
+		let code_hash = H256::from_slice(Keccak256::digest(&code.into_vec()).as_slice());
 		CreateScheme::Create2 {
 			caller: runtime.context.address,
 			salt,
@@ -451,7 +451,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 
 	let context = match scheme {
 		CallScheme::Call | CallScheme::StaticCall => Context {
-			address: to.into(),
+			address: to.to_h256().into(),
 			caller: runtime.context.address,
 			apparent_value: value,
 		},
@@ -501,7 +501,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 						out_offset,
 						U256::zero(),
 						target_len,
-						&runtime.return_data_buffer[..],
+						&runtime.return_data_buffer,
 					) {
 						Ok(()) => {
 							push_u256!(runtime, U256::one());
@@ -520,7 +520,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 						out_offset,
 						U256::zero(),
 						target_len,
-						&runtime.return_data_buffer[..],
+						&runtime.return_data_buffer,
 					);
 
 					Control::Continue

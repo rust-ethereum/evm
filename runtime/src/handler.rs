@@ -47,7 +47,7 @@ pub trait Handler<M: ManagedTypeApi> {
 	/// Get execution origin.
 	fn origin(&self) -> H160;
 	/// Get environmental block hash.
-	fn block_hash(&self, number: U256) -> EH256;
+	fn block_hash(&self, number: U256) -> H256;
 	/// Get environmental block number.
 	fn block_number(&self) -> U256;
 	/// Get environmental coinbase.
