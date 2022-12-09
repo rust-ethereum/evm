@@ -6,8 +6,7 @@ mod memory;
 
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
 
-use alloc::vec::Vec;
-use elrond_wasm::types::ManagedVec;
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::{H160, H256, U256};
 
 /// Basic account information.
@@ -28,7 +27,7 @@ pub use ethereum::Log;
 
 /// Apply state operation.
 #[derive(Clone, Debug)]
-pub enum Apply<I, M> {
+pub enum Apply<I> {
 	/// Modify or create at address.
 	Modify {
 		/// Address.
@@ -36,7 +35,7 @@ pub enum Apply<I, M> {
 		/// Basic information of the address.
 		basic: Basic,
 		/// Code. `None` means leaving it unchanged.
-		code: Option<ManagedVec<M, u8>>,
+		code: Option<Vec<u8>>,
 		/// Storage iterator.
 		storage: I,
 		/// Whether storage should be wiped empty before applying the storage
@@ -52,7 +51,7 @@ pub enum Apply<I, M> {
 
 /// EVM backend.
 #[auto_impl::auto_impl(&, Arc, Box)]
-pub trait Backend<M> {
+pub trait Backend<M: ManagedTypeApi> {
 	/// Gas price. Unused for London.
 	fn gas_price(&self) -> U256;
 	/// Origin.
@@ -79,7 +78,7 @@ pub trait Backend<M> {
 	/// Get basic account information.
 	fn basic(&self, address: H160) -> Basic;
 	/// Get account code.
-	fn code(&self, address: H160) -> ManagedVec<M, u8>;
+	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
@@ -87,7 +86,7 @@ pub trait Backend<M> {
 }
 
 /// EVM backend that can apply changes.
-pub trait ApplyBackend {
+pub trait ApplyBackend<M: ManagedTypeApi> {
 	/// Apply given values and logs at backend.
 	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
 	where

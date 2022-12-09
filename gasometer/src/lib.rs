@@ -1,7 +1,7 @@
 //! EVM gasometer.
 
-#![deny(warnings)]
-#![forbid(unsafe_code, unused_variables)]
+// #![deny(warnings)]
+// #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -29,6 +29,7 @@ mod utils;
 
 use core::cmp::max;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use eltypes::EH256;
 use evm_core::{ExitError, Opcode, Stack};
 use evm_runtime::{Config, Handler};
 use primitive_types::{H160, H256, U256};
@@ -274,13 +275,7 @@ impl<'config> Gasometer<'config> {
 
 /// Calculate the call transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn call_transaction_cost(
-	data: &[u8],
-	access_list: &[(H160, ManagedVec<M, H256>)],
-) -> TransactionCost
-where
-	M: ManagedTypeApi,
-{
+pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
@@ -295,13 +290,7 @@ where
 
 /// Calculate the create transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn create_transaction_cost(
-	data: &[u8],
-	access_list: &[(H160, ManagedVec<M, H256>)],
-) -> TransactionCost
-where
-	M: ManagedTypeApi,
-{
+pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
@@ -315,10 +304,7 @@ where
 }
 
 /// Counts the number of addresses and storage keys in the access list
-fn count_access_list(access_list: &[(H160, ManagedVec<M, H256>)]) -> (usize, usize)
-where
-	M: ManagedTypeApi,
-{
+fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
 	let access_list_address_len = access_list.len();
 	let access_list_storage_len = access_list.iter().map(|(_, keys)| keys.len()).sum();
 
@@ -450,10 +436,10 @@ pub fn static_opcode_cost(opcode: Opcode) -> Option<u64> {
 
 /// Calculate the opcode cost.
 #[allow(clippy::nonminimal_bool)]
-pub fn dynamic_opcode_cost<H: Handler>(
+pub fn dynamic_opcode_cost<H: Handler<M>, M: ManagedTypeApi>(
 	address: H160,
 	opcode: Opcode,
-	stack: &Stack,
+	stack: &Stack<M>,
 	is_static: bool,
 	config: &Config,
 	handler: &H,
@@ -480,14 +466,14 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek(0)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeSize {
 				target_is_cold: handler.is_cold(target, None),
 			}
 		}
 		Opcode::BALANCE => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek(0)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Balance {
 				target_is_cold: handler.is_cold(target, None),
@@ -496,7 +482,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.has_ext_code_hash => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek(0)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeHash {
 				target_is_cold: handler.is_cold(target, None),
@@ -505,54 +491,54 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
 
 		Opcode::CALLCODE => {
-			let target = stack.peek(1)?.into();
+			let target = stack.peek(1)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::CallCode {
-				value: U256::from_big_endian(&stack.peek(2)?[..]),
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				value: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
+				gas: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
 				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
 		}
 		Opcode::STATICCALL => {
-			let target = stack.peek(1)?.into();
+			let target = stack.peek(1)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::StaticCall {
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				gas: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
 				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
 		}
 		Opcode::SHA3 => GasCost::Sha3 {
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::EXTCODECOPY => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek(0)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeCopy {
 				target_is_cold: handler.is_cold(target, None),
-				len: U256::from_big_endian(&stack.peek(3)?[..]),
+				len: U256::from_big_endian(&stack.peek(3)?.to_h256()[..]),
 			}
 		}
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
 		},
 		Opcode::EXP => GasCost::Exp {
-			power: U256::from_big_endian(&stack.peek(1)?[..]),
+			power: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::SLOAD => {
 			let index = stack.peek(0)?;
-			storage_target = StorageTarget::Slot(address, index);
+			storage_target = StorageTarget::Slot(address, index.to_h256());
 			GasCost::SLoad {
-				target_is_cold: handler.is_cold(address, Some(index)),
+				target_is_cold: handler.is_cold(address, Some(index.to_h256())),
 			}
 		}
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
-			let target = stack.peek(1)?.into();
+			let target = stack.peek(1)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::DelegateCall {
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				gas: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
 				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
@@ -561,48 +547,48 @@ pub fn dynamic_opcode_cost<H: Handler>(
 
 		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
 		Opcode::RETURNDATACOPY if config.has_return_data => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
 		},
 		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode),
 
 		Opcode::SSTORE if !is_static => {
 			let index = stack.peek(0)?;
 			let value = stack.peek(1)?;
-			storage_target = StorageTarget::Slot(address, index);
+			storage_target = StorageTarget::Slot(address, index.to_h256());
 
 			GasCost::SStore {
-				original: handler.original_storage(address, index),
-				current: handler.storage(address, index),
-				new: value,
-				target_is_cold: handler.is_cold(address, Some(index)),
+				original: handler.original_storage(address, index.to_h256()),
+				current: handler.storage(address, index.clone()),
+				new: value.to_h256(),
+				target_is_cold: handler.is_cold(address, Some(index.to_h256())),
 			}
 		}
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::LOG1 if !is_static => GasCost::Log {
 			n: 1,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::LOG2 if !is_static => GasCost::Log {
 			n: 2,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::LOG3 if !is_static => GasCost::Log {
 			n: 3,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::LOG4 if !is_static => GasCost::Log {
 			n: 4,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		},
 		Opcode::CREATE if !is_static => GasCost::Create,
 		Opcode::CREATE2 if !is_static && config.has_create2 => GasCost::Create2 {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
 		},
 		Opcode::SUICIDE if !is_static => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek(0)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Suicide {
 				value: handler.balance(address),
@@ -613,13 +599,14 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		}
 		Opcode::CALL
 			if !is_static
-				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
+				|| (is_static
+					&& U256::from_big_endian(&stack.peek(2)?.to_h256()[..]) == U256::zero()) =>
 		{
-			let target = stack.peek(1)?.into();
+			let target = stack.peek(1)?.to_h256().into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Call {
-				value: U256::from_big_endian(&stack.peek(2)?[..]),
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				value: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
+				gas: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
 				target_is_cold: handler.is_cold(target, None),
 				target_exists: handler.exists(target),
 			}
@@ -637,54 +624,54 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		| Opcode::LOG2
 		| Opcode::LOG3
 		| Opcode::LOG4 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			offset: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
+			len: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
 		}),
 
 		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			offset: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
+			len: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
 		}),
 
 		Opcode::EXTCODECOPY => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(1)?[..]),
-			len: U256::from_big_endian(&stack.peek(3)?[..]),
+			offset: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
+			len: U256::from_big_endian(&stack.peek(3)?.to_h256()[..]),
 		}),
 
 		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			offset: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
 			len: U256::from(32),
 		}),
 
 		Opcode::MSTORE8 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			offset: U256::from_big_endian(&stack.peek(0)?.to_h256()[..]),
 			len: U256::from(1),
 		}),
 
 		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(1)?[..]),
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			offset: U256::from_big_endian(&stack.peek(1)?.to_h256()[..]),
+			len: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
 		}),
 
 		Opcode::CALL | Opcode::CALLCODE => Some(
 			MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(3)?[..]),
-				len: U256::from_big_endian(&stack.peek(4)?[..]),
+				offset: U256::from_big_endian(&stack.peek(3)?.to_h256()[..]),
+				len: U256::from_big_endian(&stack.peek(4)?.to_h256()[..]),
 			}
 			.join(MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(5)?[..]),
-				len: U256::from_big_endian(&stack.peek(6)?[..]),
+				offset: U256::from_big_endian(&stack.peek(5)?.to_h256()[..]),
+				len: U256::from_big_endian(&stack.peek(6)?.to_h256()[..]),
 			}),
 		),
 
 		Opcode::DELEGATECALL | Opcode::STATICCALL => Some(
 			MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(2)?[..]),
-				len: U256::from_big_endian(&stack.peek(3)?[..]),
+				offset: U256::from_big_endian(&stack.peek(2)?.to_h256()[..]),
+				len: U256::from_big_endian(&stack.peek(3)?.to_h256()[..]),
 			}
 			.join(MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(4)?[..]),
-				len: U256::from_big_endian(&stack.peek(5)?[..]),
+				offset: U256::from_big_endian(&stack.peek(4)?.to_h256()[..]),
+				len: U256::from_big_endian(&stack.peek(5)?.to_h256()[..]),
 			}),
 		),
 
