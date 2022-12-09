@@ -1,8 +1,11 @@
 use super::Control;
-use crate::{utils::AsBytes, ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
+use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
-use eltypes::{ManagedVecforEH256, ToEH256};
+use elrond_wasm::{
+	api::ManagedTypeApi,
+	types::{ManagedBuffer, ManagedVec},
+};
+use eltypes::{ManagedBufferAccess, ManagedVecforEH256, ToEH256};
 use primitive_types::{H256, U256};
 
 #[inline]
@@ -83,7 +86,10 @@ pub fn mload<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	pop_u256!(state, index);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
-	let value = H256::from_slice(&state.memory.get(index, 32).as_bytes());
+	let mut slice = [0u8; 32];
+	// TODO: Changed a lot, check this
+	state.memory.get(index, 32).load_slice(0, &mut slice).unwrap();
+	let value = H256::from_slice(&slice);
 	push!(state, value.to_eh256());
 	Control::Continue(1)
 }
@@ -94,7 +100,10 @@ pub fn mstore<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	pop!(state, value);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
-	match state.memory.set(index, &value.managedvec_bytes(), Some(32)) {
+	match state
+		.memory
+		.set(index, &value.to_managed_buffer(), Some(32))
+	{
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -106,9 +115,9 @@ pub fn mstore8<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 	try_or_fail!(state.memory.resize_offset(index, U256::one()));
 	let index = as_usize_or_fail!(index);
 	let value = (value.low_u32() & 0xff) as u8;
-	let mut vec = ManagedVec::new();
-	vec.push(value);
-	match state.memory.set(index, &vec, Some(1)) {
+	let mut slice = ManagedBuffer::new();
+	slice.push(value);
+	match state.memory.set(index, &slice, Some(1)) {
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
@@ -158,7 +167,7 @@ pub fn msize<M: ManagedTypeApi>(state: &mut Machine<M>) -> Control {
 #[inline]
 pub fn push<M: ManagedTypeApi>(state: &mut Machine<M>, n: usize, position: usize) -> Control {
 	let end = min(position + 1 + n, state.code.len());
-	let slice = &state.code.slice(position + 1, end).unwrap();
+	let slice = &state.code.copy_slice(position + 1, end).unwrap();
 	let mut val = [0u8; 32];
 
 	for i in 0..slice.len() {

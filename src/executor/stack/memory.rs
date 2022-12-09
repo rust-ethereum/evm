@@ -7,28 +7,28 @@ use alloc::{
 	vec::Vec,
 };
 use core::mem;
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use elrond_wasm::{api::ManagedTypeApi, types::{ManagedVec, ManagedBuffer}};
 use eltypes::EH256;
 use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
-pub struct MemoryStackAccount {
+pub struct MemoryStackAccount<M: ManagedTypeApi> {
 	pub basic: Basic,
-	pub code: Option<Vec<u8>>,
+	pub code: Option<ManagedBuffer<M>>,
 	pub reset: bool,
 }
 
 #[derive(Clone, Debug)]
-pub struct MemoryStackSubstate<'config> {
+pub struct MemoryStackSubstate<'config, M: ManagedTypeApi> {
 	metadata: StackSubstateMetadata<'config>,
-	parent: Option<Box<MemoryStackSubstate<'config>>>,
+	parent: Option<Box<MemoryStackSubstate<'config, M>>>,
 	// logs: ManagedVec<M, Log>,
-	accounts: BTreeMap<H160, MemoryStackAccount>,
+	accounts: BTreeMap<H160, MemoryStackAccount<M>>,
 	storages: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
 }
 
-impl<'config> MemoryStackSubstate<'config> {
+impl<'config, M: ManagedTypeApi> MemoryStackSubstate<'config, M> {
 	pub fn new(metadata: StackSubstateMetadata<'config>) -> Self {
 		Self {
 			metadata,
@@ -59,16 +59,16 @@ impl<'config> MemoryStackSubstate<'config> {
 	/// Deconstruct the executor, return state to be applied. Panic if the
 	/// executor is not in the top-level substate.
 	#[must_use]
-	pub fn deconstruct<B: Backend<M>, M: ManagedTypeApi>(
+	pub fn deconstruct<B: Backend<M>>(
 		mut self,
 		backend: &B,
 	) -> (
-		impl IntoIterator<Item = Apply<impl IntoIterator<Item = (H256, H256)>>>,
+		impl IntoIterator<Item = Apply<impl IntoIterator<Item = (H256, H256)>, M>>,
 		impl IntoIterator<Item = Log>,
 	) {
 		assert!(self.parent.is_none());
 
-		let mut applies = Vec::<Apply<BTreeMap<H256, H256>>>::new();
+		let mut applies = Vec::<Apply<BTreeMap<H256, H256>, M>>::new();
 
 		let mut addresses = BTreeSet::new();
 
@@ -176,7 +176,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	pub fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
+	pub fn known_account(&self, address: H160) -> Option<&MemoryStackAccount<M>> {
 		if let Some(account) = self.accounts.get(&address) {
 			Some(account)
 		} else if let Some(parent) = self.parent.as_ref() {
@@ -190,7 +190,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.known_account(address).map(|acc| acc.basic.clone())
 	}
 
-	pub fn known_code(&self, address: H160) -> Option<Vec<u8>> {
+	pub fn known_code(&self, address: H160) -> Option<ManagedBuffer<M>> {
 		self.known_account(address).and_then(|acc| acc.code.clone())
 	}
 
@@ -281,11 +281,11 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	#[allow(clippy::map_entry)]
-	fn account_mut<B: Backend<M>, M: ManagedTypeApi>(
+	fn account_mut<B: Backend<M>>(
 		&mut self,
 		address: H160,
 		backend: &B,
-	) -> &mut MemoryStackAccount {
+	) -> &mut MemoryStackAccount<M> {
 		if !self.accounts.contains_key(&address) {
 			let account = self
 				.known_account(address)
@@ -307,7 +307,7 @@ impl<'config> MemoryStackSubstate<'config> {
 			.expect("New account was just inserted")
 	}
 
-	pub fn inc_nonce<B: Backend<M>, M: ManagedTypeApi>(&mut self, address: H160, backend: &B) {
+	pub fn inc_nonce<B: Backend<M>>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend).basic.nonce += U256::one();
 	}
 
@@ -315,7 +315,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.storages.insert((address, key), value);
 	}
 
-	pub fn reset_storage<B: Backend<M>, M: ManagedTypeApi>(&mut self, address: H160, backend: &B) {
+	pub fn reset_storage<B: Backend<M>>(&mut self, address: H160, backend: &B) {
 		let mut removing = Vec::new();
 		for (oa, ok) in self.storages.keys() {
 			if *oa == address {
@@ -342,16 +342,16 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.deletes.insert(address);
 	}
 
-	pub fn set_code<B: Backend<M>, M: ManagedTypeApi>(
+	pub fn set_code<B: Backend<M>>(
 		&mut self,
 		address: H160,
-		code: Vec<u8>,
+		code: ManagedBuffer<M>,
 		backend: &B,
 	) {
 		self.account_mut(address, backend).code = Some(code);
 	}
 
-	pub fn transfer<B: Backend<M>, M: ManagedTypeApi>(
+	pub fn transfer<B: Backend<M>>(
 		&mut self,
 		transfer: Transfer,
 		backend: &B,
@@ -373,7 +373,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	// Only needed for jsontests.
-	pub fn withdraw<B: Backend<M>, M: ManagedTypeApi>(
+	pub fn withdraw<B: Backend<M>>(
 		&mut self,
 		address: H160,
 		value: U256,
@@ -389,7 +389,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	// Only needed for jsontests.
-	pub fn deposit<B: Backend<M>, M: ManagedTypeApi>(
+	pub fn deposit<B: Backend<M>>(
 		&mut self,
 		address: H160,
 		value: U256,
@@ -399,11 +399,11 @@ impl<'config> MemoryStackSubstate<'config> {
 		target.basic.balance = target.basic.balance.saturating_add(value);
 	}
 
-	pub fn reset_balance<B: Backend<M>, M: ManagedTypeApi>(&mut self, address: H160, backend: &B) {
+	pub fn reset_balance<B: Backend<M>>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend).basic.balance = U256::zero();
 	}
 
-	pub fn touch<B: Backend<M>, M: ManagedTypeApi>(&mut self, address: H160, backend: &B) {
+	pub fn touch<B: Backend<M>>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend);
 	}
 }
@@ -411,7 +411,7 @@ impl<'config> MemoryStackSubstate<'config> {
 #[derive(Clone, Debug)]
 pub struct MemoryStackState<'backend, 'config, B, M: ManagedTypeApi> {
 	backend: &'backend B,
-	substate: MemoryStackSubstate<'config>,
+	substate: MemoryStackSubstate<'config, M>,
 	//TODO: Remove vec_test
 	vec_test: ManagedVec<M, u8>,
 }
@@ -461,7 +461,7 @@ impl<'backend, 'config, B: Backend<M>, M: ManagedTypeApi> Backend<M>
 			.unwrap_or_else(|| self.backend.basic(address))
 	}
 
-	fn code(&self, address: H160) -> Vec<u8> {
+	fn code(&self, address: H160) -> ManagedBuffer<M> {
 		self.substate
 			.known_code(address)
 			.unwrap_or_else(|| self.backend.code(address))
@@ -543,7 +543,7 @@ impl<'backend, 'config, B: Backend<M>, M: ManagedTypeApi> StackState<'config, M>
 		self.substate.reset_storage(address, self.backend);
 	}
 
-	fn log(&mut self, address: H160, topics: ManagedVec<M, EH256>, data: ManagedVec<M, u8>) {
+	fn log(&mut self, address: H160, topics: ManagedVec<M, EH256>, data: ManagedBuffer<M>) {
 		// 	self.substate.log(address, topics, data);
 	}
 
@@ -551,7 +551,7 @@ impl<'backend, 'config, B: Backend<M>, M: ManagedTypeApi> StackState<'config, M>
 		self.substate.set_deleted(address)
 	}
 
-	fn set_code(&mut self, address: H160, code: Vec<u8>) {
+	fn set_code(&mut self, address: H160, code: ManagedBuffer<M>) {
 		self.substate.set_code(address, code, self.backend)
 	}
 
@@ -580,7 +580,7 @@ impl<'backend, 'config, B: Backend<M>, M: ManagedTypeApi>
 	}
 
 	/// Returns a mutable reference to an account given its address
-	pub fn account_mut(&mut self, address: H160) -> &mut MemoryStackAccount {
+	pub fn account_mut(&mut self, address: H160) -> &mut MemoryStackAccount<M> {
 		self.substate.account_mut(address, self.backend)
 	}
 
@@ -588,7 +588,7 @@ impl<'backend, 'config, B: Backend<M>, M: ManagedTypeApi>
 	pub fn deconstruct(
 		self,
 	) -> (
-		impl IntoIterator<Item = Apply<impl IntoIterator<Item = (H256, H256)>>>,
+		impl IntoIterator<Item = Apply<impl IntoIterator<Item = (H256, H256)>, M>>,
 		impl IntoIterator<Item = Log>,
 	) {
 		self.substate.deconstruct(self.backend)

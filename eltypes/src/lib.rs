@@ -1,5 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+use elrond_wasm::api::{HandleConstraints, InvalidSliceError};
+
 elrond_wasm::imports!();
 elrond_wasm::derive_imports!();
 
@@ -80,15 +82,127 @@ impl ToH256 for EH256 {
 }
 
 pub trait ManagedVecforEH256<M: ManagedTypeApi> {
-	fn managedvec_bytes(&self) -> ManagedVec<M, u8>;
+	fn to_managed_buffer(&self) -> ManagedBuffer<M>;
 }
 
 impl<M: ManagedTypeApi> ManagedVecforEH256<M> for EH256 {
-	fn managedvec_bytes(&self) -> ManagedVec<M, u8> {
-		let mut result = ManagedVec::new();
+	fn to_managed_buffer(&self) -> ManagedBuffer<M> {
+		let mut result = ManagedBuffer::new();
 		for i in 0..self.data.len() {
-			result.push(self.data[i]);
+			result.set(i, self.data[i]).unwrap();
 		}
 		result
+	}
+}
+
+pub struct ManagedBufferRefIterator<'a, M: ManagedTypeApi> {
+	managed_buffer: &'a ManagedBuffer<M>,
+	byte_start: usize,
+	byte_end: usize,
+}
+
+impl<'a, M> ManagedBufferRefIterator<'a, M>
+where
+	M: ManagedTypeApi,
+{
+	pub(crate) fn new(managed_buffer: &'a ManagedBuffer<M>) -> Self {
+		ManagedBufferRefIterator {
+			managed_buffer,
+			byte_start: 0,
+			byte_end: managed_buffer.len(),
+		}
+	}
+}
+
+impl<'a, M> Iterator for ManagedBufferRefIterator<'a, M>
+where
+	M: ManagedTypeApi,
+{
+	type Item = u8;
+
+	fn next(&mut self) -> Option<Self::Item> {
+        let next_byte_start = self.byte_start + 1;
+        if next_byte_start > self.byte_end {
+            return None;
+        }
+
+		let result = unsafe {
+			u8::from_byte_reader_as_borrow(|dest_slice| {
+				let _ = self
+					.managed_buffer
+					.load_slice(self.byte_start, dest_slice);
+			})
+		};
+
+		self.byte_start = next_byte_start;
+		Some(result)
+	}
+}
+
+pub trait ManagedBufferAccess<M: ManagedTypeApi> {
+	fn push(&mut self, byte: u8);
+	fn get(&self, index: usize) -> u8;
+	fn try_get(&self, index: usize) -> Option<u8>;
+	fn set(&mut self, index: usize, data: u8) -> Result<(), InvalidSliceError>;
+	fn resize(&self, size: usize, value: u8) -> ManagedBuffer<M>;
+	// fn as_bytes(&self) -> &[u8];
+	fn to_vec(&self) -> Vec<u8>;
+	fn iter(&self) -> ManagedBufferRefIterator<M>;
+}
+
+impl<M: ManagedTypeApi> ManagedBufferAccess<M> for ManagedBuffer<M> {
+	fn push(&mut self, byte: u8) {
+		self.append_bytes(&[byte])
+	}
+
+	fn get(&self, index: usize) -> u8 {
+		match self.try_get(index) {
+			Some(result) => result,
+			None => M::error_api_impl().signal_error(b"INDEX_OUT_OF_RANGE_MSG"),
+		}
+	}
+
+	fn try_get(&self, index: usize) -> Option<u8> {
+		let mut dest_slice = [0u8; 1];
+		let load_result = self.load_slice(index, &mut dest_slice);
+		match load_result {
+			Result::Ok(_) => todo!(),
+			Result::Err(_) => todo!(),
+		}
+	}
+
+	fn set(&mut self, index: usize, byte: u8) -> Result<(), InvalidSliceError> {
+		self.set_slice(index, &[byte])
+	}
+
+	fn resize(&self, size: usize, byte: u8) -> ManagedBuffer<M> {
+		let mut result = ManagedBuffer::new();
+		for i in 0..size {
+			result.set(i, byte).unwrap();
+		}
+		result
+	}
+
+	// fn as_bytes(&self) -> &[u8] {
+	// 	let mut data = Vec::<u8>::new();
+	// 	for i in 0..self.len() {
+	// 		let item = self.try_get(i).unwrap();
+	// 		data.push(item);
+	// 	}
+	// 	&data
+	// }
+
+	// TODO: This needs to be optimized for sure!
+	fn to_vec(&self) -> Vec<u8> {
+		let mut data = Vec::<u8>::new();
+		for i in 0..self.len() {
+			let item = self.try_get(i).unwrap();
+			data.push(item);
+		}
+		data
+	}
+
+	fn iter(&self) -> ManagedBufferRefIterator<M> {
+		ManagedBufferRefIterator::new(self)
 	}
 }

@@ -1,5 +1,5 @@
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use elrond_wasm::{api::ManagedTypeApi, types::{ManagedVec, ManagedBuffer}};
 use eltypes::EH256;
 
 use primitive_types::{H160, H256, U256};
@@ -34,7 +34,7 @@ pub trait Handler<M: ManagedTypeApi> {
 	/// Get code hash of address.
 	fn code_hash(&self, address: H160) -> H256;
 	/// Get code of address.
-	fn code(&self, address: H160) -> ManagedVec<M, u8>;
+	fn code(&self, address: H160) -> ManagedBuffer<M>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: EH256) -> H256;
 	/// Get original storage value of address at index.
@@ -82,7 +82,7 @@ pub trait Handler<M: ManagedTypeApi> {
 		&mut self,
 		address: H160,
 		topics: ManagedVec<M, EH256>,
-		data: ManagedVec<M, u8>,
+		data: ManagedBuffer<M>,
 	) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
@@ -92,9 +92,9 @@ pub trait Handler<M: ManagedTypeApi> {
 		caller: H160,
 		scheme: CreateScheme,
 		value: U256,
-		init_code: ManagedVec<M, u8>,
+		init_code: ManagedBuffer<M>,
 		target_gas: Option<u64>,
-	) -> Capture<(ExitReason, Option<H160>, ManagedVec<M, u8>), Self::CreateInterrupt>;
+	) -> Capture<(ExitReason, Option<H160>, ManagedBuffer<M>), Self::CreateInterrupt>;
 	/// Feed in create feedback.
 	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
 		Ok(())
@@ -104,11 +104,11 @@ pub trait Handler<M: ManagedTypeApi> {
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<M, u8>,
+		input: ManagedBuffer<M>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
-	) -> Capture<(ExitReason, ManagedVec<M, u8>), Self::CallInterrupt>;
+	) -> Capture<(ExitReason, ManagedBuffer<M>), Self::CallInterrupt>;
 	/// Feed in call feedback.
 	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
 		Ok(())
