@@ -363,10 +363,10 @@ pub fn create<'config, H: Handler<M>, M: ManagedTypeApi>(
 
 	let scheme = if is_create2 {
 		pop!(runtime, salt);
-		let code_hash = H256::from_slice(Keccak256::digest(&code.into_vec()).as_slice());
+		let code_hash = H256::from_slice(Keccak256::digest(&code.clone().into_vec()).as_slice());
 		CreateScheme::Create2 {
 			caller: runtime.context.address,
-			salt,
+			salt: salt.to_h256(),
 			code_hash,
 		}
 	} else {
@@ -451,7 +451,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 
 	let context = match scheme {
 		CallScheme::Call | CallScheme::StaticCall => Context {
-			address: to.to_h256().into(),
+			address: to.clone().to_h256().into(),
 			caller: runtime.context.address,
 			apparent_value: value,
 		},
@@ -470,7 +470,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 	let transfer = if scheme == CallScheme::Call {
 		Some(Transfer {
 			source: runtime.context.address,
-			target: to.to_h256().into(),
+			target: to.clone().to_h256().into(),
 			value,
 		})
 	} else if scheme == CallScheme::CallCode {
