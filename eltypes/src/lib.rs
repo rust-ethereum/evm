@@ -34,6 +34,15 @@ impl ToEH256 for primitive_types::H256 {
 	}
 }
 
+pub trait ToH256 {
+	fn to_h256(self) -> H256;
+}
+impl ToH256 for EH256 {
+	fn to_h256(self) -> H256 {
+		H256::from(&self.data)
+	}
+}
+
 pub trait ManagedVecforEH256<M: ManagedTypeApi> {
 	fn managedvec_bytes(&self) -> ManagedVec<M, u8>;
 }

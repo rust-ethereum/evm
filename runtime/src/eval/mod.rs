@@ -3,22 +3,31 @@ mod macros;
 mod system;
 
 use crate::{CallScheme, ExitReason, Handler, Opcode, Runtime};
+use elrond_wasm::api::ManagedTypeApi;
 
-pub enum Control<H: Handler> {
+pub enum Control<M: ManagedTypeApi, H: Handler<M>> {
 	Continue,
 	CallInterrupt(H::CallInterrupt),
 	CreateInterrupt(H::CreateInterrupt),
 	Exit(ExitReason),
 }
 
-fn handle_other<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) -> Control<H> {
+fn handle_other<M: ManagedTypeApi, H: Handler<M>>(
+	state: &mut Runtime<M>,
+	opcode: Opcode,
+	handler: &mut H,
+) -> Control<M, H> {
 	match handler.other(opcode, &mut state.machine) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
 }
 
-pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) -> Control<H> {
+pub fn eval<M: ManagedTypeApi, H: Handler<M>>(
+	state: &mut Runtime<M>,
+	opcode: Opcode,
+	handler: &mut H,
+) -> Control<M, H> {
 	match opcode {
 		Opcode::SHA3 => system::sha3(state),
 		Opcode::ADDRESS => system::address(state),

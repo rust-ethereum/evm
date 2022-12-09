@@ -1,7 +1,7 @@
 //! Runtime layer for EVM.
 
-#![deny(warnings)]
-#![forbid(unsafe_code, unused_variables)]
+// #![deny(warnings)]
+// #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -106,8 +106,8 @@ macro_rules! step {
 /// EVM runtime.
 ///
 /// The runtime wraps an EVM `Machine` with support of return data and context.
-pub struct Runtime<'config, M> {
-	machine: Machine,
+pub struct Runtime<'config, M: ManagedTypeApi> {
+	machine: Machine<M>,
 	status: Result<(), ExitReason>,
 	return_data_buffer: ManagedVec<M, u8>,
 	context: Context,
@@ -117,8 +117,8 @@ pub struct Runtime<'config, M> {
 impl<'config, M: ManagedTypeApi> Runtime<'config, M> {
 	/// Create a new runtime with given code and data.
 	pub fn new(
-		code: Rc<ManagedVec<u8>>,
-		data: Rc<ManagedVec<u8>>,
+		code: Rc<ManagedVec<M, u8>>,
+		data: Rc<ManagedVec<M, u8>>,
 		context: Context,
 		config: &'config Config,
 	) -> Self {
@@ -132,7 +132,7 @@ impl<'config, M: ManagedTypeApi> Runtime<'config, M> {
 	}
 
 	/// Get a reference to the machine.
-	pub fn machine(&self) -> &Machine {
+	pub fn machine(&self) -> &Machine<M> {
 		&self.machine
 	}
 
@@ -142,18 +142,18 @@ impl<'config, M: ManagedTypeApi> Runtime<'config, M> {
 	}
 
 	/// Step the runtime.
-	pub fn step<'a, H: Handler>(
+	pub fn step<'a, H: Handler<M>>(
 		&'a mut self,
 		handler: &mut H,
-	) -> Result<(), Capture<ExitReason, Resolve<'a, 'config, H>>> {
+	) -> Result<(), Capture<ExitReason, Resolve<'a, 'config, M, H>>> {
 		step!(self, handler, return Err; Ok)
 	}
 
 	/// Loop stepping the runtime until it stops.
-	pub fn run<'a, H: Handler>(
+	pub fn run<'a, H: Handler<M>>(
 		&'a mut self,
 		handler: &mut H,
-	) -> Capture<ExitReason, Resolve<'a, 'config, H>> {
+	) -> Capture<ExitReason, Resolve<'a, 'config, M, H>> {
 		loop {
 			step!(self, handler, return;)
 		}
