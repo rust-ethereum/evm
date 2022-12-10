@@ -9,11 +9,10 @@ use alloc::{
 	rc::Rc,
 	vec::Vec,
 };
-use eltypes::EH256;
-use utils::*;
+use eltypes::{EH256, ManagedBufferAccess};
 
 use core::{cmp::min, convert::Infallible};
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use elrond_wasm::{api::ManagedTypeApi, types::{ManagedVec, ManagedBuffer}};
 use evm_core::{ExitFatal, ExitRevert};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -207,9 +206,9 @@ pub trait StackState<'config, M: ManagedTypeApi>: Backend<M> {
 	fn inc_nonce(&mut self, address: H160);
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
 	fn reset_storage(&mut self, address: H160);
-	fn log(&mut self, address: H160, topics: ManagedVec<M, EH256>, data: ManagedVec<M, u8>);
+	fn log(&mut self, address: H160, topics: ManagedVec<M, EH256>, data: ManagedBuffer<M>);
 	fn set_deleted(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	fn set_code(&mut self, address: H160, code: ManagedBuffer<M>);
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -227,7 +226,7 @@ pub trait StackState<'config, M: ManagedTypeApi>: Backend<M> {
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
 	fn code_hash(&self, address: H160) -> H256 {
-		H256::from_slice(Keccak256::digest(&self.code(address)).as_slice())
+		H256::from_slice(Keccak256::digest(&self.code(address).to_boxed_bytes()).as_slice())
 	}
 }
 
@@ -235,7 +234,7 @@ pub trait StackState<'config, M: ManagedTypeApi>: Backend<M> {
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PrecompileOutput<M: ManagedTypeApi> {
 	pub exit_status: ExitSucceed,
-	pub output: ManagedVec<M, u8>,
+	pub output: ManagedBuffer<M>,
 }
 
 /// Data returned by a precompile in case of failure.
@@ -247,7 +246,7 @@ pub enum PrecompileFailure<M: ManagedTypeApi> {
 	/// Returns the provided error message.
 	Revert {
 		exit_status: ExitRevert,
-		output: ManagedVec<M, u8>,
+		output: ManagedBuffer<M>,
 	},
 	/// Mark this failure as fatal, and all EVM execution stacks must be exited.
 	Fatal { exit_status: ExitFatal },
@@ -267,11 +266,11 @@ pub trait PrecompileHandle<M: ManagedTypeApi> {
 		&mut self,
 		to: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<M, u8>,
+		input: ManagedBuffer<M>,
 		gas_limit: Option<u64>,
 		is_static: bool,
 		context: &Context,
-	) -> (ExitReason, ManagedVec<M, u8>);
+	) -> (ExitReason, ManagedBuffer<M>);
 
 	/// Record cost to the Runtime gasometer.
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
@@ -284,14 +283,14 @@ pub trait PrecompileHandle<M: ManagedTypeApi> {
 		&mut self,
 		address: H160,
 		topics: ManagedVec<M, EH256>,
-		data: ManagedVec<M, u8>,
+		data: ManagedBuffer<M>,
 	) -> Result<(), ExitError>;
 
 	/// Retreive the code address (what is the address of the precompile being called).
 	fn code_address(&self) -> H160;
 
 	/// Retreive the input data the precompile is called with.
-	fn input(&self) -> &[u8];
+	fn input(&self) -> &ManagedBuffer<M>;
 
 	/// Retreive the context in which the precompile is executed.
 	fn context(&self) -> &Context;
@@ -338,7 +337,7 @@ impl<M: ManagedTypeApi> PrecompileSet<M> for () {
 ///
 /// In case of success returns the output and the cost.
 pub type PrecompileFn<M> = fn(
-	&[u8],
+	&ManagedBuffer<M>,
 	Option<u64>,
 	&Context,
 	bool,
@@ -378,7 +377,7 @@ pub struct StackExecutor<'config, 'precompiles, M: ManagedTypeApi, S, P> {
 	state: S,
 	precompile_set: &'precompiles P,
 	//TODO: remove vec_test
-	vec_test: ManagedVec<M, u8>,
+	vec_test: ManagedBuffer<M>,
 }
 
 impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: ManagedTypeApi>
@@ -404,7 +403,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			config,
 			state,
 			precompile_set,
-			vec_test: ManagedVec::new(),
+			vec_test: ManagedBuffer::new(),
 		}
 	}
 
@@ -449,10 +448,10 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 
 	fn record_create_transaction_cost(
 		&mut self,
-		init_code: &[u8],
+		init_code: &ManagedBuffer<M>,
 		access_list: &[(H160, Vec<H256>)],
 	) -> Result<(), ExitError> {
-		let transaction_cost = gasometer::create_transaction_cost(init_code, access_list);
+		let transaction_cost = gasometer::create_transaction_cost(&init_code, access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		gasometer.record_transaction(transaction_cost)
 	}
@@ -462,10 +461,10 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		&mut self,
 		caller: H160,
 		value: U256,
-		init_code: Vec<u8>,
+		init_code: ManagedBuffer<M>,
 		gas_limit: u64,
 		access_list: &[(H160, Vec<H256>)],
-	) -> (ExitReason, ManagedVec<M, u8>) {
+	) -> (ExitReason, ManagedBuffer<M>) {
 		event!(TransactCreate {
 			caller,
 			value,
@@ -475,7 +474,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
-			return emit_exit!(e.into(), ManagedVec::new());
+			return emit_exit!(e.into(), ManagedBuffer::new());
 		}
 		self.initialize_with_access_list(access_list);
 
@@ -483,7 +482,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			caller,
 			CreateScheme::Legacy { caller },
 			value,
-			ManagedVec::from(init_code),
+			&init_code,
 			Some(gas_limit),
 			false,
 		) {
@@ -497,12 +496,12 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		&mut self,
 		caller: H160,
 		value: U256,
-		init_code: Vec<u8>,
+		init_code: &ManagedBuffer<M>,
 		salt: H256,
 		gas_limit: u64,
 		access_list: &[(H160, Vec<H256>)],
-	) -> (ExitReason, ManagedVec<M, u8>) {
-		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
+	) -> (ExitReason, ManagedBuffer<M>) {
+		let code_hash = H256::from_slice(Keccak256::digest(&init_code.to_vec()).as_slice());
 		event!(TransactCreate2 {
 			caller,
 			value,
@@ -517,7 +516,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
-			return emit_exit!(e.into(), ManagedVec::new());
+			return emit_exit!(e.into(), ManagedBuffer::new());
 		}
 		self.initialize_with_access_list(access_list);
 
@@ -549,10 +548,10 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		caller: H160,
 		address: H160,
 		value: U256,
-		data: ManagedVec<M, u8>,
+		data: ManagedBuffer<M>,
 		gas_limit: u64,
 		access_list: &[(H160, Vec<H256>)],
-	) -> (ExitReason, ManagedVec<M, u8>) {
+	) -> (ExitReason, ManagedBuffer<M>) {
 		event!(TransactCall {
 			caller,
 			address,
@@ -561,11 +560,11 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			gas_limit,
 		});
 
-		let transaction_cost = gasometer::call_transaction_cost(&data.as_bytes(), &access_list);
+		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
-			Err(e) => return emit_exit!(e.into(), ManagedVec::new()),
+			Err(e) => return emit_exit!(e.into(), ManagedBuffer::new()),
 		}
 
 		// Initialize initial addresses for EIP-2929
@@ -691,21 +690,23 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		caller: H160,
 		scheme: CreateScheme,
 		value: U256,
-		init_code: ManagedVec<M, u8>,
+		init_code: &ManagedBuffer<M>,
 		target_gas: Option<u64>,
 		take_l64: bool,
-	) -> Capture<(ExitReason, Option<H160>, ManagedVec<M, u8>), Infallible> {
+	) -> Capture<(ExitReason, Option<H160>, ManagedBuffer<M>), Infallible> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), None, ManagedVec::new())),
+					Err(e) => return Capture::Exit((e.into(), None, ManagedBuffer::new())),
 				}
 			};
 		}
 
-		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
+		fn check_first_byte<M: ManagedTypeApi>(config: &Config, code: &ManagedBuffer<M>) -> Result<(), ExitError> {
+			// TODO: Check to be sure
+			// if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.get(0)
+			if config.disallow_executable_format && Opcode::EOFMAGIC.as_u8() == code.get(0)
 			{
 				return Err(ExitError::InvalidCode(Opcode::EOFMAGIC));
 			}
@@ -732,12 +733,12 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
-				return Capture::Exit((ExitError::CallTooDeep.into(), None, ManagedVec::new()));
+				return Capture::Exit((ExitError::CallTooDeep.into(), None, ManagedBuffer::new()));
 			}
 		}
 
 		if self.balance(caller) < value {
-			return Capture::Exit((ExitError::OutOfFund.into(), None, ManagedVec::new()));
+			return Capture::Exit((ExitError::OutOfFund.into(), None, ManagedBuffer::new()));
 		}
 
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
@@ -765,12 +766,12 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		{
 			if self.code_size(address) != U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, ManagedVec::new()));
+				return Capture::Exit((ExitError::CreateCollision.into(), None, ManagedBuffer::new()));
 			}
 
 			if self.nonce(address) > U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, ManagedVec::new()));
+				return Capture::Exit((ExitError::CreateCollision.into(), None, ManagedBuffer::new()));
 			}
 
 			self.state.reset_storage(address);
@@ -790,7 +791,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			Ok(()) => (),
 			Err(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitReason::Error(e), None, ManagedVec::new()));
+				return Capture::Exit((ExitReason::Error(e), None, ManagedBuffer::new()));
 			}
 		}
 
@@ -799,8 +800,8 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		}
 
 		let mut runtime = Runtime::new(
-			Rc::new(init_code),
-			Rc::new(ManagedVec::new()),
+			Rc::new(init_code.clone()),
+			Rc::new(ManagedBuffer::new()),
 			context,
 			self.config,
 		);
@@ -813,10 +814,10 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 				let out = runtime.machine().return_value();
 
 				// As of EIP-3541 code starting with 0xef cannot be deployed
-				if let Err(e) = check_first_byte(self.config, &out.as_bytes()) {
+				if let Err(e) = check_first_byte(self.config, &out) {
 					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(StackExitKind::Failed);
-					return Capture::Exit((e.into(), None, ManagedVec::new()));
+					return Capture::Exit((e.into(), None, ManagedBuffer::new()));
 				}
 
 				if let Some(limit) = self.config.create_contract_limit {
@@ -826,7 +827,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 						return Capture::Exit((
 							ExitError::CreateContractLimit.into(),
 							None,
-							ManagedVec::new(),
+							ManagedBuffer::new(),
 						));
 					}
 				}
@@ -839,20 +840,20 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 				{
 					Ok(()) => {
 						let e = self.exit_substate(StackExitKind::Succeeded);
-						self.state.set_code(address, out.as_bytes());
+						self.state.set_code(address, out);
 						try_or_fail!(e);
-						Capture::Exit((ExitReason::Succeed(s), Some(address), ManagedVec::new()))
+						Capture::Exit((ExitReason::Succeed(s), Some(address), ManagedBuffer::new()))
 					}
 					Err(e) => {
 						let _ = self.exit_substate(StackExitKind::Failed);
-						Capture::Exit((ExitReason::Error(e), None, ManagedVec::new()))
+						Capture::Exit((ExitReason::Error(e), None, ManagedBuffer::new()))
 					}
 				}
 			}
 			ExitReason::Error(e) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Error(e), None, ManagedVec::new()))
+				Capture::Exit((ExitReason::Error(e), None, ManagedBuffer::new()))
 			}
 			ExitReason::Revert(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -865,7 +866,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Fatal(e), None, ManagedVec::new()))
+				Capture::Exit((ExitReason::Fatal(e), None, ManagedBuffer::new()))
 			}
 		}
 	}
@@ -875,18 +876,18 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<M, u8>,
+		input: ManagedBuffer<M>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		take_l64: bool,
 		take_stipend: bool,
 		context: Context,
-	) -> Capture<(ExitReason, ManagedVec<M, u8>), Infallible> {
+	) -> Capture<(ExitReason, ManagedBuffer<M>), Infallible> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), ManagedVec::new())),
+					Err(e) => return Capture::Exit((e.into(), ManagedBuffer::new())),
 				}
 			};
 		}
@@ -936,7 +937,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitError::CallTooDeep.into(), ManagedVec::new()));
+				return Capture::Exit((ExitError::CallTooDeep.into(), ManagedBuffer::new()));
 			}
 		}
 
@@ -945,7 +946,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 				Ok(()) => (),
 				Err(e) => {
 					let _ = self.exit_substate(StackExitKind::Reverted);
-					return Capture::Exit((ExitReason::Error(e), ManagedVec::new()));
+					return Capture::Exit((ExitReason::Error(e), ManagedBuffer::new()));
 				}
 			}
 		}
@@ -957,7 +958,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		if let Some(result) = self.precompile_set.execute(&mut StackExecutorHandle {
 			executor: self,
 			code_address,
-			input: &input.as_bytes(),
+			input: &input,
 			gas_limit: Some(gas_limit),
 			context: &context,
 			is_static: precompile_is_static,
@@ -972,7 +973,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 				}
 				Err(PrecompileFailure::Error { exit_status }) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(exit_status), ManagedVec::new()))
+					Capture::Exit((ExitReason::Error(exit_status), ManagedBuffer::new()))
 				}
 				Err(PrecompileFailure::Revert {
 					exit_status,
@@ -984,7 +985,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 				Err(PrecompileFailure::Fatal { exit_status }) => {
 					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Fatal(exit_status), ManagedVec::new()))
+					Capture::Exit((ExitReason::Fatal(exit_status), ManagedBuffer::new()))
 				}
 			};
 		}
@@ -1001,7 +1002,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			}
 			ExitReason::Error(e) => {
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Error(e), ManagedVec::new()))
+				Capture::Exit((ExitReason::Error(e), ManagedBuffer::new()))
 			}
 			ExitReason::Revert(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -1010,7 +1011,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Fatal(e), ManagedVec::new()))
+				Capture::Exit((ExitReason::Fatal(e), ManagedBuffer::new()))
 			}
 		}
 	}
@@ -1040,7 +1041,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		self.state.code_hash(address)
 	}
 
-	fn code(&self, address: H160) -> ManagedVec<M, u8> {
+	fn code(&self, address: H160) -> ManagedBuffer<M> {
 		self.state.code(address).into()
 	}
 
@@ -1118,7 +1119,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		&mut self,
 		address: H160,
 		topics: ManagedVec<M, EH256>,
-		data: ManagedVec<M, u8>,
+		data: ManagedBuffer<M>,
 	) -> Result<(), ExitError> {
 		self.state.log(address, topics, data);
 		Ok(())
@@ -1150,10 +1151,10 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		caller: H160,
 		scheme: CreateScheme,
 		value: U256,
-		init_code: ManagedVec<M, u8>,
+		init_code: ManagedBuffer<M>,
 		target_gas: Option<u64>,
-	) -> Capture<(ExitReason, Option<H160>, ManagedVec<M, u8>), Self::CreateInterrupt> {
-		self.create_inner(caller, scheme, value, init_code, target_gas, true)
+	) -> Capture<(ExitReason, Option<H160>, ManagedBuffer<M>), Self::CreateInterrupt> {
+		self.create_inner(caller, scheme, value, &init_code, target_gas, true)
 	}
 
 	#[cfg(feature = "tracing")]
@@ -1162,9 +1163,9 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		caller: H160,
 		scheme: CreateScheme,
 		value: U256,
-		init_code: ManagedVec<M, u8>,
+		init_code: ManagedBuffer<M>,
 		target_gas: Option<u64>,
-	) -> Capture<(ExitReason, Option<H160>, ManagedVec<M, u8>), Self::CreateInterrupt> {
+	) -> Capture<(ExitReason, Option<H160>, ManagedBuffer<M>), Self::CreateInterrupt> {
 		let capture = self.create_inner(caller, scheme, value, init_code, target_gas, true);
 
 		if let Capture::Exit((ref reason, _, ref return_value)) = capture {
@@ -1179,11 +1180,11 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<M, u8>,
+		input: ManagedBuffer<M>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
-	) -> Capture<(ExitReason, ManagedVec<M, u8>), Self::CallInterrupt> {
+	) -> Capture<(ExitReason, ManagedBuffer<M>), Self::CallInterrupt> {
 		self.call_inner(
 			code_address,
 			transfer,
@@ -1201,11 +1202,11 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<M, u8>,
+		input: ManagedBuffer<M>,
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
-	) -> Capture<(ExitReason, ManagedVec<M, u8>), Self::CallInterrupt> {
+	) -> Capture<(ExitReason, ManagedBuffer<M>), Self::CallInterrupt> {
 		let capture = self.call_inner(
 			code_address,
 			transfer,
@@ -1267,7 +1268,7 @@ impl<'config, 'precompiles, S: StackState<'config, M>, P: PrecompileSet<M>, M: M
 struct StackExecutorHandle<'inner, 'config, 'precompiles, M: ManagedTypeApi, S, P> {
 	executor: &'inner mut StackExecutor<'config, 'precompiles, M, S, P>,
 	code_address: H160,
-	input: &'inner [u8],
+	input: &'inner ManagedBuffer<M>,
 	gas_limit: Option<u64>,
 	context: &'inner Context,
 	is_static: bool,
@@ -1288,11 +1289,11 @@ impl<
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: ManagedVec<M, u8>,
+		input: ManagedBuffer<M>,
 		gas_limit: Option<u64>,
 		is_static: bool,
 		context: &Context,
-	) -> (ExitReason, ManagedVec<M, u8>) {
+	) -> (ExitReason, ManagedBuffer<M>) {
 		// For normal calls the cost is recorded at opcode level.
 		// Since we don't go through opcodes we need manually record the call
 		// cost. Not doing so will make the code panic as recording the call stipend
@@ -1317,7 +1318,7 @@ impl<
 			.gasometer
 			.record_dynamic_cost(gas_cost, memory_cost)
 		{
-			return (ExitReason::Error(error), ManagedVec::new());
+			return (ExitReason::Error(error), ManagedBuffer::new());
 		}
 
 		event!(PrecompileSubcall {
@@ -1363,7 +1364,7 @@ impl<
 		&mut self,
 		address: H160,
 		topics: ManagedVec<M, EH256>,
-		data: ManagedVec<M, u8>,
+		data: ManagedBuffer<M>,
 	) -> Result<(), ExitError> {
 		Handler::log(self.executor, address, topics, data)
 	}
@@ -1374,7 +1375,7 @@ impl<
 	}
 
 	/// Retreive the input data the precompile is called with.
-	fn input(&self) -> &[u8] {
+	fn input(&self) -> &ManagedBuffer<M> {
 		self.input
 	}
 

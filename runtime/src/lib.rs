@@ -27,6 +27,7 @@ mod eval;
 mod handler;
 mod interrupt;
 
+use elrond_wasm::types::ManagedBuffer;
 pub use evm_core::*;
 
 pub use crate::context::{CallScheme, Context, CreateScheme};
@@ -109,7 +110,7 @@ macro_rules! step {
 pub struct Runtime<'config, M: ManagedTypeApi> {
 	machine: Machine<M>,
 	status: Result<(), ExitReason>,
-	return_data_buffer: ManagedVec<M, u8>,
+	return_data_buffer: ManagedBuffer<M>,
 	context: Context,
 	_config: &'config Config,
 }
@@ -117,15 +118,15 @@ pub struct Runtime<'config, M: ManagedTypeApi> {
 impl<'config, M: ManagedTypeApi> Runtime<'config, M> {
 	/// Create a new runtime with given code and data.
 	pub fn new(
-		code: Rc<ManagedVec<M, u8>>,
-		data: Rc<ManagedVec<M, u8>>,
+		code: Rc<ManagedBuffer<M>>,
+		data: Rc<ManagedBuffer<M>>,
 		context: Context,
 		config: &'config Config,
 	) -> Self {
 		Self {
 			machine: Machine::new(code, data, config.stack_limit, config.memory_limit),
 			status: Ok(()),
-			return_data_buffer: ManagedVec::new(),
+			return_data_buffer: ManagedBuffer::new(),
 			context,
 			_config: config,
 		}

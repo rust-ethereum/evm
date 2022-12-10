@@ -5,8 +5,8 @@ use crate::{
 };
 
 use core::cmp::min;
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
-use eltypes::EH256;
+use elrond_wasm::{api::ManagedTypeApi, types::{ManagedVec, ManagedBuffer}};
+use eltypes::{EH256, ManagedBufferAccess};
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -15,7 +15,7 @@ pub fn sha3<H: Handler<M>, M: ManagedTypeApi>(runtime: &mut Runtime<M>) -> Contr
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
 	let data = if len == U256::zero() {
-		ManagedVec::new()
+		ManagedBuffer::new()
 	} else {
 		let from = as_usize_or_fail!(from);
 		let len = as_usize_or_fail!(len);
@@ -23,7 +23,7 @@ pub fn sha3<H: Handler<M>, M: ManagedTypeApi>(runtime: &mut Runtime<M>) -> Contr
 		runtime.machine.memory_mut().get(from, len)
 	};
 
-	let ret = Keccak256::digest(data.into_vec());
+	let ret = Keccak256::digest(&data.to_vec());
 	push!(runtime, EH256::from(H256::from_slice(ret.as_slice())));
 
 	Control::Continue
@@ -304,7 +304,7 @@ pub fn log<'config, H: Handler<M>, M: ManagedTypeApi>(
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
 	let data = if len == U256::zero() {
-		ManagedVec::new()
+		ManagedBuffer::new()
 	} else {
 		let offset = as_usize_or_fail!(offset);
 		let len = as_usize_or_fail!(len);
@@ -347,13 +347,13 @@ pub fn create<'config, H: Handler<M>, M: ManagedTypeApi>(
 	is_create2: bool,
 	handler: &mut H,
 ) -> Control<M, H> {
-	runtime.return_data_buffer = ManagedVec::new();
+	runtime.return_data_buffer = ManagedBuffer::new();
 
 	pop_u256!(runtime, value, code_offset, len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(code_offset, len));
 	let code = if len == U256::zero() {
-		ManagedVec::new()
+		ManagedBuffer::new()
 	} else {
 		let code_offset = as_usize_or_fail!(code_offset);
 		let len = as_usize_or_fail!(len);
@@ -363,7 +363,7 @@ pub fn create<'config, H: Handler<M>, M: ManagedTypeApi>(
 
 	let scheme = if is_create2 {
 		pop!(runtime, salt);
-		let code_hash = H256::from_slice(Keccak256::digest(&code.clone().into_vec()).as_slice());
+		let code_hash = H256::from_slice(Keccak256::digest(&code.clone().to_vec()).as_slice());
 		CreateScheme::Create2 {
 			caller: runtime.context.address,
 			salt: salt.to_h256(),
@@ -411,7 +411,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 	scheme: CallScheme,
 	handler: &mut H,
 ) -> Control<M, H> {
-	runtime.return_data_buffer = ManagedVec::new();
+	runtime.return_data_buffer = ManagedBuffer::new();
 
 	pop_u256!(runtime, gas);
 	pop!(runtime, to);
@@ -441,7 +441,7 @@ pub fn call<'config, H: Handler<M>, M: ManagedTypeApi>(
 		.resize_offset(out_offset, out_len));
 
 	let input = if in_len == U256::zero() {
-		ManagedVec::new()
+		ManagedBuffer::new()
 	} else {
 		let in_offset = as_usize_or_fail!(in_offset);
 		let in_len = as_usize_or_fail!(in_len);

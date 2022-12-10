@@ -28,8 +28,8 @@ mod memory;
 mod utils;
 
 use core::cmp::max;
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
-use eltypes::EH256;
+use elrond_wasm::{api::ManagedTypeApi, types::{ManagedVec, ManagedBuffer}};
+use eltypes::{EH256, ManagedBufferAccess};
 use evm_core::{ExitError, Opcode, Stack};
 use evm_runtime::{Config, Handler};
 use primitive_types::{H160, H256, U256};
@@ -275,8 +275,8 @@ impl<'config> Gasometer<'config> {
 
 /// Calculate the call transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
-	let zero_data_len = data.iter().filter(|v| **v == 0).count();
+pub fn call_transaction_cost<M: ManagedTypeApi>(data: &ManagedBuffer<M>, access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+	let zero_data_len = data.iter().filter(|v| *v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
 
@@ -290,8 +290,8 @@ pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> 
 
 /// Calculate the create transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
-	let zero_data_len = data.iter().filter(|v| **v == 0).count();
+pub fn create_transaction_cost<M: ManagedTypeApi>(data: &ManagedBuffer<M>, access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+	let zero_data_len = data.iter().filter(|v| *v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
 

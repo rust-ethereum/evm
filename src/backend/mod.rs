@@ -6,7 +6,7 @@ mod memory;
 
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
 
-use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
+use elrond_wasm::{api::ManagedTypeApi, types::ManagedBuffer};
 use primitive_types::{H160, H256, U256};
 
 /// Basic account information.
@@ -27,7 +27,7 @@ pub use ethereum::Log;
 
 /// Apply state operation.
 #[derive(Clone, Debug)]
-pub enum Apply<I> {
+pub enum Apply<I, M: ManagedTypeApi> {
 	/// Modify or create at address.
 	Modify {
 		/// Address.
@@ -35,7 +35,7 @@ pub enum Apply<I> {
 		/// Basic information of the address.
 		basic: Basic,
 		/// Code. `None` means leaving it unchanged.
-		code: Option<Vec<u8>>,
+		code: Option<ManagedBuffer<M>>,
 		/// Storage iterator.
 		storage: I,
 		/// Whether storage should be wiped empty before applying the storage
@@ -78,7 +78,7 @@ pub trait Backend<M: ManagedTypeApi> {
 	/// Get basic account information.
 	fn basic(&self, address: H160) -> Basic;
 	/// Get account code.
-	fn code(&self, address: H160) -> Vec<u8>;
+	fn code(&self, address: H160) -> ManagedBuffer<M>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
@@ -90,7 +90,7 @@ pub trait ApplyBackend<M: ManagedTypeApi> {
 	/// Apply given values and logs at backend.
 	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
 	where
-		A: IntoIterator<Item = Apply<I>>,
+		A: IntoIterator<Item = Apply<I, M>>,
 		I: IntoIterator<Item = (H256, H256)>,
 		L: IntoIterator<Item = Log>;
 }

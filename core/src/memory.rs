@@ -1,15 +1,16 @@
-use crate::utils::AdvangeManagedVec;
 use crate::{ExitError, ExitFatal};
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
+use elrond_wasm::types::ManagedBuffer;
 use elrond_wasm::{api::ManagedTypeApi, types::ManagedVec};
 use primitive_types::U256;
+use eltypes::ManagedBufferAccess;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.
 #[derive(Clone, Debug)]
 pub struct Memory<M: ManagedTypeApi> {
-	data: ManagedVec<M, u8>,
+	data: ManagedBuffer<M>,
 	effective_len: U256,
 	limit: usize,
 }
@@ -18,7 +19,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: ManagedVec::new(),
+			data: ManagedBuffer::new(),
 			effective_len: U256::zero(),
 			limit,
 		}
@@ -45,7 +46,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 	}
 
 	/// Return the full memory.
-	pub fn data(&self) -> &ManagedVec<M, u8> {
+	pub fn data(&self) -> &ManagedBuffer<M> {
 		&self.data
 	}
 
@@ -80,8 +81,8 @@ impl<M: ManagedTypeApi> Memory<M> {
 	///
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
-	pub fn get(&self, offset: usize, size: usize) -> ManagedVec<M, u8> {
-		let mut ret = ManagedVec::new();
+	pub fn get(&self, offset: usize, size: usize) -> ManagedBuffer<M> {
+		let mut ret = ManagedBuffer::new();
 		ret.resize(size, 0);
 
 		#[allow(clippy::needless_range_loop)]
@@ -91,7 +92,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 				break;
 			}
 
-			ret.set(index, &self.data.get(position));
+			ret.set(index, self.data.get(position)).unwrap();
 		}
 		ret
 	}
@@ -101,7 +102,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 	pub fn set(
 		&mut self,
 		offset: usize,
-		value: &ManagedVec<M, u8>,
+		value: &ManagedBuffer<M>,
 		target_size: Option<usize>,
 	) -> Result<(), ExitFatal> {
 		let target_size = target_size.unwrap_or(value.len());
@@ -123,15 +124,15 @@ impl<M: ManagedTypeApi> Memory<M> {
 
 		if target_size > value.len() {
 			for i in offset..(value.len() + offset) {
-				self.data.set(i, &value.get(i - offset));
+				self.data.set(i, value.get(i - offset)).unwrap();
 			}
 			for index in (value.len())..target_size {
-				self.data.set(offset + index, &0);
+				self.data.set(offset + index, 0).unwrap();
 			}
 		} else {
 			for i in offset..(value.len() + offset) {
 				if (i - offset) < target_size {
-					self.data.set(i, &value.get(i - offset));
+					self.data.set(i, value.get(i - offset)).unwrap();
 				}
 			}
 		}
@@ -145,7 +146,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 		memory_offset: U256,
 		data_offset: U256,
 		len: U256,
-		data: &ManagedVec<M, u8>,
+		data: &ManagedBuffer<M>,
 	) -> Result<(), ExitFatal> {
 		// Needed to pass ethereum test defined in
 		// https://github.com/ethereum/tests/commit/17f7e7a6c64bb878c1b6af9dc8371b46c133e46d
@@ -168,7 +169,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 			len.as_usize()
 		};
 
-		let empty_managed_vec = ManagedVec::new();
+		let empty_managed_vec = ManagedBuffer::new();
 		let data = if let Some(end) = data_offset.checked_add(len) {
 			if end > U256::from(usize::MAX) {
 				empty_managed_vec
@@ -179,7 +180,7 @@ impl<M: ManagedTypeApi> Memory<M> {
 				if data_offset > data.len() {
 					empty_managed_vec
 				} else {
-					let returned_data = data.slice(data_offset, min(end, data.len())).unwrap();
+					let returned_data = data.copy_slice(data_offset, min(end, data.len())).unwrap();
 					returned_data
 				}
 			}
