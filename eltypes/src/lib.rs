@@ -121,16 +121,14 @@ where
 	type Item = u8;
 
 	fn next(&mut self) -> Option<Self::Item> {
-        let next_byte_start = self.byte_start + 1;
-        if next_byte_start > self.byte_end {
-            return None;
-        }
+		let next_byte_start = self.byte_start + 1;
+		if next_byte_start > self.byte_end {
+			return None;
+		}
 
 		let result = unsafe {
 			u8::from_byte_reader_as_borrow(|dest_slice| {
-				let _ = self
-					.managed_buffer
-					.load_slice(self.byte_start, dest_slice);
+				let _ = self.managed_buffer.load_slice(self.byte_start, dest_slice);
 			})
 		};
 
@@ -166,8 +164,8 @@ impl<M: ManagedTypeApi> ManagedBufferAccess<M> for ManagedBuffer<M> {
 		let mut dest_slice = [0u8; 1];
 		let load_result = self.load_slice(index, &mut dest_slice);
 		match load_result {
-			Result::Ok(_) => todo!(),
-			Result::Err(_) => todo!(),
+			Result::Ok(_) => Some(dest_slice[0]),
+			Result::Err(_) => None,
 		}
 	}
 
