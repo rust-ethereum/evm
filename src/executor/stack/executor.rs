@@ -759,7 +759,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
 			context,
-			self.config,
+			self.config.clone(),
 		);
 
 		let reason = self.execute(&mut runtime);
@@ -946,7 +946,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		let mut runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
+		let mut runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config.clone());
 
 		let reason = self.execute(&mut runtime);
 		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
