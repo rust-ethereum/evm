@@ -131,9 +131,24 @@ impl<'config> Runtime<'config> {
 		}
 	}
 
+	pub fn new_from_state(machine: Machine, context: Context, config: &'config Config) -> Self {
+		Self {
+			machine,
+			status: Ok(()),
+			return_data_buffer: Vec::new(),
+			context,
+			_config: config,
+		}
+	}
+
 	/// Get a reference to the machine.
 	pub fn machine(&self) -> &Machine {
 		&self.machine
+	}
+
+	/// Get a reference to the machine.
+	pub fn machine_mut(&mut self) -> &mut Machine {
+		&mut self.machine
 	}
 
 	/// Get a reference to the execution context.
