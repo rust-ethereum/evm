@@ -87,6 +87,27 @@ impl Machine {
 		}
 	}
 
+	/// Create a new machine with some previous state
+	pub fn create_from_state(
+		code: Rc<Vec<u8>>,
+		data: Rc<Vec<u8>>,
+		position: Result<usize, ExitReason>,
+		return_range: Range<U256>,
+		valids: Valids,
+		memory: Memory,
+		stack: Stack,
+	) -> Self {
+		Self {
+			data,
+			code,
+			position,
+			return_range,
+			valids,
+			memory,
+			stack,
+		}
+	}
+
 	/// Explicit exit of the machine. Further step will return error.
 	pub fn exit(&mut self, reason: ExitReason) {
 		self.position = Err(reason);
