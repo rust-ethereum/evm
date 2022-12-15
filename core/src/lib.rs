@@ -71,8 +71,16 @@ impl Machine {
 		&self.return_range
 	}
 	/// Return a reference of the valids.
-	pub fn return_valids(&self) -> &Valids {
+	pub fn valids(&self) -> &Valids {
 		&self.valids
+	}
+	/// Return a reference of the return range.
+	pub fn code(&mut self) -> Vec<u8> {
+		self.code.to_vec()
+	}
+	/// Return a reference of the valids.
+	pub fn data(&self) -> Vec<u8> {
+		self.data.to_vec()
 	}
 
 	/// Create a new machine with given code and data.
