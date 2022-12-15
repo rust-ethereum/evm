@@ -66,6 +66,14 @@ impl Machine {
 	pub fn position(&self) -> &Result<usize, ExitReason> {
 		&self.position
 	}
+	/// Return a reference of the return range.
+	pub fn return_range(&self) -> &Range<U256> {
+		&self.return_range
+	}
+	/// Return a reference of the valids.
+	pub fn return_valids(&self) -> &Valids {
+		&self.valids
+	}
 
 	/// Create a new machine with given code and data.
 	pub fn new(
