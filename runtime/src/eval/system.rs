@@ -394,7 +394,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		}
 		Capture::Trap(interrupt) => {
 			runtime.return_data_len = out_len;
-			runtime.return_dat_offset = out_offset;
+			runtime.return_data_offset = out_offset;
 			Control::CallInterrupt(interrupt)
 		}
 	}

@@ -112,7 +112,7 @@ pub struct Runtime<'config> {
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
 	return_data_len: U256,
-	return_dat_offset: U256,
+	return_data_offset: U256,
 	context: Context,
 	_config: &'config Config,
 }
@@ -130,7 +130,7 @@ impl<'config> Runtime<'config> {
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
 			return_data_len: U256::zero(),
-			return_dat_offset: U256::zero(),
+			return_data_offset: U256::zero(),
 			context,
 			_config: config,
 		}
@@ -181,7 +181,7 @@ impl<'config> Runtime<'config> {
 		eval::finish_call(
 			self,
 			self.return_data_len,
-			self.return_dat_offset,
+			self.return_data_offset,
 			reason,
 			return_data,
 		)
