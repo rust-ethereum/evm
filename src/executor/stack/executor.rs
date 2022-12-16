@@ -501,6 +501,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				Some(r) => r,
 				None => return (reason, None, return_data),
 			};
+			emit_exit!(&reason, &return_data);
 			let inner_runtime = &mut runtime.inner;
 			let maybe_error = match runtime_kind {
 				RuntimeKind::Create(_) => {
@@ -1418,7 +1419,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 				call_stack.push(rt.0);
 				let (reason, _, return_data) =
 					self.executor.execute_with_call_stack(&mut call_stack);
-				(reason, return_data)
+				emit_exit!(reason, return_data)
 			}
 		}
 	}
