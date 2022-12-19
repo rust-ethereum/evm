@@ -1,10 +1,9 @@
 use super::Control;
 use crate::{
-	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitReason, ExitSucceed,
-	Handler, Runtime, Transfer,
+	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitSucceed, Handler,
+	Runtime, Transfer,
 };
 use alloc::vec::Vec;
-use core::cmp::min;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -297,32 +296,12 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 
 	match handler.create(runtime.context.address, scheme, value, code, None) {
 		Capture::Exit((reason, address, return_data)) => {
-			runtime.return_data_buffer = return_data;
-			let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
-
-			match reason {
-				ExitReason::Succeed(_) => {
-					push!(runtime, create_address);
-					Control::Continue
-				}
-				ExitReason::Revert(_) => {
-					push!(runtime, H256::default());
-					Control::Continue
-				}
-				ExitReason::Error(_) => {
-					push!(runtime, H256::default());
-					Control::Continue
-				}
-				ExitReason::Fatal(e) => {
-					push!(runtime, H256::default());
-					Control::Exit(e.into())
-				}
+			match super::finish_create(runtime, reason, address, return_data) {
+				Ok(()) => Control::Continue,
+				Err(e) => Control::Exit(e),
 			}
 		}
-		Capture::Trap(interrupt) => {
-			push!(runtime, H256::default());
-			Control::CreateInterrupt(interrupt)
-		}
+		Capture::Trap(interrupt) => Control::CreateInterrupt(interrupt),
 	}
 }
 
@@ -408,53 +387,14 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		context,
 	) {
 		Capture::Exit((reason, return_data)) => {
-			runtime.return_data_buffer = return_data;
-			let target_len = min(out_len, U256::from(runtime.return_data_buffer.len()));
-
-			match reason {
-				ExitReason::Succeed(_) => {
-					match runtime.machine.memory_mut().copy_large(
-						out_offset,
-						U256::zero(),
-						target_len,
-						&runtime.return_data_buffer[..],
-					) {
-						Ok(()) => {
-							push_u256!(runtime, U256::one());
-							Control::Continue
-						}
-						Err(_) => {
-							push_u256!(runtime, U256::zero());
-							Control::Continue
-						}
-					}
-				}
-				ExitReason::Revert(_) => {
-					push_u256!(runtime, U256::zero());
-
-					let _ = runtime.machine.memory_mut().copy_large(
-						out_offset,
-						U256::zero(),
-						target_len,
-						&runtime.return_data_buffer[..],
-					);
-
-					Control::Continue
-				}
-				ExitReason::Error(_) => {
-					push_u256!(runtime, U256::zero());
-
-					Control::Continue
-				}
-				ExitReason::Fatal(e) => {
-					push_u256!(runtime, U256::zero());
-
-					Control::Exit(e.into())
-				}
+			match super::finish_call(runtime, out_len, out_offset, reason, return_data) {
+				Ok(()) => Control::Continue,
+				Err(e) => Control::Exit(e),
 			}
 		}
 		Capture::Trap(interrupt) => {
-			push!(runtime, H256::default());
+			runtime.return_data_len = out_len;
+			runtime.return_data_offset = out_offset;
 			Control::CallInterrupt(interrupt)
 		}
 	}

@@ -4,6 +4,7 @@
 
 mod executor;
 mod memory;
+mod tagged_runtime;
 
 pub use self::executor::{
 	Accessed, PrecompileFailure, PrecompileFn, PrecompileHandle, PrecompileOutput, PrecompileSet,

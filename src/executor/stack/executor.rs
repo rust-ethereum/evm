@@ -1,5 +1,7 @@
 use crate::backend::Backend;
+use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
 use crate::gasometer::{self, Gasometer, StorageTarget};
+use crate::maybe_borrowed::MaybeBorrowed;
 use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, ExitSucceed, Handler, Opcode,
 	Runtime, Stack, Transfer,
@@ -11,6 +13,7 @@ use alloc::{
 };
 use core::{cmp::min, convert::Infallible};
 use evm_core::{ExitFatal, ExitRevert};
+use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -33,6 +36,8 @@ macro_rules! emit_exit {
 		(reason, return_value)
 	}};
 }
+
+const DEFAULT_CALL_STACK_CAPACITY: usize = 4;
 
 pub enum StackExitKind {
 	Succeeded,
@@ -419,10 +424,96 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute the runtime until it returns.
-	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
-		match runtime.run(self) {
-			Capture::Exit(s) => s,
-			Capture::Trap(_) => unreachable!("Trap is Infallible"),
+	pub fn execute(&mut self, runtime: &mut Runtime<'config>) -> ExitReason {
+		let mut call_stack = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+		call_stack.push(TaggedRuntime {
+			kind: RuntimeKind::Execute,
+			inner: MaybeBorrowed::Borrowed(runtime),
+		});
+		let (reason, _, _) = self.execute_with_call_stack(&mut call_stack);
+		reason
+	}
+
+	/// Execute using Runtimes on the call_stack until it returns.
+	fn execute_with_call_stack<'borrow>(
+		&mut self,
+		call_stack: &mut Vec<TaggedRuntime<'config, 'borrow>>,
+	) -> (ExitReason, Option<H160>, Vec<u8>) {
+		// This `interrupt_runtime` is used to pass the runtime obtained from the
+		// `Capture::Trap` branch in the match below back to the top of the call stack.
+		// The reason we can't simply `push` the runtime directly onto the stack in the
+		// `Capture::Trap` branch is because the borrow-checker complains that the stack
+		// is already borrowed as long as we hold a pointer on the last element
+		// (i.e. the currently executing runtime).
+		let mut interrupt_runtime = None;
+		loop {
+			if let Some(rt) = interrupt_runtime.take() {
+				call_stack.push(rt);
+			}
+			let runtime = match call_stack.last_mut() {
+				Some(runtime) => runtime,
+				None => {
+					return (
+						ExitReason::Fatal(ExitFatal::UnhandledInterrupt),
+						None,
+						Vec::new(),
+					);
+				}
+			};
+			let reason = {
+				let inner_runtime = &mut runtime.inner;
+				match inner_runtime.run(self) {
+					Capture::Exit(reason) => reason,
+					Capture::Trap(Resolve::Call(rt, _)) => {
+						interrupt_runtime = Some(rt.0);
+						continue;
+					}
+					Capture::Trap(Resolve::Create(rt, _)) => {
+						interrupt_runtime = Some(rt.0);
+						continue;
+					}
+				}
+			};
+			let runtime_kind = runtime.kind;
+			let (reason, maybe_address, return_data) = match runtime_kind {
+				RuntimeKind::Create(created_address) => {
+					let (reason, maybe_address, return_data) = self.cleanup_for_create(
+						created_address,
+						reason,
+						runtime.inner.machine().return_value(),
+					);
+					(reason, maybe_address, return_data)
+				}
+				RuntimeKind::Call(code_address) => {
+					let return_data = self.cleanup_for_call(
+						code_address,
+						&reason,
+						runtime.inner.machine().return_value(),
+					);
+					(reason, None, return_data)
+				}
+				RuntimeKind::Execute => (reason, None, runtime.inner.machine().return_value()),
+			};
+			// We're done with that runtime now, so can pop it off the call stack
+			call_stack.pop();
+			// Now pass the results from that runtime on to the next one in the stack
+			let runtime = match call_stack.last_mut() {
+				Some(r) => r,
+				None => return (reason, None, return_data),
+			};
+			emit_exit!(&reason, &return_data);
+			let inner_runtime = &mut runtime.inner;
+			let maybe_error = match runtime_kind {
+				RuntimeKind::Create(_) => {
+					inner_runtime.finish_create(reason, maybe_address, return_data)
+				}
+				RuntimeKind::Call(_) => inner_runtime.finish_call(reason, return_data),
+				RuntimeKind::Execute => inner_runtime.finish_call(reason, return_data),
+			};
+			// Early exit if passing on the result caused an error
+			if let Err(e) = maybe_error {
+				return (e, None, Vec::new());
+			}
 		}
 	}
 
@@ -472,7 +563,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			false,
 		) {
 			Capture::Exit((s, _, v)) => emit_exit!(s, v),
-			Capture::Trap(_) => unreachable!(),
+			Capture::Trap(rt) => {
+				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+				cs.push(rt.0);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				emit_exit!(s, v)
+			}
 		}
 	}
 
@@ -518,7 +614,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			false,
 		) {
 			Capture::Exit((s, _, v)) => emit_exit!(s, v),
-			Capture::Trap(_) => unreachable!(),
+			Capture::Trap(rt) => {
+				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+				cs.push(rt.0);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				emit_exit!(s, v)
+			}
 		}
 	}
 
@@ -583,7 +684,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			context,
 		) {
 			Capture::Exit((s, v)) => emit_exit!(s, v),
-			Capture::Trap(_) => unreachable!(),
+			Capture::Trap(rt) => {
+				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+				cs.push(rt.0);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				emit_exit!(s, v)
+			}
 		}
 	}
 
@@ -651,7 +757,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 		take_l64: bool,
-	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Infallible> {
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), StackExecutorCreateInterrupt<'config>> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
@@ -659,14 +765,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
 				}
 			};
-		}
-
-		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
-			{
-				return Err(ExitError::InvalidCode(Opcode::EOFMAGIC));
-			}
-			Ok(())
 		}
 
 		fn l64(gas: u64) -> u64 {
@@ -755,76 +853,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			self.state.inc_nonce(address);
 		}
 
-		let mut runtime = Runtime::new(
+		let runtime = Runtime::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
 			context,
 			self.config,
 		);
 
-		let reason = self.execute(&mut runtime);
-		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
-
-		match reason {
-			ExitReason::Succeed(s) => {
-				let out = runtime.machine().return_value();
-
-				// As of EIP-3541 code starting with 0xef cannot be deployed
-				if let Err(e) = check_first_byte(self.config, &out) {
-					self.state.metadata_mut().gasometer.fail();
-					let _ = self.exit_substate(StackExitKind::Failed);
-					return Capture::Exit((e.into(), None, Vec::new()));
-				}
-
-				if let Some(limit) = self.config.create_contract_limit {
-					if out.len() > limit {
-						self.state.metadata_mut().gasometer.fail();
-						let _ = self.exit_substate(StackExitKind::Failed);
-						return Capture::Exit((
-							ExitError::CreateContractLimit.into(),
-							None,
-							Vec::new(),
-						));
-					}
-				}
-
-				match self
-					.state
-					.metadata_mut()
-					.gasometer
-					.record_deposit(out.len())
-				{
-					Ok(()) => {
-						let e = self.exit_substate(StackExitKind::Succeeded);
-						self.state.set_code(address, out);
-						try_or_fail!(e);
-						Capture::Exit((ExitReason::Succeed(s), Some(address), Vec::new()))
-					}
-					Err(e) => {
-						let _ = self.exit_substate(StackExitKind::Failed);
-						Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-					}
-				}
-			}
-			ExitReason::Error(e) => {
-				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Error(e), None, Vec::new()))
-			}
-			ExitReason::Revert(e) => {
-				let _ = self.exit_substate(StackExitKind::Reverted);
-				Capture::Exit((
-					ExitReason::Revert(e),
-					None,
-					runtime.machine().return_value(),
-				))
-			}
-			ExitReason::Fatal(e) => {
-				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Fatal(e), None, Vec::new()))
-			}
-		}
+		Capture::Trap(StackExecutorCreateInterrupt(TaggedRuntime {
+			kind: RuntimeKind::Create(address),
+			inner: MaybeBorrowed::Owned(runtime),
+		}))
 	}
 
 	#[allow(clippy::too_many_arguments)]
@@ -838,7 +877,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		take_l64: bool,
 		take_stipend: bool,
 		context: Context,
-	) -> Capture<(ExitReason, Vec<u8>), Infallible> {
+	) -> Capture<(ExitReason, Vec<u8>), StackExecutorCallInterrupt<'config>> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
@@ -946,39 +985,124 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		let mut runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
+		let runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
 
-		let reason = self.execute(&mut runtime);
-		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
+		Capture::Trap(StackExecutorCallInterrupt(TaggedRuntime {
+			kind: RuntimeKind::Call(code_address),
+			inner: MaybeBorrowed::Owned(runtime),
+		}))
+	}
+
+	fn cleanup_for_create(
+		&mut self,
+		created_address: H160,
+		reason: ExitReason,
+		return_data: Vec<u8>,
+	) -> (ExitReason, Option<H160>, Vec<u8>) {
+		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
+			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
+			{
+				return Err(ExitError::InvalidCode(Opcode::EOFMAGIC));
+			}
+			Ok(())
+		}
+
+		log::debug!(target: "evm", "Create execution using address {}: {:?}", created_address, reason);
 
 		match reason {
 			ExitReason::Succeed(s) => {
-				let _ = self.exit_substate(StackExitKind::Succeeded);
-				Capture::Exit((ExitReason::Succeed(s), runtime.machine().return_value()))
+				let out = return_data;
+				let address = created_address;
+				// As of EIP-3541 code starting with 0xef cannot be deployed
+				if let Err(e) = check_first_byte(self.config, &out) {
+					self.state.metadata_mut().gasometer.fail();
+					let _ = self.exit_substate(StackExitKind::Failed);
+					return (e.into(), None, Vec::new());
+				}
+
+				if let Some(limit) = self.config.create_contract_limit {
+					if out.len() > limit {
+						self.state.metadata_mut().gasometer.fail();
+						let _ = self.exit_substate(StackExitKind::Failed);
+						return (ExitError::CreateContractLimit.into(), None, Vec::new());
+					}
+				}
+
+				match self
+					.state
+					.metadata_mut()
+					.gasometer
+					.record_deposit(out.len())
+				{
+					Ok(()) => {
+						let exit_result = self.exit_substate(StackExitKind::Succeeded);
+						self.state.set_code(address, out);
+						if let Err(e) = exit_result {
+							return (e.into(), None, Vec::new());
+						}
+						(ExitReason::Succeed(s), Some(address), Vec::new())
+					}
+					Err(e) => {
+						let _ = self.exit_substate(StackExitKind::Failed);
+						(ExitReason::Error(e), None, Vec::new())
+					}
+				}
 			}
 			ExitReason::Error(e) => {
+				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Error(e), Vec::new()))
+				(ExitReason::Error(e), None, Vec::new())
 			}
 			ExitReason::Revert(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				Capture::Exit((ExitReason::Revert(e), runtime.machine().return_value()))
+				(ExitReason::Revert(e), None, return_data)
 			}
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Capture::Exit((ExitReason::Fatal(e), Vec::new()))
+				(ExitReason::Fatal(e), None, Vec::new())
+			}
+		}
+	}
+
+	fn cleanup_for_call(
+		&mut self,
+		code_address: H160,
+		reason: &ExitReason,
+		return_data: Vec<u8>,
+	) -> Vec<u8> {
+		log::debug!(target: "evm", "Call execution using address {}: {:?}", code_address, reason);
+		match reason {
+			ExitReason::Succeed(_) => {
+				let _ = self.exit_substate(StackExitKind::Succeeded);
+				return_data
+			}
+			ExitReason::Error(_) => {
+				let _ = self.exit_substate(StackExitKind::Failed);
+				Vec::new()
+			}
+			ExitReason::Revert(_) => {
+				let _ = self.exit_substate(StackExitKind::Reverted);
+				return_data
+			}
+			ExitReason::Fatal(_) => {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				Vec::new()
 			}
 		}
 	}
 }
 
+pub struct StackExecutorCallInterrupt<'config>(TaggedRuntime<'config, 'config>);
+pub struct StackExecutorCreateInterrupt<'config>(TaggedRuntime<'config, 'config>);
+
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	for StackExecutor<'config, 'precompiles, S, P>
 {
-	type CreateInterrupt = Infallible;
+	type CreateInterrupt = StackExecutorCreateInterrupt<'config>;
 	type CreateFeedback = Infallible;
-	type CallInterrupt = Infallible;
+	type CallInterrupt = StackExecutorCallInterrupt<'config>;
 	type CallFeedback = Infallible;
 
 	fn balance(&self, address: H160) -> U256 {
@@ -1285,7 +1409,18 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			context.clone(),
 		) {
 			Capture::Exit((s, v)) => (s, v),
-			Capture::Trap(_) => unreachable!("Trap is infaillible since StackExecutor is sync"),
+			Capture::Trap(rt) => {
+				// Ideally this would pass the interrupt back to the executor so it could be
+				// handled like any other call, however the type signature of this function does
+				// not allow it. For now we'll make a recursive call instead of making a breaking
+				// change to the precompile API. But this means a custom precompile could still
+				// potentially cause a stack overflow if you're not careful.
+				let mut call_stack = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+				call_stack.push(rt.0);
+				let (reason, _, return_data) =
+					self.executor.execute_with_call_stack(&mut call_stack);
+				emit_exit!(reason, return_data)
+			}
 		}
 	}
 
