@@ -584,6 +584,14 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		}
 	}
 
+	pub fn new_with_substate(substate: MemoryStackSubstate<'config>, backend: &'backend B) -> Self {
+		Self { backend, substate }
+	}
+
+	pub fn substate(&self) -> &MemoryStackSubstate {
+		&self.substate
+	}
+
 	/// Returns a mutable reference to an account given its address
 	pub fn account_mut(&mut self, address: H160) -> &mut MemoryStackAccount {
 		self.substate.account_mut(address, self.backend)
