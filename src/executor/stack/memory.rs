@@ -38,12 +38,41 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
+	pub fn from_state(
+		metadata: StackSubstateMetadata<'config>,
+		logs: Vec<Log>,
+		accounts: BTreeMap<H160, MemoryStackAccount>,
+		storages: BTreeMap<(H160, H256), H256>,
+		deletes: BTreeSet<H160>,
+	) -> Self {
+		Self {
+			metadata,
+			parent: None,
+			logs,
+			accounts,
+			storages,
+			deletes,
+		}
+	}
+
 	pub fn logs(&self) -> &[Log] {
 		&self.logs
 	}
 
 	pub fn logs_mut(&mut self) -> &mut Vec<Log> {
 		&mut self.logs
+	}
+
+	pub fn accounts(&self) -> &BTreeMap<H160, MemoryStackAccount> {
+		&self.accounts
+	}
+
+	pub fn storages(&self) -> &BTreeMap<(H160, H256), H256> {
+		&self.storages
+	}
+
+	pub fn deletes(&self) -> &BTreeSet<H160> {
+		&self.deletes
 	}
 
 	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
