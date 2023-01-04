@@ -287,8 +287,8 @@ pub struct Config {
 
 impl Config {
 	/// Frontier hard fork configuration.
-	pub const fn frontier() -> Config {
-		Config {
+	pub const fn frontier() -> Self {
+		Self {
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
 			gas_balance: 20,
@@ -338,8 +338,8 @@ impl Config {
 	}
 
 	/// Istanbul hard fork configuration.
-	pub const fn istanbul() -> Config {
-		Config {
+	pub const fn istanbul() -> Self {
+		Self {
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
@@ -389,16 +389,16 @@ impl Config {
 	}
 
 	/// Berlin hard fork configuration.
-	pub const fn berlin() -> Config {
+	pub const fn berlin() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::berlin())
 	}
 
 	/// london hard fork configuration.
-	pub const fn london() -> Config {
+	pub const fn london() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
-	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
+	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Self {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
 			gas_sload_cold,
@@ -420,7 +420,7 @@ impl Config {
 		};
 		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
 
-		Config {
+		Self {
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,
