@@ -128,7 +128,7 @@ impl<'config> Runtime<'config> {
 		Self {
 			machine: Machine::new(code, data, config.stack_limit, config.memory_limit),
 			status: Ok(()),
-			return_data_buffer: Vec::new(),
+			return_data_buffer: vec![],
 			return_data_len: U256::zero(),
 			return_data_offset: U256::zero(),
 			context,

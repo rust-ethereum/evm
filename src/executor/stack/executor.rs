@@ -22,7 +22,7 @@ macro_rules! emit_exit {
 		let reason = $reason;
 		event!(Exit {
 			reason: &reason,
-			return_value: &Vec::new(),
+			return_value: &vec![],
 		});
 		reason
 	}};
@@ -456,7 +456,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					return (
 						ExitReason::Fatal(ExitFatal::UnhandledInterrupt),
 						None,
-						Vec::new(),
+						vec![],
 					);
 				}
 			};
@@ -512,7 +512,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 			// Early exit if passing on the result caused an error
 			if let Err(e) = maybe_error {
-				return (e, None, Vec::new());
+				return (e, None, vec![]);
 			}
 		}
 	}
@@ -550,7 +550,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
-			return emit_exit!(e.into(), Vec::new());
+			return emit_exit!(e.into(), vec![]);
 		}
 		self.initialize_with_access_list(access_list);
 
@@ -597,7 +597,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
-			return emit_exit!(e.into(), Vec::new());
+			return emit_exit!(e.into(), vec![]);
 		}
 		self.initialize_with_access_list(access_list);
 
@@ -650,7 +650,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
-			Err(e) => return emit_exit!(e.into(), Vec::new()),
+			Err(e) => return emit_exit!(e.into(), vec![]),
 		}
 
 		// Initialize initial addresses for EIP-2929
@@ -762,7 +762,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
+					Err(e) => return Capture::Exit((e.into(), None, vec![])),
 				}
 			};
 		}
@@ -787,12 +787,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
-				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()));
+				return Capture::Exit((ExitError::CallTooDeep.into(), None, vec![]));
 			}
 		}
 
 		if self.balance(caller) < value {
-			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
+			return Capture::Exit((ExitError::OutOfFund.into(), None, vec![]));
 		}
 
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
@@ -820,12 +820,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		{
 			if self.code_size(address) != U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
+				return Capture::Exit((ExitError::CreateCollision.into(), None, vec![]));
 			}
 
 			if self.nonce(address) > U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
+				return Capture::Exit((ExitError::CreateCollision.into(), None, vec![]));
 			}
 
 			self.state.reset_storage(address);
@@ -845,7 +845,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Ok(()) => (),
 			Err(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
+				return Capture::Exit((ExitReason::Error(e), None, vec![]));
 			}
 		}
 
@@ -853,12 +853,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			self.state.inc_nonce(address);
 		}
 
-		let runtime = Runtime::new(
-			Rc::new(init_code),
-			Rc::new(Vec::new()),
-			context,
-			self.config,
-		);
+		let runtime = Runtime::new(Rc::new(init_code), Rc::new(vec![]), context, self.config);
 
 		Capture::Trap(StackExecutorCreateInterrupt(TaggedRuntime {
 			kind: RuntimeKind::Create(address),
@@ -882,7 +877,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			( $e:expr ) => {
 				match $e {
 					Ok(v) => v,
-					Err(e) => return Capture::Exit((e.into(), Vec::new())),
+					Err(e) => return Capture::Exit((e.into(), vec![])),
 				}
 			};
 		}
@@ -932,7 +927,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
-				return Capture::Exit((ExitError::CallTooDeep.into(), Vec::new()));
+				return Capture::Exit((ExitError::CallTooDeep.into(), vec![]));
 			}
 		}
 
@@ -941,7 +936,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				Ok(()) => (),
 				Err(e) => {
 					let _ = self.exit_substate(StackExitKind::Reverted);
-					return Capture::Exit((ExitReason::Error(e), Vec::new()));
+					return Capture::Exit((ExitReason::Error(e), vec![]));
 				}
 			}
 		}
@@ -968,7 +963,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				}
 				Err(PrecompileFailure::Error { exit_status }) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Error(exit_status), Vec::new()))
+					Capture::Exit((ExitReason::Error(exit_status), vec![]))
 				}
 				Err(PrecompileFailure::Revert {
 					exit_status,
@@ -980,7 +975,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				Err(PrecompileFailure::Fatal { exit_status }) => {
 					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(StackExitKind::Failed);
-					Capture::Exit((ExitReason::Fatal(exit_status), Vec::new()))
+					Capture::Exit((ExitReason::Fatal(exit_status), vec![]))
 				}
 			};
 		}
@@ -1017,14 +1012,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				if let Err(e) = check_first_byte(self.config, &out) {
 					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(StackExitKind::Failed);
-					return (e.into(), None, Vec::new());
+					return (e.into(), None, vec![]);
 				}
 
 				if let Some(limit) = self.config.create_contract_limit {
 					if out.len() > limit {
 						self.state.metadata_mut().gasometer.fail();
 						let _ = self.exit_substate(StackExitKind::Failed);
-						return (ExitError::CreateContractLimit.into(), None, Vec::new());
+						return (ExitError::CreateContractLimit.into(), None, vec![]);
 					}
 				}
 
@@ -1038,20 +1033,20 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 						self.state.set_code(address, out);
 						if let Err(e) = exit_result {
-							return (e.into(), None, Vec::new());
+							return (e.into(), None, vec![]);
 						}
-						(ExitReason::Succeed(s), Some(address), Vec::new())
+						(ExitReason::Succeed(s), Some(address), vec![])
 					}
 					Err(e) => {
 						let _ = self.exit_substate(StackExitKind::Failed);
-						(ExitReason::Error(e), None, Vec::new())
+						(ExitReason::Error(e), None, vec![])
 					}
 				}
 			}
 			ExitReason::Error(e) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				(ExitReason::Error(e), None, Vec::new())
+				(ExitReason::Error(e), None, vec![])
 			}
 			ExitReason::Revert(e) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -1060,7 +1055,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			ExitReason::Fatal(e) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				(ExitReason::Fatal(e), None, Vec::new())
+				(ExitReason::Fatal(e), None, vec![])
 			}
 		}
 	}
@@ -1079,7 +1074,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 			ExitReason::Error(_) => {
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Vec::new()
+				vec![]
 			}
 			ExitReason::Revert(_) => {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -1088,7 +1083,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			ExitReason::Fatal(_) => {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				Vec::new()
+				vec![]
 			}
 		}
 	}
@@ -1386,7 +1381,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.gasometer
 			.record_dynamic_cost(gas_cost, memory_cost)
 		{
-			return (ExitReason::Error(error), Vec::new());
+			return (ExitReason::Error(error), vec![]);
 		}
 
 		event!(PrecompileSubcall {

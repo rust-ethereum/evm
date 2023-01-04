@@ -23,7 +23,7 @@ impl Valids {
 			}
 		}
 
-		Valids(valids)
+		Self(valids)
 	}
 
 	/// Get the length of the valid mapping. This is the same as the

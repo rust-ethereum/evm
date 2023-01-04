@@ -31,7 +31,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		Self {
 			metadata,
 			parent: None,
-			logs: Vec::new(),
+			logs: vec![],
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
@@ -116,7 +116,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		let mut entering = Self {
 			metadata: self.metadata.spit_child(gas_limit, is_static),
 			parent: None,
-			logs: Vec::new(),
+			logs: vec![],
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
@@ -310,7 +310,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	pub fn reset_storage<B: Backend>(&mut self, address: H160, backend: &B) {
-		let mut removing = Vec::new();
+		let mut removing = vec![];
 
 		for (oa, ok) in self.storages.keys() {
 			if *oa == address {

@@ -65,7 +65,7 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 		Self {
 			vicinity,
 			state,
-			logs: Vec::new(),
+			logs: vec![],
 		}
 	}
 

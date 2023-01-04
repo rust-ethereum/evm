@@ -17,7 +17,7 @@ impl Memory {
 	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: vec![],
 			effective_len: U256::zero(),
 			limit,
 		}

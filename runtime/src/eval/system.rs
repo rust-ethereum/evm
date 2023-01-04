@@ -12,7 +12,7 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
 	let data = if len == U256::zero() {
-		Vec::new()
+		vec![]
 	} else {
 		let from = as_usize_or_fail!(from);
 		let len = as_usize_or_fail!(len);

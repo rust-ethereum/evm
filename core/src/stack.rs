@@ -13,7 +13,7 @@ impl Stack {
 	/// Create a new stack with given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: vec![],
 			limit,
 		}
 	}
