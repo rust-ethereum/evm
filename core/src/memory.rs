@@ -17,7 +17,7 @@ impl Memory {
 	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: vec![],
 			effective_len: U256::zero(),
 			limit,
 		}
@@ -44,7 +44,7 @@ impl Memory {
 	}
 
 	/// Return the full memory.
-	pub fn data(&self) -> &Vec<u8> {
+	pub fn data(&self) -> &[u8] {
 		&self.data
 	}
 
@@ -52,7 +52,7 @@ impl Memory {
 	/// + len)`, with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
-		if len == U256::zero() {
+		if len.is_zero() {
 			return Ok(());
 		}
 
@@ -80,8 +80,7 @@ impl Memory {
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
 	pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
-		let mut ret = Vec::new();
-		ret.resize(size, 0);
+		let mut ret = vec![0; size];
 
 		#[allow(clippy::needless_range_loop)]
 		for index in 0..size {
@@ -150,20 +149,20 @@ impl Memory {
 			return Ok(());
 		}
 
-		let memory_offset = if memory_offset > U256::from(usize::MAX) {
+		let memory_offset = if memory_offset > usize::MAX.into() {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			memory_offset.as_usize()
 		};
 
-		let ulen = if len > U256::from(usize::MAX) {
+		let ulen = if len > usize::MAX.into() {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			len.as_usize()
 		};
 
 		let data = if let Some(end) = data_offset.checked_add(len) {
-			if end > U256::from(usize::MAX) {
+			if end > usize::MAX.into() {
 				&[]
 			} else {
 				let data_offset = data_offset.as_usize();
@@ -208,10 +207,7 @@ mod tests {
 				continue;
 			}
 			let next_multiple = x + 32 - (x % 32);
-			assert_eq!(
-				Some(U256::from(next_multiple)),
-				next_multiple_of_32(x.into())
-			);
+			assert_eq!(Some(next_multiple.into()), next_multiple_of_32(x.into()));
 		}
 
 		// next_multiple_of_32 returns None when the next multiple of 32 is too big

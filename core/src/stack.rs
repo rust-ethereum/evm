@@ -13,7 +13,7 @@ impl Stack {
 	/// Create a new stack with given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: vec![],
 			limit,
 		}
 	}
@@ -38,7 +38,7 @@ impl Stack {
 
 	#[inline]
 	/// Stack data.
-	pub fn data(&self) -> &Vec<H256> {
+	pub fn data(&self) -> &[H256] {
 		&self.data
 	}
 

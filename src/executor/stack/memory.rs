@@ -31,7 +31,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		Self {
 			metadata,
 			parent: None,
-			logs: Vec::new(),
+			logs: vec![],
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
@@ -116,7 +116,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		let mut entering = Self {
 			metadata: self.metadata.spit_child(gas_limit, is_static),
 			parent: None,
-			logs: Vec::new(),
+			logs: vec![],
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
@@ -204,8 +204,8 @@ impl<'config> MemoryStackSubstate<'config> {
 
 			if let Some(code) = &account.code {
 				return Some(
-					account.basic.balance == U256::zero()
-						&& account.basic.nonce == U256::zero()
+					account.basic.balance.is_zero()
+						&& account.basic.nonce.is_zero()
 						&& code.is_empty(),
 				);
 			}
@@ -310,7 +310,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	pub fn reset_storage<B: Backend>(&mut self, address: H160, backend: &B) {
-		let mut removing = Vec::new();
+		let mut removing = vec![];
 
 		for (oa, ok) in self.storages.keys() {
 			if *oa == address {
@@ -493,8 +493,8 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 			return known_empty;
 		}
 
-		self.backend.basic(address).balance == U256::zero()
-			&& self.backend.basic(address).nonce == U256::zero()
+		self.backend.basic(address).balance.is_zero()
+			&& self.backend.basic(address).nonce.is_zero()
 			&& self.backend.code(address).len() == 0
 	}
 

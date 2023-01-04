@@ -11,7 +11,7 @@ fn run_loop_contract() {
 	let vicinity = MemoryVicinity {
 		gas_price: U256::zero(),
 		origin: H160::default(),
-		block_hashes: Vec::new(),
+		block_hashes: vec![],
 		block_number: Default::default(),
 		block_coinbase: Default::default(),
 		block_timestamp: Default::default(),
@@ -37,7 +37,7 @@ fn run_loop_contract() {
 			nonce: U256::one(),
 			balance: U256::from(10000000),
 			storage: BTreeMap::new(),
-			code: Vec::new(),
+			code: vec![],
 		},
 	);
 
@@ -55,7 +55,7 @@ fn run_loop_contract() {
 			.unwrap(),
 		// hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000002ee0").unwrap(),
 		u64::MAX,
-		Vec::new(),
+		vec![],
 	);
 }
 

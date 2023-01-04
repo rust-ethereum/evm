@@ -8,7 +8,7 @@ fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 fn split_at_delim(sequence: &[u8], delim: &[u8]) -> (Vec<u8>, Vec<u8>) {
-	let mut res_vec = Vec::new();
+	let mut res_vec = vec![];
 	let mut current_pos = 0;
 	if let Some(index) = find_subsequence(&sequence[current_pos..], delim) {
 		let found_index = index + current_pos;
@@ -16,7 +16,7 @@ fn split_at_delim(sequence: &[u8], delim: &[u8]) -> (Vec<u8>, Vec<u8>) {
 		current_pos = found_index + delim.len();
 	}
 	if current_pos == 0 {
-		(sequence.to_vec(), Vec::new())
+		(sequence.to_vec(), vec![])
 	} else {
 		res_vec.push(sequence[current_pos..].to_vec());
 		(res_vec[0].to_owned(), res_vec[1].to_owned())
@@ -63,7 +63,7 @@ fn main() {
 		};
 		for argument in all_files {
 			println!("Now doing file {:?}", argument);
-			let mut buffer: Vec<u8> = Vec::new();
+			let mut buffer: Vec<u8> = vec![];
 			let mut f = File::open(argument).unwrap();
 			f.read_to_end(&mut buffer).unwrap();
 			handle_data(buffer.as_slice());

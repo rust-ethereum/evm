@@ -27,7 +27,7 @@ pub fn sgt(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn iszero(op1: U256) -> U256 {
-	if op1 == U256::zero() {
+	if op1.is_zero() {
 		U256::one()
 	} else {
 		U256::zero()
@@ -58,7 +58,7 @@ pub fn byte(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn shl(shift: U256, value: U256) -> U256 {
-	if value == U256::zero() || shift >= U256::from(256) {
+	if value.is_zero() || shift >= 256.into() {
 		U256::zero()
 	} else {
 		let shift: u64 = shift.as_u64();
@@ -68,7 +68,7 @@ pub fn shl(shift: U256, value: U256) -> U256 {
 
 #[inline]
 pub fn shr(shift: U256, value: U256) -> U256 {
-	if value == U256::zero() || shift >= U256::from(256) {
+	if value.is_zero() || shift >= 256.into() {
 		U256::zero()
 	} else {
 		let shift: u64 = shift.as_u64();
@@ -80,7 +80,7 @@ pub fn shr(shift: U256, value: U256) -> U256 {
 pub fn sar(shift: U256, value: U256) -> U256 {
 	let value = I256::from(value);
 
-	if value == I256::zero() || shift >= U256::from(256) {
+	if value == I256::zero() || shift >= 256.into() {
 		let I256(sign, _) = value;
 		match sign {
 			// value is 0 or >=1, pushing 0
