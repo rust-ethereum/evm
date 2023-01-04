@@ -52,7 +52,7 @@ impl Memory {
 	/// + len)`, with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
-		if len == U256::zero() {
+		if len.is_zero() {
 			return Ok(());
 		}
 

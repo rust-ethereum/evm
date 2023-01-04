@@ -201,9 +201,8 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 							}
 						}
 
-						account.balance == U256::zero()
-							&& account.nonce == U256::zero()
-							&& account.code.is_empty()
+						account.balance.is_zero()
+							&& account.nonce.is_zero() && account.code.is_empty()
 					};
 
 					if is_empty && delete_empty {

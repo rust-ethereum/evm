@@ -60,7 +60,7 @@ impl Default for I256 {
 
 impl From<U256> for I256 {
 	fn from(val: U256) -> Self {
-		if val == U256::zero() {
+		if val.is_zero() {
 			Self::zero()
 		} else if val & SIGN_BIT_MASK == val {
 			Self(Sign::Plus, val)
@@ -97,7 +97,7 @@ impl Div for I256 {
 
 		let d = (self.1 / other.1) & SIGN_BIT_MASK;
 
-		if d == U256::zero() {
+		if d.is_zero() {
 			return Self::zero();
 		}
 
@@ -121,7 +121,7 @@ impl Rem for I256 {
 	fn rem(self, other: Self) -> Self {
 		let r = (self.1 % other.1) & SIGN_BIT_MASK;
 
-		if r == U256::zero() {
+		if r.is_zero() {
 			return Self::zero();
 		}
 

@@ -204,8 +204,8 @@ impl<'config> MemoryStackSubstate<'config> {
 
 			if let Some(code) = &account.code {
 				return Some(
-					account.basic.balance == U256::zero()
-						&& account.basic.nonce == U256::zero()
+					account.basic.balance.is_zero()
+						&& account.basic.nonce.is_zero()
 						&& code.is_empty(),
 				);
 			}
@@ -493,8 +493,8 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 			return known_empty;
 		}
 
-		self.backend.basic(address).balance == U256::zero()
-			&& self.backend.basic(address).nonce == U256::zero()
+		self.backend.basic(address).balance.is_zero()
+			&& self.backend.basic(address).nonce.is_zero()
 			&& self.backend.code(address).len() == 0
 	}
 

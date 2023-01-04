@@ -598,7 +598,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		}
 		Opcode::CALL
 			if !is_static
-				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
+				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]).is_zero()) =>
 		{
 			let target = stack.peek(1)?.into();
 			storage_target = StorageTarget::Address(target);
@@ -693,7 +693,7 @@ impl<'config> Inner<'config> {
 		let from = memory.offset;
 		let len = memory.len;
 
-		if len == U256::zero() {
+		if len.is_zero() {
 			return Ok(self.memory_gas);
 		}
 
@@ -1027,11 +1027,11 @@ pub enum TransactionCost {
 impl MemoryCost {
 	/// Join two memory cost together.
 	pub fn join(self, other: MemoryCost) -> MemoryCost {
-		if self.len == U256::zero() {
+		if self.len.is_zero() {
 			return other;
 		}
 
-		if other.len == U256::zero() {
+		if other.len.is_zero() {
 			return self;
 		}
 

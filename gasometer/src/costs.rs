@@ -62,7 +62,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)
 	let sha_addup_base = len / U256::from(32)
-		+ if len % U256::from(32) == U256::zero() {
+		+ if (len % U256::from(32)).is_zero() {
 			U256::zero()
 		} else {
 			U256::one()
@@ -80,7 +80,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 }
 
 pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
-	if power == U256::zero() {
+	if power.is_zero() {
 		Ok(G_EXP)
 	} else {
 		let gas = U256::from(G_EXP)
@@ -106,7 +106,7 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 	let gas = U256::from(G_VERYLOW)
 		.checked_add(
 			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr.is_zero() {
 					wordd
 				} else {
 					wordd + U256::one()
@@ -128,7 +128,7 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code, config))
 		.checked_add(
 			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr.is_zero() {
 					wordd
 				} else {
 					wordd + U256::one()
@@ -169,7 +169,7 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	let gas = U256::from(G_SHA3)
 		.checked_add(
 			U256::from(G_SHA3WORD)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr.is_zero() {
 					wordd
 				} else {
 					wordd + U256::one()

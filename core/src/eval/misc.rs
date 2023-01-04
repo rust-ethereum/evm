@@ -57,7 +57,7 @@ pub fn calldatacopy(state: &mut Machine) -> Control {
 	pop_u256!(state, memory_offset, data_offset, len);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
-	if len == U256::zero() {
+	if len.is_zero() {
 		return Control::Continue(1);
 	}
 
