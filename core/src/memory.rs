@@ -149,20 +149,20 @@ impl Memory {
 			return Ok(());
 		}
 
-		let memory_offset = if memory_offset > U256::from(usize::MAX) {
+		let memory_offset = if memory_offset > usize::MAX.into() {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			memory_offset.as_usize()
 		};
 
-		let ulen = if len > U256::from(usize::MAX) {
+		let ulen = if len > usize::MAX.into() {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			len.as_usize()
 		};
 
 		let data = if let Some(end) = data_offset.checked_add(len) {
-			if end > U256::from(usize::MAX) {
+			if end > usize::MAX.into() {
 				&[]
 			} else {
 				let data_offset = data_offset.as_usize();
@@ -207,10 +207,7 @@ mod tests {
 				continue;
 			}
 			let next_multiple = x + 32 - (x % 32);
-			assert_eq!(
-				Some(U256::from(next_multiple)),
-				next_multiple_of_32(x.into())
-			);
+			assert_eq!(Some(next_multiple.into()), next_multiple_of_32(x.into()));
 		}
 
 		// next_multiple_of_32 returns None when the next multiple of 32 is too big

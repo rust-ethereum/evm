@@ -32,7 +32,7 @@ pub fn calldataload(state: &mut Machine) -> Control {
 	#[allow(clippy::needless_range_loop)]
 	for i in 0..32 {
 		if let Some(p) = index.checked_add(U256::from(i)) {
-			if p <= U256::from(usize::MAX) {
+			if p <= usize::MAX.into() {
 				let p = p.as_usize();
 				if p < state.data.len() {
 					load[i] = state.data[p];
