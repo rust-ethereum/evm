@@ -72,7 +72,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 		.ok_or(ExitError::OutOfGas)?;
 	let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::MAX) {
+	if gas > u64::MAX.into() {
 		return Err(ExitError::OutOfGas);
 	}
 

@@ -5,7 +5,7 @@ use primitive_types::{H256, U256};
 
 #[inline]
 pub fn codesize(state: &mut Machine) -> Control {
-	let size = U256::from(state.code.len());
+	let size: U256 = state.code.len().into();
 	push_u256!(state, size);
 	Control::Continue(1)
 }
@@ -31,7 +31,7 @@ pub fn calldataload(state: &mut Machine) -> Control {
 	let mut load = [0u8; 32];
 	#[allow(clippy::needless_range_loop)]
 	for i in 0..32 {
-		if let Some(p) = index.checked_add(U256::from(i)) {
+		if let Some(p) = index.checked_add(i.into()) {
 			if p <= usize::MAX.into() {
 				let p = p.as_usize();
 				if p < state.data.len() {
@@ -41,13 +41,13 @@ pub fn calldataload(state: &mut Machine) -> Control {
 		}
 	}
 
-	push!(state, H256::from(load));
+	push!(state, load.into());
 	Control::Continue(1)
 }
 
 #[inline]
 pub fn calldatasize(state: &mut Machine) -> Control {
-	let len = U256::from(state.data.len());
+	let len: U256 = state.data.len().into();
 	push_u256!(state, len);
 	Control::Continue(1)
 }
