@@ -8,8 +8,7 @@ pub struct Valids(Vec<bool>);
 impl Valids {
 	/// Create a new valid mapping from given code bytes.
 	pub fn new(code: &[u8]) -> Self {
-		let mut valids: Vec<bool> = Vec::with_capacity(code.len());
-		valids.resize(code.len(), false);
+		let mut valids = vec![false; code.len()];
 
 		let mut i = 0;
 		while i < code.len() {

@@ -38,7 +38,7 @@ impl Stack {
 
 	#[inline]
 	/// Stack data.
-	pub fn data(&self) -> &Vec<H256> {
+	pub fn data(&self) -> &[H256] {
 		&self.data
 	}
 
