@@ -101,6 +101,8 @@ pub trait Handler {
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
+		memory_offset: U256,
+		offset_len: U256,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
 	/// Feed in call feedback.
 	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {

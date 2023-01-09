@@ -1134,6 +1134,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
+		_memory_offset: U256,
+		_offset_len: U256,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
 		self.call_inner(
 			code_address,
@@ -1283,6 +1285,8 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			gas_limit,
 			is_static,
 			context.clone(),
+			U256::default(),
+			U256::default(),
 		) {
 			Capture::Exit((s, v)) => (s, v),
 			Capture::Trap(_) => unreachable!("Trap is infaillible since StackExecutor is sync"),
