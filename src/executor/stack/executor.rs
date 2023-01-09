@@ -1158,6 +1158,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
+		_memory_offset: U256,
+		_offset_len: U256,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
 		let capture = self.call_inner(
 			code_address,
