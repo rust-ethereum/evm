@@ -151,6 +151,11 @@ impl<'config> Runtime<'config> {
 		&mut self.machine
 	}
 
+	/// Get a reference to the return buffer
+	pub fn return_data_buffer(&mut self) -> &mut Vec<u8> {
+		&mut self.return_data_buffer
+	}
+
 	/// Get a reference to the execution context.
 	pub fn context(&self) -> &Context {
 		&self.context
