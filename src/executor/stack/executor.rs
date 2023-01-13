@@ -1219,7 +1219,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 }
 
-struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
+pub struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
 	executor: &'inner mut StackExecutor<'config, 'precompiles, S, P>,
 	code_address: H160,
 	input: &'inner [u8],
