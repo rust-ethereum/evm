@@ -1220,12 +1220,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 }
 
 pub struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
-	executor: &'inner mut StackExecutor<'config, 'precompiles, S, P>,
-	code_address: H160,
-	input: &'inner [u8],
-	gas_limit: Option<u64>,
-	context: &'inner Context,
-	is_static: bool,
+	pub executor: &'inner mut StackExecutor<'config, 'precompiles, S, P>,
+	pub code_address: H160,
+	pub input: &'inner [u8],
+	pub gas_limit: Option<u64>,
+	pub context: &'inner Context,
+	pub is_static: bool,
 }
 
 impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
