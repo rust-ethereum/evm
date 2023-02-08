@@ -235,6 +235,8 @@ pub struct Config {
 	pub call_stack_limit: usize,
 	/// Create contract limit.
 	pub create_contract_limit: Option<usize>,
+	/// EIP-3860, maximum size limit of init_code.
+	pub max_initcode_size: Option<usize>,
 	/// Call stipend.
 	pub call_stipend: u64,
 	/// Has delegate call.
@@ -298,6 +300,7 @@ impl Config {
 			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: None,
+			max_initcode_size: None,
 			call_stipend: 2300,
 			has_delegate_call: false,
 			has_create2: false,
@@ -350,6 +353,7 @@ impl Config {
 			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: Some(0x6000),
+			max_initcode_size: None,
 			call_stipend: 2300,
 			has_delegate_call: true,
 			has_create2: true,
@@ -388,6 +392,7 @@ impl Config {
 			has_base_fee,
 			disallow_executable_format,
 			warm_coinbase_address,
+			max_initcode_size,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -438,6 +443,7 @@ impl Config {
 			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: Some(0x6000),
+			max_initcode_size,
 			call_stipend: 2300,
 			has_delegate_call: true,
 			has_create2: true,
@@ -463,6 +469,7 @@ struct DerivedConfigInputs {
 	has_base_fee: bool,
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
+	max_initcode_size: Option<usize>,
 }
 
 impl DerivedConfigInputs {
@@ -475,6 +482,7 @@ impl DerivedConfigInputs {
 			has_base_fee: false,
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
+			max_initcode_size: None,
 		}
 	}
 
@@ -487,6 +495,7 @@ impl DerivedConfigInputs {
 			has_base_fee: true,
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
+			max_initcode_size: None,
 		}
 	}
 
@@ -499,6 +508,7 @@ impl DerivedConfigInputs {
 			has_base_fee: true,
 			disallow_executable_format: true,
 			warm_coinbase_address: true,
+			max_initcode_size: Some(0xC000),
 		}
 	}
 }

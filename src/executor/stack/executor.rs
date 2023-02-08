@@ -458,6 +458,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			address: self.create_address(CreateScheme::Legacy { caller }),
 		});
 
+		if let Some(limit) = self.config.max_initcode_size {
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return emit_exit!(ExitError::InitCodeLimit.into(), Vec::new());
+			}
+		}
+
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into(), Vec::new());
 		}
@@ -486,6 +494,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
+		if let Some(limit) = self.config.max_initcode_size {
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return emit_exit!(ExitError::InitCodeLimit.into(), Vec::new());
+			}
+		}
+
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 		event!(TransactCreate2 {
 			caller,
@@ -1124,6 +1140,20 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
+		if let Some(limit) = self.config.max_initcode_size {
+			// EIP-3860
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				let reason = ExitError::OutOfGas;
+				emit_exit!(reason.into(), Vec::new());
+				return Capture::Exit((reason, None, Vec::new()));
+			}
+			if let Err(e) = self.state.metadata_mut().gasometer.record_cost(gasometer::init_code_cost(&init_code)) {
+				return Capture::Exit((e.into(), None, Vec::new()));
+			}
+		}
+
 		let capture = self.create_inner(caller, scheme, value, init_code, target_gas, true);
 
 		if let Capture::Exit((ref reason, _, ref return_value)) = capture {
