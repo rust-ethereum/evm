@@ -215,6 +215,8 @@ pub struct Config {
 	pub decrease_clears_refund: bool,
 	/// EIP-3541
 	pub disallow_executable_format: bool,
+	/// EIP-3651
+	pub warm_coinbase_address: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -287,6 +289,7 @@ impl Config {
 			increase_state_access_gas: false,
 			decrease_clears_refund: false,
 			disallow_executable_format: false,
+			warm_coinbase_address: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
@@ -338,6 +341,7 @@ impl Config {
 			increase_state_access_gas: false,
 			decrease_clears_refund: false,
 			disallow_executable_format: false,
+			warm_coinbase_address: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -370,6 +374,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
+	/// Shanghai hard fork configuration.
+	pub const fn shanghai() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -378,6 +387,7 @@ impl Config {
 			decrease_clears_refund,
 			has_base_fee,
 			disallow_executable_format,
+			warm_coinbase_address,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -419,6 +429,7 @@ impl Config {
 			increase_state_access_gas: true,
 			decrease_clears_refund,
 			disallow_executable_format,
+			warm_coinbase_address,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -451,6 +462,7 @@ struct DerivedConfigInputs {
 	decrease_clears_refund: bool,
 	has_base_fee: bool,
 	disallow_executable_format: bool,
+	warm_coinbase_address: bool,
 }
 
 impl DerivedConfigInputs {
@@ -462,6 +474,7 @@ impl DerivedConfigInputs {
 			decrease_clears_refund: false,
 			has_base_fee: false,
 			disallow_executable_format: false,
+			warm_coinbase_address: false,
 		}
 	}
 
@@ -473,6 +486,19 @@ impl DerivedConfigInputs {
 			decrease_clears_refund: true,
 			has_base_fee: true,
 			disallow_executable_format: true,
+			warm_coinbase_address: false,
+		}
+	}
+
+	const fn shanghai() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
 		}
 	}
 }

@@ -554,8 +554,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		// Initialize initial addresses for EIP-2929
 		if self.config.increase_state_access_gas {
-			let addresses = core::iter::once(caller).chain(core::iter::once(address));
-			self.state.metadata_mut().access_addresses(addresses);
+			if self.config.warm_coinbase_address {
+				// Warm coinbase address for EIP-3651
+				let addresses = core::iter::once(caller)
+					.chain(core::iter::once(address))
+					.chain(core::iter::once(self.block_coinbase()));
+				self.state.metadata_mut().access_addresses(addresses);
+			} else {
+				let addresses = core::iter::once(caller).chain(core::iter::once(address));
+				self.state.metadata_mut().access_addresses(addresses);
+			}
 
 			self.initialize_with_access_list(access_list);
 		}
