@@ -348,6 +348,7 @@ pub fn static_opcode_cost(opcode: Opcode) -> Option<u64> {
 		table[Opcode::XOR.as_usize()] = Some(consts::G_VERYLOW);
 		table[Opcode::BYTE.as_usize()] = Some(consts::G_VERYLOW);
 		table[Opcode::CALLDATALOAD.as_usize()] = Some(consts::G_VERYLOW);
+		table[Opcode::PUSH0.as_usize()] = Some(consts::G_BASE);
 		table[Opcode::PUSH1.as_usize()] = Some(consts::G_VERYLOW);
 		table[Opcode::PUSH2.as_usize()] = Some(consts::G_VERYLOW);
 		table[Opcode::PUSH3.as_usize()] = Some(consts::G_VERYLOW);
