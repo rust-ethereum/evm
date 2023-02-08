@@ -305,7 +305,7 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 		non_zero_data_len,
 		access_list_address_len,
 		access_list_storage_len,
-		initcode_cost
+		initcode_cost,
 	}
 }
 

@@ -1149,7 +1149,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 				emit_exit!(reason.into(), Vec::new());
 				return Capture::Exit((reason, None, Vec::new()));
 			}
-			if let Err(e) = self.state.metadata_mut().gasometer.record_cost(gasometer::init_code_cost(&init_code)) {
+			if let Err(e) = self
+				.state
+				.metadata_mut()
+				.gasometer
+				.record_cost(gasometer::init_code_cost(&init_code))
+			{
 				return Capture::Exit((e.into(), None, Vec::new()));
 			}
 		}
