@@ -91,6 +91,12 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
+pub fn push0<H: Handler>(runtime: &mut Runtime) -> Control<H> {
+	push!(runtime, H256::default());
+
+	Control::Continue
+}
+
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	push_u256!(runtime, handler.code_size(address.into()));

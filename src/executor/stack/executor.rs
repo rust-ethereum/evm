@@ -1145,9 +1145,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			if init_code.len() > limit {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				let reason = ExitError::OutOfGas;
-				emit_exit!(reason.into(), Vec::new());
-				return Capture::Exit((reason, None, Vec::new()));
+				emit_exit!(ExitError::OutOfGas.into(), Vec::new());
+				return Capture::Exit((ExitError::OutOfGas.into(), None, Vec::new()));
 			}
 			if let Err(e) = self
 				.state

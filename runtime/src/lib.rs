@@ -257,6 +257,8 @@ pub struct Config {
 	pub has_ext_code_hash: bool,
 	/// Has ext block fee. See [EIP-3198](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3198.md)
 	pub has_base_fee: bool,
+	/// Has PUSH0 opcode. See [EIP-3855](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3855.md)
+	pub has_push0: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
 }
@@ -311,6 +313,7 @@ impl Config {
 			has_self_balance: false,
 			has_ext_code_hash: false,
 			has_base_fee: false,
+			has_push0: false,
 			estimate: false,
 		}
 	}
@@ -364,6 +367,7 @@ impl Config {
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			has_base_fee: false,
+			has_push0: false,
 			estimate: false,
 		}
 	}
@@ -390,6 +394,7 @@ impl Config {
 			gas_access_list_storage_key,
 			decrease_clears_refund,
 			has_base_fee,
+			has_push0,
 			disallow_executable_format,
 			warm_coinbase_address,
 			max_initcode_size,
@@ -454,6 +459,7 @@ impl Config {
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			has_base_fee,
+			has_push0,
 			estimate: false,
 		}
 	}
@@ -467,6 +473,7 @@ struct DerivedConfigInputs {
 	gas_access_list_storage_key: u64,
 	decrease_clears_refund: bool,
 	has_base_fee: bool,
+	has_push0: bool,
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
@@ -480,6 +487,7 @@ impl DerivedConfigInputs {
 			gas_access_list_storage_key: 1900,
 			decrease_clears_refund: false,
 			has_base_fee: false,
+			has_push0: false,
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
@@ -493,6 +501,7 @@ impl DerivedConfigInputs {
 			gas_access_list_storage_key: 1900,
 			decrease_clears_refund: true,
 			has_base_fee: true,
+			has_push0: false,
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
@@ -506,6 +515,7 @@ impl DerivedConfigInputs {
 			gas_access_list_storage_key: 1900,
 			decrease_clears_refund: true,
 			has_base_fee: true,
+			has_push0: true,
 			disallow_executable_format: true,
 			warm_coinbase_address: true,
 			max_initcode_size: Some(0xC000),
