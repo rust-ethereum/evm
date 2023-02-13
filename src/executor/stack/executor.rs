@@ -229,8 +229,15 @@ pub trait StackState<'config>: Backend {
 
 /// Data returned by a precompile on success.
 #[derive(Debug, Eq, PartialEq, Clone)]
+pub enum PrecompileOutputType {
+	Exit(ExitSucceed),
+	Trap,
+}
+
+/// Data returned by a precompile on success.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PrecompileOutput {
-	pub exit_status: ExitSucceed,
+	pub output_type: PrecompileOutputType,
 	pub output: Vec<u8>,
 }
 
@@ -921,11 +928,20 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}) {
 			return match result {
 				Ok(PrecompileOutput {
-					exit_status,
+					output_type,
 					output,
 				}) => {
-					let _ = self.exit_substate(StackExitKind::Succeeded);
-					Capture::Exit((ExitReason::Succeed(exit_status), output))
+					if let PrecompileOutputType::Exit(exit_status) = output_type {
+						let _ = self.exit_substate(StackExitKind::Succeeded);
+						Capture::Exit((ExitReason::Succeed(exit_status), output))
+					} else {
+						Capture::Exit((
+							ExitReason::Error(ExitError::Other(std::borrow::Cow::Borrowed(
+								"Unsupported",
+							))),
+							output,
+						))
+					}
 				}
 				Err(PrecompileFailure::Error { exit_status }) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
