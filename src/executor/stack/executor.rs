@@ -441,6 +441,23 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gasometer.record_transaction(transaction_cost)
 	}
 
+	fn maybe_record_init_code_cost(&mut self, init_code: &[u8]) -> Result<(), ExitError> {
+		if let Some(limit) = self.config.max_initcode_size {
+			// EIP-3860
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Err(ExitError::OutOfGas);
+			}
+			return self
+				.state
+				.metadata_mut()
+				.gasometer
+				.record_cost(gasometer::init_code_cost(init_code));
+		}
+		Ok(())
+	}
+
 	/// Execute a `CREATE` transaction.
 	pub fn transact_create(
 		&mut self,
@@ -1128,6 +1145,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
+		if let Err(e) = self.maybe_record_init_code_cost(&init_code) {
+			let reason: ExitReason = e.into();
+			emit_exit!(reason.clone());
+			return Capture::Exit((reason, None, Vec::new()));
+		}
+
 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 
@@ -1140,22 +1163,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
-		if let Some(limit) = self.config.max_initcode_size {
-			// EIP-3860
-			if init_code.len() > limit {
-				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				emit_exit!(ExitError::OutOfGas.into(), Vec::new());
-				return Capture::Exit((ExitError::OutOfGas.into(), None, Vec::new()));
-			}
-			if let Err(e) = self
-				.state
-				.metadata_mut()
-				.gasometer
-				.record_cost(gasometer::init_code_cost(&init_code))
-			{
-				return Capture::Exit((e.into(), None, Vec::new()));
-			}
+		if let Err(e) = self.maybe_record_init_code_cost(&init_code) {
+			let reason: ExitReason = e.into();
+			emit_exit!(reason.clone());
+			return Capture::Exit((reason, None, Vec::new()));
 		}
 
 		let capture = self.create_inner(caller, scheme, value, init_code, target_gas, true);
