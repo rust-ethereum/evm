@@ -249,19 +249,6 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 		}
 	}
 
-	//println!("data: {:?}", data);
-	let data_str = std::str::from_utf8(data.as_slice()).unwrap_or("X");
-	if data_str.len() > 1 {
-		//let data_str = &data_str[1..data_str.len() - 1];
-		//println!("data2: {:?}", data_str);
-		let data_str = data_str.trim_matches('@');
-		let data_str = data_str.trim_matches(char::from(0));
-		let data_str = data_str.trim_matches('@');
-		let data_str = data_str.trim_matches(char::from(0));
-		println!("data :3 : {:?}", data_str);
-		//argh
-	}
-
 	match handler.log(runtime.context.address, topics, data) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
