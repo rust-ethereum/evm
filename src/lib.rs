@@ -8,6 +8,7 @@ extern crate alloc;
 
 pub use evm_core::*;
 pub use evm_gasometer as gasometer;
+pub use evm_runtime as runtime;
 pub use evm_runtime::*;
 
 #[cfg(feature = "tracing")]
