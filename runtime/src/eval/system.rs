@@ -406,6 +406,8 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		gas,
 		scheme == CallScheme::StaticCall,
 		context,
+		out_offset,
+		out_len,
 	) {
 		Capture::Exit((reason, return_data)) => {
 			runtime.return_data_buffer = return_data;

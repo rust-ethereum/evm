@@ -1,4 +1,4 @@
-use crate::{ExitFatal, Handler, Runtime};
+use crate::{Handler, Runtime};
 
 /// Interrupt resolution.
 pub enum Resolve<'a, 'config, H: Handler> {
@@ -9,6 +9,7 @@ pub enum Resolve<'a, 'config, H: Handler> {
 }
 
 /// Create interrupt resolution.
+#[allow(dead_code)]
 pub struct ResolveCreate<'a, 'config> {
 	runtime: &'a mut Runtime<'config>,
 }
@@ -19,16 +20,8 @@ impl<'a, 'config> ResolveCreate<'a, 'config> {
 	}
 }
 
-impl<'a, 'config> Drop for ResolveCreate<'a, 'config> {
-	fn drop(&mut self) {
-		self.runtime.status = Err(ExitFatal::UnhandledInterrupt.into());
-		self.runtime
-			.machine
-			.exit(ExitFatal::UnhandledInterrupt.into());
-	}
-}
-
 /// Call interrupt resolution.
+#[allow(dead_code)]
 pub struct ResolveCall<'a, 'config> {
 	runtime: &'a mut Runtime<'config>,
 }
@@ -36,14 +29,5 @@ pub struct ResolveCall<'a, 'config> {
 impl<'a, 'config> ResolveCall<'a, 'config> {
 	pub(crate) fn new(runtime: &'a mut Runtime<'config>) -> Self {
 		Self { runtime }
-	}
-}
-
-impl<'a, 'config> Drop for ResolveCall<'a, 'config> {
-	fn drop(&mut self) {
-		self.runtime.status = Err(ExitFatal::UnhandledInterrupt.into());
-		self.runtime
-			.machine
-			.exit(ExitFatal::UnhandledInterrupt.into());
 	}
 }

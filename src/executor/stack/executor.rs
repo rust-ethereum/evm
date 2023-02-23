@@ -229,8 +229,15 @@ pub trait StackState<'config>: Backend {
 
 /// Data returned by a precompile on success.
 #[derive(Debug, Eq, PartialEq, Clone)]
+pub enum PrecompileOutputType {
+	Exit(ExitSucceed),
+	Trap,
+}
+
+/// Data returned by a precompile on success.
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct PrecompileOutput {
-	pub exit_status: ExitSucceed,
+	pub output_type: PrecompileOutputType,
 	pub output: Vec<u8>,
 }
 
@@ -921,11 +928,20 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}) {
 			return match result {
 				Ok(PrecompileOutput {
-					exit_status,
+					output_type,
 					output,
 				}) => {
-					let _ = self.exit_substate(StackExitKind::Succeeded);
-					Capture::Exit((ExitReason::Succeed(exit_status), output))
+					if let PrecompileOutputType::Exit(exit_status) = output_type {
+						let _ = self.exit_substate(StackExitKind::Succeeded);
+						Capture::Exit((ExitReason::Succeed(exit_status), output))
+					} else {
+						Capture::Exit((
+							ExitReason::Error(ExitError::Other(std::borrow::Cow::Borrowed(
+								"Unsupported",
+							))),
+							output,
+						))
+					}
 				}
 				Err(PrecompileFailure::Error { exit_status }) => {
 					let _ = self.exit_substate(StackExitKind::Failed);
@@ -1134,6 +1150,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
+		_memory_offset: U256,
+		_offset_len: U256,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
 		self.call_inner(
 			code_address,
@@ -1156,6 +1174,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,
+		_memory_offset: U256,
+		_offset_len: U256,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
 		let capture = self.call_inner(
 			code_address,
@@ -1215,13 +1235,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 }
 
-struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
-	executor: &'inner mut StackExecutor<'config, 'precompiles, S, P>,
-	code_address: H160,
-	input: &'inner [u8],
-	gas_limit: Option<u64>,
-	context: &'inner Context,
-	is_static: bool,
+pub struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
+	pub executor: &'inner mut StackExecutor<'config, 'precompiles, S, P>,
+	pub code_address: H160,
+	pub input: &'inner [u8],
+	pub gas_limit: Option<u64>,
+	pub context: &'inner Context,
+	pub is_static: bool,
 }
 
 impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
@@ -1283,6 +1303,8 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			gas_limit,
 			is_static,
 			context.clone(),
+			U256::default(),
+			U256::default(),
 		) {
 			Capture::Exit((s, v)) => (s, v),
 			Capture::Trap(_) => unreachable!("Trap is infaillible since StackExecutor is sync"),

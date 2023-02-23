@@ -66,6 +66,22 @@ impl Machine {
 	pub fn position(&self) -> &Result<usize, ExitReason> {
 		&self.position
 	}
+	/// Return a reference of the return range.
+	pub fn return_range(&self) -> &Range<U256> {
+		&self.return_range
+	}
+	/// Return a reference of the valids.
+	pub fn valids(&self) -> &Valids {
+		&self.valids
+	}
+	/// Return a reference of the return range.
+	pub fn code(&mut self) -> Vec<u8> {
+		self.code.to_vec()
+	}
+	/// Return a reference of the valids.
+	pub fn data(&self) -> Vec<u8> {
+		self.data.to_vec()
+	}
 
 	/// Create a new machine with given code and data.
 	pub fn new(
