@@ -448,6 +448,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.code(address))
 	}
 
+	fn is_reserved(&self, address: H160) -> bool {
+		self.backend.is_reserved(address)
+	}
+
 	fn storage(&self, address: H160, key: H256) -> H256 {
 		self.substate
 			.known_storage(address, key)
