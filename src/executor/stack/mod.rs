@@ -4,13 +4,14 @@
 
 mod executor;
 mod memory;
+mod precompile;
 mod tagged_runtime;
 
 pub use self::executor::{
-	Accessed, PrecompileFailure, PrecompileFn, PrecompileHandle, PrecompileOutput, PrecompileSet,
-	StackExecutor, StackExitKind, StackState, StackSubstateMetadata,
+	Accessed, StackExecutor, StackExitKind, StackState, StackSubstateMetadata,
 };
-
 pub use self::memory::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate};
-
+pub use self::precompile::{
+	PrecompileFailure, PrecompileFn, PrecompileHandle, PrecompileOutput, PrecompileSet,
+};
 pub use ethereum::Log;
