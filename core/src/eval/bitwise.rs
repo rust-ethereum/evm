@@ -43,16 +43,14 @@ pub fn not(op1: U256) -> U256 {
 pub fn byte(op1: U256, op2: U256) -> U256 {
 	let mut ret = U256::zero();
 
-	if op1 >= 32.into() {
-		return ret;
-	}
-
-	for i in 0..8 {
-		let o: usize = op1.as_usize();
-		let t = 255 - (7 - i + 8 * o);
-		let bit_mask = U256::one() << t;
-		let value = (op2 & bit_mask) >> t;
-		ret = ret.overflowing_add(value << i).0;
+	if op1 < 32.into() {
+		for i in 0..8 {
+			let o: usize = op1.as_usize();
+			let t = 255 - (7 - i + 8 * o);
+			let bit_mask = U256::one() << t;
+			let value = (op2 & bit_mask) >> t;
+			ret = ret.overflowing_add(value << i).0;
+		}
 	}
 
 	ret
