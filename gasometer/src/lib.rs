@@ -441,7 +441,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 	stack: &Stack,
 	is_static: bool,
 	config: &Config,
-	handler: &H,
+	handler: &mut H,
 ) -> Result<(GasCost, StorageTarget, Option<MemoryCost>), ExitError> {
 	let mut storage_target = StorageTarget::None;
 	let gas_cost = match opcode {
@@ -468,14 +468,14 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeSize {
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 			}
 		}
 		Opcode::BALANCE => {
 			let target = stack.peek(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Balance {
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 			}
 		}
 		Opcode::BLOCKHASH => GasCost::BlockHash,
@@ -484,7 +484,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeHash {
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 			}
 		}
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
@@ -495,7 +495,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::CallCode {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: handler.exists(target),
 			}
 		}
@@ -504,7 +504,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			storage_target = StorageTarget::Address(target);
 			GasCost::StaticCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: handler.exists(target),
 			}
 		}
@@ -515,7 +515,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeCopy {
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 				len: U256::from_big_endian(&stack.peek(3)?[..]),
 			}
 		}
@@ -529,7 +529,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let index = stack.peek(0)?;
 			storage_target = StorageTarget::Slot(address, index);
 			GasCost::SLoad {
-				target_is_cold: handler.is_cold(address, Some(index)),
+				target_is_cold: handler.is_cold(address, Some(index))?,
 			}
 		}
 
@@ -538,7 +538,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			storage_target = StorageTarget::Address(target);
 			GasCost::DelegateCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: handler.exists(target),
 			}
 		}
@@ -559,7 +559,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				original: handler.original_storage(address, index),
 				current: handler.storage(address, index),
 				new: value,
-				target_is_cold: handler.is_cold(address, Some(index)),
+				target_is_cold: handler.is_cold(address, Some(index))?,
 			}
 		}
 		Opcode::LOG0 if !is_static => GasCost::Log {
@@ -591,7 +591,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			storage_target = StorageTarget::Address(target);
 			GasCost::Suicide {
 				value: handler.balance(address),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: handler.exists(target),
 				already_removed: handler.deleted(address),
 			}
@@ -605,7 +605,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::Call {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: handler.exists(target),
 			}
 		}

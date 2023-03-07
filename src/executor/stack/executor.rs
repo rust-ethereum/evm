@@ -299,6 +299,12 @@ pub trait PrecompileHandle {
 	fn gas_limit(&self) -> Option<u64>;
 }
 
+/// Provides access only to the gasometer to record costs.
+pub trait GasometerHandle {
+	/// Record cost to the Runtime gasometer.
+	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
+}
+
 /// A precompile result.
 pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;
 
@@ -313,7 +319,13 @@ pub trait PrecompileSet {
 	/// Check if the given address is a precompile. Should only be called to
 	/// perform the check while not executing the precompile afterward, since
 	/// `execute` already performs a check internally.
-	fn is_precompile(&self, address: H160) -> bool;
+	/// Takes a `GasometerHandle` to allow recording non-negligible costs in the process
+	/// of checking if an address belongs a precompile.
+	fn is_precompile(
+		&self,
+		gasometer: &mut impl GasometerHandle,
+		address: H160,
+	) -> Result<bool, ExitError>;
 }
 
 impl PrecompileSet for () {
@@ -321,8 +333,8 @@ impl PrecompileSet for () {
 		None
 	}
 
-	fn is_precompile(&self, _: H160) -> bool {
-		false
+	fn is_precompile(&self, _: &mut impl GasometerHandle, _: H160) -> Result<bool, ExitError> {
+		Ok(false)
 	}
 }
 
@@ -359,8 +371,12 @@ impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
 	/// Check if the given address is a precompile. Should only be called to
 	/// perform the check while not executing the precompile afterward, since
 	/// `execute` already performs a check internally.
-	fn is_precompile(&self, address: H160) -> bool {
-		self.contains_key(&address)
+	fn is_precompile(
+		&self,
+		_: &mut impl GasometerHandle,
+		address: H160,
+	) -> Result<bool, ExitError> {
+		Ok(self.contains_key(&address))
 	}
 }
 
@@ -1143,11 +1159,18 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		}
 	}
 
-	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
-		match maybe_index {
-			None => !self.precompile_set.is_precompile(address) && self.state.is_cold(address),
+	fn is_cold(&mut self, address: H160, maybe_index: Option<H256>) -> Result<bool, ExitError> {
+		Ok(match maybe_index {
+			None => {
+				!self.precompile_set.is_precompile(
+					&mut StackGasometerHandle {
+						gasometer: self.state.metadata_mut().gasometer_mut(),
+					},
+					address,
+				)? && self.state.is_cold(address)
+			}
 			Some(index) => self.state.is_storage_cold(address, index),
-		}
+		})
 	}
 
 	fn gas_left(&self) -> U256 {
@@ -1366,10 +1389,15 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		// Since we don't go through opcodes we need manually record the call
 		// cost. Not doing so will make the code panic as recording the call stipend
 		// will do an underflow.
+		let target_is_cold = match self.executor.is_cold(code_address, None) {
+			Ok(x) => x,
+			Err(err) => return (ExitReason::Error(err), Vec::new()),
+		};
+
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
-			target_is_cold: self.executor.is_cold(code_address, None),
+			target_is_cold,
 			target_exists: self.executor.exists(code_address),
 		};
 
@@ -1466,5 +1494,17 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 	/// Retreive the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
+	}
+}
+
+/// Handle providing access to the gasometer only.
+struct StackGasometerHandle<'inner, 'config> {
+	gasometer: &'inner mut Gasometer<'config>,
+}
+
+impl<'inner, 'config> GasometerHandle for StackGasometerHandle<'inner, 'config> {
+	/// Record cost to the Runtime gasometer.
+	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
+		self.gasometer.record_cost(cost)
 	}
 }
