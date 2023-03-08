@@ -285,20 +285,23 @@ pub trait PrecompileHandle {
 	/// Record a log.
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 
-	/// Retreive the code address (what is the address of the precompile being called).
+	/// Retrieve the code address (what is the address of the precompile being called).
 	fn code_address(&self) -> H160;
 
-	/// Retreive the input data the precompile is called with.
+	/// Retrieve the input data the precompile is called with.
 	fn input(&self) -> &[u8];
 
-	/// Retreive the context in which the precompile is executed.
+	/// Retrieve the context in which the precompile is executed.
 	fn context(&self) -> &Context;
 
 	/// Is the precompile call is done statically.
 	fn is_static(&self) -> bool;
 
-	/// Retreive the gas limit of this call.
+	/// Retrieve the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64>;
+
+	/// Retrieve backend
+	fn backend(&self) -> &dyn Backend;
 }
 
 /// A precompile result.
@@ -335,8 +338,13 @@ impl PrecompileSet for () {
 ///  * Is static
 ///
 /// In case of success returns the output and the cost.
-pub type PrecompileFn =
-	fn(&[u8], Option<u64>, &Context, bool) -> Result<(PrecompileOutput, u64), PrecompileFailure>;
+pub type PrecompileFn = fn(
+	&[u8],
+	Option<u64>,
+	&Context,
+	&dyn Backend,
+	bool,
+) -> Result<(PrecompileOutput, u64), PrecompileFailure>;
 
 impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
 	fn execute(&self, handle: &mut impl PrecompileHandle) -> Option<PrecompileResult> {
@@ -347,8 +355,9 @@ impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
 			let gas_limit = handle.gas_limit();
 			let context = handle.context();
 			let is_static = handle.is_static();
+			let backend = handle.backend();
 
-			match (*precompile)(input, gas_limit, context, is_static) {
+			match (*precompile)(input, gas_limit, context, backend, is_static) {
 				Ok((output, cost)) => {
 					handle.record_cost(cost)?;
 					Ok(output)
@@ -1330,17 +1339,17 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		Handler::log(self.executor, address, topics, data)
 	}
 
-	/// Retreive the code address (what is the address of the precompile being called).
+	/// Retrieve the code address (what is the address of the precompile being called).
 	fn code_address(&self) -> H160 {
 		self.code_address
 	}
 
-	/// Retreive the input data the precompile is called with.
+	/// Retrieve the input data the precompile is called with.
 	fn input(&self) -> &[u8] {
 		self.input
 	}
 
-	/// Retreive the context in which the precompile is executed.
+	/// Retrieve the context in which the precompile is executed.
 	fn context(&self) -> &Context {
 		self.context
 	}
@@ -1350,8 +1359,12 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		self.is_static
 	}
 
-	/// Retreive the gas limit of this call.
+	/// Retrieve the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
+	}
+
+	fn backend(&self) -> &dyn Backend {
+		&self.executor.state
 	}
 }
