@@ -1,6 +1,6 @@
 use crate::backend::Backend;
 use crate::executor::stack::precompile::{
-	PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileSet, IsPrecompileResult
+	IsPrecompileResult, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileSet,
 };
 use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
 use crate::gasometer::{self, Gasometer, StorageTarget};
