@@ -60,7 +60,7 @@ with-codec = [
 ]
 with-serde = [
 	"serde",
-	"primitive-types/serde",
+	"primitive-types/impl-serde",
 	"evm-core/with-serde",
 	"ethereum/with-serde",
 ]

@@ -243,6 +243,8 @@ pub struct Config {
 	pub decrease_clears_refund: bool,
 	/// EIP-3541
 	pub disallow_executable_format: bool,
+	/// EIP-3651
+	pub warm_coinbase_address: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -261,6 +263,8 @@ pub struct Config {
 	pub call_stack_limit: usize,
 	/// Create contract limit.
 	pub create_contract_limit: Option<usize>,
+	/// EIP-3860, maximum size limit of init_code.
+	pub max_initcode_size: Option<usize>,
 	/// Call stipend.
 	pub call_stipend: u64,
 	/// Has delegate call.
@@ -281,6 +285,8 @@ pub struct Config {
 	pub has_ext_code_hash: bool,
 	/// Has ext block fee. See [EIP-3198](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3198.md)
 	pub has_base_fee: bool,
+	/// Has PUSH0 opcode. See [EIP-3855](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3855.md)
+	pub has_push0: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
 }
@@ -315,6 +321,7 @@ impl Config {
 			increase_state_access_gas: false,
 			decrease_clears_refund: false,
 			disallow_executable_format: false,
+			warm_coinbase_address: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
 			create_increase_nonce: false,
@@ -323,6 +330,7 @@ impl Config {
 			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: None,
+			max_initcode_size: None,
 			call_stipend: 2300,
 			has_delegate_call: false,
 			has_create2: false,
@@ -333,6 +341,7 @@ impl Config {
 			has_self_balance: false,
 			has_ext_code_hash: false,
 			has_base_fee: false,
+			has_push0: false,
 			estimate: false,
 		}
 	}
@@ -366,6 +375,7 @@ impl Config {
 			increase_state_access_gas: false,
 			decrease_clears_refund: false,
 			disallow_executable_format: false,
+			warm_coinbase_address: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -374,6 +384,7 @@ impl Config {
 			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: Some(0x6000),
+			max_initcode_size: None,
 			call_stipend: 2300,
 			has_delegate_call: true,
 			has_create2: true,
@@ -384,6 +395,7 @@ impl Config {
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			has_base_fee: false,
+			has_push0: false,
 			estimate: false,
 		}
 	}
@@ -398,6 +410,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
+	/// Shanghai hard fork configuration.
+	pub const fn shanghai() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -405,7 +422,10 @@ impl Config {
 			gas_access_list_storage_key,
 			decrease_clears_refund,
 			has_base_fee,
+			has_push0,
 			disallow_executable_format,
+			warm_coinbase_address,
+			max_initcode_size,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -447,6 +467,7 @@ impl Config {
 			increase_state_access_gas: true,
 			decrease_clears_refund,
 			disallow_executable_format,
+			warm_coinbase_address,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
 			create_increase_nonce: true,
@@ -455,6 +476,7 @@ impl Config {
 			memory_limit: usize::MAX,
 			call_stack_limit: 1024,
 			create_contract_limit: Some(0x6000),
+			max_initcode_size,
 			call_stipend: 2300,
 			has_delegate_call: true,
 			has_create2: true,
@@ -465,6 +487,7 @@ impl Config {
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			has_base_fee,
+			has_push0,
 			estimate: false,
 		}
 	}
@@ -478,7 +501,10 @@ struct DerivedConfigInputs {
 	gas_access_list_storage_key: u64,
 	decrease_clears_refund: bool,
 	has_base_fee: bool,
+	has_push0: bool,
 	disallow_executable_format: bool,
+	warm_coinbase_address: bool,
+	max_initcode_size: Option<usize>,
 }
 
 impl DerivedConfigInputs {
@@ -489,7 +515,10 @@ impl DerivedConfigInputs {
 			gas_access_list_storage_key: 1900,
 			decrease_clears_refund: false,
 			has_base_fee: false,
+			has_push0: false,
 			disallow_executable_format: false,
+			warm_coinbase_address: false,
+			max_initcode_size: None,
 		}
 	}
 
@@ -500,7 +529,24 @@ impl DerivedConfigInputs {
 			gas_access_list_storage_key: 1900,
 			decrease_clears_refund: true,
 			has_base_fee: true,
+			has_push0: false,
 			disallow_executable_format: true,
+			warm_coinbase_address: false,
+			max_initcode_size: None,
+		}
+	}
+
+	const fn shanghai() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			max_initcode_size: Some(0xC000),
 		}
 	}
 }
