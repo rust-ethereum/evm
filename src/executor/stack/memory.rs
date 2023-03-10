@@ -478,7 +478,7 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	}
 
 	fn code_as_json(&self, address: H160) -> Vec<u8> {
-		self.code(address)
+		self.backend.code_as_json(address)
 	}
 
 	fn storage(&self, address: H160, key: H256) -> H256 {
