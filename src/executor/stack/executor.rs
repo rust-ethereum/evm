@@ -1,6 +1,6 @@
 use crate::backend::Backend;
 use crate::executor::stack::precompile::{
-	PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileSet,
+	IsPrecompileResult, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileSet,
 };
 use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
 use crate::gasometer::{self, Gasometer, StorageTarget};
@@ -1051,11 +1051,30 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		}
 	}
 
-	fn is_cold(&self, address: H160, maybe_index: Option<H256>) -> bool {
-		match maybe_index {
-			None => !self.precompile_set.is_precompile(address) && self.state.is_cold(address),
+	fn is_cold(&mut self, address: H160, maybe_index: Option<H256>) -> Result<bool, ExitError> {
+		Ok(match maybe_index {
+			None => {
+				let is_precompile = match self
+					.precompile_set
+					.is_precompile(address, self.state.metadata().gasometer.gas())
+				{
+					IsPrecompileResult::Answer {
+						is_precompile,
+						extra_cost,
+					} => {
+						self.state
+							.metadata_mut()
+							.gasometer
+							.record_cost(extra_cost)?;
+						is_precompile
+					}
+					IsPrecompileResult::OutOfGas => return Err(ExitError::OutOfGas),
+				};
+
+				!is_precompile && self.state.is_cold(address)
+			}
 			Some(index) => self.state.is_storage_cold(address, index),
-		}
+		})
 	}
 
 	fn gas_left(&self) -> U256 {
@@ -1286,10 +1305,15 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		// Since we don't go through opcodes we need manually record the call
 		// cost. Not doing so will make the code panic as recording the call stipend
 		// will do an underflow.
+		let target_is_cold = match self.executor.is_cold(code_address, None) {
+			Ok(x) => x,
+			Err(err) => return (ExitReason::Error(err), Vec::new()),
+		};
+
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
-			target_is_cold: self.executor.is_cold(code_address, None),
+			target_is_cold,
 			target_exists: self.executor.exists(code_address),
 		};
 
