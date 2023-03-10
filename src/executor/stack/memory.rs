@@ -477,6 +477,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.code(address))
 	}
 
+	fn code_as_json(&self, address: H160) -> Vec<u8> {
+		self.code(address)
+	}
+
 	fn storage(&self, address: H160, key: H256) -> H256 {
 		self.substate
 			.known_storage(address, key)
