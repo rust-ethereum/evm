@@ -494,6 +494,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 
 		self.backend.original_storage(address, key)
 	}
+
+	fn susbtate_as_json(&self, _address: H160, _indinces: &[String]) -> Vec<u8> {
+		Vec::new()
+	}
 }
 
 impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'backend, 'config, B> {
