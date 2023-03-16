@@ -86,7 +86,7 @@ pub trait Backend {
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
 	/// Get contract substate with given array of indices
-	fn susbtate_as_json(&self, address: H160, indinces: &[String]) -> Vec<u8>;
+	fn susbtate_as_json(&self, address: H160, indices: &[String]) -> Vec<u8>;
 }
 
 /// EVM backend that can apply changes.
