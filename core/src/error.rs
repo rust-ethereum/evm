@@ -154,10 +154,6 @@ pub enum ExitError {
 	/// Other normal errors.
 	#[cfg_attr(feature = "with-codec", codec(index = 13))]
 	Other(Cow<'static, str>),
-
-	/// Init code exceeds limit (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 7))]
-	InitCodeLimit,
 }
 
 impl From<ExitError> for ExitReason {
