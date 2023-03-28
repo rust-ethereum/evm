@@ -404,7 +404,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			// EIP-3860
 			if init_code.len() > limit {
 				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
 				return Err(ExitError::OutOfGas);
 			}
 			return self
