@@ -227,7 +227,7 @@ pub trait StackState<'config>: Backend {
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
 	fn code_hash(&self, address: H160) -> H256 {
-		H256::from_slice(Keccak256::digest(&self.code(address)).as_slice())
+		H256::from_slice(Keccak256::digest(self.code(address)).as_slice())
 	}
 }
 
@@ -630,7 +630,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				salt,
 			} => {
 				let mut hasher = Keccak256::new();
-				hasher.update(&[0xff]);
+				hasher.update([0xff]);
 				hasher.update(&caller[..]);
 				hasher.update(&salt[..]);
 				hasher.update(&code_hash[..]);
