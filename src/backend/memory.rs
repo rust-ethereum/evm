@@ -157,7 +157,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 		Some(self.storage(address, index))
 	}
 
-	fn susbtate_as_json(&self, _address: H160, _vname: &str, _indices: &[String]) -> Vec<u8> {
+	fn substate_as_json(&self, _address: H160, _vname: &str, _indices: &[String]) -> Vec<u8> {
 		Vec::new()
 	}
 }

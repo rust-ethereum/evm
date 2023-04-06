@@ -495,8 +495,8 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 		self.backend.original_storage(address, key)
 	}
 
-	fn susbtate_as_json(&self, address: H160, vname: &str, indices: &[String]) -> Vec<u8> {
-		self.backend.susbtate_as_json(address, vname, indices)
+	fn substate_as_json(&self, address: H160, vname: &str, indices: &[String]) -> Vec<u8> {
+		self.backend.substate_as_json(address, vname, indices)
 	}
 }
 
