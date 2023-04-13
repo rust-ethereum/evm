@@ -3,7 +3,7 @@ use crate::executor::stack::precompile::{
 	IsPrecompileResult, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileSet,
 };
 use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
-use crate::gasometer::{self, Gasometer, StorageTarget};
+use crate::gasometer::{self, Gasometer, GasCost, StorageTarget};
 use crate::maybe_borrowed::MaybeBorrowed;
 use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime, Stack,
@@ -228,6 +228,15 @@ pub trait StackState<'config>: Backend {
 	/// fetch the code.
 	fn code_hash(&self, address: H160) -> H256 {
 		H256::from_slice(Keccak256::digest(&self.code(address)).as_slice())
+	}
+	
+	fn record_external_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: GasCost, _target: StorageTarget) -> Result<(), ExitError> {
+		Ok(())
+	}
+
+	#[cfg(feature = "with-substrate")]
+	fn record_external_cost(&mut self, _ref_time: u64, _proof_size: u64) -> Result<(), ExitError> {
+		Ok(())
 	}
 }
 
@@ -1261,8 +1270,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			)?;
 
 			let gasometer = &mut self.state.metadata_mut().gasometer;
-
 			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
+			self.state.record_external_opcode_cost(opcode, gas_cost, target)?;
+
 			match target {
 				StorageTarget::Address(address) => {
 					self.state.metadata_mut().access_address(address)
@@ -1375,6 +1385,13 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.metadata_mut()
 			.gasometer
 			.record_cost(cost)
+	}
+
+	#[cfg(feature = "with-substrate")]
+	fn record_external_cost(&mut self, ref_time: u64, proof_size: u64) -> Result<(), ExitError> {
+		self.executor
+			.state
+			.record_external_cost(ref_time, proof_size)
 	}
 
 	/// Retreive the remaining gas.

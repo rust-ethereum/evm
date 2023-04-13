@@ -64,6 +64,7 @@ with-serde = [
 	"evm-core/with-serde",
 	"ethereum/with-serde",
 ]
+with-substrate = []
 tracing = [
 	"environmental",
 	"evm-gasometer/tracing",
