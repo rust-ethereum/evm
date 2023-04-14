@@ -235,7 +235,12 @@ pub trait StackState<'config>: Backend {
 	}
 
 	#[cfg(feature = "with-substrate")]
-	fn record_external_cost(&mut self, _ref_time: u64, _proof_size: u64) -> Result<(), ExitError> {
+	fn record_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) -> Result<(), ExitError> {
+		Ok(())
+	}
+
+	#[cfg(feature = "with-substrate")]
+	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) -> Result<(), ExitError> {
 		Ok(())
 	}
 }
@@ -1388,10 +1393,19 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 	}
 
 	#[cfg(feature = "with-substrate")]
-	fn record_external_cost(&mut self, ref_time: u64, proof_size: u64) -> Result<(), ExitError> {
+	/// Record Substrate specific cost.
+	fn record_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) -> Result<(), ExitError> {
 		self.executor
 			.state
 			.record_external_cost(ref_time, proof_size)
+	}
+
+	#[cfg(feature = "with-substrate")]
+	/// Refund Substrate specific cost.
+	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
+		self.executor
+			.state
+			.refund_external_cost(ref_time, proof_size)
 	}
 
 	/// Retreive the remaining gas.
