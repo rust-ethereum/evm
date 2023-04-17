@@ -240,9 +240,7 @@ pub trait StackState<'config>: Backend {
 	}
 
 	#[cfg(feature = "with-substrate")]
-	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) -> Result<(), ExitError> {
-		Ok(())
-	}
+	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 }
 
 /// Stack-based executor.
@@ -1405,7 +1403,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
 		self.executor
 			.state
-			.refund_external_cost(ref_time, proof_size)
+			.refund_external_cost(ref_time, proof_size);
 	}
 
 	/// Retreive the remaining gas.
