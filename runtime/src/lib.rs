@@ -545,6 +545,7 @@ impl DerivedConfigInputs {
 			has_push0: true,
 			disallow_executable_format: true,
 			warm_coinbase_address: true,
+			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
 		}
 	}

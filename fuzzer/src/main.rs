@@ -59,7 +59,7 @@ fn main() {
 				.unwrap()
 				.map(|x| x.unwrap().path().to_str().unwrap().to_string())
 				.collect::<Vec<String>>(),
-			false => (&args[1..]).to_vec(),
+			false => args[1..].to_vec(),
 		};
 		for argument in all_files {
 			println!("Now doing file {:?}", argument);
