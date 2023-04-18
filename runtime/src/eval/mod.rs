@@ -15,7 +15,7 @@ pub enum Control<H: Handler> {
 }
 
 fn handle_other<H: Handler>(
-	state: &mut Runtime<'_>,
+	state: &mut Runtime,
 	opcode: Opcode,
 	handler: &mut H,
 ) -> Control<H> {
@@ -25,7 +25,7 @@ fn handle_other<H: Handler>(
 	}
 }
 
-pub fn eval<H: Handler>(state: &mut Runtime<'_>, opcode: Opcode, handler: &mut H) -> Control<H> {
+pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) -> Control<H> {
 	match opcode {
 		Opcode::SHA3 => system::sha3(state),
 		Opcode::ADDRESS => system::address(state),
@@ -68,7 +68,7 @@ pub fn eval<H: Handler>(state: &mut Runtime<'_>, opcode: Opcode, handler: &mut H
 }
 
 pub fn finish_create(
-	runtime: &mut Runtime<'_>,
+	runtime: &mut Runtime,
 	reason: ExitReason,
 	address: Option<H160>,
 	return_data: Vec<u8>,
@@ -97,7 +97,7 @@ pub fn finish_create(
 }
 
 pub fn finish_call(
-	runtime: &mut Runtime<'_>,
+	runtime: &mut Runtime,
 	out_len: U256,
 	out_offset: U256,
 	reason: ExitReason,

@@ -7,7 +7,7 @@ use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
-pub fn sha3<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
+pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from, len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
@@ -26,47 +26,47 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
 	Control::Continue
 }
 
-pub fn chainid<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn chainid<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.chain_id());
 
 	Control::Continue
 }
 
-pub fn address<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
+pub fn address<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	let ret = H256::from(runtime.context.address);
 	push!(runtime, ret);
 
 	Control::Continue
 }
 
-pub fn balance<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn balance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	push_u256!(runtime, handler.balance(address.into()));
 
 	Control::Continue
 }
 
-pub fn selfbalance<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn selfbalance<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.balance(runtime.context.address));
 
 	Control::Continue
 }
 
-pub fn origin<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn origin<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	let ret = H256::from(handler.origin());
 	push!(runtime, ret);
 
 	Control::Continue
 }
 
-pub fn caller<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
+pub fn caller<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	let ret = H256::from(runtime.context.caller);
 	push!(runtime, ret);
 
 	Control::Continue
 }
 
-pub fn callvalue<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
+pub fn callvalue<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	let mut ret = H256::default();
 	runtime.context.apparent_value.to_big_endian(&mut ret[..]);
 	push!(runtime, ret);
@@ -74,7 +74,7 @@ pub fn callvalue<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
 	Control::Continue
 }
 
-pub fn gasprice<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	let mut ret = H256::default();
 	handler.gas_price().to_big_endian(&mut ret[..]);
 	push!(runtime, ret);
@@ -82,7 +82,7 @@ pub fn gasprice<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H
 	Control::Continue
 }
 
-pub fn base_fee<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	let mut ret = H256::default();
 	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
 	push!(runtime, ret);
@@ -90,21 +90,21 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H
 	Control::Continue
 }
 
-pub fn extcodesize<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	push_u256!(runtime, handler.code_size(address.into()));
 
 	Control::Continue
 }
 
-pub fn extcodehash<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	push!(runtime, handler.code_hash(address.into()));
 
 	Control::Continue
 }
 
-pub fn extcodecopy<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, address);
 	pop_u256!(runtime, memory_offset, code_offset, len);
 
@@ -125,14 +125,14 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Contro
 	Control::Continue
 }
 
-pub fn returndatasize<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
+pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	let size = U256::from(runtime.return_data_buffer.len());
 	push_u256!(runtime, size);
 
 	Control::Continue
 }
 
-pub fn returndatacopy<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
+pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, memory_offset, data_offset, len);
 
 	try_or_fail!(runtime
@@ -158,39 +158,39 @@ pub fn returndatacopy<H: Handler>(runtime: &mut Runtime<'_>) -> Control<H> {
 	}
 }
 
-pub fn blockhash<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn blockhash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop_u256!(runtime, number);
 	push!(runtime, handler.block_hash(number));
 
 	Control::Continue
 }
 
-pub fn coinbase<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn coinbase<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push!(runtime, handler.block_coinbase().into());
 	Control::Continue
 }
 
-pub fn timestamp<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn timestamp<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.block_timestamp());
 	Control::Continue
 }
 
-pub fn number<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn number<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.block_number());
 	Control::Continue
 }
 
-pub fn difficulty<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn difficulty<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.block_difficulty());
 	Control::Continue
 }
 
-pub fn gaslimit<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.block_gas_limit());
 	Control::Continue
 }
 
-pub fn sload<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn sload<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop!(runtime, index);
 	let value = handler.storage(runtime.context.address, index);
 	push!(runtime, value);
@@ -204,7 +204,7 @@ pub fn sload<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
-pub fn sstore<H: Handler>(runtime: &mut Runtime<'_>, handler: &mut H) -> Control<H> {
+pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, index, value);
 
 	event!(SStore {
@@ -219,13 +219,13 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime<'_>, handler: &mut H) -> Control
 	}
 }
 
-pub fn gas<H: Handler>(runtime: &mut Runtime<'_>, handler: &H) -> Control<H> {
+pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.gas_left());
 
 	Control::Continue
 }
 
-pub fn log<H: Handler>(runtime: &mut Runtime<'_>, n: u8, handler: &mut H) -> Control<H> {
+pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
 	pop_u256!(runtime, offset, len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
@@ -254,7 +254,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime<'_>, n: u8, handler: &mut H) -> Con
 	}
 }
 
-pub fn suicide<H: Handler>(runtime: &mut Runtime<'_>, handler: &mut H) -> Control<H> {
+pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, target);
 
 	match handler.mark_delete(runtime.context.address, target.into()) {
@@ -266,7 +266,7 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime<'_>, handler: &mut H) -> Contro
 }
 
 pub fn create<H: Handler>(
-	runtime: &mut Runtime<'_>,
+	runtime: &mut Runtime,
 	is_create2: bool,
 	handler: &mut H,
 ) -> Control<H> {
@@ -310,7 +310,7 @@ pub fn create<H: Handler>(
 }
 
 pub fn call<H: Handler>(
-	runtime: &mut Runtime<'_>,
+	runtime: &mut Runtime,
 	scheme: CallScheme,
 	handler: &mut H,
 ) -> Control<H> {
