@@ -232,7 +232,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
-	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
+	pub fn known_original_storage(&self, address: H160) -> Option<H256> {
 		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
 				return Some(H256::default());
@@ -240,7 +240,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 
 		if let Some(parent) = self.parent.as_ref() {
-			return parent.known_original_storage(address, key);
+			return parent.known_original_storage(address);
 		}
 
 		None
@@ -455,7 +455,7 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	}
 
 	fn original_storage(&self, address: H160, key: H256) -> Option<H256> {
-		if let Some(value) = self.substate.known_original_storage(address, key) {
+		if let Some(value) = self.substate.known_original_storage(address) {
 			return Some(value);
 		}
 
