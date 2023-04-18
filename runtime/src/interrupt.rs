@@ -13,7 +13,7 @@ pub struct ResolveCreate<'a> {
 	_runtime: &'a mut Runtime,
 }
 
-impl<'a, 'config> ResolveCreate<'a> {
+impl<'a> ResolveCreate<'a> {
 	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
 		Self { _runtime: runtime }
 	}
@@ -24,7 +24,7 @@ pub struct ResolveCall<'a> {
 	_runtime: &'a mut Runtime,
 }
 
-impl<'a, 'config> ResolveCall<'a> {
+impl<'a> ResolveCall<'a> {
 	pub(crate) fn new(runtime: &'a mut Runtime) -> Self {
 		Self { _runtime: runtime }
 	}
