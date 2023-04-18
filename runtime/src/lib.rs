@@ -107,32 +107,31 @@ macro_rules! step {
 /// EVM runtime.
 ///
 /// The runtime wraps an EVM `Machine` with support of return data and context.
-pub struct Runtime<'config> {
+pub struct Runtime {
 	machine: Machine,
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
 	return_data_len: U256,
 	return_data_offset: U256,
 	context: Context,
-	_config: &'config Config,
 }
 
-impl<'config> Runtime<'config> {
+impl Runtime {
 	/// Create a new runtime with given code and data.
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
 		context: Context,
-		config: &'config Config,
+		stack_limit: usize,
+		memory_limit: usize,
 	) -> Self {
 		Self {
-			machine: Machine::new(code, data, config.stack_limit, config.memory_limit),
+			machine: Machine::new(code, data, stack_limit, memory_limit),
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
 			return_data_len: U256::zero(),
 			return_data_offset: U256::zero(),
 			context,
-			_config: config,
 		}
 	}
 
@@ -150,7 +149,7 @@ impl<'config> Runtime<'config> {
 	pub fn step<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
-	) -> Result<(), Capture<ExitReason, Resolve<'a, 'config, H>>> {
+	) -> Result<(), Capture<ExitReason, Resolve<'a, H>>> {
 		step!(self, handler, return Err; Ok)
 	}
 
@@ -158,7 +157,7 @@ impl<'config> Runtime<'config> {
 	pub fn run<'a, H: Handler>(
 		&'a mut self,
 		handler: &mut H,
-	) -> Capture<ExitReason, Resolve<'a, 'config, H>> {
+	) -> Capture<ExitReason, Resolve<'a, H>> {
 		loop {
 			step!(self, handler, return;)
 		}
