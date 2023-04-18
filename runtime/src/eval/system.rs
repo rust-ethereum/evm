@@ -265,11 +265,7 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	Control::Exit(ExitSucceed::Suicided.into())
 }
 
-pub fn create<H: Handler>(
-	runtime: &mut Runtime,
-	is_create2: bool,
-	handler: &mut H,
-) -> Control<H> {
+pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, value, code_offset, len);
@@ -309,11 +305,7 @@ pub fn create<H: Handler>(
 	}
 }
 
-pub fn call<H: Handler>(
-	runtime: &mut Runtime,
-	scheme: CallScheme,
-	handler: &mut H,
-) -> Control<H> {
+pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, gas);

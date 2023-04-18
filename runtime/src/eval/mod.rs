@@ -14,11 +14,7 @@ pub enum Control<H: Handler> {
 	Exit(ExitReason),
 }
 
-fn handle_other<H: Handler>(
-	state: &mut Runtime,
-	opcode: Opcode,
-	handler: &mut H,
-) -> Control<H> {
+fn handle_other<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) -> Control<H> {
 	match handler.other(opcode, &mut state.machine) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
