@@ -54,8 +54,8 @@ impl<'config> MemoryStackSubstate<'config> {
 		&mut self.metadata
 	}
 
-	/// Deconstruct the executor, return state to be applied. Panic if the
-	/// executor is not in the top-level substate.
+	/// Deconstruct the memory stack substate, return state to be applied. Panic if the
+	/// substate is not in the top-level substate.
 	#[must_use]
 	pub fn deconstruct<B: Backend>(
 		mut self,
