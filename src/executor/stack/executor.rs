@@ -302,9 +302,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute using Runtimes on the call_stack until it returns.
-	fn execute_with_call_stack<'borrow>(
+	fn execute_with_call_stack(
 		&mut self,
-		call_stack: &mut Vec<TaggedRuntime<'borrow>>,
+		call_stack: &mut Vec<TaggedRuntime>,
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
 		// This `interrupt_runtime` is used to pass the runtime obtained from the
 		// `Capture::Trap` branch in the match below back to the top of the call stack.
