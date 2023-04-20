@@ -230,7 +230,11 @@ pub trait StackState<'config>: Backend {
 		H256::from_slice(Keccak256::digest(&self.code(address)).as_slice())
 	}
 	
-	fn record_external_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: GasCost, _target: StorageTarget) -> Result<(), ExitError> {
+	fn record_external_static_opcode_cost(&mut self, _opcode: Opcode) -> Result<(), ExitError> {
+		Ok(())
+	}
+	
+	fn record_external_dynamic_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: GasCost, _target: StorageTarget) -> Result<(), ExitError> {
 		Ok(())
 	}
 
@@ -1261,6 +1265,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
 			self.state.metadata_mut().gasometer.record_cost(cost)?;
+			self.state.record_external_static_opcode_cost(opcode)?;
 		} else {
 			let is_static = self.state.metadata().is_static;
 			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
@@ -1274,7 +1279,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
-			self.state.record_external_opcode_cost(opcode, gas_cost, target)?;
+			self.state.record_external_dynamic_opcode_cost(opcode, gas_cost, target)?;
 
 			match target {
 				StorageTarget::Address(address) => {
