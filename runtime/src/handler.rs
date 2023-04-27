@@ -54,6 +54,8 @@ pub trait Handler {
 	fn block_timestamp(&self) -> U256;
 	/// Get environmental block difficulty.
 	fn block_difficulty(&self) -> U256;
+	/// Get environmental block randomness.
+	fn block_randomness(&self) -> Option<H256>;
 	/// Get environmental gas limit.
 	fn block_gas_limit(&self) -> U256;
 	/// Environmental block base fee.

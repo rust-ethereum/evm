@@ -40,7 +40,7 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::COINBASE => system::coinbase(state, handler),
 		Opcode::TIMESTAMP => system::timestamp(state, handler),
 		Opcode::NUMBER => system::number(state, handler),
-		Opcode::DIFFICULTY => system::difficulty(state, handler),
+		Opcode::DIFFICULTY => system::prevrandao(state, handler),
 		Opcode::GASLIMIT => system::gaslimit(state, handler),
 		Opcode::SLOAD => system::sload(state, handler),
 		Opcode::SSTORE => system::sstore(state, handler),

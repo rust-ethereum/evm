@@ -409,6 +409,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
+	/// The Merge (Paris) hard fork configuration.
+	pub const fn merge() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::merge())
+	}
+
 	/// Shanghai hard fork configuration.
 	pub const fn shanghai() -> Config {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
@@ -522,6 +527,20 @@ impl DerivedConfigInputs {
 	}
 
 	const fn london() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: false,
+			disallow_executable_format: true,
+			warm_coinbase_address: false,
+			max_initcode_size: None,
+		}
+	}
+
+	const fn merge() -> Self {
 		Self {
 			gas_storage_read_warm: 100,
 			gas_sload_cold: 2100,

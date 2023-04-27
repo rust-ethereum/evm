@@ -421,6 +421,9 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	fn block_difficulty(&self) -> U256 {
 		self.backend.block_difficulty()
 	}
+	fn block_randomness(&self) -> Option<H256> {
+		self.backend.block_randomness()
+	}
 	fn block_gas_limit(&self) -> U256 {
 		self.backend.block_gas_limit()
 	}

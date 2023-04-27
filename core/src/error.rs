@@ -127,6 +127,7 @@ pub enum ExitError {
 	/// Create init code exceeds limit (runtime).
 	#[cfg_attr(feature = "with-codec", codec(index = 7))]
 	CreateContractLimit,
+
 	/// Invalid opcode during execution or starting byte is 0xef. See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md).
 	#[cfg_attr(feature = "with-codec", codec(index = 15))]
 	InvalidCode(Opcode),
