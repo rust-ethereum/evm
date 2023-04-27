@@ -209,7 +209,7 @@ pub trait StackState<'config>: Backend {
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	fn set_code(&mut self, address: H160, code: Vec<u8>) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -218,16 +218,16 @@ pub trait StackState<'config>: Backend {
 	/// Provide a default implementation by fetching the code, but
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
-	fn code_size(&self, address: H160) -> U256 {
-		U256::from(self.code(address).len())
+	fn code_size(&mut self, address: H160) -> Result<U256, ExitError> {
+		Ok(U256::from(self.code(address).len()))
 	}
 
 	/// Fetch the code hash of an address.
 	/// Provide a default implementation by fetching the code, but
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
-	fn code_hash(&self, address: H160) -> H256 {
-		H256::from_slice(Keccak256::digest(&self.code(address)).as_slice())
+	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
+		Ok(H256::from_slice(Keccak256::digest(&self.code(address)).as_slice()))
 	}
 	
 	fn record_external_static_opcode_cost(&mut self, _opcode: Opcode) -> Result<(), ExitError> {
@@ -742,7 +742,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.enter_substate(gas_limit, false);
 
 		{
-			if self.code_size(address) != U256::zero() {
+			let code_size = match self.code_size(address) {
+				Ok(v) => v,
+				Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
+			};
+			if code_size != U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}
@@ -960,7 +964,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				{
 					Ok(()) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
-						self.state.set_code(address, out);
+						if let Err(e) = self.state.set_code(address, out) {
+							return (e.into(), None, Vec::new());
+						}
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
 						}
@@ -1033,13 +1039,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		self.state.basic(address).balance
 	}
 
-	fn code_size(&self, address: H160) -> U256 {
+	fn code_size(&mut self, address: H160) -> Result<U256, ExitError> {
 		self.state.code_size(address)
 	}
 
-	fn code_hash(&self, address: H160) -> H256 {
+	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
 		if !self.exists(address) {
-			return H256::default();
+			return Ok(H256::default());
 		}
 
 		self.state.code_hash(address)

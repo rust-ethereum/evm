@@ -28,9 +28,9 @@ pub trait Handler {
 	/// Get balance of address.
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
-	fn code_size(&self, address: H160) -> U256;
+	fn code_size(&mut self, address: H160) -> Result<U256, ExitError>;
 	/// Get code hash of address.
-	fn code_hash(&self, address: H160) -> H256;
+	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError>;
 	/// Get code of address.
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.

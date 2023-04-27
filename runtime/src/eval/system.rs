@@ -90,16 +90,24 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
-pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	push_u256!(runtime, handler.code_size(address.into()));
+	let code_size = match handler.code_size(address.into()) {
+		Ok(v) => v,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	push_u256!(runtime, code_size);
 
 	Control::Continue
 }
 
-pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	push!(runtime, handler.code_hash(address.into()));
+	let code_hash = match handler.code_hash(address.into()) {
+		Ok(v) => v,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	push!(runtime, code_hash);
 
 	Control::Continue
 }
