@@ -192,26 +192,26 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.known_account(address).and_then(|acc| acc.code.clone())
 	}
 
-	pub fn known_empty(&self, address: H160) -> Option<bool> {
+	pub fn known_empty(&self, address: H160) -> Result<Option<bool>, ExitError> {
 		if let Some(account) = self.known_account(address) {
 			if account.basic.balance != U256::zero() {
-				return Some(false);
+				return Ok(Some(false));
 			}
 
 			if account.basic.nonce != U256::zero() {
-				return Some(false);
+				return Ok(Some(false));
 			}
 
 			if let Some(code) = &account.code {
-				return Some(
+				return Ok(Some(
 					account.basic.balance == U256::zero()
 						&& account.basic.nonce == U256::zero()
 						&& code.is_empty(),
-				);
+				));
 			}
 		}
 
-		None
+		Ok(None)
 	}
 
 	pub fn known_storage(&self, address: H160, key: H256) -> Option<H256> {
@@ -393,9 +393,9 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct MemoryStackState<'backend, 'config, B> {
-	backend: &'backend B,
+	backend: &'backend mut B,
 	substate: MemoryStackSubstate<'config>,
 }
 
@@ -442,10 +442,11 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.basic(address))
 	}
 
-	fn code(&self, address: H160) -> Vec<u8> {
-		self.substate
-			.known_code(address)
-			.unwrap_or_else(|| self.backend.code(address))
+	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError> {
+		if let Some(code) = self.substate.known_code(address) {
+			return Ok(code);
+		}
+		self.backend.code(address)
 	}
 
 	fn storage(&self, address: H160, key: H256) -> H256 {
@@ -488,14 +489,14 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.exit_discard()
 	}
 
-	fn is_empty(&self, address: H160) -> bool {
-		if let Some(known_empty) = self.substate.known_empty(address) {
-			return known_empty;
+	fn is_empty(&mut self, address: H160) -> Result<bool, ExitError> {
+		if let Some(known_empty) = self.substate.known_empty(address)? {
+			return Ok(known_empty);
 		}
 
-		self.backend.basic(address).balance == U256::zero()
+		Ok(self.backend.basic(address).balance == U256::zero()
 			&& self.backend.basic(address).nonce == U256::zero()
-			&& self.backend.code(address).len() == 0
+			&& self.backend.code(address)?.len() == 0)
 	}
 
 	fn deleted(&self, address: H160) -> bool {
@@ -549,7 +550,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 }
 
 impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
-	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend B) -> Self {
+	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend mut B) -> Self {
 		Self {
 			backend,
 			substate: MemoryStackSubstate::new(metadata),

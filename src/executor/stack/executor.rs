@@ -199,7 +199,7 @@ pub trait StackState<'config>: Backend {
 	fn exit_revert(&mut self) -> Result<(), ExitError>;
 	fn exit_discard(&mut self) -> Result<(), ExitError>;
 
-	fn is_empty(&self, address: H160) -> bool;
+	fn is_empty(&mut self, address: H160) -> Result<bool, ExitError>;
 	fn deleted(&self, address: H160) -> bool;
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
@@ -219,7 +219,7 @@ pub trait StackState<'config>: Backend {
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
 	fn code_size(&mut self, address: H160) -> Result<U256, ExitError> {
-		Ok(U256::from(self.code(address).len()))
+		Ok(U256::from(self.code(address)?.len()))
 	}
 
 	/// Fetch the code hash of an address.
@@ -227,7 +227,7 @@ pub trait StackState<'config>: Backend {
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
 	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
-		Ok(H256::from_slice(Keccak256::digest(&self.code(address)).as_slice()))
+		Ok(H256::from_slice(Keccak256::digest(&self.code(address)?).as_slice()))
 	}
 	
 	fn record_external_dynamic_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: GasCost, _target: StorageTarget) -> Result<(), ExitError> {
@@ -848,10 +848,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		let code = self.code(code_address);
-
 		self.enter_substate(gas_limit, is_static);
 		self.state.touch(context.address);
+
+		let code = match self.code(code_address) {
+			Ok(code) => code,
+			Err(e) => {
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Capture::Exit((ExitReason::Error(e), Vec::new()));
+			}
+		};
 
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
@@ -1040,14 +1046,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 
 	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
-		if !self.exists(address) {
+		if !self.exists(address)? {
 			return Ok(H256::default());
 		}
 
 		self.state.code_hash(address)
 	}
 
-	fn code(&self, address: H160) -> Vec<u8> {
+	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError> {
 		self.state.code(address)
 	}
 
@@ -1061,11 +1067,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			.unwrap_or_default()
 	}
 
-	fn exists(&self, address: H160) -> bool {
+	fn exists(&mut self, address: H160) -> Result<bool, ExitError> {
 		if self.config.empty_considered_exists {
-			self.state.exists(address)
+			Ok(self.state.exists(address))
 		} else {
-			self.state.exists(address) && !self.state.is_empty(address)
+			Ok(self.state.exists(address) && !self.state.is_empty(address)?)
 		}
 	}
 
@@ -1329,11 +1335,16 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			Err(err) => return (ExitReason::Error(err), Vec::new()),
 		};
 
+		let target_exists = match self.executor.exists(code_address) {
+			Ok(x) => x,
+			Err(err) => return (ExitReason::Error(err), Vec::new()),
+		};
+
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
 			target_is_cold,
-			target_exists: self.executor.exists(code_address),
+			target_exists,
 		};
 
 		// We record the length of the input.

@@ -32,7 +32,7 @@ pub trait Handler {
 	/// Get code hash of address.
 	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError>;
 	/// Get code of address.
-	fn code(&self, address: H160) -> Vec<u8>;
+	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index.
@@ -62,7 +62,7 @@ pub trait Handler {
 	fn chain_id(&self) -> U256;
 
 	/// Check whether an address exists.
-	fn exists(&self, address: H160) -> bool;
+	fn exists(&mut self, address: H160) -> Result<bool, ExitError>;
 	/// Check whether an address has already been deleted.
 	fn deleted(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed

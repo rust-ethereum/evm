@@ -5,7 +5,7 @@
 mod memory;
 
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
-
+use crate::ExitError;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
@@ -50,7 +50,7 @@ pub enum Apply<I> {
 }
 
 /// EVM backend.
-#[auto_impl::auto_impl(&, Arc, Box)]
+//#[auto_impl::auto_impl(&, Arc, Box)]
 pub trait Backend {
 	/// Gas price. Unused for London.
 	fn gas_price(&self) -> U256;
@@ -78,7 +78,7 @@ pub trait Backend {
 	/// Get basic account information.
 	fn basic(&self, address: H160) -> Basic;
 	/// Get account code.
-	fn code(&self, address: H160) -> Vec<u8>;
+	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.

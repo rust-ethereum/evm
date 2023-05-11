@@ -32,8 +32,8 @@ impl Stack {
 
 	#[inline]
 	/// Whether the stack is empty.
-	pub fn is_empty(&self) -> bool {
-		self.data.is_empty()
+	pub fn is_empty(&self) -> Result<bool, ExitError> {
+		Ok(self.data.is_empty())
 	}
 
 	#[inline]
