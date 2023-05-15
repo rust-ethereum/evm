@@ -155,6 +155,11 @@ pub enum ExitError {
 	/// Other normal errors.
 	#[cfg_attr(feature = "with-codec", codec(index = 13))]
 	Other(Cow<'static, str>),
+
+	/// Nonce reached maximum value of 2^64-1
+	/// https://eips.ethereum.org/EIPS/eip-2681
+	#[cfg_attr(feature = "with-codec", codec(index = 14))]
+	MaxNonce,
 }
 
 impl From<ExitError> for ExitReason {

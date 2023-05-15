@@ -204,7 +204,7 @@ pub trait StackState<'config>: Backend {
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
-	fn inc_nonce(&mut self, address: H160);
+	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
@@ -568,7 +568,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			self.initialize_with_access_list(access_list);
 		}
 
-		self.state.inc_nonce(caller);
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return (e.into(), Vec::new());
+		}
 
 		let context = Context {
 			caller,
@@ -616,7 +618,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Get account nonce.
-	pub fn nonce(&self, address: H160) -> U256 {
+	pub fn nonce(&self, address: H160) -> u64 {
 		self.state.basic(address).nonce
 	}
 
@@ -702,6 +704,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
 		}
 
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return Capture::Exit((e.into(), None, Vec::new()));
+		}
+
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
@@ -720,8 +726,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		let gas_limit = min(after_gas, target_gas);
 		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
 
-		self.state.inc_nonce(caller);
-
 		self.enter_substate(gas_limit, false);
 
 		{
@@ -730,7 +734,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}
 
-			if self.nonce(address) > U256::zero() {
+			if self.nonce(address) > 0 {
 				let _ = self.exit_substate(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}
@@ -757,7 +761,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if self.config.create_increase_nonce {
-			self.state.inc_nonce(address);
+			if let Err(e) = self.state.inc_nonce(address) {
+				return Capture::Exit((e.into(), None, Vec::new()));
+			}
 		}
 
 		let runtime = Runtime::new(

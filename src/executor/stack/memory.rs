@@ -198,14 +198,14 @@ impl<'config> MemoryStackSubstate<'config> {
 				return Some(false);
 			}
 
-			if account.basic.nonce != U256::zero() {
+			if account.basic.nonce != 0 {
 				return Some(false);
 			}
 
 			if let Some(code) = &account.code {
 				return Some(
 					account.basic.balance == U256::zero()
-						&& account.basic.nonce == U256::zero()
+						&& account.basic.nonce == 0
 						&& code.is_empty(),
 				);
 			}
@@ -301,8 +301,10 @@ impl<'config> MemoryStackSubstate<'config> {
 			.expect("New account was just inserted")
 	}
 
-	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) {
-		self.account_mut(address, backend).basic.nonce += U256::one();
+	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) -> Result<(), ExitError> {
+		let nonce = &mut self.account_mut(address, backend).basic.nonce;
+		*nonce = nonce.checked_add(1).ok_or(ExitError::MaxNonce)?;
+		Ok(())
 	}
 
 	pub fn set_storage(&mut self, address: H160, key: H256, value: H256) {
@@ -497,7 +499,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		}
 
 		self.backend.basic(address).balance == U256::zero()
-			&& self.backend.basic(address).nonce == U256::zero()
+			&& self.backend.basic(address).nonce == 0
 			&& self.backend.code(address).len() == 0
 	}
 
@@ -513,8 +515,8 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.is_storage_cold(address, key)
 	}
 
-	fn inc_nonce(&mut self, address: H160) {
-		self.substate.inc_nonce(address, self.backend);
+	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError> {
+		self.substate.inc_nonce(address, self.backend)
 	}
 
 	fn set_storage(&mut self, address: H160, key: H256, value: H256) {
