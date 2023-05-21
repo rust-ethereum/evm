@@ -198,14 +198,14 @@ impl<'config> MemoryStackSubstate<'config> {
 				return Some(false);
 			}
 
-			if account.basic.nonce != 0 {
+			if account.basic.nonce != U256::zero() {
 				return Some(false);
 			}
 
 			if let Some(code) = &account.code {
 				return Some(
 					account.basic.balance == U256::zero()
-						&& account.basic.nonce == 0
+						&& account.basic.nonce == U256::zero()
 						&& code.is_empty(),
 				);
 			}
@@ -303,7 +303,10 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) -> Result<(), ExitError> {
 		let nonce = &mut self.account_mut(address, backend).basic.nonce;
-		*nonce = nonce.checked_add(1).ok_or(ExitError::MaxNonce)?;
+		if *nonce >= U256::from(u64::MAX) {
+			return Err(ExitError::MaxNonce);
+		}
+		*nonce += U256::one();
 		Ok(())
 	}
 
@@ -499,7 +502,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		}
 
 		self.backend.basic(address).balance == U256::zero()
-			&& self.backend.basic(address).nonce == 0
+			&& self.backend.basic(address).nonce == U256::zero()
 			&& self.backend.code(address).len() == 0
 	}
 

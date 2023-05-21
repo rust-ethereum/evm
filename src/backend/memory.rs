@@ -47,7 +47,7 @@ pub struct MemoryVicinity {
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MemoryAccount {
 	/// Account nonce.
-	pub nonce: u64,
+	pub nonce: U256,
 	/// Account balance.
 	pub balance: U256,
 	/// Full account storage.
@@ -210,7 +210,8 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 						}
 
 						account.balance == U256::zero()
-							&& account.nonce == 0 && account.code.is_empty()
+							&& account.nonce == U256::zero()
+							&& account.code.is_empty()
 					};
 
 					if is_empty && delete_empty {

@@ -20,7 +20,7 @@ pub struct Basic {
 	/// Account balance.
 	pub balance: U256,
 	/// Account nonce.
-	pub nonce: u64,
+	pub nonce: U256,
 }
 
 pub use ethereum::Log;
