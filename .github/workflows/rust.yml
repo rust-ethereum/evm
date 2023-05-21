@@ -34,7 +34,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         repository: "rust-blockchain/evm-tests"
-        submodules: true
+        submodules: recursive
     - name: Submodules
       run: |
         cd evm
