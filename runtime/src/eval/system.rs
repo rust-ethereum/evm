@@ -185,6 +185,15 @@ pub fn difficulty<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> 
 	Control::Continue
 }
 
+pub fn prevrandao<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	if let Some(rand) = handler.block_randomness() {
+		push!(runtime, rand);
+		Control::Continue
+	} else {
+		difficulty(runtime, handler)
+	}
+}
+
 pub fn gaslimit<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.block_gas_limit());
 	Control::Continue
