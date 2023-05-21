@@ -138,7 +138,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 			.get(&address)
 			.map(|a| Basic {
 				balance: a.balance,
-				nonce: a.nonce.into(),
+				nonce: a.nonce,
 			})
 			.unwrap_or_default()
 	}
