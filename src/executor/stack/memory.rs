@@ -303,7 +303,7 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) -> Result<(), ExitError> {
 		let nonce = &mut self.account_mut(address, backend).basic.nonce;
-		if *nonce > U256::from(u64::MAX) {
+		if *nonce >= U256::from(u64::MAX) {
 			return Err(ExitError::MaxNonce);
 		}
 		*nonce += U256::one();
