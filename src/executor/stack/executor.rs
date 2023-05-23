@@ -779,7 +779,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		);
 
 		let reason = self.execute(&mut runtime);
-		log::debug!(target: "evm", "Create execution using address {}: {:?}", address, reason);
+		log::info!(target: "evm", "Create execution using address {}: {:?}", address, reason);
 
 		match reason {
 			ExitReason::Succeed(s) => {
@@ -1103,6 +1103,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
 		let balance = self.balance(address);
 
+		eprintln!("mark_delete: {:?} -> {:?} for bal: {:?}", address, target, balance);
+
 		event!(Suicide {
 			target,
 			address,
@@ -1148,6 +1150,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		}
 
 		capture
+	}
+
+	fn get_create_address(
+		&mut self,
+		scheme: CreateScheme,
+	) -> H160 {
+		self.create_address(scheme)
 	}
 
 	#[cfg(not(feature = "tracing"))]

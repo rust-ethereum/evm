@@ -7,6 +7,15 @@ use alloc::vec::Vec;
 use core::cmp::min;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
+//use crate::eval::Control::CreateInterrupt;
+
+pub fn u8_vec_to_hex(to_convert: &Vec<u8>) -> String {
+	let mut hex_string = String::new();
+	for byte in to_convert {
+		hex_string.push_str(&format!("{:02x}", byte));
+	}
+	hex_string
+}
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from, len);
@@ -258,6 +267,12 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, target);
 
+	event!(TransactSuicide {
+			address: runtime.context.address,
+			target: target.into(),
+			balance: handler.balance(runtime.context.address),
+	});
+
 	match handler.mark_delete(runtime.context.address, target.into()) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
@@ -295,10 +310,29 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 		}
 	};
 
+	event!(TransactCreate {
+				call_type: &(if is_create2 { "CREATE2".to_string() } else { "CREATE".to_string() }),
+				address: runtime.context.address,
+		        target: handler.get_create_address(scheme).into(),
+				balance: value,
+				is_create2: is_create2,
+				input: &format!("0x{:}", u8_vec_to_hex(&code)),
+	});
+
 	match handler.create(runtime.context.address, scheme, value, code, None) {
 		Capture::Exit((reason, address, return_data)) => {
 			runtime.return_data_buffer = return_data;
+
 			let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
+
+			//event!(TransactCreate {
+			//	address: runtime.context.address,
+			//	target: create_address,
+			//	balance: value,
+			//	is_create2: is_create2,
+			//});
+
+			eprintln!("XXXX hehe. this has happenedjB argh!");
 
 			match reason {
 				ExitReason::Succeed(_) => {
@@ -321,6 +355,33 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 		}
 		Capture::Trap(interrupt) => {
 			push!(runtime, H256::default());
+			eprintln!("XXXX unf. this has happenedjB");
+
+			//event!(TransactCreate {
+			//			address: runtime.context.address,
+			//			//target: handler.stack_executor.create_address(scheme),
+			//			target: runtime.machine().stack().
+			//			balance: value,
+			//			is_create2: is_create2,
+			//});
+
+			//match interrupt {
+			//	//Capture::Exit(s) => Capture::Exi:t(s),
+			//	Handler::CreateInterrupt(_) => {},
+			//}
+
+			// print the address of the interrupt
+			//eprintln!("XXXX unf. this has happenedjB {:?}", interrupt.address);
+
+			//let aa: CpsCreateInterrupt = interrupt.clone().into();
+
+			//event!(TransactCreate {
+			//	address: runtime.context.address,
+			//	target: interrupt.address,
+			//	balance: value,
+			//	is_create2: is_create2,
+			//});
+
 			Control::CreateInterrupt(interrupt)
 		}
 	}
@@ -398,6 +459,16 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 	} else {
 		None
 	};
+
+	let target =  if scheme == CallScheme::CallCode {runtime.context.address} else {to.into()};
+
+	event!(TransactTransfer {
+			call_type: &format!("{:?}", scheme).to_uppercase(),
+			address: runtime.context.address,
+			target: target.into(),
+			balance: value,
+			input: &format!("0x{:}", u8_vec_to_hex(&input)),
+	});
 
 	match handler.call(
 		to.into(),
