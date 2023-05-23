@@ -355,11 +355,6 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	pub fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) {
-
-		// Print the logs as bytes
-		//println!("Log: {:?} {:?} {:?}", adI//dress, topics, data);
-		eprintln!("Log: {:?} {:02X?} {:?} {:?}", String::from_utf8_lossy(&data), data, address, topics);
-
 		self.logs.push(Log {
 			address,
 			topics,

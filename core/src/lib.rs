@@ -182,40 +182,21 @@ impl Machine {
 			.as_ref()
 			.map_err(|reason| Capture::Exit(reason.clone()))?;
 
-
-		//eprintln!("position: {:0x?}", position);
-
 		match self.code.get(position).map(|v| Opcode(*v)) {
 			Some(opcode) => match eval(self, opcode, position) {
 				Control::Continue(p) => {
-					//eprintln!("cont opcode: {:?}", opcode.to_string());
 					self.position = Ok(position + p);
 					Ok(())
 				}
 				Control::Exit(e) => {
-					//eprintln!("exit opcode: {:?}", opcode.to_string());
-					//eprintln!("exit reason: {:?}", e);
-
-					if opcode.to_string() == "REVERTAA" {
-						panic!("at the disco");
-					}
-
 					self.position = Err(e.clone());
 					Err(Capture::Exit(e))
 				}
 				Control::Jump(p) => {
-					//eprintln!("jump opcode: {:?}", opcode.to_string());
 					self.position = Ok(p);
 					Ok(())
 				}
 				Control::Trap(opcode) => {
-					//eprintln!("We trap here {:?}", opcode);
-					//eprintln!("We trap here {:?}", opcode.to_string());
-
-					if opcode.to_string() == "SUICIDE" {
-						eprintln!("suicide occurs here...");
-					}
-
 					self.position = Ok(position + 1);
 					Err(Capture::Trap(opcode))
 				}

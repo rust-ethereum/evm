@@ -7,7 +7,6 @@ use alloc::vec::Vec;
 use core::cmp::min;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
-//use crate::eval::Control::CreateInterrupt;
 
 pub fn u8_vec_to_hex(to_convert: &Vec<u8>) -> String {
 	let mut hex_string = String::new();
@@ -325,15 +324,6 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 
 			let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
 
-			//event!(TransactCreate {
-			//	address: runtime.context.address,
-			//	target: create_address,
-			//	balance: value,
-			//	is_create2: is_create2,
-			//});
-
-			eprintln!("XXXX hehe. this has happenedjB argh!");
-
 			match reason {
 				ExitReason::Succeed(_) => {
 					push!(runtime, create_address);
@@ -355,33 +345,6 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 		}
 		Capture::Trap(interrupt) => {
 			push!(runtime, H256::default());
-			eprintln!("XXXX unf. this has happenedjB");
-
-			//event!(TransactCreate {
-			//			address: runtime.context.address,
-			//			//target: handler.stack_executor.create_address(scheme),
-			//			target: runtime.machine().stack().
-			//			balance: value,
-			//			is_create2: is_create2,
-			//});
-
-			//match interrupt {
-			//	//Capture::Exit(s) => Capture::Exi:t(s),
-			//	Handler::CreateInterrupt(_) => {},
-			//}
-
-			// print the address of the interrupt
-			//eprintln!("XXXX unf. this has happenedjB {:?}", interrupt.address);
-
-			//let aa: CpsCreateInterrupt = interrupt.clone().into();
-
-			//event!(TransactCreate {
-			//	address: runtime.context.address,
-			//	target: interrupt.address,
-			//	balance: value,
-			//	is_create2: is_create2,
-			//});
-
 			Control::CreateInterrupt(interrupt)
 		}
 	}
