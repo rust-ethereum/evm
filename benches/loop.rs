@@ -19,6 +19,7 @@ fn run_loop_contract() {
 		block_gas_limit: Default::default(),
 		chain_id: U256::one(),
 		block_base_fee_per_gas: U256::zero(),
+		block_randomness: None,
 	};
 
 	let mut state = BTreeMap::new();
@@ -60,7 +61,7 @@ fn run_loop_contract() {
 }
 
 fn criterion_benchmark(c: &mut Criterion) {
-	c.bench_function("loop contract", |b| b.iter(|| run_loop_contract()));
+	c.bench_function("loop contract", |b| b.iter(run_loop_contract));
 }
 
 criterion_group!(benches, criterion_benchmark);

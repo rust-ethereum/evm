@@ -310,7 +310,10 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 }
 
 pub fn init_code_cost(data: &[u8]) -> u64 {
-	2 * (data.len() as u64 / 32)
+	// As per EIP-3860:
+	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
+	// where INITCODE_WORD_COST is 2.
+	2 * ((data.len() as u64 + 31) / 32)
 }
 
 /// Counts the number of addresses and storage keys in the access list

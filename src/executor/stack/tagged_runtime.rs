@@ -5,9 +5,9 @@ use crate::maybe_borrowed::MaybeBorrowed;
 use crate::Runtime;
 use primitive_types::H160;
 
-pub struct TaggedRuntime<'config, 'borrow> {
+pub struct TaggedRuntime<'borrow> {
 	pub kind: RuntimeKind,
-	pub inner: MaybeBorrowed<'borrow, Runtime<'config>>,
+	pub inner: MaybeBorrowed<'borrow, Runtime>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

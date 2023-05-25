@@ -81,7 +81,8 @@ pub trait PrecompileHandle {
 }
 
 /// A set of precompiles.
-/// Checks of the provided address being in the precompile set should be
+///
+/// Checks if the provided address is in the precompile set. This should be
 /// as cheap as possible since it may be called often.
 pub trait PrecompileSet {
 	/// Tries to execute a precompile in the precompile set.

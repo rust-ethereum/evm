@@ -204,7 +204,7 @@ pub trait StackState<'config>: Backend {
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
-	fn inc_nonce(&mut self, address: H160);
+	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
@@ -303,7 +303,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute the runtime until it returns.
-	pub fn execute(&mut self, runtime: &mut Runtime<'config>) -> ExitReason {
+	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
 		let mut call_stack = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 		call_stack.push(TaggedRuntime {
 			kind: RuntimeKind::Execute,
@@ -314,9 +314,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute using Runtimes on the call_stack until it returns.
-	fn execute_with_call_stack<'borrow>(
+	fn execute_with_call_stack(
 		&mut self,
-		call_stack: &mut Vec<TaggedRuntime<'config, 'borrow>>,
+		call_stack: &mut Vec<TaggedRuntime<'_>>,
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
 		// This `interrupt_runtime` is used to pass the runtime obtained from the
 		// `Capture::Trap` branch in the match below back to the top of the call stack.
@@ -416,8 +416,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			// EIP-3860
 			if init_code.len() > limit {
 				self.state.metadata_mut().gasometer.fail();
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Err(ExitError::OutOfGas);
+				return Err(ExitError::CreateContractLimit);
 			}
 			return self
 				.state
@@ -449,7 +448,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			if init_code.len() > limit {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				return emit_exit!(ExitError::InitCodeLimit.into(), Vec::new());
+				return emit_exit!(ExitError::CreateContractLimit.into(), Vec::new());
 			}
 		}
 
@@ -490,7 +489,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			if init_code.len() > limit {
 				self.state.metadata_mut().gasometer.fail();
 				let _ = self.exit_substate(StackExitKind::Failed);
-				return emit_exit!(ExitError::InitCodeLimit.into(), Vec::new());
+				return emit_exit!(ExitError::CreateContractLimit.into(), Vec::new());
 			}
 		}
 
@@ -581,7 +580,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			self.initialize_with_access_list(access_list);
 		}
 
-		self.state.inc_nonce(caller);
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return (e.into(), Vec::new());
+		}
 
 		let context = Context {
 			caller,
@@ -642,7 +643,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				salt,
 			} => {
 				let mut hasher = Keccak256::new();
-				hasher.update(&[0xff]);
+				hasher.update([0xff]);
 				hasher.update(&caller[..]);
 				hasher.update(&salt[..]);
 				hasher.update(&code_hash[..]);
@@ -677,7 +678,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 		take_l64: bool,
-	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), StackExecutorCreateInterrupt<'config>> {
+	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), StackExecutorCreateInterrupt<'static>> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
@@ -715,6 +716,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
 		}
 
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return Capture::Exit((e.into(), None, Vec::new()));
+		}
+
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
@@ -732,8 +737,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		let gas_limit = min(after_gas, target_gas);
 		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
-
-		self.state.inc_nonce(caller);
 
 		self.enter_substate(gas_limit, false);
 
@@ -774,14 +777,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if self.config.create_increase_nonce {
-			self.state.inc_nonce(address);
+			if let Err(e) = self.state.inc_nonce(address) {
+				return Capture::Exit((e.into(), None, Vec::new()));
+			}
 		}
 
 		let runtime = Runtime::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
 			context,
-			self.config,
+			self.config.stack_limit,
+			self.config.memory_limit,
 		);
 
 		Capture::Trap(StackExecutorCreateInterrupt(TaggedRuntime {
@@ -801,7 +807,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		take_l64: bool,
 		take_stipend: bool,
 		context: Context,
-	) -> Capture<(ExitReason, Vec<u8>), StackExecutorCallInterrupt<'config>> {
+	) -> Capture<(ExitReason, Vec<u8>), StackExecutorCallInterrupt<'static>> {
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
@@ -915,7 +921,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		let runtime = Runtime::new(Rc::new(code), Rc::new(input), context, self.config);
+		let runtime = Runtime::new(
+			Rc::new(code),
+			Rc::new(input),
+			context,
+			self.config.stack_limit,
+			self.config.memory_limit,
+		);
 
 		Capture::Trap(StackExecutorCallInterrupt(TaggedRuntime {
 			kind: RuntimeKind::Call(code_address),
@@ -1026,15 +1038,15 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 }
 
-pub struct StackExecutorCallInterrupt<'config>(TaggedRuntime<'config, 'config>);
-pub struct StackExecutorCreateInterrupt<'config>(TaggedRuntime<'config, 'config>);
+pub struct StackExecutorCallInterrupt<'borrow>(TaggedRuntime<'borrow>);
+pub struct StackExecutorCreateInterrupt<'borrow>(TaggedRuntime<'borrow>);
 
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	for StackExecutor<'config, 'precompiles, S, P>
 {
-	type CreateInterrupt = StackExecutorCreateInterrupt<'config>;
+	type CreateInterrupt = StackExecutorCreateInterrupt<'static>;
 	type CreateFeedback = Infallible;
-	type CallInterrupt = StackExecutorCallInterrupt<'config>;
+	type CallInterrupt = StackExecutorCallInterrupt<'static>;
 	type CallFeedback = Infallible;
 
 	fn balance(&self, address: H160) -> U256 {
@@ -1125,6 +1137,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 	fn block_difficulty(&self) -> U256 {
 		self.state.block_difficulty()
+	}
+	fn block_randomness(&self) -> Option<H256> {
+		self.state.block_randomness()
 	}
 	fn block_gas_limit(&self) -> U256 {
 		self.state.block_gas_limit()

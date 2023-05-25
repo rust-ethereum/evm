@@ -54,8 +54,8 @@ impl<'config> MemoryStackSubstate<'config> {
 		&mut self.metadata
 	}
 
-	/// Deconstruct the executor, return state to be applied. Panic if the
-	/// executor is not in the top-level substate.
+	/// Deconstruct the memory stack substate, return state to be applied. Panic if the
+	/// substate is not in the top-level substate.
 	#[must_use]
 	pub fn deconstruct<B: Backend>(
 		mut self,
@@ -232,7 +232,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
-	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
+	pub fn known_original_storage(&self, address: H160) -> Option<H256> {
 		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
 				return Some(H256::default());
@@ -240,7 +240,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 
 		if let Some(parent) = self.parent.as_ref() {
-			return parent.known_original_storage(address, key);
+			return parent.known_original_storage(address);
 		}
 
 		None
@@ -301,8 +301,13 @@ impl<'config> MemoryStackSubstate<'config> {
 			.expect("New account was just inserted")
 	}
 
-	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) {
-		self.account_mut(address, backend).basic.nonce += U256::one();
+	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) -> Result<(), ExitError> {
+		let nonce = &mut self.account_mut(address, backend).basic.nonce;
+		if *nonce >= U256::from(u64::MAX) {
+			return Err(ExitError::MaxNonce);
+		}
+		*nonce += U256::one();
+		Ok(())
 	}
 
 	pub fn set_storage(&mut self, address: H160, key: H256, value: H256) {
@@ -421,6 +426,9 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	fn block_difficulty(&self) -> U256 {
 		self.backend.block_difficulty()
 	}
+	fn block_randomness(&self) -> Option<H256> {
+		self.backend.block_randomness()
+	}
 	fn block_gas_limit(&self) -> U256 {
 		self.backend.block_gas_limit()
 	}
@@ -456,7 +464,7 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	}
 
 	fn original_storage(&self, address: H160, key: H256) -> Option<H256> {
-		if let Some(value) = self.substate.known_original_storage(address, key) {
+		if let Some(value) = self.substate.known_original_storage(address) {
 			return Some(value);
 		}
 
@@ -511,8 +519,8 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.is_storage_cold(address, key)
 	}
 
-	fn inc_nonce(&mut self, address: H160) {
-		self.substate.inc_nonce(address, self.backend);
+	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError> {
+		self.substate.inc_nonce(address, self.backend)
 	}
 
 	fn set_storage(&mut self, address: H160, key: H256, value: H256) {
