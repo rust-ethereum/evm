@@ -727,12 +727,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.enter_substate(gas_limit, false);
 
 		{
-			if self.code_size(address) != U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
-			}
-
-			if self.nonce(address) > U256::zero() {
+			if self.state.is_reserved(address)
+				|| self.code_size(address) != U256::zero()
+				|| self.nonce(address) > U256::zero()
+			{
 				let _ = self.exit_substate(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}

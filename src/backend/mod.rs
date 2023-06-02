@@ -77,6 +77,9 @@ pub trait Backend {
 
 	/// Whether account at address exists.
 	fn exists(&self, address: H160) -> bool;
+	/// Whether it is disallowed to deploy contract at the specified address.
+	/// CREATE on the specified address will fail with CreateCollision.
+	fn is_reserved(&self, address: H160) -> bool;
 	/// Get basic account information.
 	fn basic(&self, address: H160) -> Basic;
 	/// Get account code.

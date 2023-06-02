@@ -133,6 +133,10 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 		self.state.contains_key(&address)
 	}
 
+	fn is_reserved(&self, _address: H160) -> bool {
+		false
+	}
+
 	fn basic(&self, address: H160) -> Basic {
 		self.state
 			.get(&address)
