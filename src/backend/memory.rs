@@ -146,6 +146,10 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 		self.code(address)
 	}
 
+	fn init_data_as_json(&self, _address: H160) -> Vec<u8> {
+		Vec::new()
+	}
+
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state
 			.get(&address)
