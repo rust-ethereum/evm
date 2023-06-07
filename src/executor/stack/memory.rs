@@ -477,6 +477,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.code(address))
 	}
 
+	fn code_as_json(&self, address: H160) -> Vec<u8> {
+		self.backend.code_as_json(address)
+	}
+
 	fn storage(&self, address: H160, key: H256) -> H256 {
 		self.substate
 			.known_storage(address, key)
@@ -489,6 +493,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 		}
 
 		self.backend.original_storage(address, key)
+	}
+
+	fn substate_as_json(&self, address: H160, vname: &str, indices: &[String]) -> Vec<u8> {
+		self.backend.substate_as_json(address, vname, indices)
 	}
 }
 
