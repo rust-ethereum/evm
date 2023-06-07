@@ -142,6 +142,10 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 			.unwrap_or_default()
 	}
 
+	fn code_as_json(&self, address: H160) -> Vec<u8> {
+		self.code(address)
+	}
+
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state
 			.get(&address)
@@ -151,6 +155,10 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
 		Some(self.storage(address, index))
+	}
+
+	fn substate_as_json(&self, _address: H160, _vname: &str, _indices: &[String]) -> Vec<u8> {
+		Vec::new()
 	}
 }
 

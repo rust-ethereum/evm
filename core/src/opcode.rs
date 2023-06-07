@@ -273,7 +273,7 @@ impl Opcode {
 }
 
 impl fmt::Display for Opcode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		//write!(f, "{}", "urgh...")
 		let op = match self {
 			&Opcode::STOP => "STOP",
@@ -423,6 +423,5 @@ impl fmt::Display for Opcode {
 			_ => "UNKNOWNOP",
 		};
 		write!(f, "{}", op)
-	  }
+	}
 }
-

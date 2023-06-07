@@ -79,10 +79,14 @@ pub trait Backend {
 	fn basic(&self, address: H160) -> Basic;
 	/// Get account code.
 	fn code(&self, address: H160) -> Vec<u8>;
-	/// Get storage value of address at index.
+	/// Get account code formatted as json (if possible)
+	fn code_as_json(&self, address: H160) -> Vec<u8>;
+	/// Get storage value of address at inasex.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
+	/// Get contract substate with given array of indices
+	fn substate_as_json(&self, address: H160, vname: &str, indices: &[String]) -> Vec<u8>;
 }
 
 /// EVM backend that can apply changes.
