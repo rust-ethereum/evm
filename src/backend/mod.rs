@@ -81,6 +81,8 @@ pub trait Backend {
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get account code formatted as json (if possible)
 	fn code_as_json(&self, address: H160) -> Vec<u8>;
+	/// Get contract init data formatted as json (if possible)
+	fn init_data_as_json(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at inasex.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
