@@ -1,8 +1,8 @@
 use super::{Apply, ApplyBackend, Backend, Basic, Log};
+use crate::ExitError;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use crate::ExitError;
 
 /// Vicinity value of a memory backend.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -145,7 +145,8 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	}
 
 	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError> {
-		Ok(self.state
+		Ok(self
+			.state
 			.get(&address)
 			.map(|v| v.code.clone())
 			.unwrap_or_default())

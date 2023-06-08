@@ -125,12 +125,11 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 		Ok(code) => code,
 		Err(e) => return Control::Exit(e.into()),
 	};
-	match runtime.machine.memory_mut().copy_large(
-		memory_offset,
-		code_offset,
-		len,
-		&code,
-	) {
+	match runtime
+		.machine
+		.memory_mut()
+		.copy_large(memory_offset, code_offset, len, &code)
+	{
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	};

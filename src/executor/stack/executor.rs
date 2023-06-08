@@ -227,16 +227,27 @@ pub trait StackState<'config>: Backend {
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
 	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
-		Ok(H256::from_slice(Keccak256::digest(&self.code(address)?).as_slice()))
+		Ok(H256::from_slice(
+			Keccak256::digest(&self.code(address)?).as_slice(),
+		))
 	}
-	
+
 	#[cfg(feature = "with-substrate")]
-	fn record_external_dynamic_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: crate::gasometer::GasCost, _target: StorageTarget) -> Result<(), ExitError> {
+	fn record_external_dynamic_opcode_cost(
+		&mut self,
+		_opcode: Opcode,
+		_gas_cost: crate::gasometer::GasCost,
+		_target: StorageTarget,
+	) -> Result<(), ExitError> {
 		Ok(())
 	}
 
 	#[cfg(feature = "with-substrate")]
-	fn record_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) -> Result<(), ExitError> {
+	fn record_external_cost(
+		&mut self,
+		_ref_time: Option<u64>,
+		_proof_size: Option<u64>,
+	) -> Result<(), ExitError> {
 		Ok(())
 	}
 
@@ -1302,7 +1313,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
 
 			#[cfg(feature = "with-substrate")]
-			self.state.record_external_dynamic_opcode_cost(opcode, gas_cost, target)?;
+			self.state
+				.record_external_dynamic_opcode_cost(opcode, gas_cost, target)?;
 
 			match target {
 				StorageTarget::Address(address) => {
@@ -1425,7 +1437,11 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 
 	#[cfg(feature = "with-substrate")]
 	/// Record Substrate specific cost.
-	fn record_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) -> Result<(), ExitError> {
+	fn record_external_cost(
+		&mut self,
+		ref_time: Option<u64>,
+		proof_size: Option<u64>,
+	) -> Result<(), ExitError> {
 		self.executor
 			.state
 			.record_external_cost(ref_time, proof_size)

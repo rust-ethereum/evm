@@ -52,7 +52,11 @@ pub trait PrecompileHandle {
 
 	#[cfg(feature = "with-substrate")]
 	/// Record Substrate specific cost.
-	fn record_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) -> Result<(), ExitError>;
+	fn record_external_cost(
+		&mut self,
+		ref_time: Option<u64>,
+		proof_size: Option<u64>,
+	) -> Result<(), ExitError>;
 
 	#[cfg(feature = "with-substrate")]
 	/// Refund Substrate specific cost.
