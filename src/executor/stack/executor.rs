@@ -228,7 +228,7 @@ pub trait StackState<'config>: Backend {
 	/// fetch the code.
 	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
 		Ok(H256::from_slice(
-			Keccak256::digest(&self.code(address)?).as_slice(),
+			Keccak256::digest(self.code(address)?).as_slice(),
 		))
 	}
 
