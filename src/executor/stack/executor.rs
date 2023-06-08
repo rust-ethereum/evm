@@ -3,7 +3,7 @@ use crate::executor::stack::precompile::{
 	IsPrecompileResult, PrecompileFailure, PrecompileHandle, PrecompileOutput, PrecompileSet,
 };
 use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
-use crate::gasometer::{self, Gasometer, GasCost, StorageTarget};
+use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::maybe_borrowed::MaybeBorrowed;
 use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime, Stack,
@@ -230,7 +230,8 @@ pub trait StackState<'config>: Backend {
 		Ok(H256::from_slice(Keccak256::digest(&self.code(address)?).as_slice()))
 	}
 	
-	fn record_external_dynamic_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: GasCost, _target: StorageTarget) -> Result<(), ExitError> {
+	#[cfg(feature = "with-substrate")]
+	fn record_external_dynamic_opcode_cost(&mut self, _opcode: Opcode, _gas_cost: crate::gasometer::GasCost, _target: StorageTarget) -> Result<(), ExitError> {
 		Ok(())
 	}
 
@@ -1299,6 +1300,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
+
+			#[cfg(feature = "with-substrate")]
 			self.state.record_external_dynamic_opcode_cost(opcode, gas_cost, target)?;
 
 			match target {
