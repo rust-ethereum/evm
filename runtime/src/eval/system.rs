@@ -267,9 +267,9 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	pop!(runtime, target);
 
 	event!(TransactSuicide {
-			address: runtime.context.address,
-			target: target.into(),
-			balance: handler.balance(runtime.context.address),
+		address: runtime.context.address,
+		target: target.into(),
+		balance: handler.balance(runtime.context.address),
 	});
 
 	match handler.mark_delete(runtime.context.address, target.into()) {
@@ -310,12 +310,16 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	};
 
 	event!(TransactCreate {
-				call_type: &(if is_create2 { "CREATE2".to_string() } else { "CREATE".to_string() }),
-				address: runtime.context.address,
-		        target: handler.get_create_address(scheme).into(),
-				balance: value,
-				is_create2: is_create2,
-				input: &format!("0x{:}", u8_vec_to_hex(&code)),
+		call_type: &(if is_create2 {
+			"CREATE2".to_string()
+		} else {
+			"CREATE".to_string()
+		}),
+		address: runtime.context.address,
+		target: handler.get_create_address(scheme).into(),
+		balance: value,
+		is_create2: is_create2,
+		input: &format!("0x{:}", u8_vec_to_hex(&code)),
 	});
 
 	match handler.create(runtime.context.address, scheme, value, code, None) {
@@ -423,14 +427,18 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		None
 	};
 
-	let target =  if scheme == CallScheme::CallCode {runtime.context.address} else {to.into()};
+	let target = if scheme == CallScheme::CallCode {
+		runtime.context.address
+	} else {
+		to.into()
+	};
 
 	event!(TransactTransfer {
-			call_type: &format!("{:?}", scheme).to_uppercase(),
-			address: runtime.context.address,
-			target: target.into(),
-			balance: value,
-			input: &format!("0x{:}", u8_vec_to_hex(&input)),
+		call_type: &format!("{:?}", scheme).to_uppercase(),
+		address: runtime.context.address,
+		target: target.into(),
+		balance: value,
+		input: &format!("0x{:}", u8_vec_to_hex(&input)),
 	});
 
 	match handler.call(

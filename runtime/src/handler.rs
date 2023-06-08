@@ -90,10 +90,7 @@ pub trait Handler {
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
 
 	/// Calculate the create or create2 address
-	fn get_create_address(
-		&mut self,
-		scheme: CreateScheme,
-	) -> H160;
+	fn get_create_address(&mut self, scheme: CreateScheme) -> H160;
 
 	/// Feed in create feedback.
 	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
