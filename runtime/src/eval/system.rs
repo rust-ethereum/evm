@@ -8,6 +8,14 @@ use core::cmp::min;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
+pub fn u8_vec_to_hex(to_convert: &Vec<u8>) -> String {
+	let mut hex_string = String::new();
+	for byte in to_convert {
+		hex_string.push_str(&format!("{:02x}", byte));
+	}
+	hex_string
+}
+
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from, len);
 
@@ -258,6 +266,12 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, target);
 
+	event!(TransactSuicide {
+		address: runtime.context.address,
+		target: target.into(),
+		balance: handler.balance(runtime.context.address),
+	});
+
 	match handler.mark_delete(runtime.context.address, target.into()) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
@@ -295,9 +309,23 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 		}
 	};
 
+	event!(TransactCreate {
+		call_type: &(if is_create2 {
+			"CREATE2".to_string()
+		} else {
+			"CREATE".to_string()
+		}),
+		address: runtime.context.address,
+		target: handler.get_create_address(scheme).into(),
+		balance: value,
+		is_create2: is_create2,
+		input: &format!("0x{:}", u8_vec_to_hex(&code)),
+	});
+
 	match handler.create(runtime.context.address, scheme, value, code, None) {
 		Capture::Exit((reason, address, return_data)) => {
 			runtime.return_data_buffer = return_data;
+
 			let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
 
 			match reason {
@@ -398,6 +426,20 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 	} else {
 		None
 	};
+
+	let target = if scheme == CallScheme::CallCode {
+		runtime.context.address
+	} else {
+		to.into()
+	};
+
+	event!(TransactTransfer {
+		call_type: &format!("{:?}", scheme).to_uppercase(),
+		address: runtime.context.address,
+		target: target.into(),
+		balance: value,
+		input: &format!("0x{:}", u8_vec_to_hex(&input)),
+	});
 
 	match handler.call(
 		to.into(),

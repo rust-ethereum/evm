@@ -1150,6 +1150,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		capture
 	}
 
+	fn get_create_address(&mut self, scheme: CreateScheme) -> H160 {
+		self.create_address(scheme)
+	}
+
 	#[cfg(not(feature = "tracing"))]
 	fn call(
 		&mut self,

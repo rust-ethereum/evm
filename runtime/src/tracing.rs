@@ -1,7 +1,7 @@
 //! Allows to listen to runtime events.
 
 use crate::{Capture, Context, ExitReason, Memory, Opcode, Stack, Trap};
-use primitive_types::{H160, H256};
+use primitive_types::{H160, H256, U256};
 
 environmental::environmental!(listener: dyn EventListener + 'static);
 
@@ -31,6 +31,26 @@ pub enum Event<'a> {
 		address: H160,
 		index: H256,
 		value: H256,
+	},
+	TransactSuicide {
+		address: H160,
+		target: H160,
+		balance: U256,
+	},
+	TransactTransfer {
+		call_type: &'a String,
+		address: H160,
+		target: H160,
+		balance: U256,
+		input: &'a String,
+	},
+	TransactCreate {
+		call_type: &'a String,
+		address: H160,
+		target: H160,
+		balance: U256,
+		is_create2: bool,
+		input: &'a String,
 	},
 }
 
