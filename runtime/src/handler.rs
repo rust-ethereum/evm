@@ -28,11 +28,11 @@ pub trait Handler {
 	/// Get balance of address.
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
-	fn code_size(&mut self, address: H160) -> Result<U256, ExitError>;
+	fn code_size(&self, address: H160) -> U256;
 	/// Get code hash of address.
-	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError>;
+	fn code_hash(&self, address: H160) -> H256;
 	/// Get code of address.
-	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError>;
+	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index.
@@ -64,7 +64,7 @@ pub trait Handler {
 	fn chain_id(&self) -> U256;
 
 	/// Check whether an address exists.
-	fn exists(&mut self, address: H160) -> Result<bool, ExitError>;
+	fn exists(&self, address: H160) -> bool;
 	/// Check whether an address has already been deleted.
 	fn deleted(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed
@@ -120,4 +120,7 @@ pub trait Handler {
 	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
 		Err(ExitError::InvalidCode(opcode))
 	}
+
+	#[cfg(feature = "with-substrate")]
+	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError>;
 }

@@ -1,5 +1,4 @@
 use super::{Apply, ApplyBackend, Backend, Basic, Log};
-use crate::ExitError;
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
@@ -144,12 +143,11 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 			.unwrap_or_default()
 	}
 
-	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError> {
-		Ok(self
-			.state
+	fn code(&self, address: H160) -> Vec<u8> {
+		self.state
 			.get(&address)
 			.map(|v| v.code.clone())
-			.unwrap_or_default())
+			.unwrap_or_default()
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {

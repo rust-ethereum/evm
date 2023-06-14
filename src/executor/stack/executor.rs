@@ -199,7 +199,7 @@ pub trait StackState<'config>: Backend {
 	fn exit_revert(&mut self) -> Result<(), ExitError>;
 	fn exit_discard(&mut self) -> Result<(), ExitError>;
 
-	fn is_empty(&mut self, address: H160) -> Result<bool, ExitError>;
+	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
@@ -209,7 +209,7 @@ pub trait StackState<'config>: Backend {
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>) -> Result<(), ExitError>;
+	fn set_code(&mut self, address: H160, code: Vec<u8>);
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -218,18 +218,16 @@ pub trait StackState<'config>: Backend {
 	/// Provide a default implementation by fetching the code, but
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
-	fn code_size(&mut self, address: H160) -> Result<U256, ExitError> {
-		Ok(U256::from(self.code(address)?.len()))
+	fn code_size(&self, address: H160) -> U256 {
+		U256::from(self.code(address).len())
 	}
 
 	/// Fetch the code hash of an address.
 	/// Provide a default implementation by fetching the code, but
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
-	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
-		Ok(H256::from_slice(
-			Keccak256::digest(self.code(address)?).as_slice(),
-		))
+	fn code_hash(&self, address: H160) -> H256 {
+		H256::from_slice(Keccak256::digest(self.code(address)).as_slice())
 	}
 
 	#[cfg(feature = "with-substrate")]
@@ -589,7 +587,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			self.initialize_with_access_list(access_list);
 		}
-
+		#[cfg(feature = "with-substrate")]
+		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
+			return (e.into(), Vec::new());
+		}
 		if let Err(e) = self.state.inc_nonce(caller) {
 			return (e.into(), Vec::new());
 		}
@@ -726,6 +727,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
 		}
 
+		#[cfg(feature = "with-substrate")]
+		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
+			return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
+		}
 		if let Err(e) = self.state.inc_nonce(caller) {
 			return Capture::Exit((e.into(), None, Vec::new()));
 		}
@@ -751,10 +756,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.enter_substate(gas_limit, false);
 
 		{
-			let code_size = match self.code_size(address) {
-				Ok(v) => v,
-				Err(e) => return Capture::Exit((e.into(), None, Vec::new())),
-			};
+			#[cfg(feature = "with-substrate")]
+			if let Err(e) =
+				self.record_external_operation(crate::ExternalOperation::AddressCodeRead(address))
+			{
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
+			}
+			let code_size = self.code_size(address);
 			if code_size != U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
@@ -787,6 +796,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if self.config.create_increase_nonce {
+			#[cfg(feature = "with-substrate")]
+			if let Err(e) =
+				self.record_external_operation(crate::ExternalOperation::AccountBasicRead)
+			{
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
+			}
 			if let Err(e) = self.state.inc_nonce(address) {
 				return Capture::Exit((e.into(), None, Vec::new()));
 			}
@@ -867,14 +883,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.enter_substate(gas_limit, is_static);
 		self.state.touch(context.address);
 
-		let code = match self.code(code_address) {
-			Ok(code) => code,
-			Err(e) => {
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitReason::Error(e), Vec::new()));
-			}
-		};
-
+		#[cfg(feature = "with-substrate")]
+		if let Err(e) =
+			self.record_external_operation(crate::ExternalOperation::AddressCodeRead(code_address))
+		{
+			let _ = self.exit_substate(StackExitKind::Failed);
+			return Capture::Exit((ExitReason::Error(e), Vec::new()));
+		}
+		let code = self.code(code_address);
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -988,9 +1004,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				{
 					Ok(()) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
-						if let Err(e) = self.state.set_code(address, out) {
+
+						#[cfg(feature = "with-substrate")]
+						if let Err(e) =
+							self.record_external_operation(crate::ExternalOperation::Write)
+						{
 							return (e.into(), None, Vec::new());
 						}
+						self.state.set_code(address, out);
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
 						}
@@ -1063,19 +1084,19 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		self.state.basic(address).balance
 	}
 
-	fn code_size(&mut self, address: H160) -> Result<U256, ExitError> {
+	fn code_size(&self, address: H160) -> U256 {
 		self.state.code_size(address)
 	}
 
-	fn code_hash(&mut self, address: H160) -> Result<H256, ExitError> {
-		if !self.exists(address)? {
-			return Ok(H256::default());
+	fn code_hash(&self, address: H160) -> H256 {
+		if !self.exists(address) {
+			return H256::default();
 		}
 
 		self.state.code_hash(address)
 	}
 
-	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError> {
+	fn code(&self, address: H160) -> Vec<u8> {
 		self.state.code(address)
 	}
 
@@ -1089,11 +1110,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			.unwrap_or_default()
 	}
 
-	fn exists(&mut self, address: H160) -> Result<bool, ExitError> {
+	fn exists(&self, address: H160) -> bool {
 		if self.config.empty_considered_exists {
-			Ok(self.state.exists(address))
+			self.state.exists(address)
 		} else {
-			Ok(self.state.exists(address) && !self.state.is_empty(address)?)
+			self.state.exists(address) && !self.state.is_empty(address)
 		}
 	}
 
@@ -1329,6 +1350,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 		Ok(())
 	}
+
+	#[cfg(feature = "with-substrate")]
+	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError> {
+		self.state.record_external_operation(op)
+	}
 }
 
 struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
@@ -1363,10 +1389,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			Err(err) => return (ExitReason::Error(err), Vec::new()),
 		};
 
-		let target_exists = match self.executor.exists(code_address) {
-			Ok(x) => x,
-			Err(err) => return (ExitReason::Error(err), Vec::new()),
-		};
+		let target_exists = self.executor.exists(code_address);
 
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),

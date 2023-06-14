@@ -92,10 +92,13 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	let code_size = match handler.code_size(address.into()) {
-		Ok(v) => v,
-		Err(e) => return Control::Exit(e.into()),
-	};
+	#[cfg(feature = "with-substrate")]
+	if let Err(e) =
+		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
+	{
+		return Control::Exit(e.into());
+	}
+	let code_size = handler.code_size(address.into());
 	push_u256!(runtime, code_size);
 
 	Control::Continue
@@ -103,10 +106,13 @@ pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 
 pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	let code_hash = match handler.code_hash(address.into()) {
-		Ok(v) => v,
-		Err(e) => return Control::Exit(e.into()),
-	};
+	#[cfg(feature = "with-substrate")]
+	if let Err(e) =
+		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
+	{
+		return Control::Exit(e.into());
+	}
+	let code_hash = handler.code_hash(address.into());
 	push!(runtime, code_hash);
 
 	Control::Continue
@@ -121,10 +127,13 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 		.memory_mut()
 		.resize_offset(memory_offset, len));
 
-	let code = match handler.code(address.into()) {
-		Ok(code) => code,
-		Err(e) => return Control::Exit(e.into()),
-	};
+	#[cfg(feature = "with-substrate")]
+	if let Err(e) =
+		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
+	{
+		return Control::Exit(e.into());
+	}
+	let code = handler.code(address.into());
 	match runtime
 		.machine
 		.memory_mut()

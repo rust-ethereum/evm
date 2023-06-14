@@ -192,26 +192,26 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.known_account(address).and_then(|acc| acc.code.clone())
 	}
 
-	pub fn known_empty(&self, address: H160) -> Result<Option<bool>, ExitError> {
+	pub fn known_empty(&self, address: H160) -> Option<bool> {
 		if let Some(account) = self.known_account(address) {
 			if account.basic.balance != U256::zero() {
-				return Ok(Some(false));
+				return Some(false);
 			}
 
 			if account.basic.nonce != U256::zero() {
-				return Ok(Some(false));
+				return Some(false);
 			}
 
 			if let Some(code) = &account.code {
-				return Ok(Some(
+				return Some(
 					account.basic.balance == U256::zero()
 						&& account.basic.nonce == U256::zero()
 						&& code.is_empty(),
-				));
+				);
 			}
 		}
 
-		Ok(None)
+		None
 	}
 
 	pub fn known_storage(&self, address: H160, key: H256) -> Option<H256> {
@@ -450,9 +450,9 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.basic(address))
 	}
 
-	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError> {
+	fn code(&self, address: H160) -> Vec<u8> {
 		if let Some(code) = self.substate.known_code(address) {
-			return Ok(code);
+			return code;
 		}
 		self.backend.code(address)
 	}
@@ -497,14 +497,14 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.exit_discard()
 	}
 
-	fn is_empty(&mut self, address: H160) -> Result<bool, ExitError> {
-		if let Some(known_empty) = self.substate.known_empty(address)? {
-			return Ok(known_empty);
+	fn is_empty(&self, address: H160) -> bool {
+		if let Some(known_empty) = self.substate.known_empty(address) {
+			return known_empty;
 		}
 
-		Ok(self.backend.basic(address).balance == U256::zero()
+		self.backend.basic(address).balance == U256::zero()
 			&& self.backend.basic(address).nonce == U256::zero()
-			&& self.backend.code(address)?.len() == 0)
+			&& self.backend.code(address).len() == 0
 	}
 
 	fn deleted(&self, address: H160) -> bool {
@@ -539,9 +539,8 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.set_deleted(address)
 	}
 
-	fn set_code(&mut self, address: H160, code: Vec<u8>) -> Result<(), ExitError> {
+	fn set_code(&mut self, address: H160, code: Vec<u8>) {
 		self.substate.set_code(address, code, self.backend);
-		Ok(())
 	}
 
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {

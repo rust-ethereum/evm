@@ -5,10 +5,11 @@
 mod memory;
 
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
-use crate::ExitError;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
+#[cfg(feature = "with-substrate")]
+use crate::ExitError;
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 #[cfg_attr(
@@ -80,11 +81,19 @@ pub trait Backend {
 	/// Get basic account information.
 	fn basic(&self, address: H160) -> Basic;
 	/// Get account code.
-	fn code(&mut self, address: H160) -> Result<Vec<u8>, ExitError>;
+	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
+
+	#[cfg(feature = "with-substrate")]
+	fn record_external_operation(
+		&mut self,
+		_op: crate::ExternalOperation,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
 }
 
 /// EVM backend that can apply changes.
