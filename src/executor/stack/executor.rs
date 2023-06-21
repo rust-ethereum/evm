@@ -891,6 +891,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if let Some(transfer) = transfer {
+			if let Err(e) =
+				self.record_external_operation(crate::ExternalOperation::AccountBasicRead)
+			{
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Capture::Exit((ExitReason::Error(e), Vec::new()));
+			}
 			match self.state.transfer(transfer) {
 				Ok(()) => (),
 				Err(e) => {
