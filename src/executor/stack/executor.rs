@@ -424,6 +424,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
+		if self.nonce(caller) >= U256::from(u64::MAX) {
+			return (ExitError::MaxNonce.into(), Vec::new());
+		}
+
 		event!(TransactCreate {
 			caller,
 			value,
@@ -542,6 +546,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			data: &data,
 			gas_limit,
 		});
+
+		if self.nonce(caller) >= U256::from(u64::MAX) {
+			return (ExitError::MaxNonce.into(), Vec::new());
+		}
 
 		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
@@ -665,6 +673,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		target_gas: Option<u64>,
 		take_l64: bool,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), StackExecutorCreateInterrupt<'static>> {
+		if self.nonce(caller) >= U256::from(u64::MAX) {
+			return Capture::Exit((ExitError::MaxNonce.into(), None, Vec::new()));
+		}
+
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
@@ -702,10 +714,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
 		}
 
-		if let Err(e) = self.state.inc_nonce(caller) {
-			return Capture::Exit((e.into(), None, Vec::new()));
-		}
-
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
@@ -723,6 +731,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		let gas_limit = min(after_gas, target_gas);
 		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
+
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return Capture::Exit((e.into(), None, Vec::new()));
+		}
 
 		self.enter_substate(gas_limit, false);
 
