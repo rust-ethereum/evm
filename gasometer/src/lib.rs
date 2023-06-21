@@ -511,7 +511,6 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
-					#[cfg(feature = "with-substrate")]
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
 				},
@@ -524,7 +523,6 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
-					#[cfg(feature = "with-substrate")]
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
 				},
@@ -562,7 +560,6 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
-					#[cfg(feature = "with-substrate")]
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
 				},
@@ -619,7 +616,6 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				value: handler.balance(address),
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
-					#[cfg(feature = "with-substrate")]
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
 				},
@@ -637,7 +633,6 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
-					#[cfg(feature = "with-substrate")]
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
 				},

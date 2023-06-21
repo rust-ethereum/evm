@@ -7,8 +7,6 @@ mod memory;
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-
-#[cfg(feature = "with-substrate")]
 use crate::ExitError;
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
@@ -87,7 +85,6 @@ pub trait Backend {
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
 
-	#[cfg(feature = "with-substrate")]
 	fn record_external_operation(
 		&mut self,
 		_op: crate::ExternalOperation,

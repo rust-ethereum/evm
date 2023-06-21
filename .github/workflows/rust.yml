@@ -26,8 +26,6 @@ jobs:
       run: cargo build --verbose
     - name: Build for feature (tracing)
       run: cargo build --features tracing --verbose
-    - name: Build for feature (with-substrate)
-      run: cargo build --features with-substrate --verbose
     - name: Run tests
       run: cargo test --verbose
   jsontests:

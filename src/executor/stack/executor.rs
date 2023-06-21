@@ -230,7 +230,6 @@ pub trait StackState<'config>: Backend {
 		H256::from_slice(Keccak256::digest(self.code(address)).as_slice())
 	}
 
-	#[cfg(feature = "with-substrate")]
 	fn record_external_dynamic_opcode_cost(
 		&mut self,
 		_opcode: Opcode,
@@ -240,7 +239,6 @@ pub trait StackState<'config>: Backend {
 		Ok(())
 	}
 
-	#[cfg(feature = "with-substrate")]
 	fn record_external_cost(
 		&mut self,
 		_ref_time: Option<u64>,
@@ -249,7 +247,6 @@ pub trait StackState<'config>: Backend {
 		Ok(())
 	}
 
-	#[cfg(feature = "with-substrate")]
 	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 }
 
@@ -587,7 +584,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			self.initialize_with_access_list(access_list);
 		}
-		#[cfg(feature = "with-substrate")]
 		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
 			return (e.into(), Vec::new());
 		}
@@ -727,7 +723,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
 		}
 
-		#[cfg(feature = "with-substrate")]
 		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
 			return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
 		}
@@ -756,7 +751,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.enter_substate(gas_limit, false);
 
 		{
-			#[cfg(feature = "with-substrate")]
 			if let Err(e) =
 				self.record_external_operation(crate::ExternalOperation::AddressCodeRead(address))
 			{
@@ -796,7 +790,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if self.config.create_increase_nonce {
-			#[cfg(feature = "with-substrate")]
 			if let Err(e) =
 				self.record_external_operation(crate::ExternalOperation::AccountBasicRead)
 			{
@@ -883,7 +876,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.enter_substate(gas_limit, is_static);
 		self.state.touch(context.address);
 
-		#[cfg(feature = "with-substrate")]
 		if let Err(e) =
 			self.record_external_operation(crate::ExternalOperation::AddressCodeRead(code_address))
 		{
@@ -1005,7 +997,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					Ok(()) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 
-						#[cfg(feature = "with-substrate")]
 						if let Err(e) =
 							self.record_external_operation(crate::ExternalOperation::Write)
 						{
@@ -1333,7 +1324,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			let gasometer = &mut self.state.metadata_mut().gasometer;
 			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
 
-			#[cfg(feature = "with-substrate")]
 			self.state
 				.record_external_dynamic_opcode_cost(opcode, gas_cost, target)?;
 
@@ -1351,7 +1341,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		Ok(())
 	}
 
-	#[cfg(feature = "with-substrate")]
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError> {
 		self.state.record_external_operation(op)
 	}
@@ -1458,7 +1447,6 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.record_cost(cost)
 	}
 
-	#[cfg(feature = "with-substrate")]
 	/// Record Substrate specific cost.
 	fn record_external_cost(
 		&mut self,
@@ -1470,7 +1458,6 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.record_external_cost(ref_time, proof_size)
 	}
 
-	#[cfg(feature = "with-substrate")]
 	/// Refund Substrate specific cost.
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
 		self.executor

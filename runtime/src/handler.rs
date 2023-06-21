@@ -121,6 +121,6 @@ pub trait Handler {
 		Err(ExitError::InvalidCode(opcode))
 	}
 
-	#[cfg(feature = "with-substrate")]
+	/// Records some associated `ExternalOperation`.
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError>;
 }

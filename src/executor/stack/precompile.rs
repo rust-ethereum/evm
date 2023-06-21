@@ -50,7 +50,6 @@ pub trait PrecompileHandle {
 	/// Record cost to the Runtime gasometer.
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
 
-	#[cfg(feature = "with-substrate")]
 	/// Record Substrate specific cost.
 	fn record_external_cost(
 		&mut self,
@@ -58,7 +57,6 @@ pub trait PrecompileHandle {
 		proof_size: Option<u64>,
 	) -> Result<(), ExitError>;
 
-	#[cfg(feature = "with-substrate")]
 	/// Refund Substrate specific cost.
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>);
 

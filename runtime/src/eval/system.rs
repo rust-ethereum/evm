@@ -92,7 +92,6 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	#[cfg(feature = "with-substrate")]
 	if let Err(e) =
 		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
 	{
@@ -106,7 +105,6 @@ pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 
 pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	#[cfg(feature = "with-substrate")]
 	if let Err(e) =
 		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
 	{
@@ -127,7 +125,6 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 		.memory_mut()
 		.resize_offset(memory_offset, len));
 
-	#[cfg(feature = "with-substrate")]
 	if let Err(e) =
 		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
 	{
