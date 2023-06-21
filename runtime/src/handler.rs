@@ -120,4 +120,7 @@ pub trait Handler {
 	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
 		Err(ExitError::InvalidCode(opcode))
 	}
+
+	/// Records some associated `ExternalOperation`.
+	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError>;
 }

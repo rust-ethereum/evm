@@ -5,10 +5,9 @@
 mod memory;
 
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
-
+use crate::ExitError;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 #[cfg_attr(
@@ -50,7 +49,7 @@ pub enum Apply<I> {
 }
 
 /// EVM backend.
-#[auto_impl::auto_impl(&, Arc, Box)]
+//#[auto_impl::auto_impl(&, Arc, Box)]
 pub trait Backend {
 	/// Gas price. Unused for London.
 	fn gas_price(&self) -> U256;
@@ -85,6 +84,13 @@ pub trait Backend {
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
+
+	fn record_external_operation(
+		&mut self,
+		_op: crate::ExternalOperation,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
 }
 
 /// EVM backend that can apply changes.

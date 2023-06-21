@@ -510,7 +510,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
-				target_exists: handler.exists(target),
+				target_exists: {
+					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
+					handler.exists(target)
+				},
 			}
 		}
 		Opcode::STATICCALL => {
@@ -519,7 +522,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::StaticCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
-				target_exists: handler.exists(target),
+				target_exists: {
+					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
+					handler.exists(target)
+				},
 			}
 		}
 		Opcode::SHA3 => GasCost::Sha3 {
@@ -553,7 +559,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::DelegateCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
-				target_exists: handler.exists(target),
+				target_exists: {
+					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
+					handler.exists(target)
+				},
 			}
 		}
 		Opcode::DELEGATECALL => GasCost::Invalid(opcode),
@@ -606,7 +615,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::Suicide {
 				value: handler.balance(address),
 				target_is_cold: handler.is_cold(target, None)?,
-				target_exists: handler.exists(target),
+				target_exists: {
+					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
+					handler.exists(target)
+				},
 				already_removed: handler.deleted(address),
 			}
 		}
@@ -620,7 +632,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
 				target_is_cold: handler.is_cold(target, None)?,
-				target_exists: handler.exists(target),
+				target_exists: {
+					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
+					handler.exists(target)
+				},
 			}
 		}
 

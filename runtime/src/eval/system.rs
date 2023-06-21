@@ -90,21 +90,33 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
-pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	push_u256!(runtime, handler.code_size(address.into()));
+	if let Err(e) =
+		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
+	{
+		return Control::Exit(e.into());
+	}
+	let code_size = handler.code_size(address.into());
+	push_u256!(runtime, code_size);
 
 	Control::Continue
 }
 
-pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
-	push!(runtime, handler.code_hash(address.into()));
+	if let Err(e) =
+		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
+	{
+		return Control::Exit(e.into());
+	}
+	let code_hash = handler.code_hash(address.into());
+	push!(runtime, code_hash);
 
 	Control::Continue
 }
 
-pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, address);
 	pop_u256!(runtime, memory_offset, code_offset, len);
 
@@ -112,12 +124,18 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 		.machine
 		.memory_mut()
 		.resize_offset(memory_offset, len));
-	match runtime.machine.memory_mut().copy_large(
-		memory_offset,
-		code_offset,
-		len,
-		&handler.code(address.into()),
-	) {
+
+	if let Err(e) =
+		handler.record_external_operation(crate::ExternalOperation::AddressCodeRead(address.into()))
+	{
+		return Control::Exit(e.into());
+	}
+	let code = handler.code(address.into());
+	match runtime
+		.machine
+		.memory_mut()
+		.copy_large(memory_offset, code_offset, len, &code)
+	{
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	};

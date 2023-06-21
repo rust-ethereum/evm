@@ -398,9 +398,9 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct MemoryStackState<'backend, 'config, B> {
-	backend: &'backend B,
+	backend: &'backend mut B,
 	substate: MemoryStackSubstate<'config>,
 }
 
@@ -451,9 +451,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.substate
-			.known_code(address)
-			.unwrap_or_else(|| self.backend.code(address))
+		if let Some(code) = self.substate.known_code(address) {
+			return code;
+		}
+		self.backend.code(address)
 	}
 
 	fn storage(&self, address: H160, key: H256) -> H256 {
@@ -539,7 +540,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 	}
 
 	fn set_code(&mut self, address: H160, code: Vec<u8>) {
-		self.substate.set_code(address, code, self.backend)
+		self.substate.set_code(address, code, self.backend);
 	}
 
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
@@ -556,7 +557,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 }
 
 impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
-	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend B) -> Self {
+	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend mut B) -> Self {
 		Self {
 			backend,
 			substate: MemoryStackSubstate::new(metadata),
