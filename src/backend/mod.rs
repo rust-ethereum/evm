@@ -5,9 +5,9 @@
 mod memory;
 
 pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
+use crate::ExitError;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
-use crate::ExitError;
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 #[cfg_attr(
