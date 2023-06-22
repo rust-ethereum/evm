@@ -230,6 +230,13 @@ pub trait StackState<'config>: Backend {
 		H256::from_slice(Keccak256::digest(self.code(address)).as_slice())
 	}
 
+	fn record_external_operation(
+		&mut self,
+		_op: crate::ExternalOperation,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
+
 	fn record_external_dynamic_opcode_cost(
 		&mut self,
 		_opcode: Opcode,
