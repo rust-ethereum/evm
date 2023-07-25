@@ -181,7 +181,7 @@ pub fn push0(state: &mut Machine) -> Control {
 	let val = U256::zero();
 
 	push_u256!(state, val);
-	Control::Continue(2)
+	Control::Continue(1)
 }
 
 #[inline]
