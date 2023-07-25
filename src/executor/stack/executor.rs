@@ -457,6 +457,23 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gasometer.record_transaction(transaction_cost)
 	}
 
+	fn maybe_record_init_code_cost(&mut self, init_code: &[u8]) -> Result<(), ExitError> {
+		if let Some(limit) = self.config.max_initcode_size {
+			// EIP-3860
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return Err(ExitError::OutOfGas);
+			}
+			return self
+				.state
+				.metadata_mut()
+				.gasometer
+				.record_cost(gasometer::init_code_cost(init_code));
+		}
+		Ok(())
+	}
+
 	/// Execute a `CREATE` transaction.
 	pub fn transact_create(
 		&mut self,
@@ -473,6 +490,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 			address: self.create_address(CreateScheme::Legacy { caller }),
 		});
+
+		if let Some(limit) = self.config.max_initcode_size {
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return emit_exit!(ExitError::InitCodeLimit.into(), Vec::new());
+			}
+		}
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into(), Vec::new());
@@ -502,6 +527,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
+		if let Some(limit) = self.config.max_initcode_size {
+			if init_code.len() > limit {
+				self.state.metadata_mut().gasometer.fail();
+				let _ = self.exit_substate(StackExitKind::Failed);
+				return emit_exit!(ExitError::InitCodeLimit.into(), Vec::new());
+			}
+		}
+
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
 		event!(TransactCreate2 {
 			caller,
@@ -570,8 +603,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		// Initialize initial addresses for EIP-2929
 		if self.config.increase_state_access_gas {
-			let addresses = core::iter::once(caller).chain(core::iter::once(address));
-			self.state.metadata_mut().access_addresses(addresses);
+			if self.config.warm_coinbase_address {
+				// Warm coinbase address for EIP-3651
+				let addresses = core::iter::once(caller)
+					.chain(core::iter::once(address))
+					.chain(core::iter::once(self.block_coinbase()));
+				self.state.metadata_mut().access_addresses(addresses);
+			} else {
+				let addresses = core::iter::once(caller).chain(core::iter::once(address));
+				self.state.metadata_mut().access_addresses(addresses);
+			}
 
 			self.initialize_with_access_list(access_list);
 		}
@@ -1129,6 +1170,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
+		if let Err(e) = self.maybe_record_init_code_cost(&init_code) {
+			let reason: ExitReason = e.into();
+			emit_exit!(reason.clone());
+			return Capture::Exit((reason, None, Vec::new()));
+		}
+
 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 
@@ -1141,6 +1188,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		init_code: Vec<u8>,
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt> {
+		if let Err(e) = self.maybe_record_init_code_cost(&init_code) {
+			let reason: ExitReason = e.into();
+			emit_exit!(reason.clone());
+			return Capture::Exit((reason, None, Vec::new()));
+		}
+
 		let capture = self.create_inner(caller, scheme, value, init_code, target_gas, true);
 
 		if let Capture::Exit((ref reason, _, ref return_value)) = capture {

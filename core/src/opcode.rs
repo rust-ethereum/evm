@@ -97,6 +97,7 @@ impl Opcode {
 	pub const JUMPDEST: Opcode = Opcode(0x5b);
 
 	/// `PUSHn`
+	pub const PUSH0: Opcode = Opcode(0x5f);
 	pub const PUSH1: Opcode = Opcode(0x60);
 	pub const PUSH2: Opcode = Opcode(0x61);
 	pub const PUSH3: Opcode = Opcode(0x62);
