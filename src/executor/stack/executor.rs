@@ -1479,7 +1479,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.refund_external_cost(ref_time, proof_size);
 	}
 
-	/// Retreive the remaining gas.
+	/// Retrieve the remaining gas.
 	fn remaining_gas(&self) -> u64 {
 		self.executor.state.metadata().gasometer.gas()
 	}
@@ -1489,17 +1489,17 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		Handler::log(self.executor, address, topics, data)
 	}
 
-	/// Retreive the code address (what is the address of the precompile being called).
+	/// Retrieve the code address (what is the address of the precompile being called).
 	fn code_address(&self) -> H160 {
 		self.code_address
 	}
 
-	/// Retreive the input data the precompile is called with.
+	/// Retrieve the input data the precompile is called with.
 	fn input(&self) -> &[u8] {
 		self.input
 	}
 
-	/// Retreive the context in which the precompile is executed.
+	/// Retrieve the context in which the precompile is executed.
 	fn context(&self) -> &Context {
 		self.context
 	}
@@ -1509,7 +1509,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		self.is_static
 	}
 
-	/// Retreive the gas limit of this call.
+	/// Retrieve the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
 	}
