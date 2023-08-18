@@ -1513,4 +1513,9 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
 	}
+
+	// Retrieve the used gas.
+	fn used_gas(&self) -> u64 {
+		self.executor.used_gas()
+	}
 }
