@@ -1,4 +1,4 @@
-use primitive_types::H160;
+use primitive_types::{H160, U256};
 
 /// Operations for recording external costs
 pub enum ExternalOperation {
@@ -8,6 +8,6 @@ pub enum ExternalOperation {
 	AddressCodeRead(H160),
 	/// Basic check for account emptiness. Fixed size.
 	IsEmpty,
-	/// Writing to storage. Fixed size.
-	Write,
+	/// Writing to storage (Number of bytes written).
+	Write(U256),
 }

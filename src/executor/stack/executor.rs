@@ -1009,10 +1009,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				{
 					Ok(()) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
-
-						if let Err(e) =
-							self.record_external_operation(crate::ExternalOperation::Write)
-						{
+						if let Err(e) = self.record_external_operation(
+							crate::ExternalOperation::Write(U256::from(out.len())),
+						) {
 							return (e.into(), None, Vec::new());
 						}
 						self.state.set_code(address, out);
