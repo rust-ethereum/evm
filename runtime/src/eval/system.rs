@@ -144,9 +144,22 @@ pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 }
 
 pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	pop_usize!(runtime, memory_offset);
+	pop_u256!(runtime, memory_offset);
 	pop_u256!(runtime, data_offset);
 	pop_usize!(runtime, len);
+
+	// If `len` is zero then nothing happens, regardless of the
+	// value of the other parameters. In particular, `memory_offset`
+	// might be larger than `usize::MAX`, hence why we check this first.
+	if len == 0 {
+		return Control::Continue;
+	}
+
+	// SAFETY: this cast is safe because if `len > 0` then gas cost of memory
+	// would have already been taken into account at this point. It is impossible
+	// to have a memory offset greater than `usize::MAX` for any gas limit less
+	// than `u64::MAX` (and gas limits higher than this are disallowed in general).
+	let memory_offset = memory_offset.as_usize();
 
 	try_or_fail!(runtime
 		.machine
