@@ -55,6 +55,7 @@ pub trait PrecompileHandle {
 		&mut self,
 		ref_time: Option<u64>,
 		proof_size: Option<u64>,
+		storage_growth: Option<u64>,
 	) -> Result<(), ExitError>;
 
 	/// Refund Substrate specific cost.
