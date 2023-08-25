@@ -248,18 +248,25 @@ impl<'config> Gasometer<'config> {
 				access_list_address_len,
 				access_list_storage_len,
 			} => {
+				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
 					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
 					+ access_list_address_len as u64 * self.config.gas_access_list_address
 					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key;
 
-				log_gas!(self, "Record Call {} [gas_transaction_call: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}]"
-				, cost, self.config.gas_transaction_call
-				, zero_data_len
-				, non_zero_data_len
-				, access_list_address_len
-				, access_list_storage_len);
+				log_gas!(
+					self,
+					"Record Call {} [gas_transaction_call: {}, zero_data_len: {}, " +
+						"non_zero_data_len: {}, access_list_address_len: {}, " +
+						"access_list_storage_len: {}]",
+					cost,
+					self.config.gas_transaction_call,
+					zero_data_len,
+					non_zero_data_len,
+					access_list_address_len,
+					access_list_storage_len
+				);
 
 				cost
 			}
@@ -278,13 +285,20 @@ impl<'config> Gasometer<'config> {
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
 				}
-				log_gas!(self, "Record Create {} [gas_transaction_create: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}, initcode_cost: {}]"
-				, cost, self.config.gas_transaction_create
-				, zero_data_len
-				, non_zero_data_len
-				, access_list_address_len
-				, access_list_storage_len,
-				initcode_cost);
+
+				log_gas!(
+					self,
+					"Record Create {} [gas_transaction_create: {}, zero_data_len: {}, " +
+						"non_zero_data_len: {}, access_list_address_len: {}, " +
+						"access_list_storage_len: {}, initcode_cost: {}]",
+					cost,
+					self.config.gas_transaction_create,
+					zero_data_len,
+					non_zero_data_len,
+					access_list_address_len,
+					access_list_storage_len,
+					initcode_cost
+				);
 				cost
 			}
 		};
