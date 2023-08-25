@@ -257,9 +257,7 @@ impl<'config> Gasometer<'config> {
 
 				log_gas!(
 					self,
-					"Record Call {} [gas_transaction_call: {}, zero_data_len: {}, " +
-						"non_zero_data_len: {}, access_list_address_len: {}, " +
-						"access_list_storage_len: {}]",
+					"Record Call {} [gas_transaction_call: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}]",
 					cost,
 					self.config.gas_transaction_call,
 					zero_data_len,
@@ -288,9 +286,7 @@ impl<'config> Gasometer<'config> {
 
 				log_gas!(
 					self,
-					"Record Create {} [gas_transaction_create: {}, zero_data_len: {}, " +
-						"non_zero_data_len: {}, access_list_address_len: {}, " +
-						"access_list_storage_len: {}, initcode_cost: {}]",
+					"Record Create {} [gas_transaction_create: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}, initcode_cost: {}]",
 					cost,
 					self.config.gas_transaction_create,
 					zero_data_len,
