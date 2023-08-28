@@ -69,6 +69,10 @@ tracing = [
 	"evm-gasometer/tracing",
 	"evm-runtime/tracing",
 ]
+force-debug = [
+	"evm-core/force-debug",
+	"evm-gasometer/force-debug",
+]
 
 [workspace]
 members = [

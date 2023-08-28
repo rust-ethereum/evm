@@ -161,6 +161,9 @@ impl Machine {
 					Ok(())
 				}
 				Control::Trap(opcode) => {
+					#[cfg(feature = "force-debug")]
+					log::trace!(target: "evm", "OpCode Trap: {:?}", opcode);
+
 					self.position = Ok(position + 1);
 					Err(Capture::Trap(opcode))
 				}

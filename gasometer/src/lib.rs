@@ -16,6 +16,16 @@ macro_rules! event {
 		crate::tracing::with(|listener| listener.event($x));
 	};
 }
+#[cfg(feature = "force-debug")]
+macro_rules! log_gas {
+	($self:expr, $($arg:tt)*) => (log::trace!(target: "evm", "Gasometer {} [Gas used: {}, Gas left: {}]", format_args!($($arg)*),
+	$self.total_used_gas(), $self.gas()));
+}
+
+#[cfg(not(feature = "force-debug"))]
+macro_rules! log_gas {
+	($self:expr, $($arg:tt)*) => {};
+}
 
 #[cfg(not(feature = "tracing"))]
 macro_rules! event {
@@ -137,6 +147,7 @@ impl<'config> Gasometer<'config> {
 			cost,
 			snapshot: self.snapshot(),
 		});
+		log_gas!(self, "Record cost {}", cost);
 
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
@@ -155,6 +166,7 @@ impl<'config> Gasometer<'config> {
 			refund,
 			snapshot: self.snapshot(),
 		});
+		log_gas!(self, "Record refund -{}", refund);
 
 		self.inner_mut()?.refunded_gas += refund;
 		Ok(())
@@ -196,6 +208,14 @@ impl<'config> Gasometer<'config> {
 			return Err(ExitError::OutOfGas);
 		}
 
+		log_gas!(
+			self,
+			"Record dynamic cost {} - memory_gas {} - gas_refund {}",
+			gas_cost,
+			memory_gas,
+			gas_refund
+		);
+
 		let after_gas = self.gas_limit - all_gas_cost;
 		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
 
@@ -215,6 +235,7 @@ impl<'config> Gasometer<'config> {
 		});
 
 		self.inner_mut()?.used_gas -= stipend;
+		log_gas!(self, "Record stipent {}", stipend);
 		Ok(())
 	}
 
@@ -227,11 +248,25 @@ impl<'config> Gasometer<'config> {
 				access_list_address_len,
 				access_list_storage_len,
 			} => {
-				self.config.gas_transaction_call
+				#[deny(clippy::let_and_return)]
+				let cost = self.config.gas_transaction_call
 					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
 					+ access_list_address_len as u64 * self.config.gas_access_list_address
-					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
+					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key;
+
+				log_gas!(
+					self,
+					"Record Call {} [gas_transaction_call: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}]",
+					cost,
+					self.config.gas_transaction_call,
+					zero_data_len,
+					non_zero_data_len,
+					access_list_address_len,
+					access_list_storage_len
+				);
+
+				cost
 			}
 			TransactionCost::Create {
 				zero_data_len,
@@ -248,6 +283,18 @@ impl<'config> Gasometer<'config> {
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
 				}
+
+				log_gas!(
+					self,
+					"Record Create {} [gas_transaction_create: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}, initcode_cost: {}]",
+					cost,
+					self.config.gas_transaction_create,
+					zero_data_len,
+					non_zero_data_len,
+					access_list_address_len,
+					access_list_storage_len,
+					initcode_cost
+				);
 				cost
 			}
 		};
