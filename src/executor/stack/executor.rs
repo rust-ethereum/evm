@@ -466,6 +466,48 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 	}
 
+	/// Same as `CREATE` but uses a specified address for created smart contract.
+	#[cfg(feature = "create-fixed")]
+	pub fn transact_create_fixed(
+		&mut self,
+		caller: H160,
+		address: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+	) -> (ExitReason, Vec<u8>) {
+		event!(TransactCreate {
+			caller,
+			value,
+			init_code: &init_code,
+			gas_limit,
+			address: self.create_address(CreateScheme::Fixed(address)),
+		});
+
+		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+			return emit_exit!(e.into(), Vec::new());
+		}
+		self.initialize_with_access_list(access_list);
+
+		match self.create_inner(
+			caller,
+			CreateScheme::Fixed(address),
+			value,
+			init_code,
+			Some(gas_limit),
+			false,
+		) {
+			Capture::Exit((s, _, v)) => emit_exit!(s, v),
+			Capture::Trap(rt) => {
+				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+				cs.push(rt.0);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				emit_exit!(s, v)
+			}
+		}
+	}
+
 	/// Execute a `CREATE2` transaction.
 	pub fn transact_create2(
 		&mut self,

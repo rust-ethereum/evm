@@ -27,7 +27,7 @@ evm-gasometer = { version = "0.39", path = "gasometer", default-features = false
 evm-runtime = { version = "0.39", path = "runtime", default-features = false }
 
 [dev-dependencies]
-criterion = "0.4"
+criterion = "0.5"
 hex = "0.4"
 
 [[bench]]
@@ -70,6 +70,7 @@ tracing = [
 	"evm-gasometer/tracing",
 	"evm-runtime/tracing",
 ]
+create-fixed = []
 
 [workspace]
 members = [
