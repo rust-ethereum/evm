@@ -28,8 +28,8 @@ pub enum PrecompileFailure {
 }
 
 impl From<ExitError> for PrecompileFailure {
-	fn from(error: ExitError) -> PrecompileFailure {
-		PrecompileFailure::Error { exit_status: error }
+	fn from(error: ExitError) -> Self {
+		Self::Error { exit_status: error }
 	}
 }
 

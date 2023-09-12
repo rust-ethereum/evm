@@ -11,40 +11,45 @@ pub struct Stack {
 
 impl Stack {
 	/// Create a new stack with given limit.
-	pub fn new(limit: usize) -> Self {
+	#[must_use]
+	pub const fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
 			limit,
 		}
 	}
 
-	#[inline]
 	/// Stack limit.
-	pub fn limit(&self) -> usize {
+	#[inline]
+	#[must_use]
+	pub const fn limit(&self) -> usize {
 		self.limit
 	}
 
-	#[inline]
 	/// Stack length.
+	#[inline]
+	#[must_use]
 	pub fn len(&self) -> usize {
 		self.data.len()
 	}
 
-	#[inline]
 	/// Whether the stack is empty.
+	#[inline]
+	#[must_use]
 	pub fn is_empty(&self) -> bool {
 		self.data.is_empty()
 	}
 
-	#[inline]
 	/// Stack data.
-	pub fn data(&self) -> &Vec<U256> {
+	#[inline]
+	#[must_use]
+	pub const fn data(&self) -> &Vec<U256> {
 		&self.data
 	}
 
-	#[inline]
 	/// Pop a value from the stack. If the stack is already empty, returns the
 	/// `StackUnderflow` error.
+	#[inline]
 	pub fn pop(&mut self) -> Result<U256, ExitError> {
 		self.data.pop().ok_or(ExitError::StackUnderflow)
 	}

@@ -76,7 +76,7 @@ pub struct Gasometer<'config> {
 
 impl<'config> Gasometer<'config> {
 	/// Create a new gasometer with given gas limit and config.
-	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
+	pub const fn new(gas_limit: u64, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			config,
@@ -105,28 +105,27 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Reference of the config.
-	pub fn config(&self) -> &'config Config {
+	pub const fn config(&self) -> &'config Config {
 		self.config
 	}
 
 	#[inline]
 	/// Gas limit.
-	pub fn gas_limit(&self) -> u64 {
+	pub const fn gas_limit(&self) -> u64 {
 		self.gas_limit
 	}
 
 	#[inline]
 	/// Remaining gas.
 	pub fn gas(&self) -> u64 {
-		match self.inner.as_ref() {
-			Ok(inner) => self.gas_limit - inner.used_gas - inner.memory_gas,
-			Err(_) => 0,
-		}
+		self.inner.as_ref().map_or(0, |inner| {
+			self.gas_limit - inner.used_gas - inner.memory_gas
+		})
 	}
 
 	#[inline]
 	/// Total used gas.
-	pub fn total_used_gas(&self) -> u64 {
+	pub const fn total_used_gas(&self) -> u64 {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.used_gas + inner.memory_gas,
 			Err(_) => self.gas_limit,
@@ -136,10 +135,7 @@ impl<'config> Gasometer<'config> {
 	#[inline]
 	/// Refunded gas.
 	pub fn refunded_gas(&self) -> i64 {
-		match self.inner.as_ref() {
-			Ok(inner) => inner.refunded_gas,
-			Err(_) => 0,
-		}
+		self.inner.as_ref().map_or(0, |inner| inner.refunded_gas)
 	}
 
 	/// Explicitly fail the gasometer with out of gas. Return `OutOfGas` error.
@@ -194,7 +190,7 @@ impl<'config> Gasometer<'config> {
 		let gas = self.gas();
 		// Extract a mutable reference to `Inner` to avoid checking `Result`
 		// repeatedly. Tuning performance as this function is on the hot path.
-		let mut inner_mut = match &mut self.inner {
+		let inner_mut = match &mut self.inner {
 			Ok(inner) => inner,
 			Err(err) => return Err(err.clone()),
 		};
@@ -335,7 +331,7 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 	}
 }
 
-pub fn init_code_cost(data: &[u8]) -> u64 {
+pub const fn init_code_cost(data: &[u8]) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.
@@ -1056,7 +1052,7 @@ pub enum TransactionCost {
 
 impl MemoryCost {
 	/// Join two memory cost together.
-	pub fn join(self, other: MemoryCost) -> MemoryCost {
+	pub const fn join(self, other: Self) -> Self {
 		if self.len == 0 {
 			return other;
 		}

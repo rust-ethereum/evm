@@ -140,15 +140,15 @@ pub fn jumpi(state: &mut Machine) -> Control {
 	pop_u256!(state, dest);
 	pop_u256!(state, value);
 
-	if value != U256::zero() {
+	if value == U256::zero() {
+		Control::Continue(1)
+	} else {
 		let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
 		} else {
 			Control::Exit(ExitError::InvalidJump.into())
 		}
-	} else {
-		Control::Continue(1)
 	}
 }
 
@@ -186,7 +186,7 @@ pub fn push0(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn push1(state: &mut Machine, position: usize) -> Control {
-	let b0 = *state.code.get(position + 1).unwrap_or(&0) as u64;
+	let b0 = u64::from(*state.code.get(position + 1).unwrap_or(&0));
 	let val = U256::from(b0);
 
 	push_u256!(state, val);
@@ -195,8 +195,8 @@ pub fn push1(state: &mut Machine, position: usize) -> Control {
 
 #[inline]
 pub fn push2(state: &mut Machine, position: usize) -> Control {
-	let b0 = *state.code.get(position + 1).unwrap_or(&0) as u64;
-	let b1 = *state.code.get(position + 2).unwrap_or(&0) as u64;
+	let b0 = u64::from(*state.code.get(position + 1).unwrap_or(&0));
+	let b1 = u64::from(*state.code.get(position + 2).unwrap_or(&0));
 	let val = U256::from((b0 << 8) | b1);
 
 	push_u256!(state, val);

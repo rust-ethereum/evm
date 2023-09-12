@@ -8,6 +8,7 @@
 pub struct Opcode(pub u8);
 
 // Core opcodes.
+#[allow(clippy::use_self)]
 impl Opcode {
 	/// `STOP`
 	pub const STOP: Opcode = Opcode(0x00);
@@ -178,6 +179,7 @@ impl Opcode {
 }
 
 // External opcodes
+#[allow(clippy::use_self)]
 impl Opcode {
 	/// `SHA3`
 	pub const SHA3: Opcode = Opcode(0x20);
@@ -251,6 +253,7 @@ impl Opcode {
 
 impl Opcode {
 	/// Whether the opcode is a push opcode.
+	#[must_use]
 	pub fn is_push(&self) -> Option<u8> {
 		let value = self.0;
 		if (0x60..=0x7f).contains(&value) {
@@ -261,11 +264,13 @@ impl Opcode {
 	}
 
 	#[inline]
+	#[must_use]
 	pub const fn as_u8(&self) -> u8 {
 		self.0
 	}
 
 	#[inline]
+	#[must_use]
 	pub const fn as_usize(&self) -> usize {
 		self.0 as usize
 	}

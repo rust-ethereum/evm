@@ -130,15 +130,12 @@ impl<'config> StackSubstateMetadata<'config> {
 		Self {
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
 			is_static: is_static || self.is_static,
-			depth: match self.depth {
-				None => Some(0),
-				Some(n) => Some(n + 1),
-			},
+			depth: self.depth.map_or(Some(0), |n| Some(n + 1)),
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
 		}
 	}
 
-	pub fn gasometer(&self) -> &Gasometer<'config> {
+	pub const fn gasometer(&self) -> &Gasometer<'config> {
 		&self.gasometer
 	}
 
@@ -146,11 +143,11 @@ impl<'config> StackSubstateMetadata<'config> {
 		&mut self.gasometer
 	}
 
-	pub fn is_static(&self) -> bool {
+	pub const fn is_static(&self) -> bool {
 		self.is_static
 	}
 
-	pub fn depth(&self) -> Option<usize> {
+	pub const fn depth(&self) -> Option<usize> {
 		self.depth
 	}
 
@@ -184,7 +181,7 @@ impl<'config> StackSubstateMetadata<'config> {
 		}
 	}
 
-	pub fn accessed(&self) -> &Option<Accessed> {
+	pub const fn accessed(&self) -> &Option<Accessed> {
 		&self.accessed
 	}
 }
@@ -242,17 +239,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	StackExecutor<'config, 'precompiles, S, P>
 {
 	/// Return a reference of the Config.
-	pub fn config(&self) -> &'config Config {
+	pub const fn config(&self) -> &'config Config {
 		self.config
 	}
 
 	/// Return a reference to the precompile set.
-	pub fn precompiles(&self) -> &'precompiles P {
+	pub const fn precompiles(&self) -> &'precompiles P {
 		self.precompile_set
 	}
 
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new_with_precompiles(
+	pub const fn new_with_precompiles(
 		state: S,
 		config: &'config Config,
 		precompile_set: &'precompiles P,
@@ -264,7 +261,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 	}
 
-	pub fn state(&self) -> &S {
+	pub const fn state(&self) -> &S {
 		&self.state
 	}
 
@@ -272,6 +269,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self.state
 	}
 
+	#[allow(clippy::missing_const_for_fn)]
 	pub fn into_state(self) -> S {
 		self.state
 	}
@@ -728,7 +726,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		fn l64(gas: u64) -> u64 {
+		const fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
 
@@ -853,7 +851,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		fn l64(gas: u64) -> u64 {
+		const fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
 

@@ -27,7 +27,7 @@ pub struct MemoryStackSubstate<'config> {
 }
 
 impl<'config> MemoryStackSubstate<'config> {
-	pub fn new(metadata: StackSubstateMetadata<'config>) -> Self {
+	pub const fn new(metadata: StackSubstateMetadata<'config>) -> Self {
 		Self {
 			metadata,
 			parent: None,
@@ -46,7 +46,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		&mut self.logs
 	}
 
-	pub fn metadata(&self) -> &StackSubstateMetadata<'config> {
+	pub const fn metadata(&self) -> &StackSubstateMetadata<'config> {
 		&self.metadata
 	}
 
@@ -175,13 +175,14 @@ impl<'config> MemoryStackSubstate<'config> {
 	}
 
 	pub fn known_account(&self, address: H160) -> Option<&MemoryStackAccount> {
-		if let Some(account) = self.accounts.get(&address) {
-			Some(account)
-		} else if let Some(parent) = self.parent.as_ref() {
-			parent.known_account(address)
-		} else {
-			None
-		}
+		self.accounts.get(&address).map_or_else(
+			|| {
+				self.parent
+					.as_ref()
+					.and_then(|parent| parent.known_account(address))
+			},
+			Some,
+		)
 	}
 
 	pub fn known_basic(&self, address: H160) -> Option<Basic> {
@@ -556,7 +557,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 }
 
 impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
-	pub fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend B) -> Self {
+	pub const fn new(metadata: StackSubstateMetadata<'config>, backend: &'backend B) -> Self {
 		Self {
 			backend,
 			substate: MemoryStackSubstate::new(metadata),

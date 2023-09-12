@@ -287,12 +287,11 @@ fn eval_table<H: InterpreterHandler>(
 	let mut pc = position;
 	handler.before_eval();
 	loop {
-		let op = match state.code.get(pc) {
-			Some(v) => Opcode(*v),
-			None => {
-				state.position = Err(ExitSucceed::Stopped.into());
-				return Control::Exit(ExitSucceed::Stopped.into());
-			}
+		let op = if let Some(v) = state.code.get(pc) {
+			Opcode(*v)
+		} else {
+			state.position = Err(ExitSucceed::Stopped.into());
+			return Control::Exit(ExitSucceed::Stopped.into());
 		};
 		match handler.before_bytecode(op, pc, state, address) {
 			Ok(()) => (),

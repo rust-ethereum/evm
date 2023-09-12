@@ -15,7 +15,8 @@ pub struct Memory {
 
 impl Memory {
 	/// Create a new memory with the given limit.
-	pub fn new(limit: usize) -> Self {
+	#[must_use]
+	pub const fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
 			effective_len: 0,
@@ -24,43 +25,45 @@ impl Memory {
 	}
 
 	/// Memory limit.
-	pub fn limit(&self) -> usize {
+	#[must_use]
+	pub const fn limit(&self) -> usize {
 		self.limit
 	}
 
 	/// Get the length of the current memory range.
+	#[must_use]
 	pub fn len(&self) -> usize {
 		self.data.len()
 	}
 
 	/// Get the effective length.
-	pub fn effective_len(&self) -> usize {
+	#[must_use]
+	pub const fn effective_len(&self) -> usize {
 		self.effective_len
 	}
 
 	/// Return true if current effective memory range is zero.
+	#[must_use]
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0
 	}
 
 	/// Return the full memory.
-	pub fn data(&self) -> &Vec<u8> {
+	#[must_use]
+	pub const fn data(&self) -> &Vec<u8> {
 		&self.data
 	}
 
-	/// Resize the memory, making it cover the memory region of `offset..(offset
-	/// + len)`, with 32 bytes as the step. If the length is zero, this function
-	/// does nothing.
+	/// Resize the memory, making it cover the memory region of `offset..offset + len`,
+	/// with 32 bytes as the step. If the length is zero, this function does nothing.
 	pub fn resize_offset(&mut self, offset: usize, len: usize) -> Result<(), ExitError> {
 		if len == 0 {
 			return Ok(());
 		}
 
-		if let Some(end) = offset.checked_add(len) {
-			self.resize_end(end)
-		} else {
-			Err(ExitError::InvalidRange)
-		}
+		offset
+			.checked_add(len)
+			.map_or(Err(ExitError::InvalidRange), |end| self.resize_end(end))
 	}
 
 	/// Resize the memory, making it cover to `end`, with 32 bytes as the step.
@@ -79,6 +82,7 @@ impl Memory {
 	///
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
+	#[must_use]
 	pub fn get(&self, mut offset: usize, size: usize) -> Vec<u8> {
 		if offset > self.data.len() {
 			offset = self.data.len();
@@ -95,6 +99,7 @@ impl Memory {
 	}
 
 	/// Get `H256` from a specific offset in memory.
+	#[must_use]
 	pub fn get_h256(&self, offset: usize) -> H256 {
 		let mut ret = [0; 32];
 
@@ -126,8 +131,7 @@ impl Memory {
 
 		if offset
 			.checked_add(target_size)
-			.map(|pos| pos > self.limit)
-			.unwrap_or(true)
+			.map_or(true, |pos| pos > self.limit)
 		{
 			return Err(ExitFatal::NotSupported);
 		}
@@ -165,22 +169,22 @@ impl Memory {
 			return Ok(());
 		}
 
-		let data = if let Some(end) = data_offset.checked_add(len.into()) {
-			if end > U256::from(usize::MAX) {
-				&[]
-			} else {
-				let data_offset = data_offset.as_usize();
-				let end = end.as_usize();
-
-				if data_offset > data.len() {
+		let data = data_offset
+			.checked_add(len.into())
+			.map_or(&[] as &[u8], |end| {
+				if end > U256::from(usize::MAX) {
 					&[]
 				} else {
-					&data[data_offset..min(end, data.len())]
+					let data_offset = data_offset.as_usize();
+					let end = end.as_usize();
+
+					if data_offset > data.len() {
+						&[]
+					} else {
+						&data[data_offset..min(end, data.len())]
+					}
 				}
-			}
-		} else {
-			&[]
-		};
+			});
 
 		self.set(memory_offset, data, Some(len))
 	}
@@ -211,7 +215,7 @@ mod tests {
 				continue;
 			}
 			let next_multiple = x + 32 - (x % 32);
-			assert_eq!(Some(next_multiple), next_multiple_of_32(x.into()));
+			assert_eq!(Some(next_multiple), next_multiple_of_32(x));
 		}
 
 		// next_multiple_of_32 returns None when the next multiple of 32 is too big

@@ -11,7 +11,7 @@ pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<()
 	}
 }
 
-pub fn suicide_refund(already_removed: bool) -> i64 {
+pub const fn suicide_refund(already_removed: bool) -> i64 {
 	if already_removed {
 		0
 	} else {
@@ -185,7 +185,7 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	Ok(gas.as_u64())
 }
 
-pub fn sload_cost(is_cold: bool, config: &Config) -> u64 {
+pub const fn sload_cost(is_cold: bool, config: &Config) -> u64 {
 	if config.increase_state_access_gas {
 		if is_cold {
 			config.gas_sload_cold
@@ -280,7 +280,7 @@ pub fn call_cost(
 		+ new_cost(is_call_or_staticcall, new_account, transfers_value, config)
 }
 
-pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -> u64 {
+pub const fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -> u64 {
 	if config.increase_state_access_gas {
 		if is_cold {
 			config.gas_account_access_cold
@@ -292,7 +292,7 @@ pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -
 	}
 }
 
-fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
+const fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
 	if is_call_or_callcode && transfers_value {
 		G_CALLVALUE as u64
 	} else {
@@ -300,7 +300,7 @@ fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
 	}
 }
 
-fn new_cost(
+const fn new_cost(
 	is_call_or_staticcall: bool,
 	new_account: bool,
 	transfers_value: bool,

@@ -64,7 +64,8 @@ pub trait InterpreterHandler {
 
 impl Machine {
 	/// Reference of machine stack.
-	pub fn stack(&self) -> &Stack {
+	#[must_use]
+	pub const fn stack(&self) -> &Stack {
 		&self.stack
 	}
 	/// Mutable reference of machine stack.
@@ -72,7 +73,8 @@ impl Machine {
 		&mut self.stack
 	}
 	/// Reference of machine memory.
-	pub fn memory(&self) -> &Memory {
+	#[must_use]
+	pub const fn memory(&self) -> &Memory {
 		&self.memory
 	}
 	/// Mutable reference of machine memory.
@@ -80,11 +82,12 @@ impl Machine {
 		&mut self.memory
 	}
 	/// Return a reference of the program counter.
-	pub fn position(&self) -> &Result<usize, ExitReason> {
+	pub const fn position(&self) -> &Result<usize, ExitReason> {
 		&self.position
 	}
 
 	/// Create a new machine with given code and data.
+	#[must_use]
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
@@ -110,23 +113,17 @@ impl Machine {
 	}
 
 	/// Inspect the machine's next opcode and current stack.
+	#[must_use]
 	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
-		let position = match self.position {
-			Ok(position) => position,
-			Err(_) => return None,
-		};
+		let Ok(position) = self.position else { return None };
 		self.code.get(position).map(|v| (Opcode(*v), &self.stack))
 	}
 
 	/// Copy and get the return value of the machine, if any.
+	#[must_use]
 	pub fn return_value(&self) -> Vec<u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
-			let mut ret = Vec::new();
-			ret.resize(
-				(self.return_range.end - self.return_range.start).as_usize(),
-				0,
-			);
-			ret
+			vec![0; (self.return_range.end - self.return_range.start).as_usize()]
 		} else if self.return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.memory.get(
 				self.return_range.start.as_usize(),
@@ -185,15 +182,18 @@ pub struct SimpleInterpreterHandler {
 }
 
 impl SimpleInterpreterHandler {
-	pub fn new(address: H160) -> Self {
+	#[must_use]
+	pub const fn new(address: H160) -> Self {
 		Self {
 			executed: 0,
 			profile: [0; 256],
 			address,
 		}
 	}
+}
 
-	pub fn default() -> Self {
+impl Default for SimpleInterpreterHandler {
+	fn default() -> Self {
 		Self {
 			executed: 0,
 			profile: [0; 256],
