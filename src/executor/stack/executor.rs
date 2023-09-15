@@ -872,6 +872,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		let target_gas = target_gas.unwrap_or(after_gas);
 		let mut gas_limit = min(target_gas, after_gas);
+		// Record the gas used so far to propagate into the precompile.
+		let parent_gas_used = self.used_gas();
 
 		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
 
@@ -925,6 +927,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit: Some(gas_limit),
 			context: &context,
 			is_static: precompile_is_static,
+			parent_gas_used,
 		}) {
 			return match result {
 				Ok(PrecompileOutput {
@@ -1366,6 +1369,7 @@ struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
 	gas_limit: Option<u64>,
 	context: &'inner Context,
 	is_static: bool,
+	parent_gas_used: u64,
 }
 
 impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
@@ -1516,6 +1520,6 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 
 	// Retrieve the used gas.
 	fn used_gas(&self) -> u64 {
-		self.executor.used_gas()
+		self.executor.used_gas() + self.parent_gas_used
 	}
 }
