@@ -1491,6 +1491,25 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.record_cost(cost)
 	}
 
+	/// Record Substrate specific cost.
+	fn record_external_cost(
+		&mut self,
+		ref_time: Option<u64>,
+		proof_size: Option<u64>,
+		storage_growth: Option<u64>,
+	) -> Result<(), ExitError> {
+		self.executor
+			.state
+			.record_external_cost(ref_time, proof_size, storage_growth)
+	}
+
+	/// Refund Substrate specific cost.
+	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
+		self.executor
+			.state
+			.refund_external_cost(ref_time, proof_size);
+	}
+
 	/// Retreive the remaining gas.
 	fn remaining_gas(&self) -> u64 {
 		self.executor.state.metadata().gasometer.gas()
