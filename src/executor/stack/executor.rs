@@ -234,6 +234,24 @@ pub trait StackState<'config>: Backend {
 		Ok(())
 	}
 
+	fn record_external_dynamic_opcode_cost(
+		&mut self,
+		_opcode: Opcode,
+		_gas_cost: crate::gasometer::GasCost,
+		_target: StorageTarget,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
+
+	fn record_external_cost(
+		&mut self,
+		_ref_time: Option<u64>,
+		_proof_size: Option<u64>,
+		_storage_growth: Option<u64>,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
+
 	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 }
 
@@ -1515,7 +1533,6 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.state
 			.record_external_cost(ref_time, proof_size, storage_growth)
 	}
-
 
 	/// Refund Substrate specific cost.
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
