@@ -234,6 +234,7 @@ pub trait StackState<'config>: Backend {
 		Ok(())
 	}
 
+	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
 }
 
 /// Stack-based executor.
@@ -1514,6 +1515,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.state
 			.record_external_cost(ref_time, proof_size, storage_growth)
 	}
+
 
 	/// Refund Substrate specific cost.
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>) {
