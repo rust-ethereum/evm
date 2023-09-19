@@ -226,6 +226,14 @@ pub trait StackState<'config>: Backend {
 	fn code_hash(&self, address: H160) -> H256 {
 		H256::from_slice(Keccak256::digest(self.code(address)).as_slice())
 	}
+
+	fn record_external_operation(
+		&mut self,
+		_op: crate::ExternalOperation,
+	) -> Result<(), ExitError> {
+		Ok(())
+	}
+
 }
 
 /// Stack-based executor.
