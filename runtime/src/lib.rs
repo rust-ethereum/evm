@@ -35,43 +35,11 @@ pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use primitive_types::{H160, U256};
+use primitive_types::H160;
 
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({
-		if let Some((opcode, stack)) = $self.machine.inspect() {
-			event!(Step {
-				context: &$self.context,
-				opcode,
-				position: $self.machine.position(),
-				stack,
-				memory: $self.machine.memory()
-			});
-
-			match $handler.pre_validate(&$self.context, opcode, stack) {
-				Ok(()) => (),
-				Err(e) => {
-					$self.machine.exit(e.clone().into());
-					$self.status = Err(e.into());
-				},
-			}
-		}
-
-		match &$self.status {
-			Ok(()) => (),
-			Err(e) => {
-				#[allow(unused_parens)]
-				$return $($err)*(Capture::Exit(e.clone()))
-			},
-		}
-
-		let result = $self.machine.step();
-
-		event!(StepResult {
-			result: &result,
-			return_value: &$self.machine.return_value(),
-		});
-
+		let result = $self.machine.step($handler, &$self.context.address);
 		match result {
 			Ok(()) => $($ok)?(()),
 			Err(Capture::Exit(e)) => {
@@ -111,8 +79,8 @@ pub struct Runtime {
 	machine: Machine,
 	status: Result<(), ExitReason>,
 	return_data_buffer: Vec<u8>,
-	return_data_len: U256,
-	return_data_offset: U256,
+	return_data_len: usize,
+	return_data_offset: usize,
 	context: Context,
 }
 
@@ -129,35 +97,35 @@ impl Runtime {
 			machine: Machine::new(code, data, stack_limit, memory_limit),
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
-			return_data_len: U256::zero(),
-			return_data_offset: U256::zero(),
+			return_data_len: 0,
+			return_data_offset: 0,
 			context,
 		}
 	}
 
 	/// Get a reference to the machine.
-	pub fn machine(&self) -> &Machine {
+	pub const fn machine(&self) -> &Machine {
 		&self.machine
 	}
 
 	/// Get a reference to the execution context.
-	pub fn context(&self) -> &Context {
+	pub const fn context(&self) -> &Context {
 		&self.context
 	}
 
 	/// Step the runtime.
-	pub fn step<'a, H: Handler>(
-		&'a mut self,
+	pub fn step<H: Handler + InterpreterHandler>(
+		&mut self,
 		handler: &mut H,
-	) -> Result<(), Capture<ExitReason, Resolve<'a, H>>> {
+	) -> Result<(), Capture<ExitReason, Resolve<H>>> {
 		step!(self, handler, return Err; Ok)
 	}
 
 	/// Loop stepping the runtime until it stops.
-	pub fn run<'a, H: Handler>(
-		&'a mut self,
+	pub fn run<H: Handler + InterpreterHandler>(
+		&mut self,
 		handler: &mut H,
-	) -> Capture<ExitReason, Resolve<'a, H>> {
+	) -> Capture<ExitReason, Resolve<H>> {
 		loop {
 			step!(self, handler, return;)
 		}
@@ -292,8 +260,8 @@ pub struct Config {
 
 impl Config {
 	/// Frontier hard fork configuration.
-	pub const fn frontier() -> Config {
-		Config {
+	pub const fn frontier() -> Self {
+		Self {
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
 			gas_balance: 20,
@@ -346,8 +314,8 @@ impl Config {
 	}
 
 	/// Istanbul hard fork configuration.
-	pub const fn istanbul() -> Config {
-		Config {
+	pub const fn istanbul() -> Self {
+		Self {
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
@@ -400,26 +368,26 @@ impl Config {
 	}
 
 	/// Berlin hard fork configuration.
-	pub const fn berlin() -> Config {
+	pub const fn berlin() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::berlin())
 	}
 
 	/// london hard fork configuration.
-	pub const fn london() -> Config {
+	pub const fn london() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
 	/// The Merge (Paris) hard fork configuration.
-	pub const fn merge() -> Config {
+	pub const fn merge() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::merge())
 	}
 
 	/// Shanghai hard fork configuration.
-	pub const fn shanghai() -> Config {
+	pub const fn shanghai() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
 	}
 
-	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
+	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Self {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
 			gas_sload_cold,
@@ -444,7 +412,7 @@ impl Config {
 		};
 		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
 
-		Config {
+		Self {
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,

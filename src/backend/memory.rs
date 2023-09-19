@@ -75,7 +75,7 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 	}
 
 	/// Get the underlying `BTreeMap` storing the state.
-	pub fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
+	pub const fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
 		&self.state
 	}
 
@@ -179,7 +179,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 					reset_storage,
 				} => {
 					let is_empty = {
-						let account = self.state.entry(address).or_insert_with(Default::default);
+						let account = self.state.entry(address).or_default();
 						account.balance = basic.balance;
 						account.nonce = basic.nonce;
 						if let Some(code) = code {

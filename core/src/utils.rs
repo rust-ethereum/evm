@@ -21,17 +21,17 @@ pub struct I256(pub Sign, pub U256);
 
 impl I256 {
 	/// Zero value of I256.
-	pub fn zero() -> I256 {
-		I256(Sign::Zero, U256::zero())
+	pub const fn zero() -> Self {
+		Self(Sign::Zero, U256::zero())
 	}
 	/// Minimum value of I256.
-	pub fn min_value() -> I256 {
-		I256(Sign::Minus, (U256::MAX & SIGN_BIT_MASK) + U256::from(1u64))
+	pub fn min_value() -> Self {
+		Self(Sign::Minus, (U256::MAX & SIGN_BIT_MASK) + U256::from(1u64))
 	}
 }
 
 impl Ord for I256 {
-	fn cmp(&self, other: &I256) -> Ordering {
+	fn cmp(&self, other: &Self) -> Ordering {
 		match (self.0, other.0) {
 			(Sign::Zero, Sign::Zero) => Ordering::Equal,
 			(Sign::Zero, Sign::Plus) => Ordering::Less,
@@ -47,58 +47,58 @@ impl Ord for I256 {
 }
 
 impl PartialOrd for I256 {
-	fn partial_cmp(&self, other: &I256) -> Option<Ordering> {
+	fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
 		Some(self.cmp(other))
 	}
 }
 
 impl Default for I256 {
-	fn default() -> I256 {
-		I256::zero()
+	fn default() -> Self {
+		Self::zero()
 	}
 }
 
 impl From<U256> for I256 {
-	fn from(val: U256) -> I256 {
+	fn from(val: U256) -> Self {
 		if val == U256::zero() {
-			I256::zero()
+			Self::zero()
 		} else if val & SIGN_BIT_MASK == val {
-			I256(Sign::Plus, val)
+			Self(Sign::Plus, val)
 		} else {
-			I256(Sign::Minus, !val + U256::from(1u64))
+			Self(Sign::Minus, !val + U256::from(1u64))
 		}
 	}
 }
 
 impl From<I256> for U256 {
-	fn from(value: I256) -> U256 {
+	fn from(value: I256) -> Self {
 		let sign = value.0;
 		if sign == Sign::Zero {
-			U256::zero()
+			Self::zero()
 		} else if sign == Sign::Plus {
 			value.1
 		} else {
-			!value.1 + U256::from(1u64)
+			!value.1 + Self::from(1u64)
 		}
 	}
 }
 
 impl Div for I256 {
-	type Output = I256;
+	type Output = Self;
 
-	fn div(self, other: I256) -> I256 {
-		if other == I256::zero() {
-			return I256::zero();
+	fn div(self, other: Self) -> Self {
+		if other == Self::zero() {
+			return Self::zero();
 		}
 
-		if self == I256::min_value() && other.1 == U256::from(1u64) {
-			return I256::min_value();
+		if self == Self::min_value() && other.1 == U256::from(1u64) {
+			return Self::min_value();
 		}
 
 		let d = (self.1 / other.1) & SIGN_BIT_MASK;
 
 		if d == U256::zero() {
-			return I256::zero();
+			return Self::zero();
 		}
 
 		match (self.0, other.0) {
@@ -106,26 +106,26 @@ impl Div for I256 {
 			| (Sign::Plus, Sign::Zero)
 			| (Sign::Zero, Sign::Zero)
 			| (Sign::Plus, Sign::Plus)
-			| (Sign::Minus, Sign::Minus) => I256(Sign::Plus, d),
+			| (Sign::Minus, Sign::Minus) => Self(Sign::Plus, d),
 			(Sign::Zero, Sign::Minus)
 			| (Sign::Plus, Sign::Minus)
 			| (Sign::Minus, Sign::Zero)
-			| (Sign::Minus, Sign::Plus) => I256(Sign::Minus, d),
+			| (Sign::Minus, Sign::Plus) => Self(Sign::Minus, d),
 		}
 	}
 }
 
 impl Rem for I256 {
-	type Output = I256;
+	type Output = Self;
 
-	fn rem(self, other: I256) -> I256 {
+	fn rem(self, other: Self) -> Self {
 		let r = (self.1 % other.1) & SIGN_BIT_MASK;
 
 		if r == U256::zero() {
-			return I256::zero();
+			return Self::zero();
 		}
 
-		I256(self.0, r)
+		Self(self.0, r)
 	}
 }
 
