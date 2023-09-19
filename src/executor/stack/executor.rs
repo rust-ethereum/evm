@@ -1390,6 +1390,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 		capture
 	}
+
+	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError> {
+		self.state.record_external_operation(op)
+	}
 }
 
 struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
