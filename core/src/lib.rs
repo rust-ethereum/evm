@@ -115,7 +115,9 @@ impl Machine {
 	/// Inspect the machine's next opcode and current stack.
 	#[must_use]
 	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
-		let Ok(position) = self.position else { return None };
+		let Ok(position) = self.position else {
+			return None;
+		};
 		self.code.get(position).map(|v| (Opcode(*v), &self.stack))
 	}
 
