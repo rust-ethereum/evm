@@ -6,12 +6,12 @@ use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::maybe_borrowed::MaybeBorrowed;
 use crate::{
-	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime, Stack,
+	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime,
 	Transfer,
 };
 use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
 use core::{cmp::min, convert::Infallible};
-use evm_core::ExitFatal;
+use evm_core::{ExitFatal, InterpreterHandler, Machine, Trap};
 use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -130,15 +130,12 @@ impl<'config> StackSubstateMetadata<'config> {
 		Self {
 			gasometer: Gasometer::new(gas_limit, self.gasometer.config()),
 			is_static: is_static || self.is_static,
-			depth: match self.depth {
-				None => Some(0),
-				Some(n) => Some(n + 1),
-			},
+			depth: self.depth.map_or(Some(0), |n| Some(n + 1)),
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
 		}
 	}
 
-	pub fn gasometer(&self) -> &Gasometer<'config> {
+	pub const fn gasometer(&self) -> &Gasometer<'config> {
 		&self.gasometer
 	}
 
@@ -146,11 +143,11 @@ impl<'config> StackSubstateMetadata<'config> {
 		&mut self.gasometer
 	}
 
-	pub fn is_static(&self) -> bool {
+	pub const fn is_static(&self) -> bool {
 		self.is_static
 	}
 
-	pub fn depth(&self) -> Option<usize> {
+	pub const fn depth(&self) -> Option<usize> {
 		self.depth
 	}
 
@@ -184,7 +181,7 @@ impl<'config> StackSubstateMetadata<'config> {
 		}
 	}
 
-	pub fn accessed(&self) -> &Option<Accessed> {
+	pub const fn accessed(&self) -> &Option<Accessed> {
 		&self.accessed
 	}
 }
@@ -269,17 +266,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	StackExecutor<'config, 'precompiles, S, P>
 {
 	/// Return a reference of the Config.
-	pub fn config(&self) -> &'config Config {
+	pub const fn config(&self) -> &'config Config {
 		self.config
 	}
 
 	/// Return a reference to the precompile set.
-	pub fn precompiles(&self) -> &'precompiles P {
+	pub const fn precompiles(&self) -> &'precompiles P {
 		self.precompile_set
 	}
 
 	/// Create a new stack-based executor with given precompiles.
-	pub fn new_with_precompiles(
+	pub const fn new_with_precompiles(
 		state: S,
 		config: &'config Config,
 		precompile_set: &'precompiles P,
@@ -291,7 +288,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 	}
 
-	pub fn state(&self) -> &S {
+	pub const fn state(&self) -> &S {
 		&self.state
 	}
 
@@ -299,6 +296,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self.state
 	}
 
+	#[allow(clippy::missing_const_for_fn)]
 	pub fn into_state(self) -> S {
 		self.state
 	}
@@ -451,6 +449,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
+		if self.nonce(caller) >= U256::from(u64::MAX) {
+			return (ExitError::MaxNonce.into(), Vec::new());
+		}
+
 		event!(TransactCreate {
 			caller,
 			value,
@@ -474,6 +476,48 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		match self.create_inner(
 			caller,
 			CreateScheme::Legacy { caller },
+			value,
+			init_code,
+			Some(gas_limit),
+			false,
+		) {
+			Capture::Exit((s, _, v)) => emit_exit!(s, v),
+			Capture::Trap(rt) => {
+				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
+				cs.push(rt.0);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				emit_exit!(s, v)
+			}
+		}
+	}
+
+	/// Same as `CREATE` but uses a specified address for created smart contract.
+	#[cfg(feature = "create-fixed")]
+	pub fn transact_create_fixed(
+		&mut self,
+		caller: H160,
+		address: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		gas_limit: u64,
+		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+	) -> (ExitReason, Vec<u8>) {
+		event!(TransactCreate {
+			caller,
+			value,
+			init_code: &init_code,
+			gas_limit,
+			address: self.create_address(CreateScheme::Fixed(address)),
+		});
+
+		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+			return emit_exit!(e.into(), Vec::new());
+		}
+		self.initialize_with_access_list(access_list);
+
+		match self.create_inner(
+			caller,
+			CreateScheme::Fixed(address),
 			value,
 			init_code,
 			Some(gas_limit),
@@ -570,6 +614,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 		});
 
+		if self.nonce(caller) >= U256::from(u64::MAX) {
+			return (ExitError::MaxNonce.into(), Vec::new());
+		}
+
 		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer.record_transaction(transaction_cost) {
@@ -592,9 +640,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			self.initialize_with_access_list(access_list);
 		}
-		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
-			return (e.into(), Vec::new());
-		}
+
 		if let Err(e) = self.state.inc_nonce(caller) {
 			return (e.into(), Vec::new());
 		}
@@ -694,6 +740,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		target_gas: Option<u64>,
 		take_l64: bool,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), StackExecutorCreateInterrupt<'static>> {
+		if self.nonce(caller) >= U256::from(u64::MAX) {
+			return Capture::Exit((ExitError::MaxNonce.into(), None, Vec::new()));
+		}
+
 		macro_rules! try_or_fail {
 			( $e:expr ) => {
 				match $e {
@@ -703,7 +753,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		fn l64(gas: u64) -> u64 {
+		const fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
 
@@ -731,13 +781,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((ExitError::OutOfFund.into(), None, Vec::new()));
 		}
 
-		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
-			return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
-		}
-		if let Err(e) = self.state.inc_nonce(caller) {
-			return Capture::Exit((e.into(), None, Vec::new()));
-		}
-
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
@@ -756,17 +799,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		let gas_limit = min(after_gas, target_gas);
 		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
 
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return Capture::Exit((e.into(), None, Vec::new()));
+		}
+
 		self.enter_substate(gas_limit, false);
 
 		{
-			if let Err(e) =
-				self.record_external_operation(crate::ExternalOperation::AddressCodeRead(address))
-			{
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
-			}
-			let code_size = self.code_size(address);
-			if code_size != U256::zero() {
+			if self.code_size(address) != U256::zero() {
 				let _ = self.exit_substate(StackExitKind::Failed);
 				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 			}
@@ -798,12 +838,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if self.config.create_increase_nonce {
-			if let Err(e) =
-				self.record_external_operation(crate::ExternalOperation::AccountBasicRead)
-			{
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
-			}
 			if let Err(e) = self.state.inc_nonce(address) {
 				return Capture::Exit((e.into(), None, Vec::new()));
 			}
@@ -844,7 +878,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		fn l64(gas: u64) -> u64 {
+		const fn l64(gas: u64) -> u64 {
 			gas - gas / 64
 		}
 
@@ -881,16 +915,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
+		let code = self.code(code_address);
+
 		self.enter_substate(gas_limit, is_static);
 		self.state.touch(context.address);
 
-		if let Err(e) =
-			self.record_external_operation(crate::ExternalOperation::AddressCodeRead(code_address))
-		{
-			let _ = self.exit_substate(StackExitKind::Failed);
-			return Capture::Exit((ExitReason::Error(e), Vec::new()));
-		}
-		let code = self.code(code_address);
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -899,12 +928,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if let Some(transfer) = transfer {
-			if let Err(e) =
-				self.record_external_operation(crate::ExternalOperation::AccountBasicRead)
-			{
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitReason::Error(e), Vec::new()));
-			}
 			match self.state.transfer(transfer) {
 				Ok(()) => (),
 				Err(e) => {
@@ -1010,11 +1033,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				{
 					Ok(()) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
-						if let Err(e) = self.record_external_operation(
-							crate::ExternalOperation::Write(U256::from(out.len())),
-						) {
-							return (e.into(), None, Vec::new());
-						}
+						event!(CreateOutput {
+							address,
+							code: &out,
+						});
 						self.state.set_code(address, out);
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
@@ -1069,6 +1091,89 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				let _ = self.exit_substate(StackExitKind::Failed);
 				Vec::new()
 			}
+		}
+	}
+}
+
+impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> InterpreterHandler
+	for StackExecutor<'config, 'precompiles, S, P>
+{
+	#[inline]
+	fn before_eval(&mut self) {}
+
+	#[inline]
+	fn after_eval(&mut self) {}
+
+	#[inline]
+	fn before_bytecode(
+		&mut self,
+		opcode: Opcode,
+		_pc: usize,
+		machine: &Machine,
+		address: &H160,
+	) -> Result<(), ExitError> {
+		#[cfg(feature = "tracing")]
+		{
+			use evm_runtime::tracing::Event::Step;
+			evm_runtime::tracing::with(|listener| {
+				listener.event(Step {
+					address: *address,
+					opcode,
+					position: &Ok(_pc),
+					stack: machine.stack(),
+					memory: machine.memory(),
+				})
+			});
+		}
+
+		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
+			self.state
+				.metadata_mut()
+				.gasometer
+				.record_cost(cost as u64)?;
+		} else {
+			let is_static = self.state.metadata().is_static;
+			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
+				*address,
+				opcode,
+				machine.stack(),
+				is_static,
+				self.config,
+				self,
+			)?;
+
+			self.state
+				.metadata_mut()
+				.gasometer
+				.record_dynamic_cost(gas_cost, memory_cost)?;
+			match target {
+				StorageTarget::Address(address) => {
+					self.state.metadata_mut().access_address(address)
+				}
+				StorageTarget::Slot(address, key) => {
+					self.state.metadata_mut().access_storage(address, key)
+				}
+				StorageTarget::None => (),
+			}
+		}
+		Ok(())
+	}
+
+	#[inline]
+	fn after_bytecode(
+		&mut self,
+		_result: &Result<(), Capture<ExitReason, Trap>>,
+		_machine: &Machine,
+	) {
+		#[cfg(feature = "tracing")]
+		{
+			use evm_runtime::tracing::Event::StepResult;
+			evm_runtime::tracing::with(|listener| {
+				listener.event(StepResult {
+					result: _result,
+					return_value: _machine.return_value().as_slice(),
+				})
+			});
 		}
 	}
 }
@@ -1155,9 +1260,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn gas_price(&self) -> U256 {
 		self.state.gas_price()
 	}
+
 	fn origin(&self) -> H160 {
 		self.state.origin()
 	}
+
 	fn block_hash(&self, number: U256) -> H256 {
 		self.state.block_hash(number)
 	}
@@ -1185,7 +1292,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn chain_id(&self) -> U256 {
 		self.state.chain_id()
 	}
-
 	fn deleted(&self, address: H160) -> bool {
 		self.state.deleted(address)
 	}
@@ -1312,48 +1418,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		capture
 	}
 
-	#[inline]
-	fn pre_validate(
-		&mut self,
-		context: &Context,
-		opcode: Opcode,
-		stack: &Stack,
-	) -> Result<(), ExitError> {
-		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
-
-		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
-			self.state.metadata_mut().gasometer.record_cost(cost)?;
-		} else {
-			let is_static = self.state.metadata().is_static;
-			let (gas_cost, target, memory_cost) = gasometer::dynamic_opcode_cost(
-				context.address,
-				opcode,
-				stack,
-				is_static,
-				self.config,
-				self,
-			)?;
-
-			let gasometer = &mut self.state.metadata_mut().gasometer;
-			gasometer.record_dynamic_cost(gas_cost, memory_cost)?;
-
-			self.state
-				.record_external_dynamic_opcode_cost(opcode, gas_cost, target)?;
-
-			match target {
-				StorageTarget::Address(address) => {
-					self.state.metadata_mut().access_address(address)
-				}
-				StorageTarget::Slot(address, key) => {
-					self.state.metadata_mut().access_storage(address, key)
-				}
-				StorageTarget::None => (),
-			}
-		}
-
-		Ok(())
-	}
-
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError> {
 		self.state.record_external_operation(op)
 	}
@@ -1391,19 +1455,17 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			Err(err) => return (ExitReason::Error(err), Vec::new()),
 		};
 
-		let target_exists = self.executor.exists(code_address);
-
 		let gas_cost = crate::gasometer::GasCost::Call {
 			value: transfer.clone().map(|x| x.value).unwrap_or_else(U256::zero),
 			gas: U256::from(gas_limit.unwrap_or(u64::MAX)),
 			target_is_cold,
-			target_exists,
+			target_exists: self.executor.exists(code_address),
 		};
 
 		// We record the length of the input.
 		let memory_cost = Some(crate::gasometer::MemoryCost {
-			offset: U256::zero(),
-			len: input.len().into(),
+			offset: 0,
+			len: input.len(),
 		});
 
 		if let Err(error) = self

@@ -1,4 +1,4 @@
-//! EVM gasometer.
+//! VM gasometer.
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables)]
@@ -64,6 +64,18 @@ pub struct Snapshot {
 	pub refunded_gas: i64,
 }
 
+#[cfg(feature = "tracing")]
+impl Snapshot {
+	fn new<'config>(gas_limit: u64, inner: &'config Inner<'config>) -> Snapshot {
+		Snapshot {
+			gas_limit,
+			memory_gas: inner.memory_gas,
+			used_gas: inner.used_gas,
+			refunded_gas: inner.refunded_gas,
+		}
+	}
+}
+
 /// EVM gasometer.
 #[derive(Clone, Debug)]
 pub struct Gasometer<'config> {
@@ -74,7 +86,7 @@ pub struct Gasometer<'config> {
 
 impl<'config> Gasometer<'config> {
 	/// Create a new gasometer with given gas limit and config.
-	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
+	pub const fn new(gas_limit: u64, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			config,
@@ -103,22 +115,27 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Reference of the config.
-	pub fn config(&self) -> &'config Config {
+	pub const fn config(&self) -> &'config Config {
 		self.config
+	}
+
+	#[inline]
+	/// Gas limit.
+	pub const fn gas_limit(&self) -> u64 {
+		self.gas_limit
 	}
 
 	#[inline]
 	/// Remaining gas.
 	pub fn gas(&self) -> u64 {
-		match self.inner.as_ref() {
-			Ok(inner) => self.gas_limit - inner.used_gas - inner.memory_gas,
-			Err(_) => 0,
-		}
+		self.inner.as_ref().map_or(0, |inner| {
+			self.gas_limit - inner.used_gas - inner.memory_gas
+		})
 	}
 
 	#[inline]
 	/// Total used gas.
-	pub fn total_used_gas(&self) -> u64 {
+	pub const fn total_used_gas(&self) -> u64 {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.used_gas + inner.memory_gas,
 			Err(_) => self.gas_limit,
@@ -128,10 +145,7 @@ impl<'config> Gasometer<'config> {
 	#[inline]
 	/// Refunded gas.
 	pub fn refunded_gas(&self) -> i64 {
-		match self.inner.as_ref() {
-			Ok(inner) => inner.refunded_gas,
-			Err(_) => 0,
-		}
+		self.inner.as_ref().map_or(0, |inner| inner.refunded_gas)
 	}
 
 	/// Explicitly fail the gasometer with out of gas. Return `OutOfGas` error.
@@ -175,7 +189,7 @@ impl<'config> Gasometer<'config> {
 	#[inline]
 	/// Record `CREATE` code deposit.
 	pub fn record_deposit(&mut self, len: usize) -> Result<(), ExitError> {
-		let cost = len as u64 * consts::G_CODEDEPOSIT;
+		let cost = len as u64 * (consts::G_CODEDEPOSIT as u64);
 		self.record_cost(cost)
 	}
 
@@ -186,23 +200,33 @@ impl<'config> Gasometer<'config> {
 		memory: Option<MemoryCost>,
 	) -> Result<(), ExitError> {
 		let gas = self.gas();
+		// Extract a mutable reference to `Inner` to avoid checking `Result`
+		// repeatedly. Tuning performance as this function is on the hot path.
+		let inner_mut = match &mut self.inner {
+			Ok(inner) => inner,
+			Err(err) => return Err(err.clone()),
+		};
 
 		let memory_gas = match memory {
-			Some(memory) => try_or_fail!(self.inner, self.inner_mut()?.memory_gas(memory)),
-			None => self.inner_mut()?.memory_gas,
+			Some(memory) => try_or_fail!(self.inner, inner_mut.memory_gas(memory)),
+			None => inner_mut.memory_gas,
 		};
-		let gas_cost = try_or_fail!(self.inner, self.inner_mut()?.gas_cost(cost, gas));
-		let gas_refund = self.inner_mut()?.gas_refund(cost);
-		let used_gas = self.inner_mut()?.used_gas;
+		let gas_cost = try_or_fail!(self.inner, inner_mut.gas_cost(cost, gas));
+		let gas_refund = inner_mut.gas_refund(cost);
+		let used_gas = inner_mut.used_gas;
 
+		#[cfg(feature = "tracing")]
+		let gas_limit = self.gas_limit;
 		event!(RecordDynamicCost {
 			gas_cost,
 			memory_gas,
 			gas_refund,
-			snapshot: self.snapshot(),
+			snapshot: Some(Snapshot::new(gas_limit, inner_mut)),
 		});
 
-		let all_gas_cost = memory_gas + used_gas + gas_cost;
+		let all_gas_cost = memory_gas
+			.checked_add(used_gas.saturating_add(gas_cost))
+			.ok_or(ExitError::OutOfGas)?;
 		if self.gas_limit < all_gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
 			return Err(ExitError::OutOfGas);
@@ -217,11 +241,11 @@ impl<'config> Gasometer<'config> {
 		);
 
 		let after_gas = self.gas_limit - all_gas_cost;
-		try_or_fail!(self.inner, self.inner_mut()?.extra_check(cost, after_gas));
+		try_or_fail!(self.inner, inner_mut.extra_check(cost, after_gas));
 
-		self.inner_mut()?.used_gas += gas_cost;
-		self.inner_mut()?.memory_gas = memory_gas;
-		self.inner_mut()?.refunded_gas += gas_refund;
+		inner_mut.used_gas += gas_cost;
+		inner_mut.memory_gas = memory_gas;
+		inner_mut.refunded_gas += gas_refund;
 
 		Ok(())
 	}
@@ -315,12 +339,10 @@ impl<'config> Gasometer<'config> {
 
 	#[cfg(feature = "tracing")]
 	pub fn snapshot(&self) -> Option<Snapshot> {
-		self.inner.as_ref().ok().map(|inner| Snapshot {
-			gas_limit: self.gas_limit,
-			memory_gas: inner.memory_gas,
-			used_gas: inner.used_gas,
-			refunded_gas: inner.refunded_gas,
-		})
+		self.inner
+			.as_ref()
+			.ok()
+			.map(|inner| Snapshot::new(self.gas_limit, inner))
 	}
 }
 
@@ -356,7 +378,7 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 	}
 }
 
-pub fn init_code_cost(data: &[u8]) -> u64 {
+pub const fn init_code_cost(data: &[u8]) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.
@@ -372,8 +394,8 @@ fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
 }
 
 #[inline]
-pub fn static_opcode_cost(opcode: Opcode) -> Option<u64> {
-	static TABLE: [Option<u64>; 256] = {
+pub fn static_opcode_cost(opcode: Opcode) -> Option<u32> {
+	static TABLE: [Option<u32>; 256] = {
 		let mut table = [None; 256];
 
 		table[Opcode::STOP.as_usize()] = Some(consts::G_ZERO);
@@ -526,14 +548,14 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeSize {
 				target_is_cold: handler.is_cold(target, None)?,
 			}
 		}
 		Opcode::BALANCE => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Balance {
 				target_is_cold: handler.is_cold(target, None)?,
@@ -542,7 +564,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.has_ext_code_hash => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeHash {
 				target_is_cold: handler.is_cold(target, None)?,
@@ -551,11 +573,11 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
 
 		Opcode::CALLCODE => {
-			let target = stack.peek(1)?.into();
+			let target = stack.peek_h256(1)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::CallCode {
-				value: U256::from_big_endian(&stack.peek(2)?[..]),
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				value: stack.peek(2)?,
+				gas: stack.peek(0)?,
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
@@ -564,10 +586,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			}
 		}
 		Opcode::STATICCALL => {
-			let target = stack.peek(1)?.into();
+			let target = stack.peek_h256(1)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::StaticCall {
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				gas: stack.peek(0)?,
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
@@ -576,24 +598,24 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			}
 		}
 		Opcode::SHA3 => GasCost::Sha3 {
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::EXTCODECOPY => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeCopy {
 				target_is_cold: handler.is_cold(target, None)?,
-				len: U256::from_big_endian(&stack.peek(3)?[..]),
+				len: stack.peek(3)?,
 			}
 		}
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::EXP => GasCost::Exp {
-			power: U256::from_big_endian(&stack.peek(1)?[..]),
+			power: stack.peek(1)?,
 		},
 		Opcode::SLOAD => {
-			let index = stack.peek(0)?;
+			let index = stack.peek_h256(0)?;
 			storage_target = StorageTarget::Slot(address, index);
 			GasCost::SLoad {
 				target_is_cold: handler.is_cold(address, Some(index))?,
@@ -601,10 +623,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		}
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
-			let target = stack.peek(1)?.into();
+			let target = stack.peek_h256(1)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::DelegateCall {
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				gas: stack.peek(0)?,
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
@@ -616,13 +638,13 @@ pub fn dynamic_opcode_cost<H: Handler>(
 
 		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
 		Opcode::RETURNDATACOPY if config.has_return_data => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode),
 
 		Opcode::SSTORE if !is_static => {
-			let index = stack.peek(0)?;
-			let value = stack.peek(1)?;
+			let index = stack.peek_h256(0)?;
+			let value = stack.peek_h256(1)?;
 			storage_target = StorageTarget::Slot(address, index);
 
 			GasCost::SStore {
@@ -634,30 +656,30 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		}
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG1 if !is_static => GasCost::Log {
 			n: 1,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG2 if !is_static => GasCost::Log {
 			n: 2,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG3 if !is_static => GasCost::Log {
 			n: 3,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG4 if !is_static => GasCost::Log {
 			n: 4,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::CREATE if !is_static => GasCost::Create,
 		Opcode::CREATE2 if !is_static && config.has_create2 => GasCost::Create2 {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::SUICIDE if !is_static => {
-			let target = stack.peek(0)?.into();
+			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Suicide {
 				value: handler.balance(address),
@@ -669,15 +691,12 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				already_removed: handler.deleted(address),
 			}
 		}
-		Opcode::CALL
-			if !is_static
-				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
-		{
-			let target = stack.peek(1)?.into();
+		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::zero()) => {
+			let target = stack.peek_h256(1)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Call {
-				value: U256::from_big_endian(&stack.peek(2)?[..]),
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				value: stack.peek(2)?,
+				gas: stack.peek(0)?,
 				target_is_cold: handler.is_cold(target, None)?,
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
@@ -699,62 +718,56 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		| Opcode::LOG1
 		| Opcode::LOG2
 		| Opcode::LOG3
-		| Opcode::LOG4 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
-		}),
+		| Opcode::LOG4 => Some(peek_memory_cost(stack, 0, 1)?),
 
-		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
-		}),
+		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => {
+			Some(peek_memory_cost(stack, 0, 2)?)
+		}
 
-		Opcode::EXTCODECOPY => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(1)?[..]),
-			len: U256::from_big_endian(&stack.peek(3)?[..]),
-		}),
+		Opcode::EXTCODECOPY => Some(peek_memory_cost(stack, 1, 3)?),
 
 		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from(32),
+			offset: stack.peek_usize(0)?,
+			len: 32,
 		}),
 
 		Opcode::MSTORE8 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from(1),
+			offset: stack.peek_usize(0)?,
+			len: 1,
 		}),
 
-		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(1)?[..]),
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
-		}),
+		Opcode::CREATE | Opcode::CREATE2 => Some(peek_memory_cost(stack, 1, 2)?),
 
-		Opcode::CALL | Opcode::CALLCODE => Some(
-			MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(3)?[..]),
-				len: U256::from_big_endian(&stack.peek(4)?[..]),
-			}
-			.join(MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(5)?[..]),
-				len: U256::from_big_endian(&stack.peek(6)?[..]),
-			}),
-		),
+		Opcode::CALL | Opcode::CALLCODE => {
+			Some(peek_memory_cost(stack, 3, 4)?.join(peek_memory_cost(stack, 5, 6)?))
+		}
 
-		Opcode::DELEGATECALL | Opcode::STATICCALL => Some(
-			MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(2)?[..]),
-				len: U256::from_big_endian(&stack.peek(3)?[..]),
-			}
-			.join(MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(4)?[..]),
-				len: U256::from_big_endian(&stack.peek(5)?[..]),
-			}),
-		),
+		Opcode::DELEGATECALL | Opcode::STATICCALL => {
+			Some(peek_memory_cost(stack, 2, 3)?.join(peek_memory_cost(stack, 4, 5)?))
+		}
 
 		_ => None,
 	};
 
 	Ok((gas_cost, storage_target, memory_cost))
+}
+
+fn peek_memory_cost(
+	stack: &Stack,
+	offset_index: usize,
+	len_index: usize,
+) -> Result<MemoryCost, ExitError> {
+	let len = stack.peek_usize(len_index)?;
+
+	if len == 0 {
+		return Ok(MemoryCost {
+			offset: usize::MAX,
+			len,
+		});
+	}
+
+	let offset = stack.peek_usize(offset_index)?;
+	Ok(MemoryCost { offset, len })
 }
 
 /// Holds the gas consumption for a Gasometer instance.
@@ -771,16 +784,11 @@ impl<'config> Inner<'config> {
 		let from = memory.offset;
 		let len = memory.len;
 
-		if len == U256::zero() {
+		if len == 0 {
 			return Ok(self.memory_gas);
 		}
 
 		let end = from.checked_add(len).ok_or(ExitError::OutOfGas)?;
-
-		if end > U256::from(usize::MAX) {
-			return Err(ExitError::OutOfGas);
-		}
-		let end = end.as_usize();
 
 		let rem = end % 32;
 		let new = if rem == 0 { end / 32 } else { end / 32 + 1 };
@@ -871,14 +879,14 @@ impl<'config> Inner<'config> {
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
-			GasCost::Create => consts::G_CREATE,
+			GasCost::Create => consts::G_CREATE as u64,
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
 			GasCost::SLoad { target_is_cold } => costs::sload_cost(target_is_cold, self.config),
 
-			GasCost::Zero => consts::G_ZERO,
-			GasCost::Base => consts::G_BASE,
-			GasCost::VeryLow => consts::G_VERYLOW,
-			GasCost::Low => consts::G_LOW,
+			GasCost::Zero => consts::G_ZERO as u64,
+			GasCost::Base => consts::G_BASE as u64,
+			GasCost::VeryLow => consts::G_VERYLOW as u64,
+			GasCost::Low => consts::G_LOW as u64,
 			GasCost::Invalid(opcode) => return Err(ExitError::InvalidCode(opcode)),
 
 			GasCost::ExtCodeSize { target_is_cold } => {
@@ -891,7 +899,7 @@ impl<'config> Inner<'config> {
 			GasCost::Balance { target_is_cold } => {
 				costs::address_access_cost(target_is_cold, self.config.gas_balance, self.config)
 			}
-			GasCost::BlockHash => consts::G_BLOCKHASH,
+			GasCost::BlockHash => consts::G_BLOCKHASH as u64,
 			GasCost::ExtCodeHash { target_is_cold } => costs::address_access_cost(
 				target_is_cold,
 				self.config.gas_ext_code_hash,
@@ -1070,9 +1078,9 @@ pub enum StorageTarget {
 #[derive(Debug, Clone, Copy)]
 pub struct MemoryCost {
 	/// Affected memory offset.
-	pub offset: U256,
+	pub offset: usize,
 	/// Affected length.
-	pub len: U256,
+	pub len: usize,
 }
 
 /// Transaction cost.
@@ -1106,12 +1114,12 @@ pub enum TransactionCost {
 
 impl MemoryCost {
 	/// Join two memory cost together.
-	pub fn join(self, other: MemoryCost) -> MemoryCost {
-		if self.len == U256::zero() {
+	pub const fn join(self, other: Self) -> Self {
+		if self.len == 0 {
 			return other;
 		}
 
-		if other.len == U256::zero() {
+		if other.len == 0 {
 			return self;
 		}
 

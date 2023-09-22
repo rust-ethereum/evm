@@ -1,6 +1,6 @@
 //! Allows to listen to runtime events.
 
-use crate::{Capture, Context, ExitReason, Memory, Opcode, Stack, Trap};
+use crate::{Capture, ExitReason, Memory, Opcode, Stack, Trap};
 use primitive_types::{H160, H256};
 
 environmental::environmental!(listener: dyn EventListener + 'static);
@@ -12,7 +12,7 @@ pub trait EventListener {
 #[derive(Debug, Copy, Clone)]
 pub enum Event<'a> {
 	Step {
-		context: &'a Context,
+		address: H160,
 		opcode: Opcode,
 		position: &'a Result<usize, ExitReason>,
 		stack: &'a Stack,
@@ -34,8 +34,8 @@ pub enum Event<'a> {
 	},
 }
 
-// Expose `listener::with` to the crate only.
-pub(crate) fn with<F: FnOnce(&mut (dyn EventListener + 'static))>(f: F) {
+// Expose `listener::with` to allow flexible tracing.
+pub fn with<F: FnOnce(&mut (dyn EventListener + 'static))>(f: F) {
 	listener::with(f);
 }
 

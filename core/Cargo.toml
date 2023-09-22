@@ -38,3 +38,4 @@ with-serde = [
 force-debug = [
 	"log",
 ]
+tracing = []

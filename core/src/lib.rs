@@ -26,7 +26,7 @@ use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::ops::Range;
-use primitive_types::U256;
+use primitive_types::{H160, U256};
 
 /// Core execution layer for EVM.
 pub struct Machine {
@@ -46,9 +46,28 @@ pub struct Machine {
 	stack: Stack,
 }
 
+/// EVM interpreter handler.
+pub trait InterpreterHandler {
+	fn before_eval(&mut self);
+
+	fn after_eval(&mut self);
+
+	fn before_bytecode(
+		&mut self,
+		opcode: Opcode,
+		pc: usize,
+		machine: &Machine,
+		address: &H160,
+	) -> Result<(), ExitError>;
+
+	// Only invoked if #[cfg(feature = "tracing")]
+	fn after_bytecode(&mut self, result: &Result<(), Capture<ExitReason, Trap>>, machine: &Machine);
+}
+
 impl Machine {
 	/// Reference of machine stack.
-	pub fn stack(&self) -> &Stack {
+	#[must_use]
+	pub const fn stack(&self) -> &Stack {
 		&self.stack
 	}
 	/// Mutable reference of machine stack.
@@ -56,7 +75,8 @@ impl Machine {
 		&mut self.stack
 	}
 	/// Reference of machine memory.
-	pub fn memory(&self) -> &Memory {
+	#[must_use]
+	pub const fn memory(&self) -> &Memory {
 		&self.memory
 	}
 	/// Mutable reference of machine memory.
@@ -64,11 +84,12 @@ impl Machine {
 		&mut self.memory
 	}
 	/// Return a reference of the program counter.
-	pub fn position(&self) -> &Result<usize, ExitReason> {
+	pub const fn position(&self) -> &Result<usize, ExitReason> {
 		&self.position
 	}
 
 	/// Create a new machine with given code and data.
+	#[must_use]
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
@@ -94,23 +115,19 @@ impl Machine {
 	}
 
 	/// Inspect the machine's next opcode and current stack.
+	#[must_use]
 	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
-		let position = match self.position {
-			Ok(position) => position,
-			Err(_) => return None,
+		let Ok(position) = self.position else {
+			return None;
 		};
 		self.code.get(position).map(|v| (Opcode(*v), &self.stack))
 	}
 
 	/// Copy and get the return value of the machine, if any.
+	#[must_use]
 	pub fn return_value(&self) -> Vec<u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
-			let mut ret = Vec::new();
-			ret.resize(
-				(self.return_range.end - self.return_range.start).as_usize(),
-				0,
-			);
-			ret
+			vec![0; (self.return_range.end - self.return_range.start).as_usize()]
 		} else if self.return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.memory.get(
 				self.return_range.start.as_usize(),
@@ -130,8 +147,10 @@ impl Machine {
 
 	/// Loop stepping the machine, until it stops.
 	pub fn run(&mut self) -> Capture<ExitReason, Trap> {
+		let mut handler = SimpleInterpreterHandler::default();
+		let address = H160::default();
 		loop {
-			match self.step() {
+			match self.step(&mut handler, &address) {
 				Ok(()) => (),
 				Err(res) => return res,
 			}
@@ -139,39 +158,77 @@ impl Machine {
 	}
 
 	#[inline]
-	/// Step the machine, executing one opcode. It then returns.
-	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
+	/// Step the machine, executing until exit or trap.
+	pub fn step<H: InterpreterHandler>(
+		&mut self,
+		handler: &mut H,
+		address: &H160,
+	) -> Result<(), Capture<ExitReason, Trap>> {
 		let position = *self
 			.position
 			.as_ref()
 			.map_err(|reason| Capture::Exit(reason.clone()))?;
-
-		match self.code.get(position).map(|v| Opcode(*v)) {
-			Some(opcode) => match eval(self, opcode, position) {
-				Control::Continue(p) => {
-					self.position = Ok(position + p);
-					Ok(())
-				}
-				Control::Exit(e) => {
-					self.position = Err(e.clone());
-					Err(Capture::Exit(e))
-				}
-				Control::Jump(p) => {
-					self.position = Ok(p);
-					Ok(())
-				}
-				Control::Trap(opcode) => {
-					#[cfg(feature = "force-debug")]
-					log::trace!(target: "evm", "OpCode Trap: {:?}", opcode);
-
-					self.position = Ok(position + 1);
-					Err(Capture::Trap(opcode))
-				}
-			},
-			None => {
-				self.position = Err(ExitSucceed::Stopped.into());
-				Err(Capture::Exit(ExitSucceed::Stopped.into()))
+		match eval(self, position, handler, address) {
+			Control::Exit(e) => {
+				self.position = Err(e.clone());
+				Err(Capture::Exit(e))
 			}
+			Control::Trap(opcode) => Err(Capture::Trap(opcode)),
+			Control::Continue(_) | Control::Jump(_) => Ok(()),
 		}
+	}
+}
+
+pub struct SimpleInterpreterHandler {
+	pub executed: u64,
+	pub profile: [u64; 256],
+	pub address: H160,
+}
+
+impl SimpleInterpreterHandler {
+	#[must_use]
+	pub const fn new(address: H160) -> Self {
+		Self {
+			executed: 0,
+			profile: [0; 256],
+			address,
+		}
+	}
+}
+
+impl Default for SimpleInterpreterHandler {
+	fn default() -> Self {
+		Self {
+			executed: 0,
+			profile: [0; 256],
+			address: H160::default(),
+		}
+	}
+}
+
+impl InterpreterHandler for SimpleInterpreterHandler {
+	fn before_eval(&mut self) {}
+
+	fn after_eval(&mut self) {}
+
+	#[inline]
+	fn before_bytecode(
+		&mut self,
+		opcode: Opcode,
+		_pc: usize,
+		_machine: &Machine,
+		_address: &H160,
+	) -> Result<(), ExitError> {
+		self.executed += 1;
+		self.profile[opcode.as_usize()] += 1;
+		Ok(())
+	}
+
+	#[inline]
+	fn after_bytecode(
+		&mut self,
+		_result: &Result<(), Capture<ExitReason, Trap>>,
+		_machine: &Machine,
+	) {
 	}
 }
