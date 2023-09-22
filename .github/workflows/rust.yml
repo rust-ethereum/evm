@@ -23,6 +23,8 @@ jobs:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
+    - name: Build NoStd
+      run: cargo build --no-default-features --verbose
     - name: Build for feature (tracing)
       run: cargo build --features tracing --verbose
     - name: Run tests
