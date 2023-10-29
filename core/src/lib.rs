@@ -21,15 +21,31 @@ pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
+pub use crate::eval::{Etable, Efn, Control};
 
-use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::ops::Range;
 use primitive_types::U256;
 
+pub trait State: 'static + Sized {
+	/// Etable of the state.
+	fn etable() -> &'static Etable<Self>;
+}
+
+static CORE_ETABLE: Etable<()> = {
+	Etable::<()>::core()
+};
+
+impl State for () {
+	#[inline]
+	fn etable() -> &'static Etable<Self> {
+		&CORE_ETABLE
+	}
+}
+
 /// Core execution layer for EVM.
-pub struct Machine {
+pub struct Machine<S = ()> {
 	/// Program data.
 	data: Rc<Vec<u8>>,
 	/// Program code.
@@ -41,28 +57,14 @@ pub struct Machine {
 	/// Code validity maps.
 	valids: Valids,
 	/// Memory.
-	memory: Memory,
+	pub memory: Memory,
 	/// Stack.
-	stack: Stack,
+	pub stack: Stack,
+	/// Extra state,
+	pub state: S,
 }
 
-impl Machine {
-	/// Reference of machine stack.
-	pub fn stack(&self) -> &Stack {
-		&self.stack
-	}
-	/// Mutable reference of machine stack.
-	pub fn stack_mut(&mut self) -> &mut Stack {
-		&mut self.stack
-	}
-	/// Reference of machine memory.
-	pub fn memory(&self) -> &Memory {
-		&self.memory
-	}
-	/// Mutable reference of machine memory.
-	pub fn memory_mut(&mut self) -> &mut Memory {
-		&mut self.memory
-	}
+impl<S: State> Machine<S> {
 	/// Return a reference of the program counter.
 	pub fn position(&self) -> &Result<usize, ExitReason> {
 		&self.position
@@ -74,6 +76,7 @@ impl Machine {
 		data: Rc<Vec<u8>>,
 		stack_limit: usize,
 		memory_limit: usize,
+		state: S,
 	) -> Self {
 		let valids = Valids::new(&code[..]);
 
@@ -85,6 +88,7 @@ impl Machine {
 			valids,
 			memory: Memory::new(memory_limit),
 			stack: Stack::new(stack_limit),
+			state,
 		}
 	}
 
@@ -147,7 +151,7 @@ impl Machine {
 			.map_err(|reason| Capture::Exit(reason.clone()))?;
 
 		match self.code.get(position).map(|v| Opcode(*v)) {
-			Some(opcode) => match eval(self, opcode, position) {
+			Some(opcode) => match S::etable()[opcode.as_usize()](self, opcode, position) {
 				Control::Continue(p) => {
 					self.position = Ok(position + p);
 					Ok(())
