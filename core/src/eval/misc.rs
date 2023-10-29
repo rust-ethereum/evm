@@ -213,7 +213,7 @@ pub fn ret<S>(state: &mut Machine<S>) -> Control {
 	trace_op!("Return");
 	pop_u256!(state, start, len);
 	try_or_fail!(state.memory.resize_offset(start, len));
-	state.return_range = start..(start + len);
+	state.memory.resize_to_range(start..(start + len));
 	Control::Exit(ExitSucceed::Returned.into())
 }
 
@@ -222,6 +222,6 @@ pub fn revert<S>(state: &mut Machine<S>) -> Control {
 	trace_op!("Revert");
 	pop_u256!(state, start, len);
 	try_or_fail!(state.memory.resize_offset(start, len));
-	state.return_range = start..(start + len);
+	state.memory.resize_to_range(start..(start + len));
 	Control::Exit(ExitRevert::Reverted.into())
 }
