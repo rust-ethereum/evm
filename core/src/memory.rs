@@ -1,7 +1,7 @@
 use crate::{ExitError, ExitFatal};
 use alloc::vec::Vec;
 use core::cmp::min;
-use core::ops::{BitAnd, Not};
+use core::ops::{BitAnd, Not, Range};
 use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
@@ -48,6 +48,11 @@ impl Memory {
 		&self.data
 	}
 
+	/// Into the full data.
+	pub fn into_data(self) -> Vec<u8> {
+		self.data
+	}
+
 	/// Resize the memory, making it cover the memory region of `offset..(offset
 	/// + len)`, with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
@@ -71,6 +76,31 @@ impl Memory {
 		}
 
 		Ok(())
+	}
+
+	/// Resize to range. Used for return value.
+	pub fn resize_to_range(&mut self, return_range: Range<U256>) {
+		let ret = if return_range.start > U256::from(usize::MAX) {
+			let mut ret = Vec::new();
+			ret.resize((return_range.end - return_range.start).as_usize(), 0);
+			ret
+		} else if return_range.end > U256::from(usize::MAX) {
+			let mut ret = self.get(
+				return_range.start.as_usize(),
+				usize::MAX - return_range.start.as_usize(),
+			);
+			while ret.len() < (return_range.end - return_range.start).as_usize() {
+				ret.push(0);
+			}
+			ret
+		} else {
+			self.get(
+				return_range.start.as_usize(),
+				(return_range.end - return_range.start).as_usize(),
+			)
+		};
+		self.data = ret;
+		self.effective_len = return_range.end - return_range.start;
 	}
 
 	/// Get memory region at given offset.

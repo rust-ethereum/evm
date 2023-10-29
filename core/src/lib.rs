@@ -16,26 +16,22 @@ mod utils;
 mod valids;
 
 pub use crate::error::{Capture, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Trap};
+pub use crate::eval::{Control, Efn, Etable};
 pub use crate::external::ExternalOperation;
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
-pub use crate::eval::{Etable, Efn, Control};
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use core::ops::Range;
-use primitive_types::U256;
 
 pub trait State: 'static + Sized {
 	/// Etable of the state.
 	fn etable() -> &'static Etable<Self>;
 }
 
-static CORE_ETABLE: Etable<()> = {
-	Etable::<()>::core()
-};
+static CORE_ETABLE: Etable<()> = Etable::<()>::core();
 
 impl State for () {
 	#[inline]
@@ -51,9 +47,7 @@ pub struct Machine<S = ()> {
 	/// Program code.
 	code: Rc<Vec<u8>>,
 	/// Program counter.
-	position: Result<usize, ExitReason>,
-	/// Return value.
-	return_range: Range<U256>,
+	position: usize,
 	/// Code validity maps.
 	valids: Valids,
 	/// Memory.
@@ -66,8 +60,8 @@ pub struct Machine<S = ()> {
 
 impl<S: State> Machine<S> {
 	/// Return a reference of the program counter.
-	pub fn position(&self) -> &Result<usize, ExitReason> {
-		&self.position
+	pub fn position(&self) -> usize {
+		self.position
 	}
 
 	/// Create a new machine with given code and data.
@@ -83,8 +77,7 @@ impl<S: State> Machine<S> {
 		Self {
 			data,
 			code,
-			position: Ok(0),
-			return_range: U256::zero()..U256::zero(),
+			position: 0,
 			valids,
 			memory: Memory::new(memory_limit),
 			stack: Stack::new(stack_limit),
@@ -93,43 +86,15 @@ impl<S: State> Machine<S> {
 	}
 
 	/// Explicit exit of the machine. Further step will return error.
-	pub fn exit(&mut self, reason: ExitReason) {
-		self.position = Err(reason);
+	pub fn exit(&mut self) {
+		self.position = self.code.len();
 	}
 
 	/// Inspect the machine's next opcode and current stack.
 	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
-		let position = match self.position {
-			Ok(position) => position,
-			Err(_) => return None,
-		};
-		self.code.get(position).map(|v| (Opcode(*v), &self.stack))
-	}
-
-	/// Copy and get the return value of the machine, if any.
-	pub fn return_value(&self) -> Vec<u8> {
-		if self.return_range.start > U256::from(usize::MAX) {
-			let mut ret = Vec::new();
-			ret.resize(
-				(self.return_range.end - self.return_range.start).as_usize(),
-				0,
-			);
-			ret
-		} else if self.return_range.end > U256::from(usize::MAX) {
-			let mut ret = self.memory.get(
-				self.return_range.start.as_usize(),
-				usize::MAX - self.return_range.start.as_usize(),
-			);
-			while ret.len() < (self.return_range.end - self.return_range.start).as_usize() {
-				ret.push(0);
-			}
-			ret
-		} else {
-			self.memory.get(
-				self.return_range.start.as_usize(),
-				(self.return_range.end - self.return_range.start).as_usize(),
-			)
-		}
+		self.code
+			.get(self.position)
+			.map(|v| (Opcode(*v), &self.stack))
 	}
 
 	/// Loop stepping the machine, until it stops.
@@ -145,36 +110,33 @@ impl<S: State> Machine<S> {
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
 	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
-		let position = *self
-			.position
-			.as_ref()
-			.map_err(|reason| Capture::Exit(reason.clone()))?;
+		let position = self.position;
+		if position >= self.code.len() {
+			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
+		}
 
-		match self.code.get(position).map(|v| Opcode(*v)) {
-			Some(opcode) => match S::etable()[opcode.as_usize()](self, opcode, position) {
-				Control::Continue(p) => {
-					self.position = Ok(position + p);
-					Ok(())
-				}
-				Control::Exit(e) => {
-					self.position = Err(e.clone());
-					Err(Capture::Exit(e))
-				}
-				Control::Jump(p) => {
-					self.position = Ok(p);
-					Ok(())
-				}
-				Control::Trap(opcode) => {
-					#[cfg(feature = "force-debug")]
-					log::trace!(target: "evm", "OpCode Trap: {:?}", opcode);
+		let opcode = Opcode(self.code[position]);
+		let control = S::etable()[opcode.as_usize()](self, opcode, self.position);
 
-					self.position = Ok(position + 1);
-					Err(Capture::Trap(opcode))
-				}
-			},
-			None => {
-				self.position = Err(ExitSucceed::Stopped.into());
-				Err(Capture::Exit(ExitSucceed::Stopped.into()))
+		match control {
+			Control::Continue(p) => {
+				self.position = position + p;
+				Ok(())
+			}
+			Control::Exit(e) => {
+				self.position = self.code.len();
+				Err(Capture::Exit(e))
+			}
+			Control::Jump(p) => {
+				self.position = p;
+				Ok(())
+			}
+			Control::Trap(opcode) => {
+				#[cfg(feature = "force-debug")]
+				log::trace!(target: "evm", "OpCode Trap: {:?}", opcode);
+
+				self.position = position + 1;
+				Err(Capture::Trap(opcode))
 			}
 		}
 	}
