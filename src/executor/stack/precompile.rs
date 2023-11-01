@@ -61,26 +61,29 @@ pub trait PrecompileHandle {
 	/// Refund Substrate specific cost.
 	fn refund_external_cost(&mut self, ref_time: Option<u64>, proof_size: Option<u64>);
 
-	/// Retreive the remaining gas.
+	/// Retrieve the remaining gas.
 	fn remaining_gas(&self) -> u64;
 
 	/// Record a log.
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 
-	/// Retreive the code address (what is the address of the precompile being called).
+	/// Retrieve the code address (what is the address of the precompile being called).
 	fn code_address(&self) -> H160;
 
-	/// Retreive the input data the precompile is called with.
+	/// Retrieve the input data the precompile is called with.
 	fn input(&self) -> &[u8];
 
-	/// Retreive the context in which the precompile is executed.
+	/// Retrieve the context in which the precompile is executed.
 	fn context(&self) -> &Context;
 
 	/// Is the precompile call is done statically.
 	fn is_static(&self) -> bool;
 
-	/// Retreive the gas limit of this call.
+	/// Retrieve the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64>;
+
+	/// Retrieve the gas used.
+	fn used_gas(&self) -> u64;
 }
 
 /// A set of precompiles.

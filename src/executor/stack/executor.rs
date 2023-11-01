@@ -872,6 +872,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		let target_gas = target_gas.unwrap_or(after_gas);
 		let mut gas_limit = min(target_gas, after_gas);
+		// Record the gas used so far to propagate into the precompile.
+		let parent_gas_used = self.used_gas();
 
 		try_or_fail!(self.state.metadata_mut().gasometer.record_cost(gas_limit));
 
@@ -925,6 +927,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit: Some(gas_limit),
 			context: &context,
 			is_static: precompile_is_static,
+			parent_gas_used,
 		}) {
 			return match result {
 				Ok(PrecompileOutput {
@@ -1366,6 +1369,7 @@ struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
 	gas_limit: Option<u64>,
 	context: &'inner Context,
 	is_static: bool,
+	parent_gas_used: u64,
 }
 
 impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
@@ -1479,7 +1483,7 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 			.refund_external_cost(ref_time, proof_size);
 	}
 
-	/// Retreive the remaining gas.
+	/// Retrieve the remaining gas.
 	fn remaining_gas(&self) -> u64 {
 		self.executor.state.metadata().gasometer.gas()
 	}
@@ -1489,17 +1493,17 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		Handler::log(self.executor, address, topics, data)
 	}
 
-	/// Retreive the code address (what is the address of the precompile being called).
+	/// Retrieve the code address (what is the address of the precompile being called).
 	fn code_address(&self) -> H160 {
 		self.code_address
 	}
 
-	/// Retreive the input data the precompile is called with.
+	/// Retrieve the input data the precompile is called with.
 	fn input(&self) -> &[u8] {
 		self.input
 	}
 
-	/// Retreive the context in which the precompile is executed.
+	/// Retrieve the context in which the precompile is executed.
 	fn context(&self) -> &Context {
 		self.context
 	}
@@ -1509,8 +1513,13 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 		self.is_static
 	}
 
-	/// Retreive the gas limit of this call.
+	/// Retrieve the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
+	}
+
+	// Retrieve the used gas.
+	fn used_gas(&self) -> u64 {
+		self.executor.used_gas() + self.parent_gas_used
 	}
 }
