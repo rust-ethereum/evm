@@ -1,6 +1,6 @@
 [package]
-name = "evm-core"
-version = "0.40.0"
+name = "evm-interpreter"
+version = "0.2.0-dev"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
@@ -14,6 +14,7 @@ primitive-types = { version = "0.12", default-features = false }
 scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+bytes = { version = "1.5", default-features = false }
 
 [dev-dependencies]
 hex = "0.4"
@@ -25,6 +26,7 @@ std = [
 	"serde/std",
 	"scale-codec/std",
 	"scale-info/std",
+	"bytes/std",
 ]
 with-codec = [
 	"scale-codec",
