@@ -1,5 +1,5 @@
 [package]
-name = "evm-intepreter"
+name = "evm-interpreter"
 version = "0.2.0-dev"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]

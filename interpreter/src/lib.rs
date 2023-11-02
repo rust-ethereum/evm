@@ -1,7 +1,7 @@
 //! Core layer for EVM.
 
-#![deny(warnings)]
-#![forbid(unsafe_code, unused_variables, unused_imports)]
+// #![deny(warnings)]
+// #![forbid(unsafe_code, unused_variables, unused_imports)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -26,22 +26,8 @@ pub use crate::valids::Valids;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 
-pub trait State: 'static + Sized {
-	/// Etable of the state.
-	fn etable() -> &'static Etable<Self>;
-}
-
-static CORE_ETABLE: Etable<()> = Etable::<()>::core();
-
-impl State for () {
-	#[inline]
-	fn etable() -> &'static Etable<Self> {
-		&CORE_ETABLE
-	}
-}
-
 /// Core execution layer for EVM.
-pub struct Machine<S = ()> {
+pub struct Machine<S> {
 	/// Program data.
 	data: Rc<Vec<u8>>,
 	/// Program code.
@@ -58,7 +44,7 @@ pub struct Machine<S = ()> {
 	pub state: S,
 }
 
-impl<S: State> Machine<S> {
+impl<S> Machine<S> {
 	/// Return a reference of the program counter.
 	pub fn position(&self) -> usize {
 		self.position
@@ -98,9 +84,9 @@ impl<S: State> Machine<S> {
 	}
 
 	/// Loop stepping the machine, until it stops.
-	pub fn run(&mut self) -> Capture<ExitReason, Trap> {
+	pub fn run<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Capture<ExitReason, Trap> {
 		loop {
-			match self.step() {
+			match self.step(handle, etable) {
 				Ok(()) => (),
 				Err(res) => return res,
 			}
@@ -109,14 +95,14 @@ impl<S: State> Machine<S> {
 
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
-	pub fn step(&mut self) -> Result<(), Capture<ExitReason, Trap>> {
+	pub fn step<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Result<(), Capture<ExitReason, Trap>> {
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
 		}
 
 		let opcode = Opcode(self.code[position]);
-		let control = S::etable()[opcode.as_usize()](self, opcode, self.position);
+		let control = etable[opcode.as_usize()](self, handle, opcode, self.position);
 
 		match control {
 			Control::Continue(p) => {
