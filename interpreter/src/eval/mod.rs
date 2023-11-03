@@ -188,6 +188,13 @@ impl<H: Handler> Etable<RuntimeState, H> {
 		table.0[Opcode::CHAINID.as_usize()] = eval_chainid as _;
 		table.0[Opcode::BASEFEE.as_usize()] = eval_basefee as _;
 
+		table.0[Opcode::CREATE.as_usize()] = eval_trap as _;
+		table.0[Opcode::CREATE2.as_usize()] = eval_trap as _;
+		table.0[Opcode::CALL.as_usize()] = eval_trap as _;
+		table.0[Opcode::CALLCODE.as_usize()] = eval_trap as _;
+		table.0[Opcode::DELEGATECALL.as_usize()] = eval_trap as _;
+		table.0[Opcode::STATICCALL.as_usize()] = eval_trap as _;
+
 		table
 	}
 }
@@ -1451,4 +1458,13 @@ fn eval_basefee<H: Handler>(
 	_position: usize,
 ) -> Control {
 	self::system::basefee(machine, handle)
+}
+
+fn eval_trap<S, H>(
+	_machine: &mut Machine<S>,
+	_handle: &mut H,
+	opcode: Opcode,
+	_position: usize,
+) -> Control {
+	Control::Trap(opcode)
 }
