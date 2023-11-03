@@ -67,7 +67,6 @@ tracing = [
 	"evm-gasometer/tracing",
 ]
 force-debug = [
-	"evm-interpreter/force-debug",
 	"evm-gasometer/force-debug",
 ]
 

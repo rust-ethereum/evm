@@ -39,4 +39,3 @@ with-serde = [
 	"serde",
 	"primitive-types/impl-serde",
 ]
-force-debug = []
