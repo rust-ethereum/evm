@@ -1,13 +1,3 @@
-#[cfg(feature = "force-debug")]
-macro_rules! trace_op {
-	($($arg:tt)*) => (log::trace!(target: "evm", "OpCode {}", format_args!($($arg)*)));
-}
-
-#[cfg(not(feature = "force-debug"))]
-macro_rules! trace_op {
-	($($arg:tt)*) => {};
-}
-
 macro_rules! try_or_fail {
 	( $e:expr ) => {
 		match $e {
@@ -68,7 +58,6 @@ macro_rules! op1_u256_fn {
 		pop_u256!($machine, op1);
 		let ret = $op(op1);
 		push_u256!($machine, ret);
-		trace_op!("{} {}: {}", stringify!($op), op1, ret);
 
 		Control::Continue
 	}};
@@ -79,7 +68,6 @@ macro_rules! op2_u256_bool_ref {
 		pop_u256!($machine, op1, op2);
 		let ret = op1.$op(&op2);
 		push_u256!($machine, if ret { U256::one() } else { U256::zero() });
-		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
 		Control::Continue
 	}};
@@ -90,7 +78,6 @@ macro_rules! op2_u256 {
 		pop_u256!($machine, op1, op2);
 		let ret = op1.$op(op2);
 		push_u256!($machine, ret);
-		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
 		Control::Continue
 	}};
@@ -101,7 +88,6 @@ macro_rules! op2_u256_tuple {
 		pop_u256!($machine, op1, op2);
 		let (ret, ..) = op1.$op(op2);
 		push_u256!($machine, ret);
-		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
 		Control::Continue
 	}};
@@ -112,7 +98,6 @@ macro_rules! op2_u256_fn {
 		pop_u256!($machine, op1, op2);
 		let ret = $op(op1, op2);
 		push_u256!($machine, ret);
-		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
 		Control::Continue
 	}};
@@ -123,7 +108,6 @@ macro_rules! op3_u256_fn {
 		pop_u256!($machine, op1, op2, op3);
 		let ret = $op(op1, op2, op3);
 		push_u256!($machine, ret);
-		trace_op!("{} {}, {}, {}: {}", stringify!($op), op1, op2, op3, ret);
 
 		Control::Continue
 	}};

@@ -7,27 +7,49 @@ mod system;
 
 use crate::{ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState, Trap};
 use core::ops::{BitAnd, BitOr, BitXor, Deref, DerefMut};
+use core::marker::PhantomData;
 use primitive_types::{H256, U256};
 
 /// Evaluation function type.
 pub type Efn<S, H> = fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control;
 
 /// The evaluation table for the EVM.
-#[derive(Clone)]
-pub struct Etable<S, H>([Efn<S, H>; 256]);
+pub struct Etable<S, H, F = Efn<S, H>>([F; 256], PhantomData<(S, H)>);
 
-impl<S, H> Deref for Etable<S, H> {
-	type Target = [Efn<S, H>; 256];
+/// Runtime table.
+pub type RuntimeEtable<H, F = Efn<RuntimeState, H>> = Etable<RuntimeState, H, F>;
 
-	fn deref(&self) -> &[Efn<S, H>; 256] {
+impl<S, H, F> Deref for Etable<S, H, F> {
+	type Target = [F; 256];
+
+	fn deref(&self) -> &[F; 256] {
 		&self.0
 	}
 }
 
-impl<S, H> DerefMut for Etable<S, H> {
-	fn deref_mut(&mut self) -> &mut [Efn<S, H>; 256] {
+impl<S, H, F> DerefMut for Etable<S, H, F> {
+	fn deref_mut(&mut self) -> &mut [F; 256] {
 		&mut self.0
 	}
+}
+
+impl<S, H, F> Etable<S, H, F> where
+    F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control
+{
+    /// Wrap to create a new Etable.
+    pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, FR> where
+        FW: Fn(F, Opcode) -> FR,
+        FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+    {
+        let mut current_opcode = Opcode(0);
+        Etable(self.0.map(|f| {
+            let fr = wrapper(f, current_opcode);
+            if current_opcode != Opcode(255) {
+                current_opcode.0 = current_opcode.0 + 1;
+            }
+            fr
+        }), PhantomData)
+    }
 }
 
 impl<S, H> Etable<S, H> {
@@ -148,7 +170,7 @@ impl<S, H> Etable<S, H> {
 		table[Opcode::REVERT.as_usize()] = eval_revert as _;
 		table[Opcode::INVALID.as_usize()] = eval_invalid as _;
 
-		Self(table)
+		Self(table, PhantomData)
 	}
 }
 
