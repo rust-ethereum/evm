@@ -70,7 +70,7 @@ macro_rules! op1_u256_fn {
 		push_u256!($machine, ret);
 		trace_op!("{} {}: {}", stringify!($op), op1, ret);
 
-		Control::Continue(1)
+		Control::Continue
 	}};
 }
 
@@ -81,7 +81,7 @@ macro_rules! op2_u256_bool_ref {
 		push_u256!($machine, if ret { U256::one() } else { U256::zero() });
 		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
-		Control::Continue(1)
+		Control::Continue
 	}};
 }
 
@@ -92,7 +92,7 @@ macro_rules! op2_u256 {
 		push_u256!($machine, ret);
 		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
-		Control::Continue(1)
+		Control::Continue
 	}};
 }
 
@@ -103,7 +103,7 @@ macro_rules! op2_u256_tuple {
 		push_u256!($machine, ret);
 		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
-		Control::Continue(1)
+		Control::Continue
 	}};
 }
 
@@ -114,7 +114,7 @@ macro_rules! op2_u256_fn {
 		push_u256!($machine, ret);
 		trace_op!("{} {}, {}: {}", stringify!($op), op1, op2, ret);
 
-		Control::Continue(1)
+		Control::Continue
 	}};
 }
 
@@ -125,7 +125,7 @@ macro_rules! op3_u256_fn {
 		push_u256!($machine, ret);
 		trace_op!("{} {}, {}, {}: {}", stringify!($op), op1, op2, op3, ret);
 
-		Control::Continue(1)
+		Control::Continue
 	}};
 }
 

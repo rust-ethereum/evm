@@ -21,6 +21,7 @@ pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
+pub use crate::runtime::{Handler, Context, RuntimeMachine, RuntimeState};
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
@@ -104,7 +105,11 @@ impl<S> Machine<S> {
 		let control = etable[opcode.as_usize()](self, handle, opcode, self.position);
 
 		match control {
-			Control::Continue(p) => {
+			Control::Continue => {
+				self.position += 1;
+				Ok(())
+			}
+			Control::ContinueN(p) => {
 				self.position = position + p;
 				Ok(())
 			}

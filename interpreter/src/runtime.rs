@@ -1,6 +1,18 @@
 use crate::ExitError;
 use primitive_types::{H160, H256, U256};
 
+/// Runtime machine.
+pub type RuntimeMachine = crate::Machine<RuntimeState>;
+
+/// Runtime state.
+#[derive(Clone, Debug)]
+pub struct RuntimeState {
+	/// Runtime context.
+	pub context: Context,
+	/// Return data buffer.
+	pub retbuf: Vec<u8>,
+}
+
 /// Context of the runtime.
 #[derive(Clone, Debug)]
 pub struct Context {
