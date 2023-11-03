@@ -1,4 +1,4 @@
-use crate::{ExitError, ExitFatal};
+use crate::{ExitException, ExitFatal};
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::ops::{BitAnd, Not, Range};
@@ -56,7 +56,7 @@ impl Memory {
 	/// Resize the memory, making it cover the memory region of `offset..(offset
 	/// + len)`, with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
-	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
+	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitException> {
 		if len == U256::zero() {
 			return Ok(());
 		}
@@ -64,14 +64,14 @@ impl Memory {
 		if let Some(end) = offset.checked_add(len) {
 			self.resize_end(end)
 		} else {
-			Err(ExitError::InvalidRange)
+			Err(ExitException::InvalidRange)
 		}
 	}
 
 	/// Resize the memory, making it cover to `end`, with 32 bytes as the step.
-	pub fn resize_end(&mut self, end: U256) -> Result<(), ExitError> {
+	pub fn resize_end(&mut self, end: U256) -> Result<(), ExitException> {
 		if end > self.effective_len {
-			let new_end = next_multiple_of_32(end).ok_or(ExitError::InvalidRange)?;
+			let new_end = next_multiple_of_32(end).ok_or(ExitException::InvalidRange)?;
 			self.effective_len = new_end;
 		}
 

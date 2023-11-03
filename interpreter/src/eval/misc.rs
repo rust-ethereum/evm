@@ -1,5 +1,5 @@
 use super::Control;
-use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
+use crate::{ExitException, ExitError, ExitFatal, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
 
@@ -120,13 +120,13 @@ pub fn mstore8<S>(state: &mut Machine<S>) -> Control {
 #[inline]
 pub fn jump<S>(state: &mut Machine<S>) -> Control {
 	pop_u256!(state, dest);
-	let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
+	let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
 	trace_op!("Jump: {}", dest);
 
 	if state.valids.is_valid(dest) {
 		Control::Jump(dest)
 	} else {
-		Control::Exit(ExitError::InvalidJump.into())
+		Control::Exit(ExitException::InvalidJump.into())
 	}
 }
 
@@ -137,11 +137,11 @@ pub fn jumpi<S>(state: &mut Machine<S>) -> Control {
 
 	if value != H256::zero() {
 		trace_op!("JumpI: {}", dest);
-		let dest = as_usize_or_fail!(dest, ExitError::InvalidJump);
+		let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
 		if state.valids.is_valid(dest) {
 			Control::Jump(dest)
 		} else {
-			Control::Exit(ExitError::InvalidJump.into())
+			Control::Exit(ExitException::InvalidJump.into())
 		}
 	} else {
 		trace_op!("JumpI: skipped");
@@ -223,5 +223,5 @@ pub fn revert<S>(state: &mut Machine<S>) -> Control {
 	pop_u256!(state, start, len);
 	try_or_fail!(state.memory.resize_offset(start, len));
 	state.memory.resize_to_range(start..(start + len));
-	Control::Exit(ExitRevert::Reverted.into())
+	Control::Exit(ExitError::Reverted.into())
 }

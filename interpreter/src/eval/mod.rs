@@ -4,7 +4,7 @@ mod arithmetic;
 mod bitwise;
 mod misc;
 
-use crate::{ExitError, ExitReason, ExitSucceed, Machine, Opcode};
+use crate::{ExitException, ExitResult, ExitSucceed, Machine, Opcode, Trap};
 use core::ops::{BitAnd, BitOr, BitXor, Deref, DerefMut};
 use primitive_types::{H256, U256};
 
@@ -32,7 +32,7 @@ impl<S, H> DerefMut for Etable<S, H> {
 impl<S, H> Etable<S, H> {
 	/// Default core value for Etable.
 	pub const fn core() -> Etable<S, H> {
-		let mut table = [eval_external as _; 256];
+		let mut table = [eval_unknown as _; 256];
 
 		table[Opcode::STOP.as_usize()] = eval_stop as _;
 		table[Opcode::ADD.as_usize()] = eval_add as _;
@@ -155,9 +155,9 @@ impl<S, H> Etable<S, H> {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control {
 	Continue(usize),
-	Exit(ExitReason),
+	Exit(ExitResult),
 	Jump(usize),
-	Trap(Opcode),
+	Trap(Trap),
 }
 
 fn eval_stop<S, H>(_machine: &mut Machine<S>, _handle: &mut H, _opcode: Opcode, _position: usize) -> Control {
@@ -589,9 +589,9 @@ fn eval_revert<S, H>(machine: &mut Machine<S>, _handle: &mut H, _opcode: Opcode,
 }
 
 fn eval_invalid<S, H>(_machine: &mut Machine<S>, _handle: &mut H, _opcode: Opcode, _position: usize) -> Control {
-	Control::Exit(ExitError::DesignatedInvalid.into())
+	Control::Exit(ExitException::DesignatedInvalid.into())
 }
 
-fn eval_external<S, H>(_machine: &mut Machine<S>, _handle: &mut H, opcode: Opcode, _position: usize) -> Control {
-	Control::Trap(opcode)
+fn eval_unknown<S, H>(_machine: &mut Machine<S>, _handle: &mut H, opcode: Opcode, _position: usize) -> Control {
+	Control::Exit(ExitException::InvalidOpcode(opcode).into())
 }

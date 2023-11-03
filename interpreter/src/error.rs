@@ -14,6 +14,8 @@ pub enum Capture<E, T> {
 	Trap(T),
 }
 
+pub type ExitResult = Result<ExitSucceed, ExitError>;
+
 /// Exit reason.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
@@ -21,37 +23,19 @@ pub enum Capture<E, T> {
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ExitReason {
-	/// Machine has succeeded.
-	Succeed(ExitSucceed),
+pub enum ExitError {
 	/// Machine returns a normal EVM error.
-	Error(ExitError),
+	Exception(ExitException),
 	/// Machine encountered an explicit revert.
-	Revert(ExitRevert),
+	Reverted,
 	/// Machine encountered an error that is not supposed to be normal EVM
 	/// errors, such as requiring too much memory to execute.
 	Fatal(ExitFatal),
 }
 
-impl ExitReason {
-	/// Whether the exit is succeeded.
-	pub fn is_succeed(&self) -> bool {
-		matches!(self, Self::Succeed(_))
-	}
-
-	/// Whether the exit is error.
-	pub fn is_error(&self) -> bool {
-		matches!(self, Self::Error(_))
-	}
-
-	/// Whether the exit is revert.
-	pub fn is_revert(&self) -> bool {
-		matches!(self, Self::Revert(_))
-	}
-
-	/// Whether the exit is fatal.
-	pub fn is_fatal(&self) -> bool {
-		matches!(self, Self::Fatal(_))
+impl From<ExitError> for ExitResult {
+	fn from(s: ExitError) -> Self {
+		Err(s)
 	}
 }
 
@@ -71,27 +55,9 @@ pub enum ExitSucceed {
 	Suicided,
 }
 
-impl From<ExitSucceed> for ExitReason {
+impl From<ExitSucceed> for ExitResult {
 	fn from(s: ExitSucceed) -> Self {
-		Self::Succeed(s)
-	}
-}
-
-/// Exit revert reason.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[cfg_attr(
-	feature = "with-codec",
-	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
-)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ExitRevert {
-	/// Machine encountered an explicit revert.
-	Reverted,
-}
-
-impl From<ExitRevert> for ExitReason {
-	fn from(s: ExitRevert) -> Self {
-		Self::Revert(s)
+		Ok(s)
 	}
 }
 
@@ -102,7 +68,7 @@ impl From<ExitRevert> for ExitReason {
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-pub enum ExitError {
+pub enum ExitException {
 	/// Trying to pop from an empty stack.
 	#[cfg_attr(feature = "with-codec", codec(index = 0))]
 	StackUnderflow,
@@ -128,9 +94,9 @@ pub enum ExitError {
 	#[cfg_attr(feature = "with-codec", codec(index = 7))]
 	CreateContractLimit,
 
-	/// Invalid opcode during execution or starting byte is 0xef. See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md).
+	/// Invalid opcode during execution or starting byte is 0xef ([EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md)).
 	#[cfg_attr(feature = "with-codec", codec(index = 15))]
-	InvalidCode(Opcode),
+	InvalidOpcode(Opcode),
 
 	/// An opcode accesses external information, but the request is off offset
 	/// limit (runtime).
@@ -152,19 +118,25 @@ pub enum ExitError {
 	#[cfg_attr(feature = "with-codec", codec(index = 12))]
 	CreateEmpty,
 
-	/// Other normal errors.
-	#[cfg_attr(feature = "with-codec", codec(index = 13))]
-	Other(Cow<'static, str>),
-
 	/// Nonce reached maximum value of 2^64-1
 	/// https://eips.ethereum.org/EIPS/eip-2681
 	#[cfg_attr(feature = "with-codec", codec(index = 14))]
 	MaxNonce,
+
+	/// Other normal errors.
+	#[cfg_attr(feature = "with-codec", codec(index = 13))]
+	Other(Cow<'static, str>),
 }
 
-impl From<ExitError> for ExitReason {
-	fn from(s: ExitError) -> Self {
-		Self::Error(s)
+impl From<ExitException> for ExitResult {
+	fn from(s: ExitException) -> Self {
+		Err(ExitError::Exception(s))
+	}
+}
+
+impl From<ExitException> for ExitError {
+	fn from(s: ExitException) -> Self {
+		ExitError::Exception(s)
 	}
 }
 
@@ -181,14 +153,20 @@ pub enum ExitFatal {
 	/// The trap (interrupt) is unhandled.
 	UnhandledInterrupt,
 	/// The environment explicitly set call errors as fatal error.
-	CallErrorAsFatal(ExitError),
+	ExceptionAsFatal(ExitException),
 
 	/// Other fatal errors.
 	Other(Cow<'static, str>),
 }
 
-impl From<ExitFatal> for ExitReason {
+impl From<ExitFatal> for ExitResult {
 	fn from(s: ExitFatal) -> Self {
-		Self::Fatal(s)
+		Err(ExitError::Fatal(s))
+	}
+}
+
+impl From<ExitFatal> for ExitError {
+	fn from(s: ExitFatal) -> Self {
+		ExitError::Fatal(s)
 	}
 }

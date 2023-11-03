@@ -8,16 +8,15 @@ extern crate alloc;
 
 mod error;
 mod eval;
-mod external;
 mod memory;
 mod opcode;
 mod stack;
 mod utils;
 mod valids;
+mod runtime;
 
-pub use crate::error::{Capture, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Trap};
+pub use crate::error::{Capture, ExitResult, ExitError, ExitException, ExitFatal, ExitSucceed, Trap};
 pub use crate::eval::{Control, Efn, Etable};
-pub use crate::external::ExternalOperation;
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
@@ -84,7 +83,7 @@ impl<S> Machine<S> {
 	}
 
 	/// Loop stepping the machine, until it stops.
-	pub fn run<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Capture<ExitReason, Trap> {
+	pub fn run<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Capture<ExitResult, Trap> {
 		loop {
 			match self.step(handle, etable) {
 				Ok(()) => (),
@@ -95,7 +94,7 @@ impl<S> Machine<S> {
 
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
-	pub fn step<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Result<(), Capture<ExitReason, Trap>> {
+	pub fn step<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Result<(), Capture<ExitResult, Trap>> {
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
@@ -118,9 +117,6 @@ impl<S> Machine<S> {
 				Ok(())
 			}
 			Control::Trap(opcode) => {
-				#[cfg(feature = "force-debug")]
-				log::trace!(target: "evm", "OpCode Trap: {:?}", opcode);
-
 				self.position = position + 1;
 				Err(Capture::Trap(opcode))
 			}
