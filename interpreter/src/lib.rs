@@ -8,18 +8,20 @@ extern crate alloc;
 
 mod error;
 mod eval;
-mod external;
 mod memory;
 mod opcode;
+mod runtime;
 mod stack;
 mod utils;
 mod valids;
 
-pub use crate::error::{Capture, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Trap};
+pub use crate::error::{
+	Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed, Trap,
+};
 pub use crate::eval::{Control, Efn, Etable};
-pub use crate::external::ExternalOperation;
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
+pub use crate::runtime::{Context, Handler, RuntimeMachine, RuntimeState};
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
@@ -84,7 +86,11 @@ impl<S> Machine<S> {
 	}
 
 	/// Loop stepping the machine, until it stops.
-	pub fn run<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Capture<ExitReason, Trap> {
+	pub fn run<H>(
+		&mut self,
+		handle: &mut H,
+		etable: &'static Etable<S, H>,
+	) -> Capture<ExitResult, Trap> {
 		loop {
 			match self.step(handle, etable) {
 				Ok(()) => (),
@@ -95,7 +101,11 @@ impl<S> Machine<S> {
 
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
-	pub fn step<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Result<(), Capture<ExitReason, Trap>> {
+	pub fn step<H>(
+		&mut self,
+		handle: &mut H,
+		etable: &'static Etable<S, H>,
+	) -> Result<(), Capture<ExitResult, Trap>> {
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
@@ -105,7 +115,11 @@ impl<S> Machine<S> {
 		let control = etable[opcode.as_usize()](self, handle, opcode, self.position);
 
 		match control {
-			Control::Continue(p) => {
+			Control::Continue => {
+				self.position += 1;
+				Ok(())
+			}
+			Control::ContinueN(p) => {
 				self.position = position + p;
 				Ok(())
 			}
@@ -118,9 +132,6 @@ impl<S> Machine<S> {
 				Ok(())
 			}
 			Control::Trap(opcode) => {
-				#[cfg(feature = "force-debug")]
-				log::trace!(target: "evm", "OpCode Trap: {:?}", opcode);
-
 				self.position = position + 1;
 				Err(Capture::Trap(opcode))
 			}

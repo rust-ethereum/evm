@@ -1,30 +1,32 @@
-use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
-use alloc::vec::Vec;
+use crate::ExitError;
 use primitive_types::{H160, H256, U256};
 
-/// Transfer from source to target, with given value.
+/// Runtime machine.
+pub type RuntimeMachine = crate::Machine<RuntimeState>;
+
+/// Runtime state.
 #[derive(Clone, Debug)]
-pub struct Transfer {
-	/// Source address.
-	pub source: H160,
-	/// Target address.
-	pub target: H160,
-	/// Transfer value.
-	pub value: U256,
+pub struct RuntimeState {
+	/// Runtime context.
+	pub context: Context,
+	/// Return data buffer.
+	pub retbuf: Vec<u8>,
+}
+
+/// Context of the runtime.
+#[derive(Clone, Debug)]
+pub struct Context {
+	/// Execution address.
+	pub address: H160,
+	/// Caller of the EVM.
+	pub caller: H160,
+	/// Apparent value of the EVM.
+	pub apparent_value: U256,
 }
 
 /// EVM context handler.
 #[auto_impl::auto_impl(&mut, Box)]
 pub trait Handler {
-	/// Type of `CREATE` interrupt.
-	type CreateInterrupt;
-	/// Feedback value for `CREATE` interrupt.
-	type CreateFeedback;
-	/// Type of `CALL` interrupt.
-	type CallInterrupt;
-	/// Feedback value of `CALL` interrupt.
-	type CallFeedback;
-
 	/// Get balance of address.
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
@@ -81,46 +83,4 @@ pub trait Handler {
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
-	/// Invoke a create operation.
-	fn create(
-		&mut self,
-		caller: H160,
-		scheme: CreateScheme,
-		value: U256,
-		init_code: Vec<u8>,
-		target_gas: Option<u64>,
-	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
-	/// Feed in create feedback.
-	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
-		Ok(())
-	}
-	/// Invoke a call operation.
-	fn call(
-		&mut self,
-		code_address: H160,
-		transfer: Option<Transfer>,
-		input: Vec<u8>,
-		target_gas: Option<u64>,
-		is_static: bool,
-		context: Context,
-	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
-	/// Feed in call feedback.
-	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
-		Ok(())
-	}
-
-	/// Pre-validation step for the runtime.
-	fn pre_validate(
-		&mut self,
-		context: &Context,
-		opcode: Opcode,
-		stack: &Stack,
-	) -> Result<(), ExitError>;
-	/// Handle other unknown external opcodes.
-	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
-		Err(ExitError::InvalidCode(opcode))
-	}
-
-	/// Records some associated `ExternalOperation`.
-	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError>;
 }

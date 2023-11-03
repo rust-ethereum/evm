@@ -9,7 +9,7 @@ license = "Apache-2.0"
 [dependencies]
 honggfuzz = "0.5"
 
-evm-core = { version = "0.40", path = "../core" }
+evm-interpreter = { version = "0.2.0-dev", path = "../interpreter" }
 
 [[bin]]
 name = "evm_fuzz"
