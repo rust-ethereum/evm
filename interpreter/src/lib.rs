@@ -78,10 +78,10 @@ impl<S> Machine<S> {
 		self.position = self.code.len();
 	}
 
-    /// Return value of the machine.
-    pub fn into_retbuf(self) -> Vec<u8> {
-        self.memory.into_data()
-    }
+	/// Return value of the machine.
+	pub fn into_retbuf(self) -> Vec<u8> {
+		self.memory.into_data()
+	}
 
 	/// Inspect the machine's next opcode and current stack.
 	pub fn inspect(&self) -> Option<(Opcode, &Stack)> {
@@ -95,9 +95,10 @@ impl<S> Machine<S> {
 		&mut self,
 		handle: &mut H,
 		etable: &Etable<S, H, F>,
-	) -> Capture<ExitResult, Trap> where
-        F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
-    {
+	) -> Capture<ExitResult, Trap>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+	{
 		loop {
 			match self.step(handle, etable) {
 				Ok(()) => (),
@@ -112,9 +113,10 @@ impl<S> Machine<S> {
 		&mut self,
 		handle: &mut H,
 		etable: &Etable<S, H, F>,
-	) -> Result<(), Capture<ExitResult, Trap>> where
-        F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
-    {
+	) -> Result<(), Capture<ExitResult, Trap>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+	{
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
