@@ -1,5 +1,5 @@
 use super::Control;
-use crate::{ExitException, ExitError, ExitFatal, ExitSucceed, Machine};
+use crate::{ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
 

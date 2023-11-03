@@ -10,18 +10,20 @@ mod error;
 mod eval;
 mod memory;
 mod opcode;
+mod runtime;
 mod stack;
 mod utils;
 mod valids;
-mod runtime;
 
-pub use crate::error::{Capture, ExitResult, ExitError, ExitException, ExitFatal, ExitSucceed, Trap};
+pub use crate::error::{
+	Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed, Trap,
+};
 pub use crate::eval::{Control, Efn, Etable};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
+pub use crate::runtime::{Context, Handler, RuntimeMachine, RuntimeState};
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
-pub use crate::runtime::{Handler, Context, RuntimeMachine, RuntimeState};
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
@@ -84,7 +86,11 @@ impl<S> Machine<S> {
 	}
 
 	/// Loop stepping the machine, until it stops.
-	pub fn run<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Capture<ExitResult, Trap> {
+	pub fn run<H>(
+		&mut self,
+		handle: &mut H,
+		etable: &'static Etable<S, H>,
+	) -> Capture<ExitResult, Trap> {
 		loop {
 			match self.step(handle, etable) {
 				Ok(()) => (),
@@ -95,7 +101,11 @@ impl<S> Machine<S> {
 
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
-	pub fn step<H>(&mut self, handle: &mut H, etable: &'static Etable<S, H>) -> Result<(), Capture<ExitResult, Trap>> {
+	pub fn step<H>(
+		&mut self,
+		handle: &mut H,
+		etable: &'static Etable<S, H>,
+	) -> Result<(), Capture<ExitResult, Trap>> {
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));

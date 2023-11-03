@@ -1,7 +1,5 @@
 use super::Control;
-use crate::{
-	Capture, Context, ExitError, ExitException, ExitFatal, ExitSucceed, Handler, RuntimeMachine,
-};
+use crate::{ExitException, ExitFatal, ExitSucceed, Handler, RuntimeMachine};
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
@@ -67,7 +65,11 @@ pub fn caller(machine: &mut RuntimeMachine) -> Control {
 
 pub fn callvalue(machine: &mut RuntimeMachine) -> Control {
 	let mut ret = H256::default();
-	machine.state.context.apparent_value.to_big_endian(&mut ret[..]);
+	machine
+		.state
+		.context
+		.apparent_value
+		.to_big_endian(&mut ret[..]);
 	push!(machine, ret);
 
 	Control::Continue
@@ -109,9 +111,7 @@ pub fn extcodecopy<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) ->
 	pop!(machine, address);
 	pop_u256!(machine, memory_offset, code_offset, len);
 
-	try_or_fail!(machine
-		.memory
-		.resize_offset(memory_offset, len));
+	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 
 	let code = handler.code(address.into());
 	match machine
@@ -135,9 +135,7 @@ pub fn returndatasize(machine: &mut RuntimeMachine) -> Control {
 pub fn returndatacopy(machine: &mut RuntimeMachine) -> Control {
 	pop_u256!(machine, memory_offset, data_offset, len);
 
-	try_or_fail!(machine
-		.memory
-		.resize_offset(memory_offset, len));
+	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 	if data_offset
 		.checked_add(len)
 		.map(|l| l > U256::from(machine.state.retbuf.len()))
@@ -146,12 +144,10 @@ pub fn returndatacopy(machine: &mut RuntimeMachine) -> Control {
 		return Control::Exit(ExitException::OutOfOffset.into());
 	}
 
-	match machine.memory.copy_large(
-		memory_offset,
-		data_offset,
-		len,
-		&machine.state.retbuf,
-	) {
+	match machine
+		.memory
+		.copy_large(memory_offset, data_offset, len, &machine.state.retbuf)
+	{
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
