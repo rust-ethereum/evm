@@ -6,8 +6,8 @@ mod misc;
 mod system;
 
 use crate::{ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState, Trap};
-use core::ops::{BitAnd, BitOr, BitXor, Deref, DerefMut};
 use core::marker::PhantomData;
+use core::ops::{BitAnd, BitOr, BitXor, Deref, DerefMut};
 use primitive_types::{H256, U256};
 
 /// Evaluation function type.
@@ -33,23 +33,28 @@ impl<S, H, F> DerefMut for Etable<S, H, F> {
 	}
 }
 
-impl<S, H, F> Etable<S, H, F> where
-    F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control
+impl<S, H, F> Etable<S, H, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
 {
-    /// Wrap to create a new Etable.
-    pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, FR> where
-        FW: Fn(F, Opcode) -> FR,
-        FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
-    {
-        let mut current_opcode = Opcode(0);
-        Etable(self.0.map(|f| {
-            let fr = wrapper(f, current_opcode);
-            if current_opcode != Opcode(255) {
-                current_opcode.0 = current_opcode.0 + 1;
-            }
-            fr
-        }), PhantomData)
-    }
+	/// Wrap to create a new Etable.
+	pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, FR>
+	where
+		FW: Fn(F, Opcode) -> FR,
+		FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+	{
+		let mut current_opcode = Opcode(0);
+		Etable(
+			self.0.map(|f| {
+				let fr = wrapper(f, current_opcode);
+				if current_opcode != Opcode(255) {
+					current_opcode.0 = current_opcode.0 + 1;
+				}
+				fr
+			}),
+			PhantomData,
+		)
+	}
 }
 
 impl<S, H> Etable<S, H> {
