@@ -62,13 +62,6 @@ with-serde = [
 	"evm-interpreter/with-serde",
 	"ethereum/with-serde",
 ]
-tracing = [
-	"environmental",
-	"evm-gasometer/tracing",
-]
-force-debug = [
-	"evm-gasometer/force-debug",
-]
 
 [workspace]
 members = [

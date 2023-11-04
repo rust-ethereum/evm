@@ -9,8 +9,6 @@ keywords = ["no_std", "ethereum"]
 edition = "2018"
 
 [dependencies]
-environmental = { version = "1.1.2", default-features = false, optional = true }
-log = { version = "0.4", optional = true }
 primitive-types = { version = "0.12", default-features = false }
 
 evm-interpreter = { version = "0.2.0-dev", path = "../interpreter", default-features = false }
@@ -18,14 +16,6 @@ evm-interpreter = { version = "0.2.0-dev", path = "../interpreter", default-feat
 [features]
 default = ["std"]
 std = [
-	"environmental/std",
 	"primitive-types/std",
 	"evm-interpreter/std",
-]
-tracing = [
-	"environmental",
-]
-
-force-debug = [
-	"log",
 ]
