@@ -69,13 +69,10 @@ pub trait Handler {
 	fn exists(&self, address: H160) -> bool;
 	/// Check whether an address has already been deleted.
 	fn deleted(&self, address: H160) -> bool;
-	/// Checks if the address or (address, index) pair has been previously accessed
-	/// (or set in `accessed_addresses` / `accessed_storage_keys` via an access list
-	/// transaction).
-	/// References:
-	/// * <https://eips.ethereum.org/EIPS/eip-2929>
-	/// * <https://eips.ethereum.org/EIPS/eip-2930>
-	fn is_cold(&mut self, address: H160, index: Option<H256>) -> Result<bool, ExitError>;
+	/// Checks if the address or (address, index) pair has been previously accessed.
+	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
+	/// Mark an address or (address, index) pair as hot.
+	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError>;
 
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;

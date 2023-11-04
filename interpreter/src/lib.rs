@@ -107,6 +107,26 @@ impl<S> Machine<S> {
 		}
 	}
 
+	/// Step the machine N times.
+	pub fn stepn<H, F>(
+		&mut self,
+		n: usize,
+		handle: &mut H,
+		etable: &Etable<S, H, F>,
+	) -> Result<(), Capture<ExitResult, Trap>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+	{
+		for _ in 0..n {
+			match self.step(handle, etable) {
+				Ok(()) => (),
+				Err(res) => return Err(res),
+			}
+		}
+
+		Ok(())
+	}
+
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
 	pub fn step<H, F>(
@@ -147,5 +167,10 @@ impl<S> Machine<S> {
 				Err(Capture::Trap(opcode))
 			}
 		}
+	}
+
+	/// Pick the next opcode.
+	pub fn peek_opcode(&self) -> Option<Opcode> {
+		self.code.get(self.position).map(|opcode| Opcode(*opcode))
 	}
 }

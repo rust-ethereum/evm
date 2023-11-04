@@ -36,8 +36,9 @@ pub fn address(machine: &mut RuntimeMachine) -> Control {
 	Control::Continue
 }
 
-pub fn balance<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn balance<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
 	pop!(machine, address);
+	try_or_fail!(handler.mark_hot(address.into(), None));
 	push_u256!(machine, handler.balance(address.into()));
 
 	Control::Continue
@@ -93,6 +94,7 @@ pub fn basefee<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control
 
 pub fn extcodesize<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
 	pop!(machine, address);
+	try_or_fail!(handler.mark_hot(address.into(), None));
 	let code_size = handler.code_size(address.into());
 	push_u256!(machine, code_size);
 
@@ -101,6 +103,7 @@ pub fn extcodesize<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) ->
 
 pub fn extcodehash<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
 	pop!(machine, address);
+	try_or_fail!(handler.mark_hot(address.into(), None));
 	let code_hash = handler.code_hash(address.into());
 	push!(machine, code_hash);
 
@@ -111,6 +114,7 @@ pub fn extcodecopy<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) ->
 	pop!(machine, address);
 	pop_u256!(machine, memory_offset, code_offset, len);
 
+	try_or_fail!(handler.mark_hot(address.into(), None));
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 
 	let code = handler.code(address.into());
@@ -194,8 +198,9 @@ pub fn gaslimit<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Contro
 	Control::Continue
 }
 
-pub fn sload<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn sload<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
 	pop!(machine, index);
+	try_or_fail!(handler.mark_hot(machine.state.context.address, Some(index)));
 	let value = handler.storage(machine.state.context.address, index);
 	push!(machine, value);
 
@@ -204,6 +209,7 @@ pub fn sload<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
 
 pub fn sstore<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
 	pop!(machine, index, value);
+	try_or_fail!(handler.mark_hot(machine.state.context.address, Some(index)));
 
 	match handler.set_storage(machine.state.context.address, index, value) {
 		Ok(()) => Control::Continue,
