@@ -4,14 +4,14 @@ use core::cmp::min;
 use primitive_types::{H256, U256};
 
 #[inline]
-pub fn codesize<S>(state: &mut Machine<S>) -> Control {
+pub fn codesize<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	let size = U256::from(state.code.len());
 	push_u256!(state, size);
 	Control::Continue
 }
 
 #[inline]
-pub fn codecopy<S>(state: &mut Machine<S>) -> Control {
+pub fn codecopy<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, memory_offset, code_offset, len);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
@@ -25,7 +25,7 @@ pub fn codecopy<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn calldataload<S>(state: &mut Machine<S>) -> Control {
+pub fn calldataload<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, index);
 
 	let mut load = [0u8; 32];
@@ -46,14 +46,14 @@ pub fn calldataload<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn calldatasize<S>(state: &mut Machine<S>) -> Control {
+pub fn calldatasize<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	let len = U256::from(state.data.len());
 	push_u256!(state, len);
 	Control::Continue
 }
 
 #[inline]
-pub fn calldatacopy<S>(state: &mut Machine<S>) -> Control {
+pub fn calldatacopy<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, memory_offset, data_offset, len);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
@@ -71,13 +71,13 @@ pub fn calldatacopy<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn pop<S>(state: &mut Machine<S>) -> Control {
+pub fn pop<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop!(state, _val);
 	Control::Continue
 }
 
 #[inline]
-pub fn mload<S>(state: &mut Machine<S>) -> Control {
+pub fn mload<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, index);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
@@ -87,7 +87,7 @@ pub fn mload<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn mstore<S>(state: &mut Machine<S>) -> Control {
+pub fn mstore<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, index);
 	pop!(state, value);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
@@ -99,7 +99,7 @@ pub fn mstore<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn mstore8<S>(state: &mut Machine<S>) -> Control {
+pub fn mstore8<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, index, value);
 	try_or_fail!(state.memory.resize_offset(index, U256::one()));
 	let index = as_usize_or_fail!(index);
@@ -111,7 +111,7 @@ pub fn mstore8<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn jump<S>(state: &mut Machine<S>) -> Control {
+pub fn jump<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, dest);
 	let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
 
@@ -123,7 +123,7 @@ pub fn jump<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn jumpi<S>(state: &mut Machine<S>) -> Control {
+pub fn jumpi<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, dest);
 	pop!(state, value);
 
@@ -140,19 +140,19 @@ pub fn jumpi<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn pc<S>(state: &mut Machine<S>, position: usize) -> Control {
+pub fn pc<S, Td>(state: &mut Machine<S>, position: usize) -> Control<Td> {
 	push_u256!(state, U256::from(position));
 	Control::Continue
 }
 
 #[inline]
-pub fn msize<S>(state: &mut Machine<S>) -> Control {
+pub fn msize<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	push_u256!(state, state.memory.effective_len());
 	Control::Continue
 }
 
 #[inline]
-pub fn push<S>(state: &mut Machine<S>, n: usize, position: usize) -> Control {
+pub fn push<S, Td>(state: &mut Machine<S>, n: usize, position: usize) -> Control<Td> {
 	let end = min(position + 1 + n, state.code.len());
 	let slice = &state.code[(position + 1)..end];
 	let mut val = [0u8; 32];
@@ -164,7 +164,7 @@ pub fn push<S>(state: &mut Machine<S>, n: usize, position: usize) -> Control {
 }
 
 #[inline]
-pub fn dup<S>(state: &mut Machine<S>, n: usize) -> Control {
+pub fn dup<S, Td>(state: &mut Machine<S>, n: usize) -> Control<Td> {
 	let value = match state.stack.peek(n - 1) {
 		Ok(value) => value,
 		Err(e) => return Control::Exit(e.into()),
@@ -174,7 +174,7 @@ pub fn dup<S>(state: &mut Machine<S>, n: usize) -> Control {
 }
 
 #[inline]
-pub fn swap<S>(state: &mut Machine<S>, n: usize) -> Control {
+pub fn swap<S, Td>(state: &mut Machine<S>, n: usize) -> Control<Td> {
 	let val1 = match state.stack.peek(0) {
 		Ok(value) => value,
 		Err(e) => return Control::Exit(e.into()),
@@ -195,7 +195,7 @@ pub fn swap<S>(state: &mut Machine<S>, n: usize) -> Control {
 }
 
 #[inline]
-pub fn ret<S>(state: &mut Machine<S>) -> Control {
+pub fn ret<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, start, len);
 	try_or_fail!(state.memory.resize_offset(start, len));
 	state.memory.resize_to_range(start..(start + len));
@@ -203,7 +203,7 @@ pub fn ret<S>(state: &mut Machine<S>) -> Control {
 }
 
 #[inline]
-pub fn revert<S>(state: &mut Machine<S>) -> Control {
+pub fn revert<S, Td>(state: &mut Machine<S>) -> Control<Td> {
 	pop_u256!(state, start, len);
 	try_or_fail!(state.memory.resize_offset(start, len));
 	state.memory.resize_to_range(start..(start + len));
