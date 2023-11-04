@@ -1,12 +1,13 @@
 use super::Control;
 use crate::{
-	ExitException, ExitFatal, ExitSucceed, Handler, Machine, RuntimeState, RuntimeTrapData,
+	CallScheme, Context, CreateScheme, ExitException, ExitFatal, ExitSucceed, Handler, Machine,
+	RuntimeCallTrapData, RuntimeCreateTrapData, RuntimeState, RuntimeTrapData, Transfer,
 };
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
-pub fn sha3<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
+pub fn sha3<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 ) -> Control<Td> {
 	pop_u256!(machine, from, len);
@@ -27,7 +28,11 @@ pub fn sha3<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn chainid<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn chainid<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -36,7 +41,7 @@ pub fn chainid<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn address<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
+pub fn address<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 ) -> Control<Td> {
 	let ret = H256::from(machine.state.as_ref().context.address);
@@ -45,7 +50,11 @@ pub fn address<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn balance<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn balance<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -56,7 +65,11 @@ pub fn balance<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn selfbalance<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn selfbalance<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -68,7 +81,11 @@ pub fn selfbalance<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>
 	Control::Continue
 }
 
-pub fn origin<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn origin<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -78,7 +95,7 @@ pub fn origin<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn caller<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
+pub fn caller<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 ) -> Control<Td> {
 	let ret = H256::from(machine.state.as_ref().context.caller);
@@ -87,7 +104,7 @@ pub fn caller<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn callvalue<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
+pub fn callvalue<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 ) -> Control<Td> {
 	let mut ret = H256::default();
@@ -102,7 +119,11 @@ pub fn callvalue<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn gasprice<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn gasprice<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -113,7 +134,11 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn basefee<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn basefee<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -124,7 +149,11 @@ pub fn basefee<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn extcodesize<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn extcodesize<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -136,7 +165,11 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>
 	Control::Continue
 }
 
-pub fn extcodehash<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn extcodehash<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -148,7 +181,11 @@ pub fn extcodehash<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>
 	Control::Continue
 }
 
-pub fn extcodecopy<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn extcodecopy<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -170,7 +207,7 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>
 	Control::Continue
 }
 
-pub fn returndatasize<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
+pub fn returndatasize<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 ) -> Control<Td> {
 	let size = U256::from(machine.state.as_ref().retbuf.len());
@@ -179,7 +216,7 @@ pub fn returndatasize<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn returndatacopy<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
+pub fn returndatacopy<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 ) -> Control<Td> {
 	pop_u256!(machine, memory_offset, data_offset, len);
@@ -204,7 +241,11 @@ pub fn returndatacopy<S: AsRef<RuntimeState>, Td: From<RuntimeTrapData>>(
 	}
 }
 
-pub fn blockhash<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn blockhash<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -214,7 +255,11 @@ pub fn blockhash<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn coinbase<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn coinbase<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -222,7 +267,11 @@ pub fn coinbase<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn timestamp<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn timestamp<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -230,7 +279,11 @@ pub fn timestamp<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn number<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn number<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -238,7 +291,11 @@ pub fn number<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn difficulty<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn difficulty<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -246,7 +303,11 @@ pub fn difficulty<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>
 	Control::Continue
 }
 
-pub fn prevrandao<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn prevrandao<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -258,7 +319,11 @@ pub fn prevrandao<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>
 	}
 }
 
-pub fn gaslimit<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn gaslimit<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -266,7 +331,11 @@ pub fn gaslimit<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn sload<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn sload<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -278,7 +347,11 @@ pub fn sload<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn sstore<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn sstore<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -291,7 +364,7 @@ pub fn sstore<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	}
 }
 
-pub fn gas<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn gas<S: AsRef<RuntimeState> + AsMut<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Td> {
@@ -300,7 +373,7 @@ pub fn gas<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	Control::Continue
 }
 
-pub fn log<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn log<S: AsRef<RuntimeState> + AsMut<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	n: u8,
 	handler: &mut H,
@@ -333,7 +406,11 @@ pub fn log<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	}
 }
 
-pub fn suicide<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+pub fn suicide<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H: Handler,
+	Td: From<RuntimeTrapData>,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Td> {
@@ -345,4 +422,126 @@ pub fn suicide<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	}
 
 	Control::Exit(ExitSucceed::Suicided.into())
+}
+
+pub fn create<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
+	is_create2: bool,
+	machine: &mut Machine<S>,
+) -> Control<Td> {
+	machine.state.as_mut().retbuf = Vec::new();
+
+	pop_u256!(machine, value, code_offset, len);
+
+	try_or_fail!(machine.memory.resize_offset(code_offset, len));
+	let code = if len == U256::zero() {
+		Vec::new()
+	} else {
+		let code_offset = as_usize_or_fail!(code_offset);
+		let len = as_usize_or_fail!(len);
+
+		machine.memory.get(code_offset, len)
+	};
+
+	let scheme = if is_create2 {
+		pop!(machine, salt);
+		let code_hash = H256::from_slice(Keccak256::digest(&code).as_slice());
+		CreateScheme::Create2 {
+			caller: machine.state.as_ref().context.address,
+			salt,
+			code_hash,
+		}
+	} else {
+		CreateScheme::Legacy {
+			caller: machine.state.as_ref().context.address,
+		}
+	};
+
+	Control::Trap(
+		RuntimeTrapData::Create(Box::new(RuntimeCreateTrapData {
+			scheme,
+			value,
+			code,
+		}))
+		.into(),
+	)
+}
+
+pub fn call<S: AsRef<RuntimeState> + AsMut<RuntimeState>, Td: From<RuntimeTrapData>>(
+	scheme: CallScheme,
+	machine: &mut Machine<S>,
+) -> Control<Td> {
+	machine.state.as_mut().retbuf = Vec::new();
+
+	pop_u256!(machine, gas);
+	pop!(machine, to);
+
+	let value = match scheme {
+		CallScheme::Call | CallScheme::CallCode => {
+			pop_u256!(machine, value);
+			value
+		}
+		CallScheme::DelegateCall | CallScheme::StaticCall => U256::zero(),
+	};
+
+	pop_u256!(machine, in_offset, in_len, out_offset, out_len);
+
+	try_or_fail!(machine.memory.resize_offset(in_offset, in_len));
+	try_or_fail!(machine.memory.resize_offset(out_offset, out_len));
+
+	let input = if in_len == U256::zero() {
+		Vec::new()
+	} else {
+		let in_offset = as_usize_or_fail!(in_offset);
+		let in_len = as_usize_or_fail!(in_len);
+
+		machine.memory.get(in_offset, in_len)
+	};
+
+	let context = match scheme {
+		CallScheme::Call | CallScheme::StaticCall => Context {
+			address: to.into(),
+			caller: machine.state.as_ref().context.address,
+			apparent_value: value,
+		},
+		CallScheme::CallCode => Context {
+			address: machine.state.as_ref().context.address,
+			caller: machine.state.as_ref().context.address,
+			apparent_value: value,
+		},
+		CallScheme::DelegateCall => Context {
+			address: machine.state.as_ref().context.address,
+			caller: machine.state.as_ref().context.caller,
+			apparent_value: machine.state.as_ref().context.apparent_value,
+		},
+	};
+
+	let transfer = if scheme == CallScheme::Call {
+		Some(Transfer {
+			source: machine.state.as_ref().context.address,
+			target: to.into(),
+			value,
+		})
+	} else if scheme == CallScheme::CallCode {
+		Some(Transfer {
+			source: machine.state.as_ref().context.address,
+			target: machine.state.as_ref().context.address,
+			value,
+		})
+	} else {
+		None
+	};
+
+	Control::Trap(
+		RuntimeTrapData::Call(Box::new(RuntimeCallTrapData {
+			target: to.into(),
+			transfer,
+			input,
+			gas,
+			is_static: scheme == CallScheme::StaticCall,
+			context,
+			out_offset,
+			out_len,
+		}))
+		.into(),
+	)
 }
