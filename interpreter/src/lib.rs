@@ -19,10 +19,7 @@ pub use crate::error::{ExitError, ExitException, ExitFatal, ExitResult, ExitSucc
 pub use crate::eval::{Control, Efn, Etable};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
-pub use crate::runtime::{
-	CallScheme, Context, CreateScheme, Handler, RuntimeCallTrapData, RuntimeCreateTrapData,
-	RuntimeState, RuntimeTrap, RuntimeTrapData, Transfer,
-};
+pub use crate::runtime::{Context, Handler, RuntimeState, RuntimeTrap, RuntimeTrapData};
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
@@ -34,20 +31,20 @@ pub type StandardMachine = Machine<RuntimeState>;
 pub type StandardControl = Control<StandardTrapData>;
 pub type StandardEfn<H> = Efn<RuntimeState, H, StandardTrapData>;
 pub type StandardEtable<H> = Etable<RuntimeState, H, StandardTrap>;
-pub type StandardTrapData = RuntimeTrapData;
+pub type StandardTrapData = Box<RuntimeTrapData>;
 pub type StandardTrap = RuntimeTrap<RuntimeState>;
 
 /// Trap which indicates that an `ExternalOpcode` has to be handled.
 pub trait Trap<S> {
 	type Data;
 
-	fn from_data(data: Self::Data, machine: Machine<S>) -> Self;
+	fn create(data: Self::Data, machine: Machine<S>) -> Self;
 }
 
 impl<S> Trap<S> for Infallible {
 	type Data = Infallible;
 
-	fn from_data(data: Infallible, _machine: Machine<S>) -> Self {
+	fn create(data: Infallible, _machine: Machine<S>) -> Self {
 		match data {}
 	}
 }
@@ -142,19 +139,6 @@ impl<S> Machine<S> {
 			.map(|v| (Opcode(*v), &self.stack))
 	}
 
-	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
-		&mut self,
-		f: F,
-	) -> Result<R, ExitError> {
-		match f(self) {
-			Ok(r) => Ok(r),
-			Err(e) => {
-				self.exit();
-				Err(e)
-			}
-		}
-	}
-
 	/// Loop stepping the machine, until it stops.
 	pub fn run<H, Tr, F>(
 		mut self,
@@ -237,7 +221,7 @@ impl<S> Machine<S> {
 			}
 			Control::Trap(data) => {
 				self.position = position + 1;
-				Err(Capture::Trap(Tr::from_data(data, self)))
+				Err(Capture::Trap(Tr::create(data, self)))
 			}
 		}
 	}

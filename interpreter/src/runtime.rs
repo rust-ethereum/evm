@@ -1,156 +1,32 @@
-use crate::{ExitError, ExitResult, Machine, Trap};
-use core::cmp::min;
+use crate::{ExitError, Machine, Trap};
 use primitive_types::{H160, H256, U256};
 
 pub enum RuntimeTrapData {
-	Call(Box<RuntimeCallTrapData>),
-	Create(Box<RuntimeCreateTrapData>),
+	Call {
+		target: H160,
+		transfer: Transfer,
+		input: Vec<u8>,
+		gas: U256,
+		scheme: CallScheme,
+		context: Context,
+	},
+	Create {
+		scheme: CreateScheme,
+		value: U256,
+		code: Vec<u8>,
+	},
 }
 
-pub struct RuntimeCallTrapData {
-	pub target: H160,
-	pub transfer: Option<Transfer>,
-	pub input: Vec<u8>,
-	pub gas: U256,
-	pub is_static: bool,
-	pub out_offset: U256,
-	pub out_len: U256,
-	pub context: Context,
-}
-
-pub struct RuntimeCreateTrapData {
-	pub scheme: CreateScheme,
-	pub value: U256,
-	pub code: Vec<u8>,
-}
-
-pub enum RuntimeTrap<S> {
-	Call(RuntimeCallTrap<S>),
-	Create(RuntimeCreateTrap<S>),
+pub struct RuntimeTrap<S> {
+	data: Box<RuntimeTrapData>,
+	machine: Machine<S>,
 }
 
 impl<S: AsRef<RuntimeState>> Trap<S> for RuntimeTrap<S> {
-	type Data = RuntimeTrapData;
+	type Data = Box<RuntimeTrapData>;
 
-	fn from_data(data: RuntimeTrapData, machine: Machine<S>) -> Self {
-		match data {
-			RuntimeTrapData::Call(data) => Self::Call(RuntimeCallTrap { data, machine }),
-			RuntimeTrapData::Create(data) => Self::Create(RuntimeCreateTrap { data, machine }),
-		}
-	}
-}
-
-pub struct RuntimeCallTrap<S> {
-	data: Box<RuntimeCallTrapData>,
-	machine: Machine<S>,
-}
-
-impl<S: AsMut<RuntimeState>> RuntimeCallTrap<S> {
-	pub fn data(&self) -> &RuntimeCallTrapData {
-		self.data.as_ref()
-	}
-
-	pub fn feedback(
-		mut self,
-		reason: ExitResult,
-		retbuf: Vec<u8>,
-	) -> (Machine<S>, Result<(), ExitError>) {
-		let target_len = min(self.data.out_len, U256::from(retbuf.len()));
-		let out_offset = self.data.out_offset;
-
-		let ret = self.machine.perform(|machine| match reason {
-			Ok(_) => {
-				match machine
-					.memory
-					.copy_large(out_offset, U256::zero(), target_len, &retbuf[..])
-				{
-					Ok(()) => {
-						let mut value = H256::default();
-						U256::one().to_big_endian(&mut value[..]);
-						machine.stack.push(value)?;
-
-						Ok(())
-					}
-					Err(_) => {
-						machine.stack.push(H256::default())?;
-
-						Ok(())
-					}
-				}
-			}
-			Err(ExitError::Reverted) => {
-				machine.stack.push(H256::default())?;
-
-				let _ =
-					machine
-						.memory
-						.copy_large(out_offset, U256::zero(), target_len, &retbuf[..]);
-
-				Ok(())
-			}
-			Err(ExitError::Exception(_)) => {
-				machine.stack.push(H256::default())?;
-
-				Ok(())
-			}
-			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(H256::default())?;
-
-				Err(e.into())
-			}
-		});
-
-		match ret {
-			Ok(()) => {
-				self.machine.state.as_mut().retbuf = retbuf;
-				(self.machine, Ok(()))
-			}
-			Err(e) => (self.machine, Err(e)),
-		}
-	}
-}
-
-pub struct RuntimeCreateTrap<S> {
-	data: Box<RuntimeCreateTrapData>,
-	machine: Machine<S>,
-}
-
-impl<S: AsMut<RuntimeState>> RuntimeCreateTrap<S> {
-	pub fn data(&self) -> &RuntimeCreateTrapData {
-		self.data.as_ref()
-	}
-
-	pub fn feedback(
-		mut self,
-		reason: Result<H160, ExitError>,
-		retbuf: Vec<u8>,
-	) -> (Machine<S>, Result<(), ExitError>) {
-		let ret = self.machine.perform(|machine| match reason {
-			Ok(address) => {
-				machine.stack.push(address.into())?;
-				Ok(())
-			}
-			Err(ExitError::Reverted) => {
-				machine.stack.push(H256::default())?;
-				Ok(())
-			}
-			Err(ExitError::Exception(_)) => {
-				machine.stack.push(H256::default())?;
-				Ok(())
-			}
-			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(H256::default())?;
-				Err(e.into())
-			}
-		});
-
-		match ret {
-			Ok(()) => {
-				self.machine.state.as_mut().retbuf = retbuf;
-				(self.machine, Ok(()))
-			}
-			Err(e) => (self.machine, Err(e)),
-		}
+	fn create(data: Box<RuntimeTrapData>, machine: Machine<S>) -> Self {
+		Self { data, machine }
 	}
 }
 

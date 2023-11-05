@@ -6,7 +6,7 @@ mod misc;
 mod system;
 
 use crate::{
-	CallScheme, ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState,
+	ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState,
 	RuntimeTrapData, Trap,
 };
 use core::marker::PhantomData;
@@ -195,7 +195,7 @@ impl<S, H, Tr: Trap<S>> Etable<S, H, Tr> {
 
 impl<S, H: Handler, Tr> Etable<S, H, Tr>
 where
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	S: AsRef<RuntimeState>,
 	H: Handler,
 	Tr: Trap<S>,
 	Tr::Data: From<RuntimeTrapData>,
@@ -235,12 +235,12 @@ where
 		table.0[Opcode::CHAINID.as_usize()] = eval_chainid as _;
 		table.0[Opcode::BASEFEE.as_usize()] = eval_basefee as _;
 
-		table.0[Opcode::CREATE.as_usize()] = eval_create as _;
-		table.0[Opcode::CREATE2.as_usize()] = eval_create2 as _;
-		table.0[Opcode::CALL.as_usize()] = eval_call as _;
-		table.0[Opcode::CALLCODE.as_usize()] = eval_callcode as _;
-		table.0[Opcode::DELEGATECALL.as_usize()] = eval_delegatecall as _;
-		table.0[Opcode::STATICCALL.as_usize()] = eval_staticcall as _;
+		// table.0[Opcode::CREATE.as_usize()] = eval_trap as _;
+		// table.0[Opcode::CREATE2.as_usize()] = eval_trap as _;
+		// table.0[Opcode::CALL.as_usize()] = eval_trap as _;
+		// table.0[Opcode::CALLCODE.as_usize()] = eval_trap as _;
+		// table.0[Opcode::DELEGATECALL.as_usize()] = eval_trap as _;
+		// table.0[Opcode::STATICCALL.as_usize()] = eval_trap as _;
 
 		table
 	}
@@ -1227,11 +1227,7 @@ fn eval_unknown<S, H, Td>(
 	Control::Exit(ExitException::InvalidOpcode(opcode).into())
 }
 
-fn eval_sha3<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_sha3<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1240,11 +1236,7 @@ fn eval_sha3<
 	self::system::sha3(machine)
 }
 
-fn eval_address<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_address<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1253,11 +1245,7 @@ fn eval_address<
 	self::system::address(machine)
 }
 
-fn eval_balance<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_balance<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1266,11 +1254,7 @@ fn eval_balance<
 	self::system::balance(machine, handle)
 }
 
-fn eval_selfbalance<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_selfbalance<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1279,11 +1263,7 @@ fn eval_selfbalance<
 	self::system::selfbalance(machine, handle)
 }
 
-fn eval_origin<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_origin<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1292,11 +1272,7 @@ fn eval_origin<
 	self::system::origin(machine, handle)
 }
 
-fn eval_caller<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_caller<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1305,11 +1281,7 @@ fn eval_caller<
 	self::system::caller(machine)
 }
 
-fn eval_callvalue<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_callvalue<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1318,11 +1290,7 @@ fn eval_callvalue<
 	self::system::callvalue(machine)
 }
 
-fn eval_gasprice<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_gasprice<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1331,11 +1299,7 @@ fn eval_gasprice<
 	self::system::gasprice(machine, handle)
 }
 
-fn eval_extcodesize<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_extcodesize<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1344,11 +1308,7 @@ fn eval_extcodesize<
 	self::system::extcodesize(machine, handle)
 }
 
-fn eval_extcodehash<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_extcodehash<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1357,11 +1317,7 @@ fn eval_extcodehash<
 	self::system::extcodehash(machine, handle)
 }
 
-fn eval_extcodecopy<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_extcodecopy<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1370,11 +1326,7 @@ fn eval_extcodecopy<
 	self::system::extcodecopy(machine, handle)
 }
 
-fn eval_returndatasize<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_returndatasize<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1383,11 +1335,7 @@ fn eval_returndatasize<
 	self::system::returndatasize(machine)
 }
 
-fn eval_returndatacopy<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_returndatacopy<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1396,11 +1344,7 @@ fn eval_returndatacopy<
 	self::system::returndatacopy(machine)
 }
 
-fn eval_blockhash<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_blockhash<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1409,11 +1353,7 @@ fn eval_blockhash<
 	self::system::blockhash(machine, handle)
 }
 
-fn eval_coinbase<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_coinbase<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1422,11 +1362,7 @@ fn eval_coinbase<
 	self::system::coinbase(machine, handle)
 }
 
-fn eval_timestamp<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_timestamp<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1435,11 +1371,7 @@ fn eval_timestamp<
 	self::system::timestamp(machine, handle)
 }
 
-fn eval_number<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_number<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1448,11 +1380,7 @@ fn eval_number<
 	self::system::number(machine, handle)
 }
 
-fn eval_difficulty<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_difficulty<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1461,11 +1389,7 @@ fn eval_difficulty<
 	self::system::prevrandao(machine, handle)
 }
 
-fn eval_gaslimit<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_gaslimit<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1474,11 +1398,7 @@ fn eval_gaslimit<
 	self::system::gaslimit(machine, handle)
 }
 
-fn eval_sload<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_sload<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1487,11 +1407,7 @@ fn eval_sload<
 	self::system::sload(machine, handle)
 }
 
-fn eval_sstore<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_sstore<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1500,7 +1416,7 @@ fn eval_sstore<
 	self::system::sstore(machine, handle)
 }
 
-fn eval_gas<S: AsRef<RuntimeState> + AsMut<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
+fn eval_gas<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1509,11 +1425,7 @@ fn eval_gas<S: AsRef<RuntimeState> + AsMut<RuntimeState>, H: Handler, Td: From<R
 	self::system::gas(machine, handle)
 }
 
-fn eval_log0<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_log0<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1522,11 +1434,7 @@ fn eval_log0<
 	self::system::log(machine, 0, handle)
 }
 
-fn eval_log1<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_log1<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1535,11 +1443,7 @@ fn eval_log1<
 	self::system::log(machine, 1, handle)
 }
 
-fn eval_log2<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_log2<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1548,11 +1452,7 @@ fn eval_log2<
 	self::system::log(machine, 2, handle)
 }
 
-fn eval_log3<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_log3<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1561,11 +1461,7 @@ fn eval_log3<
 	self::system::log(machine, 3, handle)
 }
 
-fn eval_log4<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_log4<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1574,11 +1470,7 @@ fn eval_log4<
 	self::system::log(machine, 4, handle)
 }
 
-fn eval_suicide<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_suicide<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1587,11 +1479,7 @@ fn eval_suicide<
 	self::system::suicide(machine, handle)
 }
 
-fn eval_chainid<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_chainid<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1600,93 +1488,11 @@ fn eval_chainid<
 	self::system::chainid(machine, handle)
 }
 
-fn eval_basefee<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
+fn eval_basefee<S: AsRef<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
 ) -> Control<Td> {
 	self::system::basefee(machine, handle)
-}
-
-fn eval_create<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::create(false, machine)
-}
-
-fn eval_create2<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::create(true, machine)
-}
-
-fn eval_call<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::Call, machine)
-}
-
-fn eval_callcode<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::CallCode, machine)
-}
-
-fn eval_delegatecall<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::DelegateCall, machine)
-}
-
-fn eval_staticcall<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::StaticCall, machine)
 }
