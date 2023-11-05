@@ -39,12 +39,13 @@ pub trait Gasometer<S, H>: Sized {
 	type Config;
 
 	fn new(gas_limit: Self::Gas, machine: &Machine<S>, config: Self::Config) -> Self;
-	fn record(
+	fn record_stepn(
 		self,
 		machine: &Machine<S>,
 		handler: &H,
 		is_static: bool,
 	) -> Result<(Self, usize), ExitError>;
+	fn record_codedeposit(self, len: usize) -> Result<Self, ExitError>;
 	fn gas(&self) -> Self::Gas;
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
 }
