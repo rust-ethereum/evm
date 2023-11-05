@@ -4,7 +4,7 @@ use std::rc::Rc;
 static ETABLE: Etable<(), ()> = Etable::core();
 
 macro_rules! ret_test {
-	( $name:ident, $code:expr, $data:expr, $ret:expr ) => {
+	($name:ident, $code:expr, $data:expr, $ret:expr) => {
 		#[test]
 		fn $name() {
 			let code = hex::decode($code).unwrap();

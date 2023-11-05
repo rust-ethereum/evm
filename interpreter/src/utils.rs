@@ -1,6 +1,12 @@
 use core::cmp::Ordering;
 use core::ops::{Div, Rem};
-use primitive_types::U256;
+use primitive_types::{H256, U256};
+
+pub fn u256_to_h256(v: U256) -> H256 {
+	let mut r = H256::default();
+	v.to_big_endian(&mut r[..]);
+	r
+}
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Sign {
