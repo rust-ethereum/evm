@@ -20,8 +20,9 @@ pub use crate::eval::{Control, Efn, Etable};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::runtime::{
-	CallScheme, Context, CreateScheme, Handler, RuntimeCallTrapData, RuntimeCreateTrapData,
-	RuntimeState, RuntimeTrap, RuntimeTrapData, Transfer,
+	CallScheme, Context, CreateScheme, Handler, RuntimeBackend, RuntimeCallTrapData,
+	RuntimeCreateTrapData, RuntimeEnvironmentalBackend, RuntimeFullBackend,
+	RuntimeGasometerBackend, RuntimeState, RuntimeTrap, RuntimeTrapData, Transfer,
 };
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;

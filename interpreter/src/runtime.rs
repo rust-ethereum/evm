@@ -210,7 +210,13 @@ pub struct RuntimeState {
 
 impl AsRef<RuntimeState> for RuntimeState {
 	fn as_ref(&self) -> &RuntimeState {
-		&self
+		self
+	}
+}
+
+impl AsMut<RuntimeState> for RuntimeState {
+	fn as_mut(&mut self) -> &mut RuntimeState {
+		self
 	}
 }
 
@@ -225,9 +231,7 @@ pub struct Context {
 	pub apparent_value: U256,
 }
 
-/// EVM context handler.
-#[auto_impl::auto_impl(&mut, Box)]
-pub trait Handler {
+pub trait RuntimeBackend {
 	/// Get balance of address.
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
@@ -241,12 +245,37 @@ pub trait Handler {
 	/// Get original storage value of address at index.
 	fn original_storage(&self, address: H160, index: H256) -> H256;
 
-	/// Get the gas left value.
-	fn gas_left(&self) -> U256;
-	/// Get the gas price value.
-	fn gas_price(&self) -> U256;
-	/// Get execution origin.
-	fn origin(&self) -> H160;
+	/// Check whether an address exists.
+	fn exists(&self, address: H160) -> bool;
+	/// Check whether an address has already been deleted.
+	fn deleted(&self, address: H160) -> bool;
+	/// Checks if the address or (address, index) pair has been previously accessed.
+	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
+	/// Mark an address or (address, index) pair as hot.
+	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError>;
+	/// Set storage value of address at index.
+	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
+
+	/// Create a log owned by address with given topics and data.
+	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
+	/// Mark an address to be deleted, with funds transferred to target.
+	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
+}
+
+pub trait RuntimeFullBackend: RuntimeBackend {
+	/// Fully delete storages of an account.
+	fn reset_storage(&mut self, address: H160);
+	/// Set code of an account.
+	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	/// Reset balance of an account.
+	fn reset_balance(&mut self, address: H160);
+	/// Initiate a transfer.
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
+	/// Increase the nonce value.
+	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
+}
+
+pub trait RuntimeEnvironmentalBackend {
 	/// Get environmental block hash.
 	fn block_hash(&self, number: U256) -> H256;
 	/// Get environmental block number.
@@ -265,20 +294,16 @@ pub trait Handler {
 	fn block_base_fee_per_gas(&self) -> U256;
 	/// Get environmental chain ID.
 	fn chain_id(&self) -> U256;
-
-	/// Check whether an address exists.
-	fn exists(&self, address: H160) -> bool;
-	/// Check whether an address has already been deleted.
-	fn deleted(&self, address: H160) -> bool;
-	/// Checks if the address or (address, index) pair has been previously accessed.
-	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
-	/// Mark an address or (address, index) pair as hot.
-	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError>;
-
-	/// Set storage value of address at index.
-	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
-	/// Create a log owned by address with given topics and data.
-	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
-	/// Mark an address to be deleted, with funds transferred to target.
-	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
+	/// Get the gas price value.
+	fn gas_price(&self) -> U256;
+	/// Get execution origin.
+	fn origin(&self) -> H160;
 }
+
+pub trait RuntimeGasometerBackend {
+	/// Get the gas left value.
+	fn gas_left(&self) -> U256;
+}
+
+/// EVM context handler.
+pub trait Handler: RuntimeBackend + RuntimeEnvironmentalBackend + RuntimeGasometerBackend {}
