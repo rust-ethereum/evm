@@ -1,8 +1,7 @@
-use evm_interpreter::{Etable, ExitSucceed, Machine};
-use std::convert::Infallible;
+use evm_interpreter::{Capture, Etable, ExitSucceed, Machine};
 use std::rc::Rc;
 
-static ETABLE: Etable<(), (), Infallible> = Etable::core();
+static ETABLE: Etable<(), ()> = Etable::core();
 
 macro_rules! ret_test {
 	( $name:ident, $code:expr, $data:expr, $ret:expr ) => {
@@ -13,12 +12,8 @@ macro_rules! ret_test {
 
 			let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
 			assert_eq!(
-				{
-					let res;
-					(vm, res) = vm.run::<_, Infallible, _>(&mut (), &ETABLE).exit().unwrap();
-					res
-				},
-				Ok(ExitSucceed::Returned.into())
+				vm.run(&mut (), &ETABLE),
+				Capture::Exit(Ok(ExitSucceed::Returned.into()))
 			);
 			assert_eq!(vm.into_retbuf(), hex::decode($ret).unwrap());
 		}

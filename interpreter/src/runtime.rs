@@ -1,79 +1,8 @@
-use crate::{ExitError, Machine, Trap};
+use crate::ExitError;
 use primitive_types::{H160, H256, U256};
 
-pub enum RuntimeTrapData {
-	Call {
-		target: H160,
-		transfer: Transfer,
-		input: Vec<u8>,
-		gas: U256,
-		scheme: CallScheme,
-		context: Context,
-	},
-	Create {
-		scheme: CreateScheme,
-		value: U256,
-		code: Vec<u8>,
-	},
-}
-
-pub struct RuntimeTrap<S> {
-	data: Box<RuntimeTrapData>,
-	machine: Machine<S>,
-}
-
-impl<S: AsRef<RuntimeState>> Trap<S> for RuntimeTrap<S> {
-	type Data = Box<RuntimeTrapData>;
-
-	fn create(data: Box<RuntimeTrapData>, machine: Machine<S>) -> Self {
-		Self { data, machine }
-	}
-}
-
-/// Create scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum CreateScheme {
-	/// Legacy create scheme of `CREATE`.
-	Legacy {
-		/// Caller of the create.
-		caller: H160,
-	},
-	/// Create scheme of `CREATE2`.
-	Create2 {
-		/// Caller of the create.
-		caller: H160,
-		/// Code hash.
-		code_hash: H256,
-		/// Salt.
-		salt: H256,
-	},
-	/// Create at a fixed location.
-	Fixed(H160),
-}
-
-/// Call scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum CallScheme {
-	/// `CALL`
-	Call,
-	/// `CALLCODE`
-	CallCode,
-	/// `DELEGATECALL`
-	DelegateCall,
-	/// `STATICCALL`
-	StaticCall,
-}
-
-/// Transfer from source to target, with given value.
-#[derive(Clone, Debug)]
-pub struct Transfer {
-	/// Source address.
-	pub source: H160,
-	/// Target address.
-	pub target: H160,
-	/// Transfer value.
-	pub value: U256,
-}
+/// Runtime machine.
+pub type RuntimeMachine = crate::Machine<RuntimeState>;
 
 /// Runtime state.
 #[derive(Clone, Debug)]
@@ -82,12 +11,6 @@ pub struct RuntimeState {
 	pub context: Context,
 	/// Return data buffer.
 	pub retbuf: Vec<u8>,
-}
-
-impl AsRef<RuntimeState> for RuntimeState {
-	fn as_ref(&self) -> &RuntimeState {
-		&self
-	}
 }
 
 /// Context of the runtime.

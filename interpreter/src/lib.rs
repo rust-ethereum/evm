@@ -15,67 +15,18 @@ mod stack;
 mod utils;
 mod valids;
 
-pub use crate::error::{ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed};
-pub use crate::eval::{Control, Efn, Etable};
+pub use crate::error::{
+	Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed, Trap,
+};
+pub use crate::eval::{Control, Efn, Etable, RuntimeEtable};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
-pub use crate::runtime::{Context, Handler, RuntimeState, RuntimeTrap, RuntimeTrapData};
+pub use crate::runtime::{Context, Handler, RuntimeMachine, RuntimeState};
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use core::convert::Infallible;
-
-pub type StandardMachine = Machine<RuntimeState>;
-pub type StandardControl = Control<StandardTrapData>;
-pub type StandardEfn<H> = Efn<RuntimeState, H, StandardTrapData>;
-pub type StandardEtable<H> = Etable<RuntimeState, H, StandardTrap>;
-pub type StandardTrapData = Box<RuntimeTrapData>;
-pub type StandardTrap = RuntimeTrap<RuntimeState>;
-
-/// Trap which indicates that an `ExternalOpcode` has to be handled.
-pub trait Trap<S> {
-	type Data;
-
-	fn create(data: Self::Data, machine: Machine<S>) -> Self;
-}
-
-impl<S> Trap<S> for Infallible {
-	type Data = Infallible;
-
-	fn create(data: Infallible, _machine: Machine<S>) -> Self {
-		match data {}
-	}
-}
-
-/// Capture represents the result of execution.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Capture<E, T> {
-	/// The machine has exited. It cannot be executed again.
-	Exit(E),
-	/// The machine has trapped. It is waiting for external information, and can
-	/// be executed again.
-	Trap(T),
-}
-
-impl<E, T> Capture<E, T> {
-	pub fn exit(self) -> Option<E> {
-		if let Self::Exit(e) = self {
-			Some(e)
-		} else {
-			None
-		}
-	}
-
-	pub fn trap(self) -> Option<T> {
-		if let Self::Trap(t) = self {
-			Some(t)
-		} else {
-			None
-		}
-	}
-}
 
 /// Core execution layer for EVM.
 pub struct Machine<S> {
@@ -140,88 +91,80 @@ impl<S> Machine<S> {
 	}
 
 	/// Loop stepping the machine, until it stops.
-	pub fn run<H, Tr, F>(
-		mut self,
+	pub fn run<H, F>(
+		&mut self,
 		handle: &mut H,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Capture<(Self, ExitResult), Tr>
+		etable: &Etable<S, H, F>,
+	) -> Capture<ExitResult, Trap>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr::Data>,
-		Tr: Trap<S>,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
 	{
 		loop {
 			match self.step(handle, etable) {
-				Ok(s) => {
-					self = s;
-				}
+				Ok(()) => (),
 				Err(res) => return res,
 			}
 		}
 	}
 
 	/// Step the machine N times.
-	pub fn stepn<H, Tr, F>(
-		mut self,
+	pub fn stepn<H, F>(
+		&mut self,
 		n: usize,
 		handle: &mut H,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Result<Self, Capture<(Self, ExitResult), Tr>>
+		etable: &Etable<S, H, F>,
+	) -> Result<(), Capture<ExitResult, Trap>>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr::Data>,
-		Tr: Trap<S>,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
 	{
 		for _ in 0..n {
 			match self.step(handle, etable) {
-				Ok(s) => {
-					self = s;
-				}
+				Ok(()) => (),
 				Err(res) => return Err(res),
 			}
 		}
 
-		Ok(self)
+		Ok(())
 	}
 
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
-	pub fn step<H, Tr, F>(
-		mut self,
+	pub fn step<H, F>(
+		&mut self,
 		handle: &mut H,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Result<Self, Capture<(Self, ExitResult), Tr>>
+		etable: &Etable<S, H, F>,
+	) -> Result<(), Capture<ExitResult, Trap>>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr::Data>,
-		Tr: Trap<S>,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
 	{
 		let position = self.position;
 		if position >= self.code.len() {
-			return Err(Capture::Exit((self, ExitSucceed::Stopped.into())));
+			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
 		}
 
 		let opcode = Opcode(self.code[position]);
-		let position = self.position;
-		let control = etable[opcode.as_usize()](&mut self, handle, opcode, position);
+		let control = etable[opcode.as_usize()](self, handle, opcode, self.position);
 
 		match control {
 			Control::Continue => {
 				self.position += 1;
-				Ok(self)
+				Ok(())
 			}
 			Control::ContinueN(p) => {
 				self.position = position + p;
-				Ok(self)
+				Ok(())
 			}
 			Control::Exit(e) => {
 				self.position = self.code.len();
-				Err(Capture::Exit((self, e)))
+				Err(Capture::Exit(e))
 			}
 			Control::Jump(p) => {
 				self.position = p;
-				Ok(self)
+				Ok(())
 			}
-			Control::Trap(data) => {
+			Control::Trap(opcode) => {
 				self.position = position + 1;
-				Err(Capture::Trap(Tr::create(data, self)))
+				Err(Capture::Trap(opcode))
 			}
 		}
 	}
