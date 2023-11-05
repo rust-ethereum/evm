@@ -73,6 +73,19 @@ impl<S> Machine<S> {
 		}
 	}
 
+	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
+		&mut self,
+		f: F,
+	) -> Result<R, ExitError> {
+		match f(self) {
+			Ok(r) => Ok(r),
+			Err(e) => {
+				self.exit();
+				Err(e)
+			}
+		}
+	}
+
 	/// Explicit exit of the machine. Further step will return error.
 	pub fn exit(&mut self) {
 		self.position = self.code.len();

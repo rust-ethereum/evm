@@ -12,18 +12,38 @@ pub struct StandardGasometer<'config> {
 }
 
 impl<'config> StandardGasometer<'config> {
+	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
+		&mut self,
+		f: F,
+	) -> Result<R, ExitError> {
+		match f(self) {
+			Ok(r) => Ok(r),
+			Err(e) => {
+				self.oog();
+				Err(e)
+			}
+		}
+	}
+
+	pub fn oog(&mut self) {
+		self.memory_gas = 0;
+		self.refunded_gas = 0;
+		self.used_gas = self.gas_limit;
+	}
+
 	/// Total used gas. Simply used gas plus memory cost.
 	pub fn total_used_gas(&self) -> u64 {
 		self.used_gas + self.memory_gas
 	}
 
 	/// Record an explicit cost.
-	pub fn record_cost(self, cost: u64) -> Result<Self, ExitError> {
+	fn record_cost_nocleanup(&mut self, cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
 			Err(ExitException::OutOfGas.into())
 		} else {
-			Ok(self)
+			self.used_gas += cost;
+			Ok(())
 		}
 	}
 }
@@ -43,52 +63,59 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 	}
 
 	fn record_stepn(
-		mut self,
+		&mut self,
 		machine: &Machine<RuntimeState>,
 		handler: &H,
 		is_static: bool,
-	) -> Result<(Self, usize), ExitError> {
-		let opcode = machine.peek_opcode().ok_or(ExitException::OutOfGas)?;
+	) -> Result<usize, ExitError> {
+		self.perform(|gasometer| {
+			let opcode = machine.peek_opcode().ok_or(ExitException::OutOfGas)?;
 
-		if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
-			self = self.record_cost(cost)?;
-		} else {
-			let address = machine.state.context.address;
-			let (gas, memory_gas) = dynamic_opcode_cost(
-				address,
-				opcode,
-				&machine.stack,
-				is_static,
-				self.config,
-				handler,
-			)?;
-			let cost = gas.cost(Gasometer::<RuntimeState, H>::gas(&self), self.config)?;
-			let refund = gas.refund(self.config);
-
-			self = self.record_cost(cost)?;
-			if refund >= 0 {
-				self.refunded_gas += refund as u64;
+			if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
+				gasometer.record_cost_nocleanup(cost)?;
 			} else {
-				self.refunded_gas = self.refunded_gas.saturating_sub(-refund as u64);
-			}
-			if let Some(memory_gas) = memory_gas {
-				let memory_cost = memory_gas.cost()?;
-				if let Some(memory_cost) = memory_cost {
-					self.memory_gas = max(self.memory_gas, memory_cost);
+				let address = machine.state.context.address;
+				let (gas, memory_gas) = dynamic_opcode_cost(
+					address,
+					opcode,
+					&machine.stack,
+					is_static,
+					gasometer.config,
+					handler,
+				)?;
+				let cost = gas.cost(
+					Gasometer::<RuntimeState, H>::gas(gasometer),
+					gasometer.config,
+				)?;
+				let refund = gas.refund(gasometer.config);
+
+				gasometer.record_cost_nocleanup(cost)?;
+				if refund >= 0 {
+					gasometer.refunded_gas += refund as u64;
+				} else {
+					gasometer.refunded_gas = gasometer.refunded_gas.saturating_sub(-refund as u64);
 				}
+				if let Some(memory_gas) = memory_gas {
+					let memory_cost = memory_gas.cost()?;
+					if let Some(memory_cost) = memory_cost {
+						gasometer.memory_gas = max(gasometer.memory_gas, memory_cost);
+					}
+				}
+
+				let after_gas = Gasometer::<RuntimeState, H>::gas(gasometer);
+				gas.extra_check(after_gas, gasometer.config)?;
 			}
 
-			let after_gas = Gasometer::<RuntimeState, H>::gas(&self);
-			gas.extra_check(after_gas, self.config)?;
-		}
-
-		Ok((self, 1))
+			Ok(1)
+		})
 	}
 
-	fn record_codedeposit(mut self, len: usize) -> Result<Self, ExitError> {
-		let cost = len as u64 * consts::G_CODEDEPOSIT;
-		self = self.record_cost(cost)?;
-		Ok(self)
+	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
+		self.perform(|gasometer| {
+			let cost = len as u64 * consts::G_CODEDEPOSIT;
+			gasometer.record_cost_nocleanup(cost)?;
+			Ok(())
+		})
 	}
 
 	fn gas(&self) -> u64 {

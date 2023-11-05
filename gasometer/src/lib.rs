@@ -12,7 +12,7 @@ pub use crate::config::Config;
 pub use crate::standard::StandardGasometer;
 
 use core::ops::{Add, AddAssign, Sub, SubAssign};
-use evm_interpreter::{ExitError, Machine};
+use evm_interpreter::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode, Trap};
 use primitive_types::U256;
 
 pub trait Gas:
@@ -40,12 +40,34 @@ pub trait Gasometer<S, H>: Sized {
 
 	fn new(gas_limit: Self::Gas, machine: &Machine<S>, config: Self::Config) -> Self;
 	fn record_stepn(
-		self,
+		&mut self,
 		machine: &Machine<S>,
 		handler: &H,
 		is_static: bool,
-	) -> Result<(Self, usize), ExitError>;
-	fn record_codedeposit(self, len: usize) -> Result<Self, ExitError>;
+	) -> Result<usize, ExitError>;
+	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 	fn gas(&self) -> Self::Gas;
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
+}
+
+pub fn run_with_gasometer<S, H, G, F>(
+	machine: &mut Machine<S>,
+	gasometer: &mut G,
+	handler: &mut H,
+	is_static: bool,
+	etable: &Etable<S, H, F>,
+) -> Capture<ExitResult, Trap>
+where
+	G: Gasometer<S, H>,
+	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+{
+	loop {
+		match gasometer.record_stepn(&machine, handler, is_static) {
+			Ok(stepn) => match machine.stepn(stepn, handler, etable) {
+				Ok(()) => (),
+				Err(c) => return c,
+			},
+			Err(e) => return Capture::Exit(Err(e)),
+		}
+	}
 }

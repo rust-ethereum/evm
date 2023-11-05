@@ -42,6 +42,11 @@ impl Stack {
 		&self.data
 	}
 
+	/// Clear the stack.
+	pub fn clear(&mut self) {
+		self.data.clear()
+	}
+
 	#[inline]
 	/// Pop a value from the stack. If the stack is already empty, returns the
 	/// `StackUnderflow` error.
