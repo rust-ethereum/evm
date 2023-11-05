@@ -29,10 +29,9 @@ impl Gas for u64 {}
 impl Gas for U256 {}
 
 #[derive(Clone, Copy)]
-pub enum MergeStrategy {
+pub enum GasometerMergeStrategy {
 	Commit,
 	Revert,
-	Discard,
 }
 
 pub trait Gasometer<S, H>: Sized {
@@ -47,5 +46,5 @@ pub trait Gasometer<S, H>: Sized {
 		is_static: bool,
 	) -> Result<(Self, usize), ExitError>;
 	fn gas(&self) -> Self::Gas;
-	fn merge(&mut self, other: Self, strategy: MergeStrategy);
+	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
 }
