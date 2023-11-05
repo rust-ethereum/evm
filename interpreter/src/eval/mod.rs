@@ -5,34 +5,21 @@ mod bitwise;
 mod misc;
 mod system;
 
-use crate::{
-	CallScheme, ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState,
-	RuntimeTrapData, Trap,
-};
+use crate::{ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState, Trap};
 use core::marker::PhantomData;
 use core::ops::{BitAnd, BitOr, BitXor, Deref, DerefMut};
 use primitive_types::{H256, U256};
 
-/// Control state.
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Control<Td> {
-	Continue,
-	ContinueN(usize),
-	Exit(ExitResult),
-	Jump(usize),
-	Trap(Td),
-}
-
 /// Evaluation function type.
-pub type Efn<S, H, Td> = fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Td>;
+pub type Efn<S, H> = fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control;
 
 /// The evaluation table for the EVM.
-pub struct Etable<S, H, Tr: Trap<S>, F = Efn<S, H, <Tr as Trap<S>>::Data>>(
-	[F; 256],
-	PhantomData<(S, H, Tr)>,
-);
+pub struct Etable<S, H, F = Efn<S, H>>([F; 256], PhantomData<(S, H)>);
 
-impl<S, H, Tr: Trap<S>, F> Deref for Etable<S, H, Tr, F> {
+/// Runtime table.
+pub type RuntimeEtable<H, F = Efn<RuntimeState, H>> = Etable<RuntimeState, H, F>;
+
+impl<S, H, F> Deref for Etable<S, H, F> {
 	type Target = [F; 256];
 
 	fn deref(&self) -> &[F; 256] {
@@ -40,22 +27,21 @@ impl<S, H, Tr: Trap<S>, F> Deref for Etable<S, H, Tr, F> {
 	}
 }
 
-impl<S, H, Tr: Trap<S>, F> DerefMut for Etable<S, H, Tr, F> {
+impl<S, H, F> DerefMut for Etable<S, H, F> {
 	fn deref_mut(&mut self) -> &mut [F; 256] {
 		&mut self.0
 	}
 }
 
-impl<S, H, Tr, F> Etable<S, H, Tr, F>
+impl<S, H, F> Etable<S, H, F>
 where
-	Tr: Trap<S>,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr::Data>,
+	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
 {
 	/// Wrap to create a new Etable.
-	pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, Tr, FR>
+	pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, FR>
 	where
 		FW: Fn(F, Opcode) -> FR,
-		FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr::Data>,
+		FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
 	{
 		let mut current_opcode = Opcode(0);
 		Etable(
@@ -71,9 +57,9 @@ where
 	}
 }
 
-impl<S, H, Tr: Trap<S>> Etable<S, H, Tr> {
+impl<S, H> Etable<S, H> {
 	/// Default core value for Etable.
-	pub const fn core() -> Self {
+	pub const fn core() -> Etable<S, H> {
 		let mut table = [eval_unknown as _; 256];
 
 		table[Opcode::STOP.as_usize()] = eval_stop as _;
@@ -193,15 +179,9 @@ impl<S, H, Tr: Trap<S>> Etable<S, H, Tr> {
 	}
 }
 
-impl<S, H: Handler, Tr> Etable<S, H, Tr>
-where
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Tr: Trap<S>,
-	Tr::Data: From<RuntimeTrapData>,
-{
+impl<H: Handler> Etable<RuntimeState, H> {
 	/// Runtime Etable.
-	pub const fn runtime() -> Self {
+	pub const fn runtime() -> Etable<RuntimeState, H> {
 		let mut table = Self::core();
 
 		table.0[Opcode::SHA3.as_usize()] = eval_sha3 as _;
@@ -235,1458 +215,1283 @@ where
 		table.0[Opcode::CHAINID.as_usize()] = eval_chainid as _;
 		table.0[Opcode::BASEFEE.as_usize()] = eval_basefee as _;
 
-		table.0[Opcode::CREATE.as_usize()] = eval_create as _;
-		table.0[Opcode::CREATE2.as_usize()] = eval_create2 as _;
-		table.0[Opcode::CALL.as_usize()] = eval_call as _;
-		table.0[Opcode::CALLCODE.as_usize()] = eval_callcode as _;
-		table.0[Opcode::DELEGATECALL.as_usize()] = eval_delegatecall as _;
-		table.0[Opcode::STATICCALL.as_usize()] = eval_staticcall as _;
+		table.0[Opcode::CREATE.as_usize()] = eval_trap as _;
+		table.0[Opcode::CREATE2.as_usize()] = eval_trap as _;
+		table.0[Opcode::CALL.as_usize()] = eval_trap as _;
+		table.0[Opcode::CALLCODE.as_usize()] = eval_trap as _;
+		table.0[Opcode::DELEGATECALL.as_usize()] = eval_trap as _;
+		table.0[Opcode::STATICCALL.as_usize()] = eval_trap as _;
 
 		table
 	}
 }
 
-fn eval_stop<S, H, Td>(
+/// Control state.
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Control {
+	Continue,
+	ContinueN(usize),
+	Exit(ExitResult),
+	Jump(usize),
+	Trap(Trap),
+}
+
+fn eval_stop<S, H>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	Control::Exit(ExitSucceed::Stopped.into())
 }
 
-fn eval_add<S, H, Td>(
+fn eval_add<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_tuple!(machine, overflowing_add)
 }
 
-fn eval_mul<S, H, Td>(
+fn eval_mul<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_tuple!(machine, overflowing_mul)
 }
 
-fn eval_sub<S, H, Td>(
+fn eval_sub<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_tuple!(machine, overflowing_sub)
 }
 
-fn eval_div<S, H, Td>(
+fn eval_div<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::arithmetic::div)
 }
 
-fn eval_sdiv<S, H, Td>(
+fn eval_sdiv<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::arithmetic::sdiv)
 }
 
-fn eval_mod<S, H, Td>(
+fn eval_mod<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::arithmetic::rem)
 }
 
-fn eval_smod<S, H, Td>(
+fn eval_smod<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::arithmetic::srem)
 }
 
-fn eval_addmod<S, H, Td>(
+fn eval_addmod<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op3_u256_fn!(machine, self::arithmetic::addmod)
 }
 
-fn eval_mulmod<S, H, Td>(
+fn eval_mulmod<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op3_u256_fn!(machine, self::arithmetic::mulmod)
 }
 
-fn eval_exp<S, H, Td>(
+fn eval_exp<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::arithmetic::exp)
 }
 
-fn eval_signextend<S, H, Td>(
+fn eval_signextend<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::arithmetic::signextend)
 }
 
-fn eval_lt<S, H, Td>(
+fn eval_lt<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_bool_ref!(machine, lt)
 }
 
-fn eval_gt<S, H, Td>(
+fn eval_gt<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_bool_ref!(machine, gt)
 }
 
-fn eval_slt<S, H, Td>(
+fn eval_slt<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::bitwise::slt)
 }
 
-fn eval_sgt<S, H, Td>(
+fn eval_sgt<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::bitwise::sgt)
 }
 
-fn eval_eq<S, H, Td>(
+fn eval_eq<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_bool_ref!(machine, eq)
 }
 
-fn eval_iszero<S, H, Td>(
+fn eval_iszero<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op1_u256_fn!(machine, self::bitwise::iszero)
 }
 
-fn eval_and<S, H, Td>(
+fn eval_and<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256!(machine, bitand)
 }
 
-fn eval_or<S, H, Td>(
+fn eval_or<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256!(machine, bitor)
 }
 
-fn eval_xor<S, H, Td>(
+fn eval_xor<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256!(machine, bitxor)
 }
 
-fn eval_not<S, H, Td>(
+fn eval_not<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op1_u256_fn!(machine, self::bitwise::not)
 }
 
-fn eval_byte<S, H, Td>(
+fn eval_byte<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::bitwise::byte)
 }
 
-fn eval_shl<S, H, Td>(
+fn eval_shl<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::bitwise::shl)
 }
 
-fn eval_shr<S, H, Td>(
+fn eval_shr<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::bitwise::shr)
 }
 
-fn eval_sar<S, H, Td>(
+fn eval_sar<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	op2_u256_fn!(machine, self::bitwise::sar)
 }
 
-fn eval_codesize<S, H, Td>(
+fn eval_codesize<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::codesize(machine)
 }
 
-fn eval_codecopy<S, H, Td>(
+fn eval_codecopy<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::codecopy(machine)
 }
 
-fn eval_calldataload<S, H, Td>(
+fn eval_calldataload<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::calldataload(machine)
 }
 
-fn eval_calldatasize<S, H, Td>(
+fn eval_calldatasize<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::calldatasize(machine)
 }
 
-fn eval_calldatacopy<S, H, Td>(
+fn eval_calldatacopy<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::calldatacopy(machine)
 }
 
-fn eval_pop<S, H, Td>(
+fn eval_pop<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::pop(machine)
 }
 
-fn eval_mload<S, H, Td>(
+fn eval_mload<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::mload(machine)
 }
 
-fn eval_mstore<S, H, Td>(
+fn eval_mstore<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::mstore(machine)
 }
 
-fn eval_mstore8<S, H, Td>(
+fn eval_mstore8<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::mstore8(machine)
 }
 
-fn eval_jump<S, H, Td>(
+fn eval_jump<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::jump(machine)
 }
 
-fn eval_jumpi<S, H, Td>(
+fn eval_jumpi<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::jumpi(machine)
 }
 
-fn eval_pc<S, H, Td>(
+fn eval_pc<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::pc(machine, position)
 }
 
-fn eval_msize<S, H, Td>(
+fn eval_msize<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::msize(machine)
 }
 
-fn eval_jumpdest<S, H, Td>(
+fn eval_jumpdest<S, H>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	Control::Continue
 }
 
-fn eval_push0<S, H, Td>(
+fn eval_push0<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 0, position)
 }
 
-fn eval_push1<S, H, Td>(
+fn eval_push1<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 1, position)
 }
 
-fn eval_push2<S, H, Td>(
+fn eval_push2<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 2, position)
 }
 
-fn eval_push3<S, H, Td>(
+fn eval_push3<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 3, position)
 }
 
-fn eval_push4<S, H, Td>(
+fn eval_push4<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 4, position)
 }
 
-fn eval_push5<S, H, Td>(
+fn eval_push5<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 5, position)
 }
 
-fn eval_push6<S, H, Td>(
+fn eval_push6<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 6, position)
 }
 
-fn eval_push7<S, H, Td>(
+fn eval_push7<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 7, position)
 }
 
-fn eval_push8<S, H, Td>(
+fn eval_push8<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 8, position)
 }
 
-fn eval_push9<S, H, Td>(
+fn eval_push9<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 9, position)
 }
 
-fn eval_push10<S, H, Td>(
+fn eval_push10<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 10, position)
 }
 
-fn eval_push11<S, H, Td>(
+fn eval_push11<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 11, position)
 }
 
-fn eval_push12<S, H, Td>(
+fn eval_push12<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 12, position)
 }
 
-fn eval_push13<S, H, Td>(
+fn eval_push13<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 13, position)
 }
 
-fn eval_push14<S, H, Td>(
+fn eval_push14<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 14, position)
 }
 
-fn eval_push15<S, H, Td>(
+fn eval_push15<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 15, position)
 }
 
-fn eval_push16<S, H, Td>(
+fn eval_push16<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 16, position)
 }
 
-fn eval_push17<S, H, Td>(
+fn eval_push17<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 17, position)
 }
 
-fn eval_push18<S, H, Td>(
+fn eval_push18<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 18, position)
 }
 
-fn eval_push19<S, H, Td>(
+fn eval_push19<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 19, position)
 }
 
-fn eval_push20<S, H, Td>(
+fn eval_push20<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 20, position)
 }
 
-fn eval_push21<S, H, Td>(
+fn eval_push21<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 21, position)
 }
 
-fn eval_push22<S, H, Td>(
+fn eval_push22<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 22, position)
 }
 
-fn eval_push23<S, H, Td>(
+fn eval_push23<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 23, position)
 }
 
-fn eval_push24<S, H, Td>(
+fn eval_push24<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 24, position)
 }
 
-fn eval_push25<S, H, Td>(
+fn eval_push25<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 25, position)
 }
 
-fn eval_push26<S, H, Td>(
+fn eval_push26<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 26, position)
 }
 
-fn eval_push27<S, H, Td>(
+fn eval_push27<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 27, position)
 }
 
-fn eval_push28<S, H, Td>(
+fn eval_push28<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 28, position)
 }
 
-fn eval_push29<S, H, Td>(
+fn eval_push29<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 29, position)
 }
 
-fn eval_push30<S, H, Td>(
+fn eval_push30<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 30, position)
 }
 
-fn eval_push31<S, H, Td>(
+fn eval_push31<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 31, position)
 }
 
-fn eval_push32<S, H, Td>(
+fn eval_push32<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::push(machine, 32, position)
 }
 
-fn eval_dup1<S, H, Td>(
+fn eval_dup1<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 1)
 }
 
-fn eval_dup2<S, H, Td>(
+fn eval_dup2<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 2)
 }
 
-fn eval_dup3<S, H, Td>(
+fn eval_dup3<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 3)
 }
 
-fn eval_dup4<S, H, Td>(
+fn eval_dup4<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 4)
 }
 
-fn eval_dup5<S, H, Td>(
+fn eval_dup5<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 5)
 }
 
-fn eval_dup6<S, H, Td>(
+fn eval_dup6<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 6)
 }
 
-fn eval_dup7<S, H, Td>(
+fn eval_dup7<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 7)
 }
 
-fn eval_dup8<S, H, Td>(
+fn eval_dup8<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 8)
 }
 
-fn eval_dup9<S, H, Td>(
+fn eval_dup9<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 9)
 }
 
-fn eval_dup10<S, H, Td>(
+fn eval_dup10<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 10)
 }
 
-fn eval_dup11<S, H, Td>(
+fn eval_dup11<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 11)
 }
 
-fn eval_dup12<S, H, Td>(
+fn eval_dup12<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 12)
 }
 
-fn eval_dup13<S, H, Td>(
+fn eval_dup13<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 13)
 }
 
-fn eval_dup14<S, H, Td>(
+fn eval_dup14<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 14)
 }
 
-fn eval_dup15<S, H, Td>(
+fn eval_dup15<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 15)
 }
 
-fn eval_dup16<S, H, Td>(
+fn eval_dup16<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::dup(machine, 16)
 }
 
-fn eval_swap1<S, H, Td>(
+fn eval_swap1<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 1)
 }
 
-fn eval_swap2<S, H, Td>(
+fn eval_swap2<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 2)
 }
 
-fn eval_swap3<S, H, Td>(
+fn eval_swap3<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 3)
 }
 
-fn eval_swap4<S, H, Td>(
+fn eval_swap4<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 4)
 }
 
-fn eval_swap5<S, H, Td>(
+fn eval_swap5<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 5)
 }
 
-fn eval_swap6<S, H, Td>(
+fn eval_swap6<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 6)
 }
 
-fn eval_swap7<S, H, Td>(
+fn eval_swap7<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 7)
 }
 
-fn eval_swap8<S, H, Td>(
+fn eval_swap8<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 8)
 }
 
-fn eval_swap9<S, H, Td>(
+fn eval_swap9<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 9)
 }
 
-fn eval_swap10<S, H, Td>(
+fn eval_swap10<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 10)
 }
 
-fn eval_swap11<S, H, Td>(
+fn eval_swap11<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 11)
 }
 
-fn eval_swap12<S, H, Td>(
+fn eval_swap12<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 12)
 }
 
-fn eval_swap13<S, H, Td>(
+fn eval_swap13<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 13)
 }
 
-fn eval_swap14<S, H, Td>(
+fn eval_swap14<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 14)
 }
 
-fn eval_swap15<S, H, Td>(
+fn eval_swap15<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 15)
 }
 
-fn eval_swap16<S, H, Td>(
+fn eval_swap16<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::swap(machine, 16)
 }
 
-fn eval_return<S, H, Td>(
+fn eval_return<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::ret(machine)
 }
 
-fn eval_revert<S, H, Td>(
+fn eval_revert<S, H>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::misc::revert(machine)
 }
 
-fn eval_invalid<S, H, Td>(
+fn eval_invalid<S, H>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	Control::Exit(ExitException::DesignatedInvalid.into())
 }
 
-fn eval_unknown<S, H, Td>(
+fn eval_unknown<S, H>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
 	opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	Control::Exit(ExitException::InvalidOpcode(opcode).into())
 }
 
-fn eval_sha3<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_sha3<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::sha3(machine)
 }
 
-fn eval_address<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_address<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::address(machine)
 }
 
-fn eval_balance<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_balance<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::balance(machine, handle)
 }
 
-fn eval_selfbalance<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_selfbalance<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::selfbalance(machine, handle)
 }
 
-fn eval_origin<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_origin<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::origin(machine, handle)
 }
 
-fn eval_caller<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_caller<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::caller(machine)
 }
 
-fn eval_callvalue<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_callvalue<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::callvalue(machine)
 }
 
-fn eval_gasprice<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_gasprice<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::gasprice(machine, handle)
 }
 
-fn eval_extcodesize<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_extcodesize<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::extcodesize(machine, handle)
 }
 
-fn eval_extcodehash<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_extcodehash<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::extcodehash(machine, handle)
 }
 
-fn eval_extcodecopy<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_extcodecopy<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::extcodecopy(machine, handle)
 }
 
-fn eval_returndatasize<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_returndatasize<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::returndatasize(machine)
 }
 
-fn eval_returndatacopy<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_returndatacopy<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	_handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::returndatacopy(machine)
 }
 
-fn eval_blockhash<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_blockhash<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::blockhash(machine, handle)
 }
 
-fn eval_coinbase<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_coinbase<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::coinbase(machine, handle)
 }
 
-fn eval_timestamp<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_timestamp<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::timestamp(machine, handle)
 }
 
-fn eval_number<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_number<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::number(machine, handle)
 }
 
-fn eval_difficulty<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_difficulty<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::prevrandao(machine, handle)
 }
 
-fn eval_gaslimit<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_gaslimit<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::gaslimit(machine, handle)
 }
 
-fn eval_sload<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_sload<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::sload(machine, handle)
 }
 
-fn eval_sstore<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_sstore<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::sstore(machine, handle)
 }
 
-fn eval_gas<S: AsRef<RuntimeState> + AsMut<RuntimeState>, H: Handler, Td: From<RuntimeTrapData>>(
-	machine: &mut Machine<S>,
+fn eval_gas<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::gas(machine, handle)
 }
 
-fn eval_log0<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_log0<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::log(machine, 0, handle)
 }
 
-fn eval_log1<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_log1<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::log(machine, 1, handle)
 }
 
-fn eval_log2<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_log2<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::log(machine, 2, handle)
 }
 
-fn eval_log3<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_log3<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::log(machine, 3, handle)
 }
 
-fn eval_log4<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_log4<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::log(machine, 4, handle)
 }
 
-fn eval_suicide<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_suicide<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::suicide(machine, handle)
 }
 
-fn eval_chainid<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_chainid<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::chainid(machine, handle)
 }
 
-fn eval_basefee<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_basefee<H: Handler>(
+	machine: &mut Machine<RuntimeState>,
 	handle: &mut H,
 	_opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
+) -> Control {
 	self::system::basefee(machine, handle)
 }
 
-fn eval_create<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
+fn eval_trap<S, H>(
+	_machine: &mut Machine<S>,
 	_handle: &mut H,
-	_opcode: Opcode,
+	opcode: Opcode,
 	_position: usize,
-) -> Control<Td> {
-	self::system::create(false, machine)
-}
-
-fn eval_create2<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::create(true, machine)
-}
-
-fn eval_call<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::Call, machine)
-}
-
-fn eval_callcode<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::CallCode, machine)
-}
-
-fn eval_delegatecall<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::DelegateCall, machine)
-}
-
-fn eval_staticcall<
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: Handler,
-	Td: From<RuntimeTrapData>,
->(
-	machine: &mut Machine<S>,
-	_handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Td> {
-	self::system::call(CallScheme::StaticCall, machine)
+) -> Control {
+	Control::Trap(opcode)
 }
