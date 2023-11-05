@@ -1,13 +1,18 @@
 use super::Control;
+use crate::utils::u256_to_h256;
 use crate::{ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
 
 #[inline]
 pub fn codesize<S>(state: &mut Machine<S>) -> Control {
-	let size = U256::from(state.code.len());
-	push_u256!(state, size);
-	Control::Continue
+	let stack = &mut state.stack;
+	let code = &state.code;
+
+	stack.perform_pop0_push1(|| {
+		let size = U256::from(code.len());
+		Ok(u256_to_h256(size))
+	})
 }
 
 #[inline]

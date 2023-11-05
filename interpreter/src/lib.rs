@@ -12,7 +12,7 @@ mod memory;
 mod opcode;
 mod runtime;
 mod stack;
-mod utils;
+pub mod utils;
 mod valids;
 
 pub use crate::error::{
