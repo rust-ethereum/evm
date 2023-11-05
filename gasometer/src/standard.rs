@@ -1,4 +1,4 @@
-use crate::{consts, costs, Config, Gasometer, MergeStrategy};
+use crate::{consts, costs, Config, Gasometer, GasometerMergeStrategy};
 use core::cmp::max;
 use evm_interpreter::{ExitError, ExitException, Handler, Machine, Opcode, RuntimeState, Stack};
 use primitive_types::{H160, H256, U256};
@@ -42,7 +42,7 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 		}
 	}
 
-	fn record(
+	fn record_stepn(
 		mut self,
 		machine: &Machine<RuntimeState>,
 		handler: &H,
@@ -77,25 +77,33 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 					self.memory_gas = max(self.memory_gas, memory_cost);
 				}
 			}
+
+			let after_gas = Gasometer::<RuntimeState, H>::gas(&self);
+			gas.extra_check(after_gas, self.config)?;
 		}
 
 		Ok((self, 1))
+	}
+
+	fn record_codedeposit(mut self, len: usize) -> Result<Self, ExitError> {
+		let cost = len as u64 * consts::G_CODEDEPOSIT;
+		self = self.record_cost(cost)?;
+		Ok(self)
 	}
 
 	fn gas(&self) -> u64 {
 		self.gas_limit - self.memory_gas - self.used_gas
 	}
 
-	fn merge(&mut self, other: Self, strategy: MergeStrategy) {
+	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy) {
 		match strategy {
-			MergeStrategy::Commit => {
+			GasometerMergeStrategy::Commit => {
 				self.used_gas -= Gasometer::<RuntimeState, H>::gas(&other);
 				self.refunded_gas += other.refunded_gas;
 			}
-			MergeStrategy::Revert => {
+			GasometerMergeStrategy::Revert => {
 				self.used_gas -= Gasometer::<RuntimeState, H>::gas(&other);
 			}
-			MergeStrategy::Discard => (),
 		}
 	}
 }
@@ -571,6 +579,17 @@ impl GasCost {
 				already_removed, ..
 			} if !config.decrease_clears_refund => costs::suicide_refund(already_removed),
 			_ => 0,
+		}
+	}
+
+	/// Extra check of the cost.
+	pub fn extra_check(&self, after_gas: u64, config: &Config) -> Result<(), ExitException> {
+		match *self {
+			GasCost::Call { gas, .. } => costs::call_extra_check(gas, after_gas, config),
+			GasCost::CallCode { gas, .. } => costs::call_extra_check(gas, after_gas, config),
+			GasCost::DelegateCall { gas, .. } => costs::call_extra_check(gas, after_gas, config),
+			GasCost::StaticCall { gas, .. } => costs::call_extra_check(gas, after_gas, config),
+			_ => Ok(()),
 		}
 	}
 }

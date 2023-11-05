@@ -1,10 +1,10 @@
 use super::Control;
-use crate::{ExitException, ExitFatal, ExitSucceed, Handler, RuntimeMachine};
+use crate::{ExitException, ExitFatal, ExitSucceed, Handler, Machine, RuntimeState};
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
-pub fn sha3(machine: &mut RuntimeMachine) -> Control {
+pub fn sha3<S: AsRef<RuntimeState>>(machine: &mut Machine<S>) -> Control {
 	pop_u256!(machine, from, len);
 
 	try_or_fail!(machine.memory.resize_offset(from, len));
@@ -23,20 +23,26 @@ pub fn sha3(machine: &mut RuntimeMachine) -> Control {
 	Control::Continue
 }
 
-pub fn chainid<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn chainid<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	push_u256!(machine, handler.chain_id());
 
 	Control::Continue
 }
 
-pub fn address(machine: &mut RuntimeMachine) -> Control {
-	let ret = H256::from(machine.state.context.address);
+pub fn address<S: AsRef<RuntimeState>>(machine: &mut Machine<S>) -> Control {
+	let ret = H256::from(machine.state.as_ref().context.address);
 	push!(machine, ret);
 
 	Control::Continue
 }
 
-pub fn balance<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn balance<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, address);
 	try_or_fail!(handler.mark_hot(address.into(), None));
 	push_u256!(machine, handler.balance(address.into()));
@@ -44,30 +50,40 @@ pub fn balance<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Con
 	Control::Continue
 }
 
-pub fn selfbalance<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
-	push_u256!(machine, handler.balance(machine.state.context.address));
+pub fn selfbalance<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
+	push_u256!(
+		machine,
+		handler.balance(machine.state.as_ref().context.address)
+	);
 
 	Control::Continue
 }
 
-pub fn origin<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn origin<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	let ret = H256::from(handler.origin());
 	push!(machine, ret);
 
 	Control::Continue
 }
 
-pub fn caller(machine: &mut RuntimeMachine) -> Control {
-	let ret = H256::from(machine.state.context.caller);
+pub fn caller<S: AsRef<RuntimeState>>(machine: &mut Machine<S>) -> Control {
+	let ret = H256::from(machine.state.as_ref().context.caller);
 	push!(machine, ret);
 
 	Control::Continue
 }
 
-pub fn callvalue(machine: &mut RuntimeMachine) -> Control {
+pub fn callvalue<S: AsRef<RuntimeState>>(machine: &mut Machine<S>) -> Control {
 	let mut ret = H256::default();
 	machine
 		.state
+		.as_ref()
 		.context
 		.apparent_value
 		.to_big_endian(&mut ret[..]);
@@ -76,7 +92,10 @@ pub fn callvalue(machine: &mut RuntimeMachine) -> Control {
 	Control::Continue
 }
 
-pub fn gasprice<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn gasprice<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	let mut ret = H256::default();
 	handler.gas_price().to_big_endian(&mut ret[..]);
 	push!(machine, ret);
@@ -84,7 +103,10 @@ pub fn gasprice<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Contro
 	Control::Continue
 }
 
-pub fn basefee<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn basefee<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	let mut ret = H256::default();
 	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
 	push!(machine, ret);
@@ -92,7 +114,10 @@ pub fn basefee<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control
 	Control::Continue
 }
 
-pub fn extcodesize<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn extcodesize<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, address);
 	try_or_fail!(handler.mark_hot(address.into(), None));
 	let code_size = handler.code_size(address.into());
@@ -101,7 +126,10 @@ pub fn extcodesize<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) ->
 	Control::Continue
 }
 
-pub fn extcodehash<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn extcodehash<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, address);
 	try_or_fail!(handler.mark_hot(address.into(), None));
 	let code_hash = handler.code_hash(address.into());
@@ -110,7 +138,10 @@ pub fn extcodehash<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) ->
 	Control::Continue
 }
 
-pub fn extcodecopy<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn extcodecopy<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, address);
 	pop_u256!(machine, memory_offset, code_offset, len);
 
@@ -129,62 +160,82 @@ pub fn extcodecopy<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) ->
 	Control::Continue
 }
 
-pub fn returndatasize(machine: &mut RuntimeMachine) -> Control {
-	let size = U256::from(machine.state.retbuf.len());
+pub fn returndatasize<S: AsRef<RuntimeState>>(machine: &mut Machine<S>) -> Control {
+	let size = U256::from(machine.state.as_ref().retbuf.len());
 	push_u256!(machine, size);
 
 	Control::Continue
 }
 
-pub fn returndatacopy(machine: &mut RuntimeMachine) -> Control {
+pub fn returndatacopy<S: AsRef<RuntimeState>>(machine: &mut Machine<S>) -> Control {
 	pop_u256!(machine, memory_offset, data_offset, len);
 
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 	if data_offset
 		.checked_add(len)
-		.map(|l| l > U256::from(machine.state.retbuf.len()))
+		.map(|l| l > U256::from(machine.state.as_ref().retbuf.len()))
 		.unwrap_or(true)
 	{
 		return Control::Exit(ExitException::OutOfOffset.into());
 	}
 
-	match machine
-		.memory
-		.copy_large(memory_offset, data_offset, len, &machine.state.retbuf)
-	{
+	match machine.memory.copy_large(
+		memory_offset,
+		data_offset,
+		len,
+		&machine.state.as_ref().retbuf,
+	) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
 }
 
-pub fn blockhash<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn blockhash<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	pop_u256!(machine, number);
 	push!(machine, handler.block_hash(number));
 
 	Control::Continue
 }
 
-pub fn coinbase<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn coinbase<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	push!(machine, handler.block_coinbase().into());
 	Control::Continue
 }
 
-pub fn timestamp<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn timestamp<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	push_u256!(machine, handler.block_timestamp());
 	Control::Continue
 }
 
-pub fn number<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn number<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	push_u256!(machine, handler.block_number());
 	Control::Continue
 }
 
-pub fn difficulty<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn difficulty<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	push_u256!(machine, handler.block_difficulty());
 	Control::Continue
 }
 
-pub fn prevrandao<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn prevrandao<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	if let Some(rand) = handler.block_randomness() {
 		push!(machine, rand);
 		Control::Continue
@@ -193,37 +244,50 @@ pub fn prevrandao<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Cont
 	}
 }
 
-pub fn gaslimit<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn gaslimit<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control {
 	push_u256!(machine, handler.block_gas_limit());
 	Control::Continue
 }
 
-pub fn sload<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn sload<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, index);
-	try_or_fail!(handler.mark_hot(machine.state.context.address, Some(index)));
-	let value = handler.storage(machine.state.context.address, index);
+	try_or_fail!(handler.mark_hot(machine.state.as_ref().context.address, Some(index)));
+	let value = handler.storage(machine.state.as_ref().context.address, index);
 	push!(machine, value);
 
 	Control::Continue
 }
 
-pub fn sstore<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn sstore<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, index, value);
-	try_or_fail!(handler.mark_hot(machine.state.context.address, Some(index)));
+	try_or_fail!(handler.mark_hot(machine.state.as_ref().context.address, Some(index)));
 
-	match handler.set_storage(machine.state.context.address, index, value) {
+	match handler.set_storage(machine.state.as_ref().context.address, index, value) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
 }
 
-pub fn gas<H: Handler>(machine: &mut RuntimeMachine, handler: &H) -> Control {
+pub fn gas<S: AsRef<RuntimeState>, H: Handler>(machine: &mut Machine<S>, handler: &H) -> Control {
 	push_u256!(machine, handler.gas_left());
 
 	Control::Continue
 }
 
-pub fn log<H: Handler>(machine: &mut RuntimeMachine, n: u8, handler: &mut H) -> Control {
+pub fn log<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	n: u8,
+	handler: &mut H,
+) -> Control {
 	pop_u256!(machine, offset, len);
 
 	try_or_fail!(machine.memory.resize_offset(offset, len));
@@ -246,16 +310,19 @@ pub fn log<H: Handler>(machine: &mut RuntimeMachine, n: u8, handler: &mut H) -> 
 		}
 	}
 
-	match handler.log(machine.state.context.address, topics, data) {
+	match handler.log(machine.state.as_ref().context.address, topics, data) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
 }
 
-pub fn suicide<H: Handler>(machine: &mut RuntimeMachine, handler: &mut H) -> Control {
+pub fn suicide<S: AsRef<RuntimeState>, H: Handler>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control {
 	pop!(machine, target);
 
-	match handler.mark_delete(machine.state.context.address, target.into()) {
+	match handler.mark_delete(machine.state.as_ref().context.address, target.into()) {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	}
