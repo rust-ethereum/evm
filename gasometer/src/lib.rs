@@ -12,7 +12,7 @@ pub use crate::config::Config;
 pub use crate::standard::StandardGasometer;
 
 use core::ops::{Add, AddAssign, Sub, SubAssign};
-use evm_interpreter::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode, Trap};
+use evm_interpreter::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode};
 use primitive_types::U256;
 
 pub trait Gas:
@@ -32,6 +32,7 @@ impl Gas for U256 {}
 pub enum GasometerMergeStrategy {
 	Commit,
 	Revert,
+	Discard,
 }
 
 pub trait Gasometer<S, H>: Sized {
@@ -50,16 +51,16 @@ pub trait Gasometer<S, H>: Sized {
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
 }
 
-pub fn run_with_gasometer<S, H, G, F>(
+pub fn run_with_gasometer<S, H, Tr, G, F>(
 	machine: &mut Machine<S>,
 	gasometer: &mut G,
 	handler: &mut H,
 	is_static: bool,
-	etable: &Etable<S, H, F>,
-) -> Capture<ExitResult, Trap>
+	etable: &Etable<S, H, Tr, F>,
+) -> Capture<ExitResult, Tr>
 where
 	G: Gasometer<S, H>,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
 	loop {
 		match gasometer.record_stepn(&machine, handler, is_static) {

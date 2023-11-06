@@ -29,10 +29,6 @@ evm-gasometer = { version = "0.40", path = "gasometer", default-features = false
 criterion = "0.4"
 hex = "0.4"
 
-[[bench]]
-name = "loop"
-harness = false
-
 [features]
 default = ["std"]
 std = [
@@ -67,5 +63,4 @@ with-serde = [
 members = [
 	"interpreter",
 	"gasometer",
-	"fuzzer",
 ]
