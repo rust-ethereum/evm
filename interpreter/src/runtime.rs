@@ -1,4 +1,4 @@
-use crate::ExitError;
+use crate::{ExitError, Opcode};
 use primitive_types::{H160, H256, U256};
 
 /// Runtime machine.
@@ -22,6 +22,16 @@ pub struct Context {
 	pub caller: H160,
 	/// Apparent value of the EVM.
 	pub apparent_value: U256,
+}
+
+pub trait CallCreateTrap: Sized {
+	fn call_create_trap(opcode: Opcode) -> Self;
+}
+
+impl CallCreateTrap for Opcode {
+	fn call_create_trap(opcode: Opcode) -> Self {
+		opcode
+	}
 }
 
 /// EVM context handler.

@@ -115,7 +115,12 @@ impl Memory {
 
 		#[allow(clippy::needless_range_loop)]
 		for index in 0..size {
-			let position = offset + index;
+			let position = if let Some(position) = offset.checked_add(index) {
+				position
+			} else {
+				break;
+			};
+
 			if position >= self.data.len() {
 				break;
 			}

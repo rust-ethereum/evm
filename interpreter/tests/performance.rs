@@ -1,7 +1,7 @@
 use evm_interpreter::{Capture, Etable, ExitSucceed, Machine};
 use std::rc::Rc;
 
-static ETABLE: Etable<(), ()> = Etable::core();
+static ETABLE: Etable<(), (), ()> = Etable::core();
 
 macro_rules! ret_test {
 	($name:ident, $code:expr, $data:expr, $ret:expr) => {
