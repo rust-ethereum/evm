@@ -10,65 +10,69 @@ pub struct Stack {
 }
 
 macro_rules! impl_perform_popn_pushn {
-    (
-        $name:ident,
-        $pop_len:expr,
-        $push_len:expr,
-        ($($peek_pop:expr),*),
-        ($($peek_push:expr),*),
-        $pop_pushn_f:ident
-    ) => {
-        #[allow(unused_parens)]
-        pub fn $name<F>(&mut self, f: F) -> Control where
-            F: FnOnce($(impl_perform_popn_pushn!(INTERNAL_TYPE_RH256, $peek_pop)),*) -> Result<($(impl_perform_popn_pushn!(INTERNAL_TYPE_H256, $peek_push)),*), ExitError>
-        {
-            match self.check_pop_push($pop_len, $push_len) {
-                Ok(()) => (),
-                Err(e) => return Control::Exit(Err(e.into())),
-            }
+	(
+		$name:ident,
+		$pop_len:expr,
+		$push_len:expr,
+		($($peek_pop:expr),*),
+		($($peek_push:expr),*),
+		$pop_pushn_f:ident
+	) => {
+		#[allow(unused_parens)]
+		pub fn $name<F>(&mut self, f: F) -> Control where
+			F: FnOnce(
+				$(impl_perform_popn_pushn!(INTERNAL_TYPE_RH256, $peek_pop)),*
+			) -> Result<($(impl_perform_popn_pushn!(INTERNAL_TYPE_H256, $peek_push)),*), ExitError>
+		{
+			match self.check_pop_push($pop_len, $push_len) {
+				Ok(()) => (),
+				Err(e) => return Control::Exit(Err(e.into())),
+			}
 
-            let p = match f($(self.peek_nocheck($peek_pop)),*) {
-                Ok(p1) => p1,
-                Err(e) => return Control::Exit(Err(e.into())),
-            };
-            self.$pop_pushn_f($pop_len, p);
+			let p = match f($(self.peek_nocheck($peek_pop)),*) {
+				Ok(p1) => p1,
+				Err(e) => return Control::Exit(Err(e.into())),
+			};
+			self.$pop_pushn_f($pop_len, p);
 
-            Control::Continue
-        }
-    };
-    (INTERNAL_TYPE_RH256, $e:expr) => { &H256 };
-    (INTERNAL_TYPE_H256, $e:expr) => { H256 };
+			Control::Continue
+		}
+	};
+	(INTERNAL_TYPE_RH256, $e:expr) => { &H256 };
+	(INTERNAL_TYPE_H256, $e:expr) => { H256 };
 }
 
 macro_rules! impl_perform_popn_pushn_exit {
-    (
-        $name:ident,
-        $pop_len:expr,
-        $push_len:expr,
-        ($($peek_pop:expr),*),
-        ($($peek_push:expr),*),
-        $pop_pushn_f:ident
-    ) => {
-        #[allow(unused_parens)]
-        pub fn $name<F>(&mut self, f: F) -> Control where
-            F: FnOnce($(impl_perform_popn_pushn_exit!(INTERNAL_TYPE_RH256, $peek_pop)),*) -> Result<(($(impl_perform_popn_pushn_exit!(INTERNAL_TYPE_H256, $peek_push)),*), ExitResult), ExitError>
-        {
-            match self.check_pop_push($pop_len, $push_len) {
-                Ok(()) => (),
-                Err(e) => return Control::Exit(Err(e.into())),
-            }
+	(
+		$name:ident,
+		$pop_len:expr,
+		$push_len:expr,
+		($($peek_pop:expr),*),
+		($($peek_push:expr),*),
+		$pop_pushn_f:ident
+	) => {
+		#[allow(unused_parens)]
+		pub fn $name<F>(&mut self, f: F) -> Control where
+			F: FnOnce(
+				$(impl_perform_popn_pushn_exit!(INTERNAL_TYPE_RH256, $peek_pop)),*
+			) -> Result<(($(impl_perform_popn_pushn_exit!(INTERNAL_TYPE_H256, $peek_push)),*), ExitResult), ExitError>
+		{
+			match self.check_pop_push($pop_len, $push_len) {
+				Ok(()) => (),
+				Err(e) => return Control::Exit(Err(e.into())),
+			}
 
-            let (p, ret) = match f($(self.peek_nocheck($peek_pop)),*) {
-                Ok(p1) => p1,
-                Err(e) => return Control::Exit(Err(e.into())),
-            };
-            self.$pop_pushn_f($pop_len, p);
+			let (p, ret) = match f($(self.peek_nocheck($peek_pop)),*) {
+				Ok(p1) => p1,
+				Err(e) => return Control::Exit(Err(e.into())),
+			};
+			self.$pop_pushn_f($pop_len, p);
 
-            Control::Exit(ret)
-        }
-    };
-    (INTERNAL_TYPE_RH256, $e:expr) => { &H256 };
-    (INTERNAL_TYPE_H256, $e:expr) => { H256 };
+			Control::Exit(ret)
+		}
+	};
+	(INTERNAL_TYPE_RH256, $e:expr) => { &H256 };
+	(INTERNAL_TYPE_H256, $e:expr) => { H256 };
 }
 
 impl Stack {
