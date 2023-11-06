@@ -49,6 +49,11 @@ pub struct Transfer {
 	pub value: U256,
 }
 
+pub enum CallCreateTrapData {
+	Call(CallTrapData),
+	Create(CreateTrapData),
+}
+
 pub struct CallTrapData {
 	pub target: H160,
 	pub transfer: Option<Transfer>,
