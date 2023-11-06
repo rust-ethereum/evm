@@ -6,6 +6,7 @@
 
 extern crate alloc;
 
+pub mod call_create;
 mod error;
 mod eval;
 mod memory;
@@ -15,13 +16,11 @@ mod stack;
 pub mod utils;
 mod valids;
 
-pub use crate::error::{
-	Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed, Trap,
-};
-pub use crate::eval::{Control, Efn, Etable, RuntimeEtable};
+pub use crate::error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed};
+pub use crate::eval::{Control, Efn, Etable};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
-pub use crate::runtime::{Context, Handler, RuntimeMachine, RuntimeState};
+pub use crate::runtime::{CallCreateTrap, Context, Handler, RuntimeMachine, RuntimeState};
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
@@ -104,13 +103,13 @@ impl<S> Machine<S> {
 	}
 
 	/// Loop stepping the machine, until it stops.
-	pub fn run<H, F>(
+	pub fn run<H, Tr, F>(
 		&mut self,
 		handle: &mut H,
-		etable: &Etable<S, H, F>,
-	) -> Capture<ExitResult, Trap>
+		etable: &Etable<S, H, Tr, F>,
+	) -> Capture<ExitResult, Tr>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	{
 		loop {
 			match self.step(handle, etable) {
@@ -121,14 +120,14 @@ impl<S> Machine<S> {
 	}
 
 	/// Step the machine N times.
-	pub fn stepn<H, F>(
+	pub fn stepn<H, Tr, F>(
 		&mut self,
 		n: usize,
 		handle: &mut H,
-		etable: &Etable<S, H, F>,
-	) -> Result<(), Capture<ExitResult, Trap>>
+		etable: &Etable<S, H, Tr, F>,
+	) -> Result<(), Capture<ExitResult, Tr>>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	{
 		for _ in 0..n {
 			match self.step(handle, etable) {
@@ -142,13 +141,13 @@ impl<S> Machine<S> {
 
 	#[inline]
 	/// Step the machine, executing one opcode. It then returns.
-	pub fn step<H, F>(
+	pub fn step<H, Tr, F>(
 		&mut self,
 		handle: &mut H,
-		etable: &Etable<S, H, F>,
-	) -> Result<(), Capture<ExitResult, Trap>>
+		etable: &Etable<S, H, Tr, F>,
+	) -> Result<(), Capture<ExitResult, Tr>>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	{
 		let position = self.position;
 		if position >= self.code.len() {
@@ -185,5 +184,13 @@ impl<S> Machine<S> {
 	/// Pick the next opcode.
 	pub fn peek_opcode(&self) -> Option<Opcode> {
 		self.code.get(self.position).map(|opcode| Opcode(*opcode))
+	}
+
+	pub fn advance(&mut self) {
+		if self.position == self.code.len() {
+			return;
+		}
+
+		self.position += 1;
 	}
 }

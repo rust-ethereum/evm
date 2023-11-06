@@ -10,7 +10,7 @@ fn etable_wrap() {
 	let code = hex::decode(&CODE1).unwrap();
 	let data = hex::decode(&DATA1).unwrap();
 
-	let wrapped_etable = Etable::core().wrap(|f, opcode_t| {
+	let wrapped_etable = Etable::<_, _, Opcode>::core().wrap(|f, opcode_t| {
 		move |machine, handle, opcode, position| {
 			assert_eq!(opcode_t, opcode);
 			println!("opcode: {:?}", opcode);
@@ -30,7 +30,7 @@ fn etable_wrap2() {
 	let data = hex::decode(&DATA1).unwrap();
 
 	let wrapped_etable = Etable::core().wrap(
-		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), Opcode, usize) -> Control> {
+		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), Opcode, usize) -> Control<Opcode>> {
 			if opcode_t != Opcode(0x50) {
 				Box::new(move |machine, handle, opcode, position| {
 					assert_eq!(opcode_t, opcode);

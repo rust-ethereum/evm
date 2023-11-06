@@ -1,3 +1,4 @@
+use crate::{ExitError, ExitFatal};
 use core::cmp::Ordering;
 use core::ops::{Div, Rem};
 use primitive_types::{H256, U256};
@@ -6,6 +7,17 @@ pub fn u256_to_h256(v: U256) -> H256 {
 	let mut r = H256::default();
 	v.to_big_endian(&mut r[..]);
 	r
+}
+
+pub fn h256_to_u256(v: H256) -> U256 {
+	U256::from_big_endian(&v[..])
+}
+
+pub fn u256_to_usize(v: U256) -> Result<usize, ExitError> {
+	if v > U256::from(usize::MAX) {
+		return Err(ExitFatal::NotSupported.into());
+	}
+	Ok(v.as_usize())
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
