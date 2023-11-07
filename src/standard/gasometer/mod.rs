@@ -3,9 +3,11 @@ mod costs;
 mod utils;
 
 use crate::standard::Config;
-use crate::{Gasometer, GasometerMergeStrategy};
+use crate::{
+	ExitError, ExitException, Gasometer, GasometerMergeStrategy, Machine, Opcode, RuntimeBackend,
+	RuntimeGasometer, RuntimeState, Stack,
+};
 use core::cmp::max;
-use evm_interpreter::{ExitError, ExitException, Handler, Machine, Opcode, RuntimeState, Stack};
 use primitive_types::{H160, H256, U256};
 
 pub struct StandardGasometer<'config> {
@@ -41,6 +43,10 @@ impl<'config> StandardGasometer<'config> {
 		self.used_gas + self.memory_gas
 	}
 
+	pub fn gas(&self) -> u64 {
+		self.gas_limit - self.memory_gas - self.used_gas
+	}
+
 	/// Record an explicit cost.
 	fn record_cost_nocleanup(&mut self, cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.total_used_gas() + cost;
@@ -53,11 +59,19 @@ impl<'config> StandardGasometer<'config> {
 	}
 }
 
-impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'config> {
+impl<'config> RuntimeGasometer for StandardGasometer<'config> {
+	fn gas(&self) -> U256 {
+		U256::from(self.gas())
+	}
+}
+
+impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> Gasometer<S, H>
+	for StandardGasometer<'config>
+{
 	type Gas = u64;
 	type Config = &'config Config;
 
-	fn new(gas_limit: u64, _machine: &Machine<RuntimeState>, config: &'config Config) -> Self {
+	fn new(gas_limit: u64, _machine: &Machine<S>, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			memory_gas: 0,
@@ -69,7 +83,7 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 
 	fn record_stepn(
 		&mut self,
-		machine: &Machine<RuntimeState>,
+		machine: &Machine<S>,
 		handler: &H,
 		is_static: bool,
 	) -> Result<usize, ExitError> {
@@ -79,7 +93,7 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 			if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
 				gasometer.record_cost_nocleanup(cost)?;
 			} else {
-				let address = machine.state.context.address;
+				let address = machine.state.as_ref().context.address;
 				let (gas, memory_gas) = dynamic_opcode_cost(
 					address,
 					opcode,
@@ -88,10 +102,7 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 					gasometer.config,
 					handler,
 				)?;
-				let cost = gas.cost(
-					Gasometer::<RuntimeState, H>::gas(gasometer),
-					gasometer.config,
-				)?;
+				let cost = gas.cost(gasometer.gas(), gasometer.config)?;
 				let refund = gas.refund(gasometer.config);
 
 				gasometer.record_cost_nocleanup(cost)?;
@@ -107,7 +118,7 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 					}
 				}
 
-				let after_gas = Gasometer::<RuntimeState, H>::gas(gasometer);
+				let after_gas = gasometer.gas();
 				gas.extra_check(after_gas, gasometer.config)?;
 			}
 
@@ -124,17 +135,17 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 	}
 
 	fn gas(&self) -> u64 {
-		self.gas_limit - self.memory_gas - self.used_gas
+		self.gas()
 	}
 
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy) {
 		match strategy {
 			GasometerMergeStrategy::Commit => {
-				self.used_gas -= Gasometer::<RuntimeState, H>::gas(&other);
+				self.used_gas -= other.gas();
 				self.refunded_gas += other.refunded_gas;
 			}
 			GasometerMergeStrategy::Revert => {
-				self.used_gas -= Gasometer::<RuntimeState, H>::gas(&other);
+				self.used_gas -= other.gas();
 			}
 		}
 	}
@@ -142,7 +153,7 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 
 /// Calculate the opcode cost.
 #[allow(clippy::nonminimal_bool)]
-pub fn dynamic_opcode_cost<H: Handler>(
+pub fn dynamic_opcode_cost<H: RuntimeBackend>(
 	address: H160,
 	opcode: Opcode,
 	stack: &Stack,
