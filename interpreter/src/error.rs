@@ -11,6 +11,22 @@ pub enum Capture<E, T> {
 	Trap(T),
 }
 
+impl<E, T> Capture<E, T> {
+	pub fn exit(self) -> Option<E> {
+		match self {
+			Self::Exit(e) => Some(e),
+			Self::Trap(_) => None,
+		}
+	}
+
+	pub fn trap(self) -> Option<T> {
+		match self {
+			Self::Exit(_) => None,
+			Self::Trap(t) => Some(t),
+		}
+	}
+}
+
 pub type ExitResult = Result<ExitSucceed, ExitError>;
 
 /// Exit reason.

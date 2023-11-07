@@ -6,7 +6,8 @@ mod misc;
 mod system;
 
 use crate::{
-	CallCreateTrap, ExitException, ExitResult, ExitSucceed, Handler, Machine, Opcode, RuntimeState,
+	CallCreateTrap, ExitException, ExitResult, ExitSucceed, Machine, Opcode, RuntimeHandler,
+	RuntimeState,
 };
 use core::marker::PhantomData;
 use core::ops::{BitAnd, BitOr, BitXor, Deref, DerefMut};
@@ -178,7 +179,7 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 	}
 }
 
-impl<S: AsRef<RuntimeState>, H: Handler, Tr: CallCreateTrap> Etable<S, H, Tr> {
+impl<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr: CallCreateTrap> Etable<S, H, Tr> {
 	/// Runtime Etable.
 	pub const fn runtime() -> Etable<S, H, Tr> {
 		let mut table = Self::core();
@@ -1216,7 +1217,7 @@ fn eval_unknown<S, H, Tr>(
 	Control::Exit(ExitException::InvalidOpcode(opcode).into())
 }
 
-fn eval_sha3<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_sha3<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1225,7 +1226,7 @@ fn eval_sha3<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::sha3(machine)
 }
 
-fn eval_address<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_address<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1234,7 +1235,7 @@ fn eval_address<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::address(machine)
 }
 
-fn eval_balance<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_balance<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1243,7 +1244,7 @@ fn eval_balance<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::balance(machine, handle)
 }
 
-fn eval_selfbalance<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_selfbalance<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1252,7 +1253,7 @@ fn eval_selfbalance<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::selfbalance(machine, handle)
 }
 
-fn eval_origin<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_origin<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1261,7 +1262,7 @@ fn eval_origin<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::origin(machine, handle)
 }
 
-fn eval_caller<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_caller<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1270,7 +1271,7 @@ fn eval_caller<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::caller(machine)
 }
 
-fn eval_callvalue<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_callvalue<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1279,7 +1280,7 @@ fn eval_callvalue<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::callvalue(machine)
 }
 
-fn eval_gasprice<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_gasprice<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1288,7 +1289,7 @@ fn eval_gasprice<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::gasprice(machine, handle)
 }
 
-fn eval_extcodesize<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_extcodesize<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1297,7 +1298,7 @@ fn eval_extcodesize<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::extcodesize(machine, handle)
 }
 
-fn eval_extcodehash<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_extcodehash<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1306,7 +1307,7 @@ fn eval_extcodehash<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::extcodehash(machine, handle)
 }
 
-fn eval_extcodecopy<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_extcodecopy<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1315,7 +1316,7 @@ fn eval_extcodecopy<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::extcodecopy(machine, handle)
 }
 
-fn eval_returndatasize<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_returndatasize<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1324,7 +1325,7 @@ fn eval_returndatasize<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::returndatasize(machine)
 }
 
-fn eval_returndatacopy<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_returndatacopy<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	_opcode: Opcode,
@@ -1333,7 +1334,7 @@ fn eval_returndatacopy<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::returndatacopy(machine)
 }
 
-fn eval_blockhash<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_blockhash<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1342,7 +1343,7 @@ fn eval_blockhash<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::blockhash(machine, handle)
 }
 
-fn eval_coinbase<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_coinbase<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1351,7 +1352,7 @@ fn eval_coinbase<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::coinbase(machine, handle)
 }
 
-fn eval_timestamp<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_timestamp<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1360,7 +1361,7 @@ fn eval_timestamp<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::timestamp(machine, handle)
 }
 
-fn eval_number<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_number<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1369,7 +1370,7 @@ fn eval_number<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::number(machine, handle)
 }
 
-fn eval_difficulty<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_difficulty<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1378,7 +1379,7 @@ fn eval_difficulty<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::prevrandao(machine, handle)
 }
 
-fn eval_gaslimit<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_gaslimit<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1387,7 +1388,7 @@ fn eval_gaslimit<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::gaslimit(machine, handle)
 }
 
-fn eval_sload<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_sload<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1396,7 +1397,7 @@ fn eval_sload<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::sload(machine, handle)
 }
 
-fn eval_sstore<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_sstore<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1405,7 +1406,7 @@ fn eval_sstore<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::sstore(machine, handle)
 }
 
-fn eval_gas<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_gas<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1414,7 +1415,7 @@ fn eval_gas<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::gas(machine, handle)
 }
 
-fn eval_log0<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_log0<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1423,7 +1424,7 @@ fn eval_log0<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::log(machine, 0, handle)
 }
 
-fn eval_log1<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_log1<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1432,7 +1433,7 @@ fn eval_log1<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::log(machine, 1, handle)
 }
 
-fn eval_log2<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_log2<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1441,7 +1442,7 @@ fn eval_log2<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::log(machine, 2, handle)
 }
 
-fn eval_log3<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_log3<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1450,7 +1451,7 @@ fn eval_log3<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::log(machine, 3, handle)
 }
 
-fn eval_log4<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_log4<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1459,7 +1460,7 @@ fn eval_log4<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::log(machine, 4, handle)
 }
 
-fn eval_suicide<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_suicide<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1468,7 +1469,7 @@ fn eval_suicide<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::suicide(machine, handle)
 }
 
-fn eval_chainid<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_chainid<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
@@ -1477,7 +1478,7 @@ fn eval_chainid<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	self::system::chainid(machine, handle)
 }
 
-fn eval_basefee<S: AsRef<RuntimeState>, H: Handler, Tr>(
+fn eval_basefee<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_opcode: Opcode,
