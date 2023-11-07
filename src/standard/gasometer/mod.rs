@@ -1,4 +1,9 @@
-use crate::{consts, costs, Config, Gasometer, GasometerMergeStrategy};
+mod consts;
+mod costs;
+mod utils;
+
+use crate::standard::Config;
+use crate::{Gasometer, GasometerMergeStrategy};
 use core::cmp::max;
 use evm_interpreter::{ExitError, ExitException, Handler, Machine, Opcode, RuntimeState, Stack};
 use primitive_types::{H160, H256, U256};

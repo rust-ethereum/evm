@@ -1,16 +1,5 @@
 //! EVM gasometer.
 
-#![cfg_attr(not(feature = "std"), no_std)]
-
-mod config;
-mod consts;
-mod costs;
-mod standard;
-mod utils;
-
-pub use crate::config::Config;
-pub use crate::standard::StandardGasometer;
-
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 use evm_interpreter::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode};
 use primitive_types::U256;
@@ -42,7 +31,7 @@ pub trait Gasometer<S, H>: Sized {
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,
-		handler: &H,
+		backend: &H,
 		is_static: bool,
 	) -> Result<usize, ExitError>;
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
@@ -50,20 +39,22 @@ pub trait Gasometer<S, H>: Sized {
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
 }
 
-pub fn run_with_gasometer<S, H, Tr, G, F>(
+pub fn run_with_gasometer<S, G, H, Tr, F>(
 	machine: &mut Machine<S>,
 	gasometer: &mut G,
+	backend: &mut H,
 	is_static: bool,
-	handler: &mut H,
-	etable: &Etable<S, H, Tr, F>,
+	etable: &Etable<S, (&mut G, &mut H), Tr, F>,
 ) -> Capture<ExitResult, Tr>
 where
 	G: Gasometer<S, H>,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	F: Fn(&mut Machine<S>, &mut (&mut G, &mut H), Opcode, usize) -> Control<Tr>,
 {
+	let mut handler = (gasometer, backend);
+
 	loop {
-		match gasometer.record_stepn(&machine, handler, is_static) {
-			Ok(stepn) => match machine.stepn(stepn, handler, etable) {
+		match handler.0.record_stepn(&machine, handler.1, is_static) {
+			Ok(stepn) => match machine.stepn(stepn, &mut handler, etable) {
 				Ok(()) => (),
 				Err(c) => return c,
 			},

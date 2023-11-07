@@ -281,7 +281,7 @@ pub fn gas<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
-	push_u256!(machine, handler.gas_left());
+	push_u256!(machine, handler.gas());
 
 	Control::Continue
 }
