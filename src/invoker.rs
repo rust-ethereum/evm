@@ -9,16 +9,14 @@ pub trait Invoker<S, G, H, Tr> {
 		result: ExitResult,
 		child: Machine<S>,
 		trap_data: Self::CallCreateTrapData,
-		machine: &mut Machine<S>,
-		gasometer: &mut G,
+		parent: &mut Machine<S>,
 		handler: &mut H,
 	) -> Result<(), ExitError>;
 
 	fn prepare_trap(
 		&self,
 		trap: Tr,
-		machine: &mut Machine<S>,
-		gasometer: &mut G,
+		parent: &mut Machine<S>,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<Result<Self::CallCreateTrapData, ExitError>, Self::Interrupt>;

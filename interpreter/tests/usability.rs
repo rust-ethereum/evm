@@ -1,6 +1,6 @@
 use evm_interpreter::{
 	Capture, Context, Control, Etable, ExitError, ExitSucceed, Machine, Opcode, RuntimeBackend,
-	RuntimeGasometer, RuntimeHandler, RuntimeState,
+	RuntimeState,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -135,15 +135,30 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 	}
 }
 
-impl<'a> RuntimeGasometer for UnimplementedHandler {
+struct DummyRuntimeState {
+	context: Context,
+	retbuf: Vec<u8>,
+}
+
+impl RuntimeState for DummyRuntimeState {
+	fn context(&self) -> &Context {
+		&self.context
+	}
+
+	fn retbuf(&self) -> &Vec<u8> {
+		&self.retbuf
+	}
+
+	fn retbuf_mut(&mut self) -> &mut Vec<u8> {
+		&mut self.retbuf
+	}
+
 	fn gas(&self) -> U256 {
-		unimplemented!()
+		U256::zero()
 	}
 }
 
-impl<'a> RuntimeHandler for UnimplementedHandler {}
-
-static RUNTIME_ETABLE: Etable<RuntimeState, UnimplementedHandler, Opcode> = Etable::runtime();
+static RUNTIME_ETABLE: Etable<DummyRuntimeState, UnimplementedHandler, Opcode> = Etable::runtime();
 
 #[test]
 fn etable_runtime() {
@@ -156,7 +171,7 @@ fn etable_runtime() {
 		Rc::new(data),
 		1024,
 		10000,
-		RuntimeState {
+		DummyRuntimeState {
 			context: Context {
 				address: H160::default(),
 				caller: H160::default(),

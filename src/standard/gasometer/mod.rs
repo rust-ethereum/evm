@@ -5,7 +5,7 @@ mod utils;
 use crate::standard::Config;
 use crate::{
 	ExitError, ExitException, Gasometer as GasometerT, GasometerMergeStrategy, Machine, Opcode,
-	RuntimeBackend, RuntimeGasometer, RuntimeState, Stack,
+	RuntimeBackend, RuntimeState, Stack,
 };
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
@@ -59,13 +59,7 @@ impl<'config> Gasometer<'config> {
 	}
 }
 
-impl<'config> RuntimeGasometer for Gasometer<'config> {
-	fn gas(&self) -> U256 {
-		U256::from(self.gas())
-	}
-}
-
-impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
+impl<'config, S: RuntimeState, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
 	type Gas = u64;
 	type Config = &'config Config;
 
@@ -91,7 +85,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 			if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
 				gasometer.record_cost_nocleanup(cost)?;
 			} else {
-				let address = machine.state.as_ref().context.address;
+				let address = machine.state.context().address;
 				let (gas, memory_gas) = dynamic_opcode_cost(
 					address,
 					opcode,

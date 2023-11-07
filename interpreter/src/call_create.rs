@@ -66,7 +66,7 @@ pub struct CallTrapData {
 }
 
 impl CallTrapData {
-	fn new_from_params<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+	fn new_from_params<S: RuntimeState>(
 		scheme: CallScheme,
 		memory: &mut Memory,
 		state: &mut S,
@@ -107,38 +107,38 @@ impl CallTrapData {
 		let context = match scheme {
 			CallScheme::Call | CallScheme::StaticCall => Context {
 				address: (*to).into(),
-				caller: state.as_ref().context.address,
+				caller: state.context().address,
 				apparent_value: value,
 			},
 			CallScheme::CallCode => Context {
-				address: state.as_ref().context.address,
-				caller: state.as_ref().context.address,
+				address: state.context().address,
+				caller: state.context().address,
 				apparent_value: value,
 			},
 			CallScheme::DelegateCall => Context {
-				address: state.as_ref().context.address,
-				caller: state.as_ref().context.caller,
-				apparent_value: state.as_ref().context.apparent_value,
+				address: state.context().address,
+				caller: state.context().caller,
+				apparent_value: state.context().apparent_value,
 			},
 		};
 
 		let transfer = if scheme == CallScheme::Call {
 			Some(Transfer {
-				source: state.as_ref().context.address,
+				source: state.context().address,
 				target: (*to).into(),
 				value,
 			})
 		} else if scheme == CallScheme::CallCode {
 			Some(Transfer {
-				source: state.as_ref().context.address,
-				target: state.as_ref().context.address,
+				source: state.context().address,
+				target: state.context().address,
 				value,
 			})
 		} else {
 			None
 		};
 
-		state.as_mut().retbuf = Vec::new();
+		*state.retbuf_mut() = Vec::new();
 
 		Ok((
 			(),
@@ -155,7 +155,7 @@ impl CallTrapData {
 		))
 	}
 
-	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+	pub fn new_from<S: RuntimeState>(
 		scheme: CallScheme,
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
@@ -191,7 +191,7 @@ impl CallTrapData {
 		}
 	}
 
-	pub fn feedback<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+	pub fn feedback<S: RuntimeState>(
 		self,
 		reason: ExitResult,
 		retbuf: Vec<u8>,
@@ -244,7 +244,7 @@ impl CallTrapData {
 
 		match ret {
 			Ok(()) => {
-				machine.state.as_mut().retbuf = retbuf;
+				*machine.state.retbuf_mut() = retbuf;
 
 				machine.advance();
 				Ok(())
@@ -261,9 +261,7 @@ pub struct CreateTrapData {
 }
 
 impl CreateTrapData {
-	pub fn new_create_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
-		machine: &mut Machine<S>,
-	) -> Result<Self, ExitError> {
+	pub fn new_create_from<S: RuntimeState>(machine: &mut Machine<S>) -> Result<Self, ExitError> {
 		let stack = &mut machine.stack;
 		let memory = &mut machine.memory;
 		let state = &mut machine.state;
@@ -284,10 +282,10 @@ impl CreateTrapData {
 				.unwrap_or(Vec::new());
 
 			let scheme = CreateScheme::Legacy {
-				caller: state.as_ref().context.address,
+				caller: state.context().address,
 			};
 
-			state.as_mut().retbuf = Vec::new();
+			*state.retbuf_mut() = Vec::new();
 
 			Ok((
 				(),
@@ -300,9 +298,7 @@ impl CreateTrapData {
 		})
 	}
 
-	pub fn new_create2_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
-		machine: &mut Machine<S>,
-	) -> Result<Self, ExitError> {
+	pub fn new_create2_from<S: RuntimeState>(machine: &mut Machine<S>) -> Result<Self, ExitError> {
 		let stack = &mut machine.stack;
 		let memory = &mut machine.memory;
 		let state = &mut machine.state;
@@ -325,12 +321,12 @@ impl CreateTrapData {
 			let code_hash = H256::from_slice(Keccak256::digest(&code).as_slice());
 
 			let scheme = CreateScheme::Create2 {
-				caller: state.as_ref().context.address,
+				caller: state.context().address,
 				salt: *salt,
 				code_hash,
 			};
 
-			state.as_mut().retbuf = Vec::new();
+			*state.retbuf_mut() = Vec::new();
 
 			Ok((
 				(),
@@ -343,7 +339,7 @@ impl CreateTrapData {
 		})
 	}
 
-	pub fn feedback<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+	pub fn feedback<S: RuntimeState>(
 		self,
 		reason: Result<H160, ExitError>,
 		retbuf: Vec<u8>,
@@ -370,7 +366,7 @@ impl CreateTrapData {
 
 		match ret {
 			Ok(()) => {
-				machine.state.as_mut().retbuf = retbuf;
+				*machine.state.retbuf_mut() = retbuf;
 
 				machine.advance();
 				Ok(())

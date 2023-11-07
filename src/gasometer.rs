@@ -41,20 +41,22 @@ pub trait Gasometer<S, H>: Sized {
 
 pub fn run_with_gasometer<S, G, H, Tr, F>(
 	machine: &mut Machine<S>,
-	gasometer: &mut G,
 	backend: &mut H,
 	is_static: bool,
-	etable: &Etable<S, (&mut G, &mut H), Tr, F>,
+	etable: &Etable<S, H, Tr, F>,
 ) -> Capture<ExitResult, Tr>
 where
+	S: AsMut<G>,
 	G: Gasometer<S, H>,
-	F: Fn(&mut Machine<S>, &mut (&mut G, &mut H), Opcode, usize) -> Control<Tr>,
+	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
-	let mut handler = (gasometer, backend);
-
 	loop {
-		match handler.0.record_stepn(&machine, handler.1, is_static) {
-			Ok(stepn) => match machine.stepn(stepn, &mut handler, etable) {
+		match machine
+			.state
+			.as_mut()
+			.record_stepn(&machine, backend, is_static)
+		{
+			Ok(stepn) => match machine.stepn(stepn, backend, etable) {
 				Ok(()) => (),
 				Err(c) => return c,
 			},
