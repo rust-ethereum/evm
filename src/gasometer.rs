@@ -31,8 +31,8 @@ pub trait Gasometer<S, H>: Sized {
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,
-		backend: &H,
 		is_static: bool,
+		backend: &H,
 	) -> Result<usize, ExitError>;
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 	fn gas(&self) -> Self::Gas;
@@ -58,7 +58,7 @@ impl<S: AsMut<RuntimeState>, G> GasedMachine<S, G> {
 		loop {
 			match self
 				.gasometer
-				.record_stepn(&self.machine, handler, self.is_static)
+				.record_stepn(&self.machine, self.is_static, handler)
 			{
 				Ok(stepn) => {
 					self.machine.state.as_mut().gas = self.gasometer.gas().into();
