@@ -76,8 +76,8 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,
-		handler: &H,
 		is_static: bool,
+		handler: &H,
 	) -> Result<usize, ExitError> {
 		self.perform(|gasometer| {
 			let opcode = machine.peek_opcode().ok_or(ExitException::OutOfGas)?;
