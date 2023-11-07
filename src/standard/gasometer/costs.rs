@@ -1,5 +1,6 @@
-use crate::consts::*;
-use crate::Config;
+use super::consts::*;
+use super::utils::log2floor;
+use crate::standard::Config;
 use evm_interpreter::ExitException;
 use primitive_types::{H256, U256};
 
@@ -86,7 +87,7 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
 		let gas = U256::from(G_EXP)
 			.checked_add(
 				U256::from(config.gas_expbyte)
-					.checked_mul(U256::from(crate::utils::log2floor(power) / 8 + 1))
+					.checked_mul(U256::from(log2floor(power) / 8 + 1))
 					.ok_or(ExitException::OutOfGas)?,
 			)
 			.ok_or(ExitException::OutOfGas)?;
