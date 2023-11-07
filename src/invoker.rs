@@ -1,4 +1,4 @@
-use crate::{Capture, ExitError, ExitResult, Machine};
+use crate::{Capture, ExitError, ExitResult, GasedMachine};
 
 pub trait Invoker<S, G, H, Tr> {
 	type Interrupt;
@@ -7,18 +7,16 @@ pub trait Invoker<S, G, H, Tr> {
 	fn exit_trap_stack(
 		&self,
 		result: ExitResult,
-		child: Machine<S>,
+		child: GasedMachine<S, G>,
 		trap_data: Self::CallCreateTrapData,
-		machine: &mut Machine<S>,
-		gasometer: &mut G,
+		parent: &mut GasedMachine<S, G>,
 		handler: &mut H,
 	) -> Result<(), ExitError>;
 
 	fn prepare_trap(
 		&self,
 		trap: Tr,
-		machine: &mut Machine<S>,
-		gasometer: &mut G,
+		machine: &mut GasedMachine<S, G>,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<Result<Self::CallCreateTrapData, ExitError>, Self::Interrupt>;
@@ -27,5 +25,5 @@ pub trait Invoker<S, G, H, Tr> {
 		&self,
 		trap_data: &Self::CallCreateTrapData,
 		handler: &mut H,
-	) -> Result<(Machine<S>, G, bool), ExitError>;
+	) -> Result<GasedMachine<S, G>, ExitError>;
 }
