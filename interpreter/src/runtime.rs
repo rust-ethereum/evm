@@ -10,6 +10,18 @@ pub struct RuntimeState {
 	pub retbuf: Vec<u8>,
 }
 
+impl AsRef<RuntimeState> for RuntimeState {
+	fn as_ref(&self) -> &Self {
+		self
+	}
+}
+
+impl AsMut<RuntimeState> for RuntimeState {
+	fn as_mut(&mut self) -> &mut Self {
+		self
+	}
+}
+
 /// Context of the runtime.
 #[derive(Clone, Debug)]
 pub struct Context {
@@ -94,7 +106,7 @@ pub trait RuntimeGasometer {
 ///
 /// The handler is generally expected to be a `(backend, gasometer)` tuple, with extensions added
 /// to `backend`.
-pub trait Handler: RuntimeBackend + RuntimeGasometer {}
+pub trait RuntimeHandler: RuntimeBackend + RuntimeGasometer {}
 
 impl<'b, 'g, G: RuntimeGasometer, H: RuntimeBackend> RuntimeBackend for (&'b mut G, &'g mut H) {
 	fn block_hash(&self, number: U256) -> H256 {
@@ -180,4 +192,4 @@ impl<'b, 'g, G: RuntimeGasometer, H: RuntimeBackend> RuntimeGasometer for (&'b m
 	}
 }
 
-impl<'b, 'g, G: RuntimeGasometer, H: RuntimeBackend> Handler for (&'b mut G, &'g mut H) {}
+impl<'b, 'g, G: RuntimeGasometer, H: RuntimeBackend> RuntimeHandler for (&'b mut G, &'g mut H) {}

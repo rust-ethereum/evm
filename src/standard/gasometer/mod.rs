@@ -4,13 +4,13 @@ mod utils;
 
 use crate::standard::Config;
 use crate::{
-	ExitError, ExitException, Gasometer, GasometerMergeStrategy, Machine, Opcode, RuntimeBackend,
-	RuntimeGasometer, RuntimeState, Stack,
+	ExitError, ExitException, Gasometer as GasometerT, GasometerMergeStrategy, Machine, Opcode,
+	RuntimeBackend, RuntimeGasometer, RuntimeState, Stack,
 };
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
 
-pub struct StandardGasometer<'config> {
+pub struct Gasometer<'config> {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
@@ -18,7 +18,7 @@ pub struct StandardGasometer<'config> {
 	config: &'config Config,
 }
 
-impl<'config> StandardGasometer<'config> {
+impl<'config> Gasometer<'config> {
 	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
 		&mut self,
 		f: F,
@@ -59,15 +59,13 @@ impl<'config> StandardGasometer<'config> {
 	}
 }
 
-impl<'config> RuntimeGasometer for StandardGasometer<'config> {
+impl<'config> RuntimeGasometer for Gasometer<'config> {
 	fn gas(&self) -> U256 {
 		U256::from(self.gas())
 	}
 }
 
-impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> Gasometer<S, H>
-	for StandardGasometer<'config>
-{
+impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
 	type Gas = u64;
 	type Config = &'config Config;
 
@@ -153,7 +151,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> Gasometer<S, H>
 
 /// Calculate the opcode cost.
 #[allow(clippy::nonminimal_bool)]
-pub fn dynamic_opcode_cost<H: RuntimeBackend>(
+fn dynamic_opcode_cost<H: RuntimeBackend>(
 	address: H160,
 	opcode: Opcode,
 	stack: &Stack,

@@ -1,5 +1,5 @@
 use super::Control;
-use crate::{ExitException, ExitFatal, ExitSucceed, Handler, Machine, RuntimeState};
+use crate::{ExitException, ExitFatal, ExitSucceed, Machine, RuntimeHandler, RuntimeState};
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
@@ -23,7 +23,7 @@ pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr>
 	Control::Continue
 }
 
-pub fn chainid<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn chainid<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -39,7 +39,7 @@ pub fn address<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<
 	Control::Continue
 }
 
-pub fn balance<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn balance<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
@@ -50,7 +50,7 @@ pub fn balance<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn selfbalance<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn selfbalance<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -62,7 +62,7 @@ pub fn selfbalance<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn origin<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn origin<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -92,7 +92,7 @@ pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Contro
 	Control::Continue
 }
 
-pub fn gasprice<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -103,7 +103,7 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn basefee<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -114,7 +114,7 @@ pub fn basefee<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn extcodesize<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
@@ -126,7 +126,7 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn extcodehash<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
@@ -138,7 +138,7 @@ pub fn extcodehash<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn extcodecopy<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
@@ -190,7 +190,7 @@ pub fn returndatacopy<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> C
 	}
 }
 
-pub fn blockhash<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn blockhash<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -200,7 +200,7 @@ pub fn blockhash<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn coinbase<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn coinbase<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -208,7 +208,7 @@ pub fn coinbase<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn timestamp<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn timestamp<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -216,7 +216,7 @@ pub fn timestamp<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn number<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn number<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -224,7 +224,7 @@ pub fn number<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn difficulty<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn difficulty<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -232,7 +232,7 @@ pub fn difficulty<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn prevrandao<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn prevrandao<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -244,7 +244,7 @@ pub fn prevrandao<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	}
 }
 
-pub fn gaslimit<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn gaslimit<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -252,7 +252,7 @@ pub fn gaslimit<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn sload<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn sload<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
@@ -264,7 +264,7 @@ pub fn sload<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn sstore<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
@@ -277,7 +277,7 @@ pub fn sstore<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	}
 }
 
-pub fn gas<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn gas<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
@@ -286,7 +286,7 @@ pub fn gas<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	Control::Continue
 }
 
-pub fn log<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn log<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	n: u8,
 	handler: &mut H,
@@ -319,7 +319,7 @@ pub fn log<S: AsRef<RuntimeState>, H: Handler, Tr>(
 	}
 }
 
-pub fn suicide<S: AsRef<RuntimeState>, H: Handler, Tr>(
+pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeHandler, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {

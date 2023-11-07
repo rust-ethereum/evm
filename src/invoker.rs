@@ -4,7 +4,7 @@ pub trait Invoker<S, G, H, Tr> {
 	type Interrupt;
 	type CallCreateTrapData;
 
-	fn feedback_trap_data(
+	fn exit_trap_stack(
 		&self,
 		result: ExitResult,
 		child: Machine<S>,
@@ -14,7 +14,7 @@ pub trait Invoker<S, G, H, Tr> {
 		handler: &mut H,
 	) -> Result<(), ExitError>;
 
-	fn prepare_trap_data(
+	fn prepare_trap(
 		&self,
 		trap: Tr,
 		machine: &mut Machine<S>,
@@ -23,7 +23,7 @@ pub trait Invoker<S, G, H, Tr> {
 		depth: usize,
 	) -> Capture<Result<Self::CallCreateTrapData, ExitError>, Self::Interrupt>;
 
-	fn build_child_stack(
+	fn enter_trap_stack(
 		&self,
 		trap_data: &Self::CallCreateTrapData,
 		handler: &mut H,
