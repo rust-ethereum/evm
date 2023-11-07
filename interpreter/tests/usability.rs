@@ -57,7 +57,7 @@ fn etable_wrap2() {
 
 pub struct UnimplementedHandler;
 
-impl<'a> RuntimeBackend for &'a mut UnimplementedHandler {
+impl<'a> RuntimeBackend for UnimplementedHandler {
 	fn balance(&self, _address: H160) -> U256 {
 		unimplemented!()
 	}
@@ -135,21 +135,21 @@ impl<'a> RuntimeBackend for &'a mut UnimplementedHandler {
 	}
 }
 
-impl<'a> RuntimeGasometer for &'a mut UnimplementedHandler {
+impl<'a> RuntimeGasometer for UnimplementedHandler {
 	fn gas(&self) -> U256 {
 		unimplemented!()
 	}
 }
 
-impl<'a> RuntimeHandler for &'a mut UnimplementedHandler {}
+impl<'a> RuntimeHandler for UnimplementedHandler {}
 
-static RUNTIME_ETABLE: Etable<RuntimeState, &mut UnimplementedHandler, Opcode> = Etable::runtime();
+static RUNTIME_ETABLE: Etable<RuntimeState, UnimplementedHandler, Opcode> = Etable::runtime();
 
 #[test]
 fn etable_runtime() {
 	let code = hex::decode(&CODE1).unwrap();
 	let data = hex::decode(&DATA1).unwrap();
-	let handler = UnimplementedHandler;
+	let mut handler = UnimplementedHandler;
 
 	let mut vm = Machine::new(
 		Rc::new(code),
