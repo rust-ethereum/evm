@@ -32,7 +32,6 @@ impl Gas for U256 {}
 pub enum GasometerMergeStrategy {
 	Commit,
 	Revert,
-	Discard,
 }
 
 pub trait Gasometer<S, H>: Sized {
@@ -54,8 +53,8 @@ pub trait Gasometer<S, H>: Sized {
 pub fn run_with_gasometer<S, H, Tr, G, F>(
 	machine: &mut Machine<S>,
 	gasometer: &mut G,
-	handler: &mut H,
 	is_static: bool,
+	handler: &mut H,
 	etable: &Etable<S, H, Tr, F>,
 ) -> Capture<ExitResult, Tr>
 where

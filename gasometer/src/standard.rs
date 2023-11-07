@@ -131,7 +131,6 @@ impl<'config, H: Handler> Gasometer<RuntimeState, H> for StandardGasometer<'conf
 			GasometerMergeStrategy::Revert => {
 				self.used_gas -= Gasometer::<RuntimeState, H>::gas(&other);
 			}
-			GasometerMergeStrategy::Discard => (),
 		}
 	}
 }
