@@ -1,7 +1,7 @@
 //! EVM gasometer.
 
+use crate::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode, RuntimeState};
 use core::ops::{Add, AddAssign, Sub, SubAssign};
-use evm_interpreter::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode};
 use primitive_types::U256;
 
 pub trait Gas:
@@ -39,26 +39,36 @@ pub trait Gasometer<S, H>: Sized {
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
 }
 
-pub fn run_with_gasometer<S, G, H, Tr, F>(
-	machine: &mut Machine<S>,
-	gasometer: &mut G,
-	backend: &mut H,
-	is_static: bool,
-	etable: &Etable<S, (&mut G, &mut H), Tr, F>,
-) -> Capture<ExitResult, Tr>
-where
-	G: Gasometer<S, H>,
-	F: Fn(&mut Machine<S>, &mut (&mut G, &mut H), Opcode, usize) -> Control<Tr>,
-{
-	let mut handler = (gasometer, backend);
+pub struct GasedMachine<S, G> {
+	pub machine: Machine<S>,
+	pub gasometer: G,
+	pub is_static: bool,
+}
 
-	loop {
-		match handler.0.record_stepn(&machine, handler.1, is_static) {
-			Ok(stepn) => match machine.stepn(stepn, &mut handler, etable) {
-				Ok(()) => (),
-				Err(c) => return c,
-			},
-			Err(e) => return Capture::Exit(Err(e)),
+impl<S: AsMut<RuntimeState>, G> GasedMachine<S, G> {
+	pub fn run<H, Tr, F>(
+		&mut self,
+		handler: &mut H,
+		etable: &Etable<S, H, Tr, F>,
+	) -> Capture<ExitResult, Tr>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+		G: Gasometer<S, H>,
+	{
+		loop {
+			match self
+				.gasometer
+				.record_stepn(&self.machine, handler, self.is_static)
+			{
+				Ok(stepn) => {
+					self.machine.state.as_mut().gas = self.gasometer.gas().into();
+					match self.machine.stepn(stepn, handler, etable) {
+						Ok(()) => (),
+						Err(c) => return c,
+					}
+				}
+				Err(e) => return Capture::Exit(Err(e)),
+			}
 		}
 	}
 }

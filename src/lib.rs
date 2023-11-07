@@ -17,5 +17,5 @@ pub use evm_interpreter::*;
 
 pub use crate::backend::{TransactionalBackend, TransactionalMergeStrategy};
 pub use crate::call_stack::{execute, CallStack};
-pub use crate::gasometer::{run_with_gasometer, Gas, Gasometer, GasometerMergeStrategy};
+pub use crate::gasometer::{Gas, GasedMachine, Gasometer, GasometerMergeStrategy};
 pub use crate::invoker::Invoker;

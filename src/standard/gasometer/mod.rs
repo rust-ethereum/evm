@@ -5,7 +5,7 @@ mod utils;
 use crate::standard::Config;
 use crate::{
 	ExitError, ExitException, Gasometer as GasometerT, GasometerMergeStrategy, Machine, Opcode,
-	RuntimeBackend, RuntimeGasometer, RuntimeState, Stack,
+	RuntimeBackend, RuntimeState, Stack,
 };
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
@@ -56,12 +56,6 @@ impl<'config> Gasometer<'config> {
 			self.used_gas += cost;
 			Ok(())
 		}
-	}
-}
-
-impl<'config> RuntimeGasometer for Gasometer<'config> {
-	fn gas(&self) -> U256 {
-		U256::from(self.gas())
 	}
 }
 
