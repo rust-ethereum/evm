@@ -42,7 +42,6 @@ pub struct CallStack<'backend, 'invoker, S, G, H, Tr, I: Invoker<S, G, H, Tr>> {
 impl<'backend, 'invoker, S, G, H, Tr, I> CallStack<'backend, 'invoker, S, G, H, Tr, I>
 where
 	G: Gasometer<S, H>,
-	H: TransactionalBackend,
 	I: Invoker<S, G, H, Tr>,
 {
 	pub fn new(
@@ -184,28 +183,7 @@ where
 							.pop()
 							.expect("checked stack is not empty above; qed");
 
-						match &exit {
-							Ok(_) => {
-								self.backend
-									.pop_substate(TransactionalMergeStrategy::Commit);
-								upward
-									.gasometer
-									.merge(gasometer, GasometerMergeStrategy::Commit);
-							}
-							Err(ExitError::Reverted) => {
-								self.backend
-									.pop_substate(TransactionalMergeStrategy::Discard);
-								upward
-									.gasometer
-									.merge(gasometer, GasometerMergeStrategy::Revert);
-							}
-							Err(_) => {
-								self.backend
-									.pop_substate(TransactionalMergeStrategy::Discard);
-							}
-						};
-
-						let feedback_result = self.invoker.feedback_trap_data(
+						let feedback_result = self.invoker.exit_trap_stack(
 							exit,
 							machine,
 							upward.trap_data,
@@ -230,7 +208,7 @@ where
 					}
 				}
 				Capture::Trap(trap) => {
-					match self.invoker.prepare_trap_data(
+					match self.invoker.prepare_trap(
 						trap,
 						&mut machine,
 						&mut gasometer,
@@ -238,9 +216,7 @@ where
 						self.initial_depth + self.stack.len() + 1,
 					) {
 						Capture::Exit(Ok(trap_data)) => {
-							self.backend.push_substate();
-
-							match self.invoker.build_child_stack(&trap_data, self.backend) {
+							match self.invoker.enter_trap_stack(&trap_data, self.backend) {
 								Ok((sub_machine, sub_gasometer, sub_is_static)) => {
 									self.stack.push(TrappedCallStackData {
 										trap_data,
@@ -255,17 +231,12 @@ where
 										is_static: sub_is_static,
 									}
 								}
-								Err(err) => {
-									self.backend
-										.pop_substate(TransactionalMergeStrategy::Discard);
-
-									LastCallStackData::Exited {
-										machine,
-										gasometer,
-										is_static,
-										result: Capture::Exit(Err(err)),
-									}
-								}
+								Err(err) => LastCallStackData::Exited {
+									machine,
+									gasometer,
+									is_static,
+									result: Capture::Exit(Err(err)),
+								},
 							}
 						}
 						Capture::Exit(Err(err)) => LastCallStackData::Exited {
@@ -317,7 +288,7 @@ where
 				let prepared_trap_data: Capture<
 					Result<I::CallCreateTrapData, ExitError>,
 					Infallible,
-				> = invoker.prepare_trap_data(
+				> = invoker.prepare_trap(
 					trap,
 					&mut machine,
 					&mut gasometer,
@@ -329,7 +300,7 @@ where
 					Capture::Exit(Ok(trap_data)) => {
 						backend.push_substate();
 
-						match invoker.build_child_stack(&trap_data, backend) {
+						match invoker.enter_trap_stack(&trap_data, backend) {
 							Ok((sub_machine, sub_gasometer, sub_is_static)) => {
 								let (sub_machine, sub_gasometer, sub_result) = if heap_depth
 									.map(|hd| initial_depth + 1 >= hd)
@@ -375,7 +346,7 @@ where
 									}
 								}
 
-								match invoker.feedback_trap_data(
+								match invoker.exit_trap_stack(
 									sub_result,
 									sub_machine,
 									trap_data,
