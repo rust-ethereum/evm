@@ -20,7 +20,9 @@ pub use crate::error::{Capture, ExitError, ExitException, ExitFatal, ExitResult,
 pub use crate::eval::{Control, Efn, Etable};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
-pub use crate::runtime::{CallCreateTrap, Context, RuntimeBackend, RuntimeState};
+pub use crate::runtime::{
+	CallCreateTrap, Context, RuntimeBackend, RuntimeFullBackend, RuntimeState, Transfer,
+};
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 

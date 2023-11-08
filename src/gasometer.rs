@@ -25,9 +25,7 @@ pub enum GasometerMergeStrategy {
 
 pub trait Gasometer<S, H>: Sized {
 	type Gas: Gas;
-	type Config;
 
-	fn new(gas_limit: Self::Gas, machine: &Machine<S>, config: Self::Config) -> Self;
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,

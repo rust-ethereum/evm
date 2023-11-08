@@ -35,6 +35,17 @@ pub struct Context {
 	pub apparent_value: U256,
 }
 
+/// Transfer from source to target, with given value.
+#[derive(Clone, Debug)]
+pub struct Transfer {
+	/// Source address.
+	pub source: H160,
+	/// Target address.
+	pub target: H160,
+	/// Transfer value.
+	pub value: U256,
+}
+
 pub trait CallCreateTrap: Sized {
 	fn call_create_trap(opcode: Opcode) -> Self;
 }
@@ -97,4 +108,19 @@ pub trait RuntimeBackend {
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
+}
+
+pub trait RuntimeFullBackend: RuntimeBackend {
+	/// Get the current nonce of an account.
+	fn nonce(&self, address: H160) -> U256;
+	/// Fully delete storages of an account.
+	fn reset_storage(&mut self, address: H160);
+	/// Set code of an account.
+	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	/// Reset balance of an account.
+	fn reset_balance(&mut self, address: H160);
+	/// Initiate a transfer.
+	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
+	/// Increase the nonce value.
+	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 }

@@ -1,5 +1,8 @@
 use crate::utils::{h256_to_u256, u256_to_usize};
-use crate::{Context, ExitError, ExitException, ExitResult, Machine, Memory, RuntimeState};
+use crate::{
+	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeFullBackend,
+	RuntimeState, Transfer,
+};
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -21,8 +24,39 @@ pub enum CreateScheme {
 		/// Salt.
 		salt: H256,
 	},
-	/// Create at a fixed location.
-	Fixed(H160),
+}
+
+impl CreateScheme {
+	pub fn address<H: RuntimeFullBackend>(&self, handler: &H) -> H160 {
+		match self {
+			CreateScheme::Create2 {
+				caller,
+				code_hash,
+				salt,
+			} => {
+				let mut hasher = Keccak256::new();
+				hasher.update([0xff]);
+				hasher.update(&caller[..]);
+				hasher.update(&salt[..]);
+				hasher.update(&code_hash[..]);
+				H256::from_slice(hasher.finalize().as_slice()).into()
+			}
+			CreateScheme::Legacy { caller } => {
+				let nonce = handler.nonce(*caller);
+				let mut stream = rlp::RlpStream::new_list(2);
+				stream.append(caller);
+				stream.append(&nonce);
+				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+			}
+		}
+	}
+
+	pub fn caller(&self) -> H160 {
+		match self {
+			Self::Create2 { caller, .. } => *caller,
+			Self::Legacy { caller } => *caller,
+		}
+	}
 }
 
 /// Call scheme.
@@ -38,20 +72,45 @@ pub enum CallScheme {
 	StaticCall,
 }
 
-/// Transfer from source to target, with given value.
-#[derive(Clone, Debug)]
-pub struct Transfer {
-	/// Source address.
-	pub source: H160,
-	/// Target address.
-	pub target: H160,
-	/// Transfer value.
-	pub value: U256,
-}
-
 pub enum CallCreateTrapData {
 	Call(CallTrapData),
 	Create(CreateTrapData),
+}
+
+impl CallCreateTrapData {
+	pub fn target_gas(&self) -> Option<U256> {
+		match self {
+			Self::Call(CallTrapData { gas, .. }) => Some(*gas),
+			Self::Create(_) => None,
+		}
+	}
+
+	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+		opcode: Opcode,
+		machine: &mut Machine<S>,
+	) -> Result<Self, ExitError> {
+		match opcode {
+			Opcode::CREATE => Ok(Self::Create(CreateTrapData::new_create_from(machine)?)),
+			Opcode::CREATE2 => Ok(Self::Create(CreateTrapData::new_create2_from(machine)?)),
+			Opcode::CALL => Ok(Self::Call(CallTrapData::new_from(
+				CallScheme::Call,
+				machine,
+			)?)),
+			Opcode::CALLCODE => Ok(Self::Call(CallTrapData::new_from(
+				CallScheme::CallCode,
+				machine,
+			)?)),
+			Opcode::DELEGATECALL => Ok(Self::Call(CallTrapData::new_from(
+				CallScheme::DelegateCall,
+				machine,
+			)?)),
+			Opcode::STATICCALL => Ok(Self::Call(CallTrapData::new_from(
+				CallScheme::StaticCall,
+				machine,
+			)?)),
+			_ => Err(ExitException::InvalidOpcode(opcode).into()),
+		}
+	}
 }
 
 pub struct CallTrapData {
@@ -254,6 +313,7 @@ impl CallTrapData {
 	}
 }
 
+#[derive(Clone, Debug)]
 pub struct CreateTrapData {
 	pub scheme: CreateScheme,
 	pub value: U256,
