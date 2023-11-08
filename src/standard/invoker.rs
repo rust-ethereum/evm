@@ -1,4 +1,4 @@
-use super::{Config, GasedMachine, Gasometer, Machine};
+use super::{gasometer::TransactionCost, Config, Etable, GasedMachine, Gasometer, Machine};
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateTrapData};
 use crate::{
 	Capture, Context, ExitError, ExitException, ExitResult, Gasometer as GasometerT,
@@ -8,7 +8,7 @@ use crate::{
 use alloc::rc::Rc;
 use core::cmp::min;
 use core::convert::Infallible;
-use primitive_types::{H160, U256};
+use primitive_types::{H160, H256, U256};
 
 pub enum CallCreateTrapPrepareData {
 	Call {
@@ -28,8 +28,101 @@ pub enum CallCreateTrapEnterData {
 	Create { trap: CreateTrapData, address: H160 },
 }
 
+const DEFAULT_HEAP_DEPTH: Option<usize> = Some(4);
+
 pub struct Invoker<'config> {
 	config: &'config Config,
+}
+
+impl<'config> Invoker<'config> {
+	pub fn transact_call<H>(
+		&self,
+		caller: H160,
+		address: H160,
+		value: U256,
+		data: Vec<u8>,
+		gas_limit: U256,
+		access_list: Vec<(H160, Vec<H256>)>,
+		handler: &mut H,
+		etable: &Etable<H>,
+	) -> ExitResult
+	where
+		H: RuntimeFullBackend + TransactionalBackend,
+	{
+		let gas_limit = if gas_limit > U256::from(u64::MAX) {
+			return Err(ExitException::OutOfGas.into());
+		} else {
+			gas_limit.as_u64()
+		};
+
+		let context = Context {
+			caller,
+			address,
+			apparent_value: value,
+		};
+		let code = handler.code(address);
+
+		let transaction_cost = TransactionCost::call(&data, &access_list).cost(self.config);
+
+		let machine = Machine::new(
+			Rc::new(code),
+			Rc::new(data),
+			self.config.stack_limit,
+			self.config.memory_limit,
+			RuntimeState {
+				context,
+				retbuf: Vec::new(),
+				gas: U256::zero(),
+			},
+		);
+		let mut gasometer = Gasometer::new(gas_limit, &machine, self.config);
+
+		gasometer.record_cost(transaction_cost)?;
+
+		handler.push_substate();
+
+		let work = || -> ExitResult {
+			if self.config.increase_state_access_gas {
+				if self.config.warm_coinbase_address {
+					let coinbase = handler.block_coinbase();
+					handler.mark_hot(coinbase, None)?;
+				}
+				handler.mark_hot(caller, None)?;
+				handler.mark_hot(address, None)?;
+			}
+
+			handler.inc_nonce(caller)?;
+
+			let transfer = Transfer {
+				source: caller,
+				target: address,
+				value,
+			};
+			handler.transfer(transfer)?;
+
+			let machine = GasedMachine {
+				machine,
+				gasometer,
+				is_static: false,
+			};
+
+			let (_machine, result) =
+				crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
+
+			result
+		};
+
+		match work() {
+			Ok(exit) => {
+				handler.pop_substate(TransactionalMergeStrategy::Commit);
+				Ok(exit)
+			}
+			Err(err) => {
+				handler.pop_substate(TransactionalMergeStrategy::Discard);
+				Err(err)
+			}
+		}
+	}
 }
 
 impl<'config, H> InvokerT<RuntimeState, Gasometer<'config>, H, Opcode> for Invoker<'config>
