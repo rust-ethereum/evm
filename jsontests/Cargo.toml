@@ -1,0 +1,15 @@
+[package]
+name = "jsontests"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+evm = { path = ".." }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+primitive-types = { version = "0.12", features = ["rlp", "serde"] }
+clap = { version = "4", features = ["derive"] }
+thiserror = "1"
+hex = { version = "0.4", features = ["serde"] }

@@ -60,4 +60,5 @@ with-serde = [
 [workspace]
 members = [
 	"interpreter",
+	"jsontests",
 ]

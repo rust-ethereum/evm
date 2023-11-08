@@ -52,6 +52,24 @@ impl From<ExitError> for ExitResult {
 	}
 }
 
+#[cfg(feature = "std")]
+impl std::error::Error for ExitError {
+	fn description(&self) -> &str {
+		match self {
+			Self::Exception(_) => "EVM exit exception",
+			Self::Reverted => "EVM internal revert",
+			Self::Fatal(_) => "EVM fatal error",
+		}
+	}
+}
+
+#[cfg(feature = "std")]
+impl std::fmt::Display for ExitError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "{:?}", self)
+	}
+}
+
 /// Exit succeed reason.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
