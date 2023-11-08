@@ -680,3 +680,117 @@ impl MemoryCost {
 		Ok(Some(costs::memory_gas(new)?))
 	}
 }
+
+/// Transaction cost.
+#[derive(Debug, Clone, Copy)]
+pub enum TransactionCost {
+	/// Call transaction cost.
+	Call {
+		/// Length of zeros in transaction data.
+		zero_data_len: usize,
+		/// Length of non-zeros in transaction data.
+		non_zero_data_len: usize,
+		/// Number of addresses in transaction access list (see EIP-2930)
+		access_list_address_len: usize,
+		/// Total number of storage keys in transaction access list (see EIP-2930)
+		access_list_storage_len: usize,
+	},
+	/// Create transaction cost.
+	Create {
+		/// Length of zeros in transaction data.
+		zero_data_len: usize,
+		/// Length of non-zeros in transaction data.
+		non_zero_data_len: usize,
+		/// Number of addresses in transaction access list (see EIP-2930)
+		access_list_address_len: usize,
+		/// Total number of storage keys in transaction access list (see EIP-2930)
+		access_list_storage_len: usize,
+		/// Cost of initcode = 2 * ceil(len(initcode) / 32) (see EIP-3860)
+		initcode_cost: u64,
+	},
+}
+
+impl TransactionCost {
+	pub fn call(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+		let zero_data_len = data.iter().filter(|v| **v == 0).count();
+		let non_zero_data_len = data.len() - zero_data_len;
+		let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
+
+		TransactionCost::Call {
+			zero_data_len,
+			non_zero_data_len,
+			access_list_address_len,
+			access_list_storage_len,
+		}
+	}
+
+	pub fn create(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+		let zero_data_len = data.iter().filter(|v| **v == 0).count();
+		let non_zero_data_len = data.len() - zero_data_len;
+		let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
+		let initcode_cost = init_code_cost(data);
+
+		TransactionCost::Create {
+			zero_data_len,
+			non_zero_data_len,
+			access_list_address_len,
+			access_list_storage_len,
+			initcode_cost,
+		}
+	}
+
+	pub fn cost(&self, config: &Config) -> u64 {
+		let gas_cost = match self {
+			TransactionCost::Call {
+				zero_data_len,
+				non_zero_data_len,
+				access_list_address_len,
+				access_list_storage_len,
+			} => {
+				#[deny(clippy::let_and_return)]
+				let cost = config.gas_transaction_call
+					+ *zero_data_len as u64 * config.gas_transaction_zero_data
+					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data
+					+ *access_list_address_len as u64 * config.gas_access_list_address
+					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key;
+
+				cost
+			}
+			TransactionCost::Create {
+				zero_data_len,
+				non_zero_data_len,
+				access_list_address_len,
+				access_list_storage_len,
+				initcode_cost,
+			} => {
+				let mut cost = config.gas_transaction_create
+					+ *zero_data_len as u64 * config.gas_transaction_zero_data
+					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data
+					+ *access_list_address_len as u64 * config.gas_access_list_address
+					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key;
+				if config.max_initcode_size.is_some() {
+					cost += initcode_cost;
+				}
+
+				cost
+			}
+		};
+
+		gas_cost
+	}
+}
+
+/// Counts the number of addresses and storage keys in the access list
+fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
+	let access_list_address_len = access_list.len();
+	let access_list_storage_len = access_list.iter().map(|(_, keys)| keys.len()).sum();
+
+	(access_list_address_len, access_list_storage_len)
+}
+
+pub fn init_code_cost(data: &[u8]) -> u64 {
+	// As per EIP-3860:
+	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
+	// where INITCODE_WORD_COST is 2.
+	2 * ((data.len() as u64 + 31) / 32)
+}
