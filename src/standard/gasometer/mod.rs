@@ -48,7 +48,7 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Record an explicit cost.
-	fn record_cost_nocleanup(&mut self, cost: u64) -> Result<(), ExitError> {
+	pub fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
 			Err(ExitException::OutOfGas.into())
@@ -57,13 +57,8 @@ impl<'config> Gasometer<'config> {
 			Ok(())
 		}
 	}
-}
 
-impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
-	type Gas = u64;
-	type Config = &'config Config;
-
-	fn new(gas_limit: u64, _machine: &Machine<S>, config: &'config Config) -> Self {
+	pub fn new<S>(gas_limit: u64, _machine: &Machine<S>, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			memory_gas: 0,
@@ -72,6 +67,10 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 			config,
 		}
 	}
+}
+
+impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
+	type Gas = u64;
 
 	fn record_stepn(
 		&mut self,
@@ -83,7 +82,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 			let opcode = machine.peek_opcode().ok_or(ExitException::OutOfGas)?;
 
 			if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
-				gasometer.record_cost_nocleanup(cost)?;
+				gasometer.record_cost(cost)?;
 			} else {
 				let address = machine.state.as_ref().context.address;
 				let (gas, memory_gas) = dynamic_opcode_cost(
@@ -97,7 +96,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 				let cost = gas.cost(gasometer.gas(), gasometer.config)?;
 				let refund = gas.refund(gasometer.config);
 
-				gasometer.record_cost_nocleanup(cost)?;
+				gasometer.record_cost(cost)?;
 				if refund >= 0 {
 					gasometer.refunded_gas += refund as u64;
 				} else {
@@ -121,7 +120,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
 		self.perform(|gasometer| {
 			let cost = len as u64 * consts::G_CODEDEPOSIT;
-			gasometer.record_cost_nocleanup(cost)?;
+			gasometer.record_cost(cost)?;
 			Ok(())
 		})
 	}

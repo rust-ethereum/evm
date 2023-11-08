@@ -23,7 +23,7 @@ enum LastCallStackData<S, G, Tr> {
 }
 
 pub struct CallStack<'backend, 'invoker, S, G, H, Tr, I: Invoker<S, G, H, Tr>> {
-	stack: Vec<TrappedCallStackData<S, G, I::CallCreateTrapData>>,
+	stack: Vec<TrappedCallStackData<S, G, I::CallCreateTrapEnterData>>,
 	last: LastCallStackData<S, G, Tr>,
 	initial_depth: usize,
 	backend: &'backend mut H,
@@ -154,8 +154,8 @@ where
 						self.initial_depth + self.stack.len() + 1,
 					) {
 						Capture::Exit(Ok(trap_data)) => {
-							match self.invoker.enter_trap_stack(&trap_data, self.backend) {
-								Ok(sub_machine) => {
+							match self.invoker.enter_trap_stack(trap_data, self.backend) {
+								Ok((trap_data, sub_machine)) => {
 									self.stack.push(TrappedCallStackData { trap_data, machine });
 
 									LastCallStackData::Running {
@@ -207,14 +207,14 @@ where
 			Capture::Exit(exit) => return (machine, exit),
 			Capture::Trap(trap) => {
 				let prepared_trap_data: Capture<
-					Result<I::CallCreateTrapData, ExitError>,
+					Result<I::CallCreateTrapPrepareData, ExitError>,
 					Infallible,
 				> = invoker.prepare_trap(trap, &mut machine, backend, initial_depth + 1);
 
 				match prepared_trap_data {
 					Capture::Exit(Ok(trap_data)) => {
-						match invoker.enter_trap_stack(&trap_data, backend) {
-							Ok(sub_machine) => {
+						match invoker.enter_trap_stack(trap_data, backend) {
+							Ok((trap_data, sub_machine)) => {
 								let (sub_machine, sub_result) = if heap_depth
 									.map(|hd| initial_depth + 1 >= hd)
 									.unwrap_or(false)
