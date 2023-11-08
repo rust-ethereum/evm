@@ -147,7 +147,7 @@ pub struct TestTransaction {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct HexBytes(#[serde(deserialize_with = "deserialize_hex_bytes")] Vec<u8>);
 
-pub fn deserialize_hex_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
+fn deserialize_hex_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
 	D: Deserializer<'de>,
 {

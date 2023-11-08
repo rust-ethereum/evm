@@ -1,0 +1,11 @@
+use thiserror::Error;
+
+#[derive(Error, Debug)]
+pub enum Error {
+	#[error("io error")]
+	IO(#[from] std::io::Error),
+	#[error("json error")]
+	JSON(#[from] serde_json::Error),
+	#[error("evm error")]
+	EVM(#[from] evm::ExitError),
+}
