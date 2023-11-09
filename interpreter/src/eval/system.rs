@@ -1,5 +1,5 @@
 use super::Control;
-use crate::{ExitException, ExitFatal, ExitSucceed, Machine, RuntimeBackend, RuntimeState};
+use crate::{ExitException, ExitFatal, ExitSucceed, Log, Machine, RuntimeBackend, RuntimeState};
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
@@ -313,7 +313,11 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeBackend, Tr>(
 		}
 	}
 
-	match handler.log(machine.state.as_ref().context.address, topics, data) {
+	match handler.log(Log {
+		address: machine.state.as_ref().context.address,
+		topics,
+		data,
+	}) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
 	}
