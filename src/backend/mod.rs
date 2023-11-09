@@ -1,3 +1,5 @@
+pub mod in_memory;
+
 pub enum TransactionalMergeStrategy {
 	Commit,
 	Discard,
