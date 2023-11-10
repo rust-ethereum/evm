@@ -13,3 +13,6 @@ primitive-types = { version = "0.12", features = ["rlp", "serde"] }
 clap = { version = "4", features = ["derive"] }
 thiserror = "1"
 hex = { version = "0.4", features = ["serde"] }
+ethereum = "0.15.0"
+rlp = "0.5"
+sha3 = "0.10"

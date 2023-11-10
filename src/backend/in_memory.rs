@@ -1,4 +1,7 @@
-use crate::{ExitError, ExitException, Log, RuntimeBackend, RuntimeFullBackend, Transfer};
+use crate::{
+	ExitError, ExitException, Log, RuntimeBackend, RuntimeBaseBackend, TransactionalBackend,
+	TransactionalMergeStrategy, Transfer,
+};
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
 
@@ -33,15 +36,30 @@ pub struct InMemorySuicideInfo {
 }
 
 #[derive(Clone, Debug)]
-pub struct InMemoryBackend {
-	pub environment: InMemoryEnvironment,
+pub struct InMemoryLayer {
 	pub state: BTreeMap<H160, InMemoryAccount>,
 	pub logs: Vec<Log>,
 	pub suicides: Vec<InMemorySuicideInfo>,
 	pub hots: BTreeSet<(H160, Option<H256>)>,
 }
 
-impl RuntimeBackend for InMemoryBackend {
+#[derive(Clone, Debug)]
+pub struct InMemoryBackend {
+	pub environment: InMemoryEnvironment,
+	pub layers: Vec<InMemoryLayer>,
+}
+
+impl InMemoryBackend {
+	pub fn current_layer(&self) -> &InMemoryLayer {
+		self.layers.last().expect("current layer exists")
+	}
+
+	pub fn current_layer_mut(&mut self) -> &mut InMemoryLayer {
+		self.layers.last_mut().expect("current layer exists")
+	}
+}
+
+impl RuntimeBaseBackend for InMemoryBackend {
 	fn block_hash(&self, number: U256) -> H256 {
 		self.environment
 			.block_hashes
@@ -91,7 +109,8 @@ impl RuntimeBackend for InMemoryBackend {
 	}
 
 	fn balance(&self, address: H160) -> U256 {
-		self.state
+		self.current_layer()
+			.state
 			.get(&address)
 			.cloned()
 			.unwrap_or(Default::default())
@@ -99,56 +118,72 @@ impl RuntimeBackend for InMemoryBackend {
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.state
+		self.current_layer()
+			.state
 			.get(&address)
 			.cloned()
 			.unwrap_or(Default::default())
 			.code
 	}
 
-	fn storage(&self, address: H160, index: H256) -> H256 {
-		self.state
-			.get(&address)
-			.cloned()
-			.unwrap_or(Default::default())
-			.storage
-			.get(&index)
-			.cloned()
-			.unwrap_or(H256::default())
-	}
-
-	fn original_storage(&self, address: H160, index: H256) -> H256 {
-		self.state
-			.get(&address)
-			.cloned()
-			.unwrap_or(Default::default())
-			.storage
-			.get(&index)
-			.cloned()
-			.unwrap_or(H256::default())
-	}
-
 	fn exists(&self, address: H160) -> bool {
-		self.state.get(&address).is_some()
+		self.current_layer().state.get(&address).is_some()
+	}
+
+	fn storage(&self, address: H160, index: H256) -> H256 {
+		self.current_layer()
+			.state
+			.get(&address)
+			.cloned()
+			.unwrap_or(Default::default())
+			.storage
+			.get(&index)
+			.cloned()
+			.unwrap_or(H256::default())
+	}
+
+	fn nonce(&self, address: H160) -> U256 {
+		self.current_layer()
+			.state
+			.get(&address)
+			.cloned()
+			.unwrap_or(Default::default())
+			.nonce
+	}
+}
+
+impl RuntimeBackend for InMemoryBackend {
+	fn original_storage(&self, address: H160, index: H256) -> H256 {
+		self.current_layer()
+			.state
+			.get(&address)
+			.cloned()
+			.unwrap_or(Default::default())
+			.storage
+			.get(&index)
+			.cloned()
+			.unwrap_or(H256::default())
 	}
 
 	fn deleted(&self, address: H160) -> bool {
-		self.suicides
+		self.current_layer()
+			.suicides
 			.iter()
 			.any(|suicide| suicide.address == address)
 	}
 
 	fn is_cold(&self, address: H160, index: Option<H256>) -> bool {
-		!self.hots.contains(&(address, index))
+		!self.current_layer().hots.contains(&(address, index))
 	}
 
 	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError> {
-		self.hots.insert((address, index));
+		self.current_layer_mut().hots.insert((address, index));
 		Ok(())
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		self.state
+		self.current_layer_mut()
+			.state
 			.entry(address)
 			.or_default()
 			.storage
@@ -157,52 +192,82 @@ impl RuntimeBackend for InMemoryBackend {
 	}
 
 	fn log(&mut self, log: Log) -> Result<(), ExitError> {
-		self.logs.push(log);
+		self.current_layer_mut().logs.push(log);
 		Ok(())
 	}
 
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
-		self.suicides.push(InMemorySuicideInfo { address, target });
+		self.current_layer_mut()
+			.suicides
+			.push(InMemorySuicideInfo { address, target });
 		Ok(())
-	}
-}
-
-impl RuntimeFullBackend for InMemoryBackend {
-	fn nonce(&self, address: H160) -> U256 {
-		self.state
-			.get(&address)
-			.cloned()
-			.unwrap_or(Default::default())
-			.nonce
 	}
 
 	fn reset_storage(&mut self, address: H160) {
-		self.state.entry(address).or_default().storage = Default::default();
+		self.current_layer_mut()
+			.state
+			.entry(address)
+			.or_default()
+			.storage = Default::default();
 	}
 
 	fn set_code(&mut self, address: H160, code: Vec<u8>) {
-		self.state.entry(address).or_default().code = code;
+		self.current_layer_mut()
+			.state
+			.entry(address)
+			.or_default()
+			.code = code;
 	}
 
 	fn reset_balance(&mut self, address: H160) {
-		self.state.entry(address).or_default().balance = U256::zero();
+		self.current_layer_mut()
+			.state
+			.entry(address)
+			.or_default()
+			.balance = U256::zero();
 	}
 
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
 		{
-			let source = self.state.entry(transfer.source).or_default();
+			let source = self
+				.current_layer_mut()
+				.state
+				.entry(transfer.source)
+				.or_default();
 			if source.balance < transfer.value {
 				return Err(ExitException::OutOfFund.into());
 			}
 			source.balance -= transfer.value;
 		}
-		self.state.entry(transfer.target).or_default().balance += transfer.value;
+		self.current_layer_mut()
+			.state
+			.entry(transfer.target)
+			.or_default()
+			.balance += transfer.value;
 		Ok(())
 	}
 
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError> {
-		let entry = self.state.entry(address).or_default();
+		let entry = self.current_layer_mut().state.entry(address).or_default();
 		entry.nonce = entry.nonce.saturating_add(U256::one());
 		Ok(())
+	}
+}
+
+impl TransactionalBackend for InMemoryBackend {
+	fn push_substate(&mut self) {
+		let layer = self.current_layer().clone();
+		self.layers.push(layer);
+	}
+
+	fn pop_substate(&mut self, strategy: TransactionalMergeStrategy) {
+		let layer = self.layers.pop().expect("current layer exist");
+
+		match strategy {
+			TransactionalMergeStrategy::Commit => {
+				*self.current_layer_mut() = layer;
+			}
+			TransactionalMergeStrategy::Discard => (),
+		}
 	}
 }

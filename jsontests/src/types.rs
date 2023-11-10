@@ -25,6 +25,7 @@ impl TestMulti {
 			for (index, post_state) in post_states.iter().enumerate() {
 				tests.push(Test {
 					info: self.info.clone(),
+                    env: self.env.clone(),
 					fork: fork.clone(),
 					index,
 					post: post_state.clone(),
@@ -50,6 +51,7 @@ impl TestMulti {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Test {
 	pub info: TestInfo,
+    pub env: TestEnv,
 	pub fork: Fork,
 	pub index: usize,
 	pub post: TestPostState,
@@ -145,7 +147,7 @@ pub struct TestTransaction {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
-pub struct HexBytes(#[serde(deserialize_with = "deserialize_hex_bytes")] Vec<u8>);
+pub struct HexBytes(#[serde(deserialize_with = "deserialize_hex_bytes")] pub Vec<u8>);
 
 fn deserialize_hex_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where

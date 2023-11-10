@@ -1,6 +1,6 @@
 use evm_interpreter::{
-	Capture, Context, Control, Etable, ExitError, ExitSucceed, Machine, Opcode, RuntimeBackend,
-	RuntimeState,
+	Capture, Context, Control, Etable, ExitError, ExitSucceed, Log, Machine, Opcode,
+	RuntimeBackend, RuntimeBaseBackend, RuntimeState, Transfer,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -57,7 +57,7 @@ fn etable_wrap2() {
 
 pub struct UnimplementedHandler;
 
-impl<'a> RuntimeBackend for UnimplementedHandler {
+impl<'a> RuntimeBaseBackend for UnimplementedHandler {
 	fn balance(&self, _address: H160) -> U256 {
 		unimplemented!()
 	}
@@ -71,9 +71,6 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 	fn storage(&self, _address: H160, _index: H256) -> H256 {
-		unimplemented!()
-	}
-	fn original_storage(&self, _address: H160, _index: H256) -> H256 {
 		unimplemented!()
 	}
 
@@ -114,12 +111,24 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 	fn exists(&self, _address: H160) -> bool {
 		unimplemented!()
 	}
+
+	fn nonce(&self, _address: H160) -> U256 {
+		unimplemented!()
+	}
+}
+
+impl<'a> RuntimeBackend for UnimplementedHandler {
+	fn original_storage(&self, _address: H160, _index: H256) -> H256 {
+		unimplemented!()
+	}
+
 	fn deleted(&self, _address: H160) -> bool {
 		unimplemented!()
 	}
 	fn is_cold(&self, _address: H160, _index: Option<H256>) -> bool {
 		unimplemented!()
 	}
+
 	fn mark_hot(&mut self, _address: H160, _index: Option<H256>) -> Result<(), ExitError> {
 		unimplemented!()
 	}
@@ -127,10 +136,30 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 	fn set_storage(&mut self, _address: H160, _index: H256, _value: H256) -> Result<(), ExitError> {
 		unimplemented!()
 	}
-	fn log(&mut self, _address: H160, _topics: Vec<H256>, _data: Vec<u8>) -> Result<(), ExitError> {
+	fn log(&mut self, _log: Log) -> Result<(), ExitError> {
 		unimplemented!()
 	}
 	fn mark_delete(&mut self, _address: H160, _target: H160) -> Result<(), ExitError> {
+		unimplemented!()
+	}
+
+	fn reset_storage(&mut self, _address: H160) {
+		unimplemented!()
+	}
+
+	fn set_code(&mut self, _address: H160, _code: Vec<u8>) {
+		unimplemented!()
+	}
+
+	fn reset_balance(&mut self, _address: H160) {
+		unimplemented!()
+	}
+
+	fn transfer(&mut self, _transfer: Transfer) -> Result<(), ExitError> {
+		unimplemented!()
+	}
+
+	fn inc_nonce(&mut self, _address: H160) -> Result<(), ExitError> {
 		unimplemented!()
 	}
 }

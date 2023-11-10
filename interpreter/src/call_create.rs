@@ -1,6 +1,6 @@
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
-	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeFullBackend,
+	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeBackend,
 	RuntimeState, Transfer,
 };
 use core::cmp::{max, min};
@@ -27,7 +27,7 @@ pub enum CreateScheme {
 }
 
 impl CreateScheme {
-	pub fn address<H: RuntimeFullBackend>(&self, handler: &H) -> H160 {
+	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
 		match self {
 			CreateScheme::Create2 {
 				caller,

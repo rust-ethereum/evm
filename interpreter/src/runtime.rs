@@ -65,7 +65,7 @@ impl CallCreateTrap for Opcode {
 	}
 }
 
-pub trait RuntimeBackend {
+pub trait RuntimeBaseBackend {
 	/// Get environmental block hash.
 	fn block_hash(&self, number: U256) -> H256;
 	/// Get environmental block number.
@@ -103,11 +103,19 @@ pub trait RuntimeBackend {
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
-	/// Get original storage value of address at index.
-	fn original_storage(&self, address: H160, index: H256) -> H256;
 
 	/// Check whether an address exists.
 	fn exists(&self, address: H160) -> bool;
+
+	/// Get the current nonce of an account.
+	fn nonce(&self, address: H160) -> U256;
+}
+
+/// The distinguish between `RuntimeBaseBackend` and `RuntimeBackend` is for the implementation of
+/// overlays.
+pub trait RuntimeBackend: RuntimeBaseBackend {
+	/// Get original storage value of address at index.
+	fn original_storage(&self, address: H160, index: H256) -> H256;
 	/// Check whether an address has already been deleted.
 	fn deleted(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed.
@@ -116,16 +124,10 @@ pub trait RuntimeBackend {
 	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError>;
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
-
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, log: Log) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
-}
-
-pub trait RuntimeFullBackend: RuntimeBackend {
-	/// Get the current nonce of an account.
-	fn nonce(&self, address: H160) -> U256;
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);
 	/// Set code of an account.
