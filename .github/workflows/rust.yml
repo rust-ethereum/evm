@@ -33,6 +33,8 @@ jobs:
         path: jsontests/res/ethtests
         repository: ethereum/tests
         ref: 428f218d7d6f4a52544e12684afbfe6e2882ffbf
+    - name: Test CI
+      run: ls jsontests/res/ethtests
     - name: Run tests
       run: cargo run --release --verbose -p jsontests -- \
         jsontests/res/ethtests/GeneralStateTests/stExample/add11.json
