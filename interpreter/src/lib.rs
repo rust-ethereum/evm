@@ -22,7 +22,7 @@ pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::runtime::{
 	CallCreateTrap, Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment,
-	RuntimeHandle, RuntimeState, TransactionContext, Transfer,
+	RuntimeState, TransactionContext, Transfer,
 };
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
