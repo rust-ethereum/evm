@@ -142,14 +142,14 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	fn set_code(&mut self, address: H160, code: Vec<u8>);
 	/// Reset balance of an account.
 	fn reset_balance(&mut self, address: H160);
-    fn deposit(&mut self, target: H160, value: U256);
-    fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError>;
+	fn deposit(&mut self, target: H160, value: U256);
+	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError>;
 	/// Initiate a transfer.
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-        self.withdrawal(transfer.source, transfer.value)?;
-        self.deposit(transfer.target, transfer.value);
-        Ok(())
-    }
+		self.withdrawal(transfer.source, transfer.value)?;
+		self.deposit(transfer.target, transfer.value);
+		Ok(())
+	}
 	/// Increase the nonce value.
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 }
