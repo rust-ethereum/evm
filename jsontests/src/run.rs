@@ -29,8 +29,6 @@ pub fn run_test(test_name: &str, test: Test) -> Result<(), Error> {
 		block_gas_limit: test.env.current_gas_limit,
 		block_base_fee_per_gas: U256::zero(), // TODO: fill in this field.
 		chain_id: U256::zero(),               // TODO: fill in this field.
-		gas_price: test.transaction.gas_price,
-		origin: test.transaction.sender,
 	};
 
 	let state = test

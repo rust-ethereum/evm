@@ -1,4 +1,5 @@
 use crate::{ExitError, Opcode};
+use alloc::rc::Rc;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -7,6 +8,7 @@ use sha3::{Digest, Keccak256};
 pub struct RuntimeState {
 	/// Runtime context.
 	pub context: Context,
+	pub transaction_context: Rc<TransactionContext>,
 	/// Return data buffer.
 	pub retbuf: Vec<u8>,
 	/// Current gas.
@@ -34,6 +36,14 @@ pub struct Context {
 	pub caller: H160,
 	/// Apparent value of the EVM.
 	pub apparent_value: U256,
+}
+
+#[derive(Clone, Debug)]
+pub struct TransactionContext {
+	/// Gas price.
+	pub gas_price: U256,
+	/// Origin.
+	pub origin: H160,
 }
 
 /// Transfer from source to target, with given value.
@@ -65,7 +75,7 @@ impl CallCreateTrap for Opcode {
 	}
 }
 
-pub trait RuntimeBaseBackend {
+pub trait RuntimeEnvironment {
 	/// Get environmental block hash.
 	fn block_hash(&self, number: U256) -> H256;
 	/// Get environmental block number.
@@ -84,11 +94,9 @@ pub trait RuntimeBaseBackend {
 	fn block_base_fee_per_gas(&self) -> U256;
 	/// Get environmental chain ID.
 	fn chain_id(&self) -> U256;
-	/// Get the gas price value.
-	fn gas_price(&self) -> U256;
-	/// Get execution origin.
-	fn origin(&self) -> H160;
+}
 
+pub trait RuntimeBaseBackend {
 	/// Get balance of address.
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
@@ -139,3 +147,6 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	/// Increase the nonce value.
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 }
+
+pub trait RuntimeHandle: RuntimeBackend + RuntimeEnvironment {}
+impl<T: RuntimeBackend + RuntimeEnvironment> RuntimeHandle for T {}
