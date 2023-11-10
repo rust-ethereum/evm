@@ -1,6 +1,6 @@
 use crate::{
 	ExitError, ExitException, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment,
-	TransactionalBackend, TransactionalMergeStrategy, Transfer,
+	TransactionalBackend, TransactionalMergeStrategy,
 };
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
@@ -219,24 +219,21 @@ impl RuntimeBackend for InMemoryBackend {
 			.balance = U256::zero();
 	}
 
-	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-		{
-			let source = self
-				.current_layer_mut()
-				.state
-				.entry(transfer.source)
-				.or_default();
-			if source.balance < transfer.value {
-				return Err(ExitException::OutOfFund.into());
-			}
-			source.balance -= transfer.value;
+	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError> {
+		let source = self.current_layer_mut().state.entry(source).or_default();
+		if source.balance < value {
+			return Err(ExitException::OutOfFund.into());
 		}
+		source.balance -= value;
+		Ok(())
+	}
+
+	fn deposit(&mut self, target: H160, value: U256) {
 		self.current_layer_mut()
 			.state
-			.entry(transfer.target)
+			.entry(target)
 			.or_default()
-			.balance += transfer.value;
-		Ok(())
+			.balance += value;
 	}
 
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError> {

@@ -1,14 +1,15 @@
 use super::{gasometer::TransactionCost, Config, Etable, GasedMachine, Gasometer, Machine};
-use crate::call_create::{CallCreateTrapData, CallTrapData, CreateTrapData};
+use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
 	Capture, Context, ExitError, ExitException, ExitResult, Gasometer as GasometerT,
-	GasometerMergeStrategy, Invoker as InvokerT, Opcode, RuntimeHandle, RuntimeState,
-	TransactionContext, TransactionalBackend, TransactionalMergeStrategy, Transfer,
+	GasometerMergeStrategy, Invoker as InvokerT, Opcode, RuntimeBackend, RuntimeEnvironment,
+	RuntimeState, TransactionContext, TransactionalBackend, TransactionalMergeStrategy, Transfer,
 };
 use alloc::rc::Rc;
 use core::cmp::min;
 use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
+use sha3::{Digest, Keccak256};
 
 pub enum CallCreateTrapPrepareData {
 	Call {
@@ -54,18 +55,14 @@ impl<'config> Invoker<'config> {
 		etable: &Etable<H>,
 	) -> ExitResult
 	where
-		H: RuntimeHandle + TransactionalBackend,
+		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	{
+		let gas_fee = gas_limit.saturating_mul(gas_price);
+		handler.withdrawal(caller, gas_fee)?;
+
 		handler.push_substate();
 
 		let work = || -> ExitResult {
-			let gas_fee = gas_limit.saturating_mul(gas_price);
-			handler.transfer(Transfer {
-				source: caller,
-				target: handler.block_coinbase(),
-				value: gas_fee,
-			})?;
-
 			let gas_limit = if gas_limit > U256::from(u64::MAX) {
 				return Err(ExitException::OutOfGas.into());
 			} else {
@@ -130,13 +127,259 @@ impl<'config> Invoker<'config> {
 
 			let refunded_gas = U256::from(machine.gasometer.gas());
 			let refunded_fee = refunded_gas * gas_price;
-			handler.transfer(Transfer {
-				source: handler.block_coinbase(),
-				target: caller,
-				value: refunded_fee,
-			})?;
+			let coinbase_reward = gas_fee - refunded_fee;
+
+			handler.deposit(caller, refunded_fee);
+			handler.deposit(handler.block_coinbase(), coinbase_reward);
 
 			result
+		};
+
+		match work() {
+			Ok(exit) => {
+				handler.pop_substate(TransactionalMergeStrategy::Commit);
+				Ok(exit)
+			}
+			Err(err) => {
+				handler.pop_substate(TransactionalMergeStrategy::Discard);
+				Err(err)
+			}
+		}
+	}
+
+	pub fn transact_create<H>(
+		&self,
+		caller: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		gas_limit: U256,
+		gas_price: U256,
+		access_list: Vec<(H160, Vec<H256>)>,
+		handler: &mut H,
+		etable: &Etable<H>,
+	) -> Result<H160, ExitError>
+	where
+		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+	{
+		let gas_fee = gas_limit.saturating_mul(gas_price);
+		handler.withdrawal(caller, gas_fee)?;
+
+		handler.push_substate();
+
+		let work = || -> Result<H160, ExitError> {
+			if let Some(limit) = self.config.max_initcode_size {
+				if init_code.len() > limit {
+					return Err(ExitException::CreateContractLimit.into());
+				}
+			}
+
+			let gas_limit = if gas_limit > U256::from(u64::MAX) {
+				return Err(ExitException::OutOfGas.into());
+			} else {
+				gas_limit.as_u64()
+			};
+
+			let scheme = CreateScheme::Legacy { caller };
+			let address = scheme.address(handler);
+
+			if self.config.create_increase_nonce {
+				handler.inc_nonce(address)?;
+			}
+
+			let context = Context {
+				caller,
+				address,
+				apparent_value: value,
+			};
+
+			let transaction_cost =
+				TransactionCost::create(&init_code, &access_list).cost(self.config);
+
+			let machine = Machine::new(
+				Rc::new(init_code),
+				Rc::new(Vec::new()),
+				self.config.stack_limit,
+				self.config.memory_limit,
+				RuntimeState {
+					context,
+					transaction_context: TransactionContext {
+						origin: caller,
+						gas_price,
+					}
+					.into(),
+					retbuf: Vec::new(),
+					gas: U256::zero(),
+				},
+			);
+			let mut gasometer = Gasometer::new(gas_limit, &machine, self.config);
+
+			gasometer.record_cost(transaction_cost)?;
+
+			let transfer = Transfer {
+				source: caller,
+				target: address,
+				value,
+			};
+			handler.transfer(transfer)?;
+
+			let machine = GasedMachine {
+				machine,
+				gasometer,
+				is_static: false,
+			};
+
+			let (mut machine, result) =
+				crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
+			result?;
+
+			let retbuf = machine.machine.into_retbuf();
+			check_first_byte(self.config, &retbuf[..])?;
+
+			if let Some(limit) = self.config.create_contract_limit {
+				if retbuf.len() > limit {
+					return Err(ExitException::CreateContractLimit.into());
+				}
+			}
+
+			GasometerT::<RuntimeState, H>::record_codedeposit(
+				&mut machine.gasometer,
+				retbuf.len(),
+			)?;
+
+			let refunded_gas = U256::from(machine.gasometer.gas());
+			let refunded_fee = refunded_gas * gas_price;
+			let coinbase_reward = gas_fee - refunded_fee;
+
+			handler.deposit(caller, refunded_fee);
+			handler.deposit(handler.block_coinbase(), coinbase_reward);
+
+			Ok(address)
+		};
+
+		match work() {
+			Ok(exit) => {
+				handler.pop_substate(TransactionalMergeStrategy::Commit);
+				Ok(exit)
+			}
+			Err(err) => {
+				handler.pop_substate(TransactionalMergeStrategy::Discard);
+				Err(err)
+			}
+		}
+	}
+
+	pub fn transact_create2<H>(
+		&self,
+		caller: H160,
+		value: U256,
+		init_code: Vec<u8>,
+		salt: H256,
+		gas_limit: U256,
+		gas_price: U256,
+		access_list: Vec<(H160, Vec<H256>)>,
+		handler: &mut H,
+		etable: &Etable<H>,
+	) -> Result<H160, ExitError>
+	where
+		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+	{
+		let gas_fee = gas_limit.saturating_mul(gas_price);
+		handler.withdrawal(caller, gas_fee)?;
+
+		handler.push_substate();
+
+		let work = || -> Result<H160, ExitError> {
+			if let Some(limit) = self.config.max_initcode_size {
+				if init_code.len() > limit {
+					return Err(ExitException::CreateContractLimit.into());
+				}
+			}
+
+			let gas_limit = if gas_limit > U256::from(u64::MAX) {
+				return Err(ExitException::OutOfGas.into());
+			} else {
+				gas_limit.as_u64()
+			};
+
+			let scheme = CreateScheme::Create2 {
+				caller,
+				code_hash: H256::from_slice(Keccak256::digest(&init_code).as_slice()),
+				salt,
+			};
+			let address = scheme.address(handler);
+
+			if self.config.create_increase_nonce {
+				handler.inc_nonce(address)?;
+			}
+
+			let context = Context {
+				caller,
+				address,
+				apparent_value: value,
+			};
+
+			let transaction_cost =
+				TransactionCost::create(&init_code, &access_list).cost(self.config);
+
+			let machine = Machine::new(
+				Rc::new(init_code),
+				Rc::new(Vec::new()),
+				self.config.stack_limit,
+				self.config.memory_limit,
+				RuntimeState {
+					context,
+					transaction_context: TransactionContext {
+						origin: caller,
+						gas_price,
+					}
+					.into(),
+					retbuf: Vec::new(),
+					gas: U256::zero(),
+				},
+			);
+			let mut gasometer = Gasometer::new(gas_limit, &machine, self.config);
+
+			gasometer.record_cost(transaction_cost)?;
+
+			let transfer = Transfer {
+				source: caller,
+				target: address,
+				value,
+			};
+			handler.transfer(transfer)?;
+
+			let machine = GasedMachine {
+				machine,
+				gasometer,
+				is_static: false,
+			};
+
+			let (mut machine, result) =
+				crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
+			result?;
+
+			let retbuf = machine.machine.into_retbuf();
+			check_first_byte(self.config, &retbuf[..])?;
+
+			if let Some(limit) = self.config.create_contract_limit {
+				if retbuf.len() > limit {
+					return Err(ExitException::CreateContractLimit.into());
+				}
+			}
+
+			GasometerT::<RuntimeState, H>::record_codedeposit(
+				&mut machine.gasometer,
+				retbuf.len(),
+			)?;
+
+			let refunded_gas = U256::from(machine.gasometer.gas());
+			let refunded_fee = refunded_gas * gas_price;
+			let coinbase_reward = gas_fee - refunded_fee;
+
+			handler.deposit(caller, refunded_fee);
+			handler.deposit(handler.block_coinbase(), coinbase_reward);
+
+			Ok(address)
 		};
 
 		match work() {
@@ -154,7 +397,7 @@ impl<'config> Invoker<'config> {
 
 impl<'config, H> InvokerT<RuntimeState, Gasometer<'config>, H, Opcode> for Invoker<'config>
 where
-	H: RuntimeHandle + TransactionalBackend,
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	type Interrupt = Infallible;
 	type CallCreateTrapPrepareData = CallCreateTrapPrepareData;
@@ -348,7 +591,7 @@ fn enter_create_trap_stack<'config, H>(
 	config: &'config Config,
 ) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
 where
-	H: RuntimeHandle + TransactionalBackend,
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	handler.push_substate();
 
@@ -432,6 +675,13 @@ where
 	}
 }
 
+fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
+	if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
+		return Err(ExitException::InvalidOpcode(Opcode::EOFMAGIC).into());
+	}
+	Ok(())
+}
+
 fn exit_create_trap_stack_no_exit_substate<'config, H>(
 	result: Result<H160, ExitError>,
 	retbuf: &Vec<u8>,
@@ -440,15 +690,8 @@ fn exit_create_trap_stack_no_exit_substate<'config, H>(
 	config: &'config Config,
 ) -> Result<H160, ExitError>
 where
-	H: RuntimeHandle + TransactionalBackend,
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-		if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
-			return Err(ExitException::InvalidOpcode(Opcode::EOFMAGIC).into());
-		}
-		Ok(())
-	}
-
 	let address = result?;
 	check_first_byte(config, &retbuf[..])?;
 
@@ -474,7 +717,7 @@ fn enter_call_trap_stack<'config, H>(
 	config: &'config Config,
 ) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
 where
-	H: RuntimeHandle + TransactionalBackend,
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	handler.push_substate();
 

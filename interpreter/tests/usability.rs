@@ -152,7 +152,10 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 
-	fn transfer(&mut self, _transfer: Transfer) -> Result<(), ExitError> {
+	fn deposit(&mut self, _address: H160, _value: U256) {
+		unimplemented!()
+	}
+	fn withdrawal(&mut self, _address: H160, _value: U256) -> Result<(), ExitError> {
 		unimplemented!()
 	}
 
