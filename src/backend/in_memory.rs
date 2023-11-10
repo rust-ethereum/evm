@@ -1,6 +1,6 @@
 use crate::{
-	ExitError, ExitException, Log, RuntimeBackend, RuntimeBaseBackend, TransactionalBackend,
-	TransactionalMergeStrategy, Transfer,
+	ExitError, ExitException, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment,
+	TransactionalBackend, TransactionalMergeStrategy, Transfer,
 };
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
@@ -16,8 +16,6 @@ pub struct InMemoryEnvironment {
 	pub block_gas_limit: U256,
 	pub block_base_fee_per_gas: U256,
 	pub chain_id: U256,
-	pub gas_price: U256,
-	pub origin: H160,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -59,7 +57,7 @@ impl InMemoryBackend {
 	}
 }
 
-impl RuntimeBaseBackend for InMemoryBackend {
+impl RuntimeEnvironment for InMemoryBackend {
 	fn block_hash(&self, number: U256) -> H256 {
 		self.environment
 			.block_hashes
@@ -99,15 +97,9 @@ impl RuntimeBaseBackend for InMemoryBackend {
 	fn chain_id(&self) -> U256 {
 		self.environment.chain_id
 	}
+}
 
-	fn gas_price(&self) -> U256 {
-		self.environment.gas_price
-	}
-
-	fn origin(&self) -> H160 {
-		self.environment.origin
-	}
-
+impl RuntimeBaseBackend for InMemoryBackend {
 	fn balance(&self, address: H160) -> U256 {
 		self.current_layer()
 			.state

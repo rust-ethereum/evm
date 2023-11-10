@@ -1,6 +1,7 @@
 use evm_interpreter::{
 	Capture, Context, Control, Etable, ExitError, ExitSucceed, Log, Machine, Opcode,
-	RuntimeBackend, RuntimeBaseBackend, RuntimeState, Transfer,
+	RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
+	Transfer,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -57,29 +58,7 @@ fn etable_wrap2() {
 
 pub struct UnimplementedHandler;
 
-impl<'a> RuntimeBaseBackend for UnimplementedHandler {
-	fn balance(&self, _address: H160) -> U256 {
-		unimplemented!()
-	}
-	fn code_size(&self, _address: H160) -> U256 {
-		unimplemented!()
-	}
-	fn code_hash(&self, _address: H160) -> H256 {
-		unimplemented!()
-	}
-	fn code(&self, _address: H160) -> Vec<u8> {
-		unimplemented!()
-	}
-	fn storage(&self, _address: H160, _index: H256) -> H256 {
-		unimplemented!()
-	}
-
-	fn gas_price(&self) -> U256 {
-		unimplemented!()
-	}
-	fn origin(&self) -> H160 {
-		unimplemented!()
-	}
+impl RuntimeEnvironment for UnimplementedHandler {
 	fn block_hash(&self, _number: U256) -> H256 {
 		unimplemented!()
 	}
@@ -105,6 +84,24 @@ impl<'a> RuntimeBaseBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 	fn chain_id(&self) -> U256 {
+		unimplemented!()
+	}
+}
+
+impl<'a> RuntimeBaseBackend for UnimplementedHandler {
+	fn balance(&self, _address: H160) -> U256 {
+		unimplemented!()
+	}
+	fn code_size(&self, _address: H160) -> U256 {
+		unimplemented!()
+	}
+	fn code_hash(&self, _address: H160) -> H256 {
+		unimplemented!()
+	}
+	fn code(&self, _address: H160) -> Vec<u8> {
+		unimplemented!()
+	}
+	fn storage(&self, _address: H160, _index: H256) -> H256 {
 		unimplemented!()
 	}
 
@@ -183,6 +180,11 @@ fn etable_runtime() {
 				caller: H160::default(),
 				apparent_value: U256::default(),
 			},
+			transaction_context: TransactionContext {
+				gas_price: U256::default(),
+				origin: H160::default(),
+			}
+			.into(),
 			retbuf: Vec::new(),
 			gas: U256::zero(),
 		},

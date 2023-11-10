@@ -2,8 +2,8 @@ use super::{gasometer::TransactionCost, Config, Etable, GasedMachine, Gasometer,
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateTrapData};
 use crate::{
 	Capture, Context, ExitError, ExitException, ExitResult, Gasometer as GasometerT,
-	GasometerMergeStrategy, Invoker as InvokerT, Opcode, RuntimeBackend, RuntimeState,
-	TransactionalBackend, TransactionalMergeStrategy, Transfer,
+	GasometerMergeStrategy, Invoker as InvokerT, Opcode, RuntimeHandle, RuntimeState,
+	TransactionContext, TransactionalBackend, TransactionalMergeStrategy, Transfer,
 };
 use alloc::rc::Rc;
 use core::cmp::min;
@@ -14,11 +14,13 @@ pub enum CallCreateTrapPrepareData {
 	Call {
 		gas_limit: u64,
 		is_static: bool,
+		transaction_context: Rc<TransactionContext>,
 		trap: CallTrapData,
 	},
 	Create {
 		gas_limit: u64,
 		is_static: bool,
+		transaction_context: Rc<TransactionContext>,
 		trap: CreateTrapData,
 	},
 }
@@ -52,7 +54,7 @@ impl<'config> Invoker<'config> {
 		etable: &Etable<H>,
 	) -> ExitResult
 	where
-		H: RuntimeBackend + TransactionalBackend,
+		H: RuntimeHandle + TransactionalBackend,
 	{
 		handler.push_substate();
 
@@ -86,6 +88,11 @@ impl<'config> Invoker<'config> {
 				self.config.memory_limit,
 				RuntimeState {
 					context,
+					transaction_context: TransactionContext {
+						origin: caller,
+						gas_price,
+					}
+					.into(),
 					retbuf: Vec::new(),
 					gas: U256::zero(),
 				},
@@ -147,7 +154,7 @@ impl<'config> Invoker<'config> {
 
 impl<'config, H> InvokerT<RuntimeState, Gasometer<'config>, H, Opcode> for Invoker<'config>
 where
-	H: RuntimeBackend + TransactionalBackend,
+	H: RuntimeHandle + TransactionalBackend,
 {
 	type Interrupt = Infallible;
 	type CallCreateTrapPrepareData = CallCreateTrapPrepareData;
@@ -201,15 +208,19 @@ where
 			}
 		};
 
+		let transaction_context = machine.machine.state.as_ref().transaction_context.clone();
+
 		Capture::Exit(Ok(match trap_data {
 			CallCreateTrapData::Call(call_trap_data) => CallCreateTrapPrepareData::Call {
 				gas_limit,
 				is_static,
+				transaction_context,
 				trap: call_trap_data,
 			},
 			CallCreateTrapData::Create(create_trap_data) => CallCreateTrapPrepareData::Create {
 				gas_limit,
 				is_static,
+				transaction_context,
 				trap: create_trap_data,
 			},
 		}))
@@ -224,13 +235,29 @@ where
 			CallCreateTrapPrepareData::Create {
 				gas_limit,
 				is_static,
+				transaction_context,
 				trap,
-			} => enter_create_trap_stack(gas_limit, is_static, trap, handler, self.config),
+			} => enter_create_trap_stack(
+				gas_limit,
+				is_static,
+				transaction_context,
+				trap,
+				handler,
+				self.config,
+			),
 			CallCreateTrapPrepareData::Call {
 				gas_limit,
 				is_static,
+				transaction_context,
 				trap,
-			} => enter_call_trap_stack(gas_limit, is_static, trap, handler, self.config),
+			} => enter_call_trap_stack(
+				gas_limit,
+				is_static,
+				transaction_context,
+				trap,
+				handler,
+				self.config,
+			),
 		}
 	}
 
@@ -315,12 +342,13 @@ where
 fn enter_create_trap_stack<'config, H>(
 	gas_limit: u64,
 	is_static: bool,
+	transaction_context: Rc<TransactionContext>,
 	trap_data: CreateTrapData,
 	handler: &mut H,
 	config: &'config Config,
 ) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
 where
-	H: RuntimeBackend + TransactionalBackend,
+	H: RuntimeHandle + TransactionalBackend,
 {
 	handler.push_substate();
 
@@ -374,6 +402,7 @@ where
 			config.memory_limit,
 			RuntimeState {
 				context,
+				transaction_context,
 				retbuf: Vec::new(),
 				gas: U256::zero(),
 			},
@@ -411,7 +440,7 @@ fn exit_create_trap_stack_no_exit_substate<'config, H>(
 	config: &'config Config,
 ) -> Result<H160, ExitError>
 where
-	H: RuntimeBackend + TransactionalBackend,
+	H: RuntimeHandle + TransactionalBackend,
 {
 	fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 		if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
@@ -439,12 +468,13 @@ where
 fn enter_call_trap_stack<'config, H>(
 	mut gas_limit: u64,
 	is_static: bool,
+	transaction_context: Rc<TransactionContext>,
 	trap_data: CallTrapData,
 	handler: &mut H,
 	config: &'config Config,
 ) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
 where
-	H: RuntimeBackend + TransactionalBackend,
+	H: RuntimeHandle + TransactionalBackend,
 {
 	handler.push_substate();
 
@@ -469,6 +499,7 @@ where
 			config.memory_limit,
 			RuntimeState {
 				context: trap_data.context.clone(),
+				transaction_context,
 				retbuf: Vec::new(),
 				gas: U256::zero(),
 			},
