@@ -34,5 +34,5 @@ jobs:
         repository: ethereum/tests
         ref: 428f218d7d6f4a52544e12684afbfe6e2882ffbf
     - name: Run tests
-      run: cargo test --release --verbose -p jsontests -- \
+      run: cargo run --release --verbose -p jsontests -- \
         jsontests/res/ethtests/GeneralStateTests/stExample/add11.json
