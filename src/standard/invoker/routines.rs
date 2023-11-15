@@ -1,8 +1,9 @@
-use super::{CallCreateTrapEnterData, CallTrapData, Invoker};
-use crate::standard::{GasedMachine, Gasometer, Machine};
+use super::{CallCreateTrapEnterData, CallTrapData, CreateTrapData, Invoker};
+use crate::standard::{Config, GasedMachine, Gasometer, Machine};
 use crate::{
-	Context, ExitError, RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
-	TransactionalBackend, TransactionalMergeStrategy, Transfer,
+	Context, ExitError, ExitException, Gasometer as GasometerT, Opcode, RuntimeBackend,
+	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend,
+	TransactionalMergeStrategy, Transfer,
 };
 use alloc::rc::Rc;
 use primitive_types::{H160, U256};
@@ -103,6 +104,64 @@ where
 	})
 }
 
+pub fn make_enter_create_machine<'config, H>(
+	invoker: &Invoker<'config>,
+	caller: H160,
+	target: H160,
+	init_code: Vec<u8>,
+	gas_limit: u64,
+	is_static: bool,
+	transfer: Transfer,
+	context: Context,
+	transaction_context: Rc<TransactionContext>,
+	handler: &mut H,
+) -> Result<GasedMachine<'config>, ExitError>
+where
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+{
+	if let Some(limit) = invoker.config.max_initcode_size {
+		if init_code.len() > limit {
+			return Err(ExitException::CreateContractLimit.into());
+		}
+	}
+
+	handler.mark_hot(caller, None)?;
+	handler.mark_hot(target, None)?;
+
+	handler.transfer(transfer)?;
+
+	if handler.code_size(target) != U256::zero() || handler.nonce(target) > U256::zero() {
+		return Err(ExitException::CreateCollision.into());
+	}
+	handler.inc_nonce(caller)?;
+	if invoker.config.create_increase_nonce {
+		handler.inc_nonce(target)?;
+	}
+
+	handler.reset_storage(target);
+
+	let machine = Machine::new(
+		Rc::new(init_code),
+		Rc::new(Vec::new()),
+		invoker.config.stack_limit,
+		invoker.config.memory_limit,
+		RuntimeState {
+			context: context.clone(),
+			transaction_context,
+			retbuf: Vec::new(),
+			gas: U256::zero(),
+		},
+	);
+
+	let gasometer = Gasometer::new(gas_limit, &machine, invoker.config);
+
+	Ok(GasedMachine {
+		machine,
+		gasometer,
+		is_static,
+	})
+}
+
 pub fn enter_call_trap_stack<'config, H>(
 	invoker: &Invoker<'config>,
 	trap_data: CallTrapData,
@@ -140,4 +199,103 @@ where
 			Err(err)
 		}
 	}
+}
+
+pub fn enter_create_trap_stack<'config, H>(
+	invoker: &Invoker<'config>,
+	trap_data: CreateTrapData,
+	gas_limit: u64,
+	is_static: bool,
+	transaction_context: Rc<TransactionContext>,
+	handler: &mut H,
+) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
+where
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+{
+	handler.push_substate();
+
+	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError> {
+		let CreateTrapData {
+			scheme,
+			value,
+			code,
+		} = trap_data.clone();
+
+		let caller = scheme.caller();
+		let address = scheme.address(handler);
+
+		let context = Context {
+			address,
+			caller,
+			apparent_value: value,
+		};
+
+		let transfer = Transfer {
+			source: caller,
+			target: address,
+			value,
+		};
+
+		let machine = make_enter_create_machine(
+			invoker,
+			caller,
+			address,
+			code,
+			gas_limit,
+			is_static,
+			transfer,
+			context,
+			transaction_context,
+			handler,
+		)?;
+
+		Ok((
+			CallCreateTrapEnterData::Create {
+				address,
+				trap: trap_data,
+			},
+			machine,
+		))
+	};
+
+	match work() {
+		Ok(machine) => Ok(machine),
+		Err(err) => {
+			handler.pop_substate(TransactionalMergeStrategy::Discard);
+			Err(err)
+		}
+	}
+}
+
+fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
+	if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
+		return Err(ExitException::InvalidOpcode(Opcode::EOFMAGIC).into());
+	}
+	Ok(())
+}
+
+pub fn deploy_create_code<'config, H>(
+	invoker: &Invoker<'config>,
+	result: Result<H160, ExitError>,
+	retbuf: &Vec<u8>,
+	gasometer: &mut Gasometer<'config>,
+	handler: &mut H,
+) -> Result<H160, ExitError>
+where
+	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+{
+	let address = result?;
+	check_first_byte(invoker.config, &retbuf[..])?;
+
+	if let Some(limit) = invoker.config.create_contract_limit {
+		if retbuf.len() > limit {
+			return Err(ExitException::CreateContractLimit.into());
+		}
+	}
+
+	GasometerT::<RuntimeState, H>::record_codedeposit(gasometer, retbuf.len())?;
+
+	handler.set_code(address, retbuf.clone());
+
+	Ok(address)
 }
