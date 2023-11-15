@@ -8,12 +8,7 @@ use evm::utils::u256_to_h256;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
 
-pub fn run_test(test_name: &str, test: Test) -> Result<(), Error> {
-	println!(
-		"test name: {}, fork: {:?}, index: {}",
-		test_name, test.fork, test.index
-	);
-
+pub fn run_test(_filename: &str, _test_name: &str, test: Test) -> Result<(), Error> {
 	let config = match test.fork {
 		Fork::Berlin => Config::berlin(),
 		_ => return Err(Error::UnsupportedFork),
@@ -67,7 +62,7 @@ pub fn run_test(test_name: &str, test: Test) -> Result<(), Error> {
 
 	let etable = Etable::runtime();
 	let invoker = Invoker::new(&config);
-	let result = invoker.transact_call(
+	let _result = invoker.transact_call(
 		test.transaction.sender,
 		test.transaction.to,
 		test.transaction.value,
@@ -80,9 +75,6 @@ pub fn run_test(test_name: &str, test: Test) -> Result<(), Error> {
 	);
 
 	let state_root = crate::hash::state_root(&backend);
-
-	println!("result: {:?}", result);
-	println!("state root: {:?}", state_root);
 
 	if state_root != test.post.hash {
 		return Err(TestError::StateMismatch.into());
