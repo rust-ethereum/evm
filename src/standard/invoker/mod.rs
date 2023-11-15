@@ -1,3 +1,6 @@
+mod routines;
+
+use self::routines::try_or_oog;
 use super::{gasometer::TransactionCost, Config, Etable, GasedMachine, Gasometer, Machine};
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
@@ -57,94 +60,72 @@ impl<'config> Invoker<'config> {
 	where
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	{
-		let gas_fee = gas_limit.saturating_mul(gas_price);
-		handler.withdrawal(caller, gas_fee)?;
+		routines::transact_and_work(
+			self,
+			caller,
+			gas_limit,
+			gas_price,
+			handler,
+			|handler: &mut H| -> (ExitResult, U256) {
+				let gas_limit = if gas_limit > U256::from(u64::MAX) {
+					return (Err(ExitException::OutOfGas.into()), U256::zero());
+				} else {
+					gas_limit.as_u64()
+				};
 
-		handler.push_substate();
+				let context = Context {
+					caller,
+					address,
+					apparent_value: value,
+				};
+				let transfer = Transfer {
+					source: caller,
+					target: address,
+					value,
+				};
+				let transaction_context = TransactionContext {
+					origin: caller,
+					gas_price,
+				};
 
-		let work = || -> ExitResult {
-			let gas_limit = if gas_limit > U256::from(u64::MAX) {
-				return Err(ExitException::OutOfGas.into());
-			} else {
-				gas_limit.as_u64()
-			};
-
-			let context = Context {
-				caller,
-				address,
-				apparent_value: value,
-			};
-			let code = handler.code(address);
-
-			let transaction_cost = TransactionCost::call(&data, &access_list).cost(self.config);
-
-			let machine = Machine::new(
-				Rc::new(code),
-				Rc::new(data),
-				self.config.stack_limit,
-				self.config.memory_limit,
-				RuntimeState {
-					context,
-					transaction_context: TransactionContext {
-						origin: caller,
-						gas_price,
-					}
-					.into(),
-					retbuf: Vec::new(),
-					gas: U256::zero(),
-				},
-			);
-			let mut gasometer = Gasometer::new(gas_limit, &machine, self.config);
-
-			gasometer.record_cost(transaction_cost)?;
-
-			if self.config.increase_state_access_gas {
-				if self.config.warm_coinbase_address {
-					let coinbase = handler.block_coinbase();
-					handler.mark_hot(coinbase, None)?;
+				let transaction_cost = TransactionCost::call(&data, &access_list).cost(self.config);
+				if gas_limit < transaction_cost {
+					return (Err(ExitException::OutOfGas.into()), U256::zero());
 				}
-				handler.mark_hot(caller, None)?;
-				handler.mark_hot(address, None)?;
-			}
 
-			handler.inc_nonce(caller)?;
+				let mut machine = try_or_oog!(routines::make_enter_call_machine(
+					self,
+					true, // is_transaction
+					address,
+					data,
+					gas_limit,
+					false, // is_static
+					Some(transfer),
+					context,
+					Rc::new(transaction_context),
+					handler
+				));
 
-			let transfer = Transfer {
-				source: caller,
-				target: address,
-				value,
-			};
-			handler.transfer(transfer)?;
+				try_or_oog!(machine.gasometer.record_cost(transaction_cost));
 
-			let machine = GasedMachine {
-				machine,
-				gasometer,
-				is_static: false,
-			};
+				if self.config.increase_state_access_gas {
+					if self.config.warm_coinbase_address {
+						let coinbase = handler.block_coinbase();
+						try_or_oog!(handler.mark_hot(coinbase, None));
+					}
+					try_or_oog!(handler.mark_hot(caller, None));
+					try_or_oog!(handler.mark_hot(address, None));
+				}
 
-			let (machine, result) =
-				crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
+				try_or_oog!(handler.inc_nonce(caller));
 
-			let refunded_gas = U256::from(machine.gasometer.gas());
-			let refunded_fee = refunded_gas * gas_price;
-			let coinbase_reward = gas_fee - refunded_fee;
+				let (machine, result) =
+					crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
 
-			handler.deposit(caller, refunded_fee);
-			handler.deposit(handler.block_coinbase(), coinbase_reward);
-
-			result
-		};
-
-		match work() {
-			Ok(exit) => {
-				handler.pop_substate(TransactionalMergeStrategy::Commit);
-				Ok(exit)
-			}
-			Err(err) => {
-				handler.pop_substate(TransactionalMergeStrategy::Discard);
-				Err(err)
-			}
-		}
+				let refunded_gas = U256::from(machine.gasometer.gas());
+				(result, refunded_gas)
+			},
+		)
 	}
 
 	pub fn transact_create<H>(
@@ -493,13 +474,13 @@ where
 				is_static,
 				transaction_context,
 				trap,
-			} => enter_call_trap_stack(
+			} => routines::enter_call_trap_stack(
+				self,
+				trap,
 				gas_limit,
 				is_static,
 				transaction_context,
-				trap,
 				handler,
-				self.config,
 			),
 		}
 	}
@@ -706,65 +687,4 @@ where
 	handler.set_code(address, retbuf.clone());
 
 	Ok(address)
-}
-
-fn enter_call_trap_stack<'config, H>(
-	mut gas_limit: u64,
-	is_static: bool,
-	transaction_context: Rc<TransactionContext>,
-	trap_data: CallTrapData,
-	handler: &mut H,
-	config: &'config Config,
-) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
-where
-	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-{
-	handler.push_substate();
-
-	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError> {
-		handler.mark_hot(trap_data.context.address, None)?;
-		let code = handler.code(trap_data.target);
-
-		if let Some(transfer) = trap_data.transfer.clone() {
-			if transfer.value != U256::zero() {
-				gas_limit = gas_limit.saturating_add(config.call_stipend);
-			}
-
-			handler.transfer(transfer)?;
-		}
-
-		// TODO: precompile contracts.
-
-		let machine = Machine::new(
-			Rc::new(code),
-			Rc::new(trap_data.input.clone()),
-			config.stack_limit,
-			config.memory_limit,
-			RuntimeState {
-				context: trap_data.context.clone(),
-				transaction_context,
-				retbuf: Vec::new(),
-				gas: U256::zero(),
-			},
-		);
-
-		let gasometer = Gasometer::new(gas_limit, &machine, config);
-
-		Ok((
-			CallCreateTrapEnterData::Call { trap: trap_data },
-			GasedMachine {
-				machine,
-				gasometer,
-				is_static,
-			},
-		))
-	};
-
-	match work() {
-		Ok(machine) => Ok(machine),
-		Err(err) => {
-			handler.pop_substate(TransactionalMergeStrategy::Discard);
-			Err(err)
-		}
-	}
 }
