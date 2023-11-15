@@ -36,4 +36,5 @@ jobs:
     - name: Run tests
       run: |
         cargo run --release --verbose -p jsontests -- \
-        jsontests/res/ethtests/GeneralStateTests/stExample/add11.json
+        jsontests/res/ethtests/GeneralStateTests/stExample/add11.json \
+        jsontests/res/ethtests/GeneralStateTests/stSLoadTest/

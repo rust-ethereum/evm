@@ -33,7 +33,7 @@ impl TestMulti {
 					transaction: TestTransaction {
 						data: self.transaction.data[post_state.indexes.data].0.clone(),
 						gas_limit: self.transaction.gas_limit[post_state.indexes.gas],
-						gas_price: self.transaction.gas_price,
+						gas_price: self.transaction.gas_price.unwrap_or(U256::zero()),
 						nonce: self.transaction.nonce,
 						secret_key: self.transaction.secret_key,
 						sender: self.transaction.sender,
@@ -96,6 +96,14 @@ pub enum Fork {
 	London,
 	Merge,
 	Shanghai,
+	Byzantium,
+	Constantinople,
+	ConstantinopleFix,
+	EIP150,
+	EIP158,
+	Frontier,
+	Homestead,
+	Istanbul,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -126,7 +134,9 @@ pub struct TestPreState {
 pub struct TestMultiTransaction {
 	pub data: Vec<HexBytes>,
 	pub gas_limit: Vec<U256>,
-	pub gas_price: U256,
+	pub gas_price: Option<U256>,
+	pub max_fee_per_gas: Option<U256>,
+	pub max_priority_fee_per_gas: Option<U256>,
 	pub nonce: U256,
 	pub secret_key: H256,
 	pub sender: H160,

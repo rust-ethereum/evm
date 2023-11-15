@@ -16,6 +16,8 @@ pub enum Error {
 	EVM(#[from] evm::ExitError),
 	#[error("unsupported fork")]
 	UnsupportedFork,
+	#[error("non-utf8 filename")]
+	NonUtf8Filename,
 	#[error("test error")]
 	Test(#[from] TestError),
 }
