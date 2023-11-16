@@ -7,7 +7,7 @@
 extern crate alloc;
 
 pub mod backend;
-pub mod standard;
+// pub mod standard;
 
 mod call_stack;
 mod gasometer;
@@ -16,7 +16,7 @@ mod invoker;
 pub use evm_interpreter::*;
 
 pub use crate::backend::TransactionalBackend;
-pub use crate::call_stack::{execute, CallStack};
+pub use crate::call_stack::{transact, HeapTransact};
 pub use crate::gasometer::{Gas, GasedMachine, Gasometer};
 pub use crate::invoker::Invoker;
 
