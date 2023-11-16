@@ -1,12 +1,12 @@
 mod routines;
 
 use self::routines::try_or_oog;
-use super::{Config, Etable, GasedMachine, TransactGasometer};
+use super::{Config, MergeableRuntimeState, TransactGasometer};
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
-	Capture, Context, ExitError, ExitException, ExitResult, Gasometer as GasometerT,
-	GasometerMergeStrategy, Invoker as InvokerT, Opcode, RuntimeBackend, RuntimeEnvironment,
-	RuntimeState, TransactionContext, TransactionalBackend, TransactionalMergeStrategy, Transfer,
+	Capture, Context, Control, Etable, ExitError, ExitException, ExitResult, GasedMachine,
+	Gasometer as GasometerT, Invoker as InvokerT, Machine, MergeStrategy, Opcode, RuntimeBackend,
+	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend, Transfer,
 };
 use alloc::rc::Rc;
 use core::cmp::min;
@@ -14,20 +14,20 @@ use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
-pub enum CallCreateTrapPrepareData<G> {
+pub enum CallCreateTrapPrepareData<S, G> {
 	Call {
 		gasometer: G,
 		code: Vec<u8>,
 		is_static: bool,
-		transaction_context: Rc<TransactionContext>,
 		trap: CallTrapData,
+		state: S,
 	},
 	Create {
 		gasometer: G,
 		code: Vec<u8>,
 		is_static: bool,
-		transaction_context: Rc<TransactionContext>,
 		trap: CreateTrapData,
+		state: S,
 	},
 }
 
@@ -47,7 +47,7 @@ impl<'config> Invoker<'config> {
 		Self { config }
 	}
 
-	pub fn transact_call<G, H>(
+	pub fn transact_call<S, G, H, F>(
 		&self,
 		caller: H160,
 		address: H160,
@@ -57,11 +57,13 @@ impl<'config> Invoker<'config> {
 		gas_price: U256,
 		access_list: Vec<(H160, Vec<H256>)>,
 		handler: &mut H,
-		etable: &Etable<H>,
+		etable: &Etable<S, H, Opcode, F>,
 	) -> ExitResult
 	where
-		G: GasometerT<RuntimeState, H> + TransactGasometer<'config, RuntimeState>,
+		S: MergeableRuntimeState,
+		G: GasometerT<S, H> + TransactGasometer<'config, S>,
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Opcode>,
 	{
 		routines::transact_and_work(
 			self,
@@ -101,8 +103,12 @@ impl<'config> Invoker<'config> {
 					data,
 					false, // is_static
 					Some(transfer),
-					context,
-					Rc::new(transaction_context),
+					S::new_transact_call(RuntimeState {
+						context,
+						transaction_context: Rc::new(transaction_context),
+						retbuf: Vec::new(),
+						gas: U256::zero(),
+					}),
 					gasometer,
 					handler
 				));
@@ -127,7 +133,7 @@ impl<'config> Invoker<'config> {
 		)
 	}
 
-	pub fn transact_create<G, H>(
+	pub fn transact_create<S, G, H, F>(
 		&self,
 		caller: H160,
 		value: U256,
@@ -136,11 +142,13 @@ impl<'config> Invoker<'config> {
 		gas_price: U256,
 		access_list: Vec<(H160, Vec<H256>)>,
 		handler: &mut H,
-		etable: &Etable<H>,
+		etable: &Etable<S, H, Opcode, F>,
 	) -> Result<H160, ExitError>
 	where
-		G: GasometerT<RuntimeState, H> + TransactGasometer<'config, RuntimeState>,
+		S: MergeableRuntimeState,
+		G: GasometerT<S, H> + TransactGasometer<'config, S>,
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Opcode>,
 	{
 		routines::transact_and_work(
 			self,
@@ -180,8 +188,12 @@ impl<'config> Invoker<'config> {
 					init_code,
 					false, // is_static
 					transfer,
-					context,
-					Rc::new(transaction_context),
+					S::new_transact_create(RuntimeState {
+						context,
+						transaction_context: Rc::new(transaction_context),
+						retbuf: Vec::new(),
+						gas: U256::zero(),
+					}),
 					gasometer,
 					handler,
 				));
@@ -203,7 +215,7 @@ impl<'config> Invoker<'config> {
 		)
 	}
 
-	pub fn transact_create2<G, H>(
+	pub fn transact_create2<S, G, H, F>(
 		&self,
 		caller: H160,
 		value: U256,
@@ -213,11 +225,13 @@ impl<'config> Invoker<'config> {
 		gas_price: U256,
 		access_list: Vec<(H160, Vec<H256>)>,
 		handler: &mut H,
-		etable: &Etable<H>,
+		etable: &Etable<S, H, Opcode, F>,
 	) -> Result<H160, ExitError>
 	where
-		G: GasometerT<RuntimeState, H> + TransactGasometer<'config, RuntimeState>,
+		S: MergeableRuntimeState,
+		G: GasometerT<S, H> + TransactGasometer<'config, S>,
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Opcode>,
 	{
 		routines::transact_and_work(
 			self,
@@ -261,8 +275,12 @@ impl<'config> Invoker<'config> {
 					init_code,
 					false, // is_static
 					transfer,
-					context,
-					Rc::new(transaction_context),
+					S::new_transact_create(RuntimeState {
+						context,
+						transaction_context: Rc::new(transaction_context),
+						retbuf: Vec::new(),
+						gas: U256::zero(),
+					}),
 					gasometer,
 					handler,
 				));
@@ -285,19 +303,20 @@ impl<'config> Invoker<'config> {
 	}
 }
 
-impl<'config, G, H> InvokerT<RuntimeState, G, H, Opcode> for Invoker<'config>
+impl<'config, S, G, H> InvokerT<S, G, H, Opcode> for Invoker<'config>
 where
-	G: GasometerT<RuntimeState, H>,
+	S: MergeableRuntimeState,
+	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	type Interrupt = Infallible;
-	type CallCreateTrapPrepareData = CallCreateTrapPrepareData<G>;
+	type CallCreateTrapPrepareData = CallCreateTrapPrepareData<S, G>;
 	type CallCreateTrapEnterData = CallCreateTrapEnterData;
 
 	fn prepare_trap(
 		&self,
 		opcode: Opcode,
-		machine: &mut GasedMachine<G>,
+		machine: &mut GasedMachine<S, G>,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<Result<Self::CallCreateTrapPrepareData, ExitError>, Infallible> {
@@ -347,20 +366,42 @@ where
 		};
 
 		Capture::Exit(Ok(match trap_data {
-			CallCreateTrapData::Call(call_trap_data) => CallCreateTrapPrepareData::Call {
-				gasometer: submeter,
-				code,
-				is_static,
-				transaction_context,
-				trap: call_trap_data,
-			},
-			CallCreateTrapData::Create(create_trap_data) => CallCreateTrapPrepareData::Create {
-				gasometer: submeter,
-				code,
-				is_static,
-				transaction_context,
-				trap: create_trap_data,
-			},
+			CallCreateTrapData::Call(call_trap_data) => {
+				let substate = machine.machine.state.substate(RuntimeState {
+					context: call_trap_data.context.clone(),
+					transaction_context,
+					retbuf: Vec::new(),
+					gas: U256::zero(),
+				});
+				CallCreateTrapPrepareData::Call {
+					gasometer: submeter,
+					code,
+					is_static,
+					trap: call_trap_data,
+					state: substate,
+				}
+			}
+			CallCreateTrapData::Create(create_trap_data) => {
+				let caller = create_trap_data.scheme.caller();
+				let address = create_trap_data.scheme.address(handler);
+				let substate = machine.machine.state.substate(RuntimeState {
+					context: Context {
+						address,
+						caller,
+						apparent_value: create_trap_data.value,
+					},
+					transaction_context,
+					retbuf: Vec::new(),
+					gas: U256::zero(),
+				});
+				CallCreateTrapPrepareData::Create {
+					gasometer: submeter,
+					code,
+					is_static,
+					trap: create_trap_data,
+					state: substate,
+				}
+			}
 		}))
 	}
 
@@ -368,37 +409,25 @@ where
 		&self,
 		trap_data: Self::CallCreateTrapPrepareData,
 		handler: &mut H,
-	) -> Result<(Self::CallCreateTrapEnterData, GasedMachine<G>), ExitError> {
+	) -> Result<(Self::CallCreateTrapEnterData, GasedMachine<S, G>), ExitError> {
 		match trap_data {
 			CallCreateTrapPrepareData::Create {
 				gasometer,
 				code,
 				is_static,
-				transaction_context,
 				trap,
+				state,
 			} => routines::enter_create_trap_stack(
-				self,
-				code,
-				trap,
-				is_static,
-				transaction_context,
-				gasometer,
-				handler,
+				self, code, trap, is_static, state, gasometer, handler,
 			),
 			CallCreateTrapPrepareData::Call {
 				gasometer,
 				code,
 				is_static,
-				transaction_context,
 				trap,
+				state,
 			} => routines::enter_call_trap_stack(
-				self,
-				code,
-				trap,
-				is_static,
-				transaction_context,
-				gasometer,
-				handler,
+				self, code, trap, is_static, state, gasometer, handler,
 			),
 		}
 	}
@@ -406,14 +435,22 @@ where
 	fn exit_trap_stack(
 		&self,
 		result: ExitResult,
-		mut child: GasedMachine<G>,
+		mut child: GasedMachine<S, G>,
 		trap_data: Self::CallCreateTrapEnterData,
-		parent: &mut GasedMachine<G>,
+		parent: &mut GasedMachine<S, G>,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
+		let strategy = match &result {
+			Ok(_) => MergeStrategy::Commit,
+			Err(ExitError::Reverted) => MergeStrategy::Revert,
+			Err(_) => MergeStrategy::Discard,
+		};
+
 		match trap_data {
 			CallCreateTrapEnterData::Create { address, trap } => {
-				let retbuf = child.machine.into_retbuf();
+				parent.machine.state.merge(child.machine.state, strategy);
+
+				let retbuf = child.machine.memory.into_data();
 				let result = routines::deploy_create_code(
 					self,
 					result.map(|_| address),
@@ -422,66 +459,20 @@ where
 					handler,
 				);
 
-				match &result {
-					Ok(_) => {
-						handler.pop_substate(TransactionalMergeStrategy::Commit);
-						GasometerT::<RuntimeState, H>::merge(
-							&mut parent.gasometer,
-							child.gasometer,
-							GasometerMergeStrategy::Commit,
-						);
-					}
-					Err(ExitError::Reverted) => {
-						handler.pop_substate(TransactionalMergeStrategy::Discard);
-						GasometerT::<RuntimeState, H>::merge(
-							&mut parent.gasometer,
-							child.gasometer,
-							GasometerMergeStrategy::Revert,
-						);
-					}
-					Err(_) => {
-						handler.pop_substate(TransactionalMergeStrategy::Discard);
-						GasometerT::<RuntimeState, H>::merge(
-							&mut parent.gasometer,
-							child.gasometer,
-							GasometerMergeStrategy::Discard,
-						);
-					}
-				};
+				handler.pop_substate(strategy);
+				GasometerT::<S, H>::merge(&mut parent.gasometer, child.gasometer, strategy);
 
 				trap.feedback(result, retbuf, &mut parent.machine)?;
 
 				Ok(())
 			}
 			CallCreateTrapEnterData::Call { trap } => {
-				let retbuf = child.machine.into_retbuf();
+				parent.machine.state.merge(child.machine.state, strategy);
 
-				match &result {
-					Ok(_) => {
-						handler.pop_substate(TransactionalMergeStrategy::Commit);
-						GasometerT::<RuntimeState, H>::merge(
-							&mut parent.gasometer,
-							child.gasometer,
-							GasometerMergeStrategy::Commit,
-						);
-					}
-					Err(ExitError::Reverted) => {
-						handler.pop_substate(TransactionalMergeStrategy::Discard);
-						GasometerT::<RuntimeState, H>::merge(
-							&mut parent.gasometer,
-							child.gasometer,
-							GasometerMergeStrategy::Revert,
-						);
-					}
-					Err(_) => {
-						handler.pop_substate(TransactionalMergeStrategy::Discard);
-						GasometerT::<RuntimeState, H>::merge(
-							&mut parent.gasometer,
-							child.gasometer,
-							GasometerMergeStrategy::Discard,
-						);
-					}
-				};
+				let retbuf = child.machine.memory.into_data();
+
+				handler.pop_substate(strategy);
+				GasometerT::<S, H>::merge(&mut parent.gasometer, child.gasometer, strategy);
 
 				trap.feedback(result, retbuf, &mut parent.machine)?;
 
