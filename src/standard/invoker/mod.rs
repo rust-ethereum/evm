@@ -14,6 +14,20 @@ use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
+pub trait IntoCallCreateTrap {
+	type Interrupt;
+
+	fn into_call_create_trap(self) -> Result<Opcode, Self::Interrupt>;
+}
+
+impl IntoCallCreateTrap for Opcode {
+	type Interrupt = Infallible;
+
+	fn into_call_create_trap(self) -> Result<Opcode, Infallible> {
+		Ok(self)
+	}
+}
+
 pub enum CallCreateTrapPrepareData<S, G> {
 	Call {
 		gasometer: G,
@@ -303,26 +317,32 @@ impl<'config> Invoker<'config> {
 	}
 }
 
-impl<'config, S, G, H> InvokerT<S, G, H, Opcode> for Invoker<'config>
+impl<'config, S, G, H, Tr> InvokerT<S, G, H, Tr> for Invoker<'config>
 where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+	Tr: IntoCallCreateTrap,
 {
-	type Interrupt = Infallible;
+	type Interrupt = Tr::Interrupt;
 	type CallCreateTrapPrepareData = CallCreateTrapPrepareData<S, G>;
 	type CallCreateTrapEnterData = CallCreateTrapEnterData;
 
 	fn prepare_trap(
 		&self,
-		opcode: Opcode,
+		trap: Tr,
 		machine: &mut GasedMachine<S, G>,
 		handler: &mut H,
 		depth: usize,
-	) -> Capture<Result<Self::CallCreateTrapPrepareData, ExitError>, Infallible> {
+	) -> Capture<Result<Self::CallCreateTrapPrepareData, ExitError>, Tr::Interrupt> {
 		fn l64(gas: U256) -> U256 {
 			gas - gas / U256::from(64)
 		}
+
+		let opcode = match trap.into_call_create_trap() {
+			Ok(opcode) => opcode,
+			Err(interrupt) => return Capture::Trap(interrupt),
+		};
 
 		if depth >= self.config.call_stack_limit {
 			return Capture::Exit(Err(ExitException::CallTooDeep.into()));
