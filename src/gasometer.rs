@@ -21,11 +21,10 @@ impl Gas for U256 {}
 pub enum GasometerMergeStrategy {
 	Commit,
 	Revert,
+	Discard,
 }
 
 pub trait Gasometer<S, H>: Sized {
-	type Gas: Gas;
-
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,
@@ -33,7 +32,8 @@ pub trait Gasometer<S, H>: Sized {
 		backend: &H,
 	) -> Result<usize, ExitError>;
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
-	fn gas(&self) -> Self::Gas;
+	fn gas(&self) -> U256;
+	fn submeter(&mut self, gas_limit: U256, code: &[u8]) -> Result<Self, ExitError>;
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
 }
 

@@ -1,5 +1,5 @@
 use super::{CallCreateTrapEnterData, CallTrapData, CreateTrapData, Invoker};
-use crate::standard::{Config, GasedMachine, Gasometer, Machine};
+use crate::standard::{Config, GasedMachine, Machine};
 use crate::{
 	Context, ExitError, ExitException, Gasometer as GasometerT, Opcode, RuntimeBackend,
 	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend,
@@ -54,29 +54,24 @@ where
 	}
 }
 
-pub fn make_enter_call_machine<'config, H>(
+pub fn make_enter_call_machine<'config, G, H>(
 	invoker: &Invoker<'config>,
-	is_transaction: bool,
-	target: H160,
+	code: Vec<u8>,
 	input: Vec<u8>,
-	mut gas_limit: u64,
 	is_static: bool,
 	transfer: Option<Transfer>,
 	context: Context,
 	transaction_context: Rc<TransactionContext>,
+	gasometer: G,
 	handler: &mut H,
-) -> Result<GasedMachine<'config>, ExitError>
+) -> Result<GasedMachine<G>, ExitError>
 where
+	G: GasometerT<RuntimeState, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	handler.mark_hot(context.address, None)?;
-	let code = handler.code(target);
 
-	if let Some(transfer) = transfer.clone() {
-		if !is_transaction && transfer.value != U256::zero() {
-			gas_limit = gas_limit.saturating_add(invoker.config.call_stipend);
-		}
-
+	if let Some(transfer) = transfer {
 		handler.transfer(transfer)?;
 	}
 
@@ -95,8 +90,6 @@ where
 		},
 	);
 
-	let gasometer = Gasometer::new(gas_limit, &machine, invoker.config);
-
 	Ok(GasedMachine {
 		machine,
 		gasometer,
@@ -104,19 +97,19 @@ where
 	})
 }
 
-pub fn make_enter_create_machine<'config, H>(
+pub fn make_enter_create_machine<'config, G, H>(
 	invoker: &Invoker<'config>,
 	caller: H160,
-	target: H160,
 	init_code: Vec<u8>,
-	gas_limit: u64,
 	is_static: bool,
 	transfer: Transfer,
 	context: Context,
 	transaction_context: Rc<TransactionContext>,
+	gasometer: G,
 	handler: &mut H,
-) -> Result<GasedMachine<'config>, ExitError>
+) -> Result<GasedMachine<G>, ExitError>
 where
+	G: GasometerT<RuntimeState, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	if let Some(limit) = invoker.config.max_initcode_size {
@@ -126,19 +119,21 @@ where
 	}
 
 	handler.mark_hot(caller, None)?;
-	handler.mark_hot(target, None)?;
+	handler.mark_hot(context.address, None)?;
 
 	handler.transfer(transfer)?;
 
-	if handler.code_size(target) != U256::zero() || handler.nonce(target) > U256::zero() {
+	if handler.code_size(context.address) != U256::zero()
+		|| handler.nonce(context.address) > U256::zero()
+	{
 		return Err(ExitException::CreateCollision.into());
 	}
 	handler.inc_nonce(caller)?;
 	if invoker.config.create_increase_nonce {
-		handler.inc_nonce(target)?;
+		handler.inc_nonce(context.address)?;
 	}
 
-	handler.reset_storage(target);
+	handler.reset_storage(context.address);
 
 	let machine = Machine::new(
 		Rc::new(init_code),
@@ -153,8 +148,6 @@ where
 		},
 	);
 
-	let gasometer = Gasometer::new(gas_limit, &machine, invoker.config);
-
 	Ok(GasedMachine {
 		machine,
 		gasometer,
@@ -162,30 +155,31 @@ where
 	})
 }
 
-pub fn enter_call_trap_stack<'config, H>(
+pub fn enter_call_trap_stack<'config, G, H>(
 	invoker: &Invoker<'config>,
+	code: Vec<u8>,
 	trap_data: CallTrapData,
-	gas_limit: u64,
 	is_static: bool,
 	transaction_context: Rc<TransactionContext>,
+	gasometer: G,
 	handler: &mut H,
-) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
+) -> Result<(CallCreateTrapEnterData, GasedMachine<G>), ExitError>
 where
+	G: GasometerT<RuntimeState, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	handler.push_substate();
 
-	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError> {
+	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<G>), ExitError> {
 		let machine = make_enter_call_machine(
 			invoker,
-			false, // is_transaction
-			trap_data.target,
+			code,
 			trap_data.input.clone(),
-			gas_limit,
 			is_static,
 			trap_data.transfer.clone(),
 			trap_data.context.clone(),
 			transaction_context,
+			gasometer,
 			handler,
 		)?;
 
@@ -201,24 +195,26 @@ where
 	}
 }
 
-pub fn enter_create_trap_stack<'config, H>(
+pub fn enter_create_trap_stack<'config, G, H>(
 	invoker: &Invoker<'config>,
+	code: Vec<u8>,
 	trap_data: CreateTrapData,
-	gas_limit: u64,
 	is_static: bool,
 	transaction_context: Rc<TransactionContext>,
+	gasometer: G,
 	handler: &mut H,
-) -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError>
+) -> Result<(CallCreateTrapEnterData, GasedMachine<G>), ExitError>
 where
+	G: GasometerT<RuntimeState, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	handler.push_substate();
 
-	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<'config>), ExitError> {
+	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<G>), ExitError> {
 		let CreateTrapData {
 			scheme,
 			value,
-			code,
+			code: _,
 		} = trap_data.clone();
 
 		let caller = scheme.caller();
@@ -239,13 +235,12 @@ where
 		let machine = make_enter_create_machine(
 			invoker,
 			caller,
-			address,
 			code,
-			gas_limit,
 			is_static,
 			transfer,
 			context,
 			transaction_context,
+			gasometer,
 			handler,
 		)?;
 
@@ -274,14 +269,15 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 	Ok(())
 }
 
-pub fn deploy_create_code<'config, H>(
+pub fn deploy_create_code<'config, G, H>(
 	invoker: &Invoker<'config>,
 	result: Result<H160, ExitError>,
 	retbuf: &Vec<u8>,
-	gasometer: &mut Gasometer<'config>,
+	gasometer: &mut G,
 	handler: &mut H,
 ) -> Result<H160, ExitError>
 where
+	G: GasometerT<RuntimeState, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	let address = result?;

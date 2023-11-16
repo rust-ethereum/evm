@@ -3,7 +3,7 @@ use crate::types::*;
 use evm::backend::in_memory::{
 	InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer,
 };
-use evm::standard::{Config, Etable, Invoker};
+use evm::standard::{Config, Etable, Gasometer, Invoker};
 use evm::utils::u256_to_h256;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
@@ -62,7 +62,7 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test) -> Result<(), Err
 
 	let etable = Etable::runtime();
 	let invoker = Invoker::new(&config);
-	let _result = invoker.transact_call(
+	let _result = invoker.transact_call::<Gasometer, _>(
 		test.transaction.sender,
 		test.transaction.to,
 		test.transaction.value,
