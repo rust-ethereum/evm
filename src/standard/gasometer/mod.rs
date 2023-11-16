@@ -10,6 +10,23 @@ use crate::{
 use core::cmp::max;
 use primitive_types::{H160, H256, U256};
 
+pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
+	fn new_transact_call(
+		gas_limit: U256,
+		code: &[u8],
+		data: &[u8],
+		access_list: &Vec<(H160, Vec<H256>)>,
+		config: &'config Config,
+	) -> Result<Self, ExitError>;
+
+	fn new_transact_create(
+		gas_limit: U256,
+		code: &[u8],
+		access_list: &Vec<(H160, Vec<H256>)>,
+		config: &'config Config,
+	) -> Result<Self, ExitError>;
+}
+
 pub struct Gasometer<'config> {
 	gas_limit: u64,
 	memory_gas: u64,
@@ -58,7 +75,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
-	pub fn new<S>(gas_limit: u64, _machine: &Machine<S>, config: &'config Config) -> Self {
+	pub fn new(gas_limit: u64, _code: &[u8], config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			memory_gas: 0,
@@ -69,9 +86,48 @@ impl<'config> Gasometer<'config> {
 	}
 }
 
-impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
-	type Gas = u64;
+impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasometer<'config> {
+	fn new_transact_call(
+		gas_limit: U256,
+		code: &[u8],
+		data: &[u8],
+		access_list: &Vec<(H160, Vec<H256>)>,
+		config: &'config Config,
+	) -> Result<Self, ExitError> {
+		let gas_limit = if gas_limit > U256::from(u64::MAX) {
+			return Err(ExitException::OutOfGas.into());
+		} else {
+			gas_limit.as_u64()
+		};
 
+		let mut s = Self::new(gas_limit, code, config);
+		let transaction_cost = TransactionCost::call(data, access_list).cost(config);
+
+		s.record_cost(transaction_cost)?;
+		Ok(s)
+	}
+
+	fn new_transact_create(
+		gas_limit: U256,
+		code: &[u8],
+		access_list: &Vec<(H160, Vec<H256>)>,
+		config: &'config Config,
+	) -> Result<Self, ExitError> {
+		let gas_limit = if gas_limit > U256::from(u64::MAX) {
+			return Err(ExitException::OutOfGas.into());
+		} else {
+			gas_limit.as_u64()
+		};
+
+		let mut s = Self::new(gas_limit, code, config);
+		let transaction_cost = TransactionCost::create(code, access_list).cost(config);
+
+		s.record_cost(transaction_cost)?;
+		Ok(s)
+	}
+}
+
+impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,
@@ -125,8 +181,19 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 		})
 	}
 
-	fn gas(&self) -> u64 {
-		self.gas()
+	fn gas(&self) -> U256 {
+		self.gas().into()
+	}
+
+	fn submeter(&mut self, gas_limit: U256, code: &[u8]) -> Result<Self, ExitError> {
+		let gas_limit = if gas_limit > U256::from(u64::MAX) {
+			return Err(ExitException::OutOfGas.into());
+		} else {
+			gas_limit.as_u64()
+		};
+
+		self.record_cost(gas_limit)?;
+		Ok(Self::new(gas_limit, code, self.config))
 	}
 
 	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy) {
@@ -138,6 +205,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 			GasometerMergeStrategy::Revert => {
 				self.used_gas -= other.gas();
 			}
+			GasometerMergeStrategy::Discard => {}
 		}
 	}
 }

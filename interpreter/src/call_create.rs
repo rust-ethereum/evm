@@ -111,6 +111,13 @@ impl CallCreateTrapData {
 			_ => Err(ExitException::InvalidOpcode(opcode).into()),
 		}
 	}
+
+	pub fn code<H: RuntimeBackend>(&self, handler: &H) -> Vec<u8> {
+		match self {
+			Self::Call(trap) => handler.code(trap.target),
+			Self::Create(trap) => trap.code.clone(),
+		}
+	}
 }
 
 pub struct CallTrapData {
@@ -310,6 +317,13 @@ impl CallTrapData {
 			}
 			Err(e) => Err(e),
 		}
+	}
+
+	pub fn has_value(&self) -> bool {
+		self.transfer
+			.as_ref()
+			.map(|t| t.value != U256::zero())
+			.unwrap_or(false)
 	}
 }
 

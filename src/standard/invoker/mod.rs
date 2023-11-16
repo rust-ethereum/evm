@@ -1,7 +1,7 @@
 mod routines;
 
 use self::routines::try_or_oog;
-use super::{gasometer::TransactionCost, Config, Etable, GasedMachine, Gasometer};
+use super::{Config, Etable, GasedMachine, TransactGasometer};
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
 	Capture, Context, ExitError, ExitException, ExitResult, Gasometer as GasometerT,
@@ -14,15 +14,17 @@ use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
-pub enum CallCreateTrapPrepareData {
+pub enum CallCreateTrapPrepareData<G> {
 	Call {
-		gas_limit: u64,
+		gasometer: G,
+		code: Vec<u8>,
 		is_static: bool,
 		transaction_context: Rc<TransactionContext>,
 		trap: CallTrapData,
 	},
 	Create {
-		gas_limit: u64,
+		gasometer: G,
+		code: Vec<u8>,
 		is_static: bool,
 		transaction_context: Rc<TransactionContext>,
 		trap: CreateTrapData,
@@ -45,7 +47,7 @@ impl<'config> Invoker<'config> {
 		Self { config }
 	}
 
-	pub fn transact_call<H>(
+	pub fn transact_call<G, H>(
 		&self,
 		caller: H160,
 		address: H160,
@@ -58,6 +60,7 @@ impl<'config> Invoker<'config> {
 		etable: &Etable<H>,
 	) -> ExitResult
 	where
+		G: GasometerT<RuntimeState, H> + TransactGasometer<'config, RuntimeState>,
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	{
 		routines::transact_and_work(
@@ -67,12 +70,6 @@ impl<'config> Invoker<'config> {
 			gas_price,
 			handler,
 			|handler: &mut H| -> (ExitResult, U256) {
-				let gas_limit = if gas_limit > U256::from(u64::MAX) {
-					return (Err(ExitException::OutOfGas.into()), U256::zero());
-				} else {
-					gas_limit.as_u64()
-				};
-
 				let context = Context {
 					caller,
 					address,
@@ -88,25 +85,27 @@ impl<'config> Invoker<'config> {
 					gas_price,
 				};
 
-				let transaction_cost = TransactionCost::call(&data, &access_list).cost(self.config);
-				if gas_limit < transaction_cost {
-					return (Err(ExitException::OutOfGas.into()), U256::zero());
-				}
+				let code = handler.code(address);
 
-				let mut machine = try_or_oog!(routines::make_enter_call_machine(
-					self,
-					true, // is_transaction
-					address,
-					data,
+				let gasometer = try_or_oog!(G::new_transact_call(
 					gas_limit,
+					&code,
+					&data,
+					&access_list,
+					self.config
+				));
+
+				let machine = try_or_oog!(routines::make_enter_call_machine(
+					self,
+					code,
+					data,
 					false, // is_static
 					Some(transfer),
 					context,
 					Rc::new(transaction_context),
+					gasometer,
 					handler
 				));
-
-				try_or_oog!(machine.gasometer.record_cost(transaction_cost));
 
 				if self.config.increase_state_access_gas {
 					if self.config.warm_coinbase_address {
@@ -128,7 +127,7 @@ impl<'config> Invoker<'config> {
 		)
 	}
 
-	pub fn transact_create<H>(
+	pub fn transact_create<G, H>(
 		&self,
 		caller: H160,
 		value: U256,
@@ -140,6 +139,7 @@ impl<'config> Invoker<'config> {
 		etable: &Etable<H>,
 	) -> Result<H160, ExitError>
 	where
+		G: GasometerT<RuntimeState, H> + TransactGasometer<'config, RuntimeState>,
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	{
 		routines::transact_and_work(
@@ -149,12 +149,6 @@ impl<'config> Invoker<'config> {
 			gas_price,
 			handler,
 			|handler| -> (Result<H160, ExitError>, U256) {
-				let gas_limit = if gas_limit > U256::from(u64::MAX) {
-					return (Err(ExitException::OutOfGas.into()), U256::zero());
-				} else {
-					gas_limit.as_u64()
-				};
-
 				let scheme = CreateScheme::Legacy { caller };
 				let address = scheme.address(handler);
 
@@ -172,25 +166,25 @@ impl<'config> Invoker<'config> {
 					target: address,
 					value,
 				};
-				let transaction_cost =
-					TransactionCost::create(&init_code, &access_list).cost(self.config);
-				if gas_limit < transaction_cost {
-					return (Err(ExitException::OutOfGas.into()), U256::zero());
-				}
 
-				let mut machine = try_or_oog!(routines::make_enter_create_machine(
+				let gasometer = try_or_oog!(G::new_transact_create(
+					gas_limit,
+					&init_code,
+					&access_list,
+					self.config
+				));
+
+				let machine = try_or_oog!(routines::make_enter_create_machine(
 					self,
 					caller,
-					address,
 					init_code,
-					gas_limit,
-					false,
+					false, // is_static
 					transfer,
 					context,
 					Rc::new(transaction_context),
+					gasometer,
 					handler,
 				));
-				try_or_oog!(machine.gasometer.record_cost(transaction_cost));
 
 				let (mut machine, result) =
 					crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
@@ -209,7 +203,7 @@ impl<'config> Invoker<'config> {
 		)
 	}
 
-	pub fn transact_create2<H>(
+	pub fn transact_create2<G, H>(
 		&self,
 		caller: H160,
 		value: U256,
@@ -222,6 +216,7 @@ impl<'config> Invoker<'config> {
 		etable: &Etable<H>,
 	) -> Result<H160, ExitError>
 	where
+		G: GasometerT<RuntimeState, H> + TransactGasometer<'config, RuntimeState>,
 		H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	{
 		routines::transact_and_work(
@@ -231,12 +226,6 @@ impl<'config> Invoker<'config> {
 			gas_price,
 			handler,
 			|handler| -> (Result<H160, ExitError>, U256) {
-				let gas_limit = if gas_limit > U256::from(u64::MAX) {
-					return (Err(ExitException::OutOfGas.into()), U256::zero());
-				} else {
-					gas_limit.as_u64()
-				};
-
 				let scheme = CreateScheme::Create2 {
 					caller,
 					code_hash: H256::from_slice(Keccak256::digest(&init_code).as_slice()),
@@ -258,25 +247,25 @@ impl<'config> Invoker<'config> {
 					target: address,
 					value,
 				};
-				let transaction_cost =
-					TransactionCost::create(&init_code, &access_list).cost(self.config);
-				if gas_limit < transaction_cost {
-					return (Err(ExitException::OutOfGas.into()), U256::zero());
-				}
 
-				let mut machine = try_or_oog!(routines::make_enter_create_machine(
+				let gasometer = try_or_oog!(G::new_transact_create(
+					gas_limit,
+					&init_code,
+					&access_list,
+					self.config
+				));
+
+				let machine = try_or_oog!(routines::make_enter_create_machine(
 					self,
 					caller,
-					address,
 					init_code,
-					gas_limit,
-					false,
+					false, // is_static
 					transfer,
 					context,
 					Rc::new(transaction_context),
+					gasometer,
 					handler,
 				));
-				try_or_oog!(machine.gasometer.record_cost(transaction_cost));
 
 				let (mut machine, result) =
 					crate::execute(machine, handler, 0, DEFAULT_HEAP_DEPTH, self, etable);
@@ -296,23 +285,24 @@ impl<'config> Invoker<'config> {
 	}
 }
 
-impl<'config, H> InvokerT<RuntimeState, Gasometer<'config>, H, Opcode> for Invoker<'config>
+impl<'config, G, H> InvokerT<RuntimeState, G, H, Opcode> for Invoker<'config>
 where
+	G: GasometerT<RuntimeState, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	type Interrupt = Infallible;
-	type CallCreateTrapPrepareData = CallCreateTrapPrepareData;
+	type CallCreateTrapPrepareData = CallCreateTrapPrepareData<G>;
 	type CallCreateTrapEnterData = CallCreateTrapEnterData;
 
 	fn prepare_trap(
 		&self,
 		opcode: Opcode,
-		machine: &mut GasedMachine<'config>,
-		_handler: &mut H,
+		machine: &mut GasedMachine<G>,
+		handler: &mut H,
 		depth: usize,
 	) -> Capture<Result<Self::CallCreateTrapPrepareData, ExitError>, Infallible> {
-		fn l64(gas: u64) -> u64 {
-			gas - gas / 64
+		fn l64(gas: U256) -> U256 {
+			gas - gas / U256::from(64)
 		}
 
 		if depth >= self.config.call_stack_limit {
@@ -324,23 +314,19 @@ where
 			Err(err) => return Capture::Exit(Err(err)),
 		};
 
-		let after_gas = U256::from(if self.config.call_l64_after_gas {
+		let after_gas = if self.config.call_l64_after_gas {
 			l64(machine.gasometer.gas())
 		} else {
 			machine.gasometer.gas()
-		});
-		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
-		let gas_limit = min(after_gas, target_gas);
-
-		let gas_limit = if gas_limit > U256::from(u64::MAX) {
-			return Capture::Exit(Err(ExitException::OutOfGas.into()));
-		} else {
-			gas_limit.as_u64()
 		};
+		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
+		let mut gas_limit = min(after_gas, target_gas);
 
-		match machine.gasometer.record_cost(gas_limit) {
-			Ok(()) => (),
-			Err(err) => return Capture::Exit(Err(err)),
+		match &trap_data {
+			CallCreateTrapData::Call(call) if call.has_value() => {
+				gas_limit = gas_limit.saturating_add(U256::from(self.config.call_stipend));
+			}
+			_ => (),
 		}
 
 		let is_static = if machine.is_static {
@@ -354,15 +340,23 @@ where
 
 		let transaction_context = machine.machine.state.as_ref().transaction_context.clone();
 
+		let code = trap_data.code(handler);
+		let submeter = match machine.gasometer.submeter(gas_limit, &code) {
+			Ok(submeter) => submeter,
+			Err(err) => return Capture::Exit(Err(err)),
+		};
+
 		Capture::Exit(Ok(match trap_data {
 			CallCreateTrapData::Call(call_trap_data) => CallCreateTrapPrepareData::Call {
-				gas_limit,
+				gasometer: submeter,
+				code,
 				is_static,
 				transaction_context,
 				trap: call_trap_data,
 			},
 			CallCreateTrapData::Create(create_trap_data) => CallCreateTrapPrepareData::Create {
-				gas_limit,
+				gasometer: submeter,
+				code,
 				is_static,
 				transaction_context,
 				trap: create_trap_data,
@@ -374,32 +368,36 @@ where
 		&self,
 		trap_data: Self::CallCreateTrapPrepareData,
 		handler: &mut H,
-	) -> Result<(Self::CallCreateTrapEnterData, GasedMachine<'config>), ExitError> {
+	) -> Result<(Self::CallCreateTrapEnterData, GasedMachine<G>), ExitError> {
 		match trap_data {
 			CallCreateTrapPrepareData::Create {
-				gas_limit,
+				gasometer,
+				code,
 				is_static,
 				transaction_context,
 				trap,
 			} => routines::enter_create_trap_stack(
 				self,
+				code,
 				trap,
-				gas_limit,
 				is_static,
 				transaction_context,
+				gasometer,
 				handler,
 			),
 			CallCreateTrapPrepareData::Call {
-				gas_limit,
+				gasometer,
+				code,
 				is_static,
 				transaction_context,
 				trap,
 			} => routines::enter_call_trap_stack(
 				self,
+				code,
 				trap,
-				gas_limit,
 				is_static,
 				transaction_context,
+				gasometer,
 				handler,
 			),
 		}
@@ -408,9 +406,9 @@ where
 	fn exit_trap_stack(
 		&self,
 		result: ExitResult,
-		mut child: GasedMachine<'config>,
+		mut child: GasedMachine<G>,
 		trap_data: Self::CallCreateTrapEnterData,
-		parent: &mut GasedMachine<'config>,
+		parent: &mut GasedMachine<G>,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
 		match trap_data {
@@ -443,6 +441,11 @@ where
 					}
 					Err(_) => {
 						handler.pop_substate(TransactionalMergeStrategy::Discard);
+						GasometerT::<RuntimeState, H>::merge(
+							&mut parent.gasometer,
+							child.gasometer,
+							GasometerMergeStrategy::Discard,
+						);
 					}
 				};
 
@@ -472,6 +475,11 @@ where
 					}
 					Err(_) => {
 						handler.pop_substate(TransactionalMergeStrategy::Discard);
+						GasometerT::<RuntimeState, H>::merge(
+							&mut parent.gasometer,
+							child.gasometer,
+							GasometerMergeStrategy::Discard,
+						);
 					}
 				};
 
