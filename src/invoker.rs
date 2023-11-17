@@ -3,15 +3,16 @@ use crate::{Capture, ExitError, ExitResult, GasedMachine};
 pub trait Invoker<S, G, H, Tr> {
 	type Interrupt;
 
+	type TransactArgs;
 	type TransactInvoke;
 	type TransactValue;
 	type SubstackInvoke;
 
 	fn new_transact(
 		&self,
-		invoke: &Self::TransactInvoke,
+		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<GasedMachine<S, G>, ExitError>;
+	) -> Result<(Self::TransactInvoke, GasedMachine<S, G>), ExitError>;
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,

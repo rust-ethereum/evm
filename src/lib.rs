@@ -7,7 +7,7 @@
 extern crate alloc;
 
 pub mod backend;
-// pub mod standard;
+pub mod standard;
 
 mod call_stack;
 mod gasometer;

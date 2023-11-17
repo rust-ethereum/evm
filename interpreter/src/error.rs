@@ -187,6 +187,8 @@ pub enum ExitFatal {
 	ExceptionAsFatal(ExitException),
 	/// Already exited.
 	AlreadyExited,
+	/// Unfinished execution.
+	Unfinished,
 
 	/// Other fatal errors.
 	Other(Cow<'static, str>),

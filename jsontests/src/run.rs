@@ -3,7 +3,7 @@ use crate::types::*;
 use evm::backend::in_memory::{
 	InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer,
 };
-use evm::standard::{Config, Etable, Gasometer, Invoker};
+use evm::standard::{Config, Etable, Gasometer, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::RuntimeState;
 use primitive_types::U256;
@@ -63,15 +63,19 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test) -> Result<(), Err
 
 	let etable = Etable::runtime();
 	let invoker = Invoker::new(&config);
-	let _result = invoker.transact_call::<RuntimeState, Gasometer, _, _>(
-		test.transaction.sender,
-		test.transaction.to,
-		test.transaction.value,
-		test.transaction.data,
-		test.transaction.gas_limit,
-		test.transaction.gas_price,
-		Vec::new(),
+	let _result = evm::transact::<RuntimeState, Gasometer, _, _, _, _>(
+		TransactArgs::Call {
+			caller: test.transaction.sender,
+			address: test.transaction.to,
+			value: test.transaction.value,
+			data: test.transaction.data,
+			gas_limit: test.transaction.gas_limit,
+			gas_price: test.transaction.gas_price,
+			access_list: Vec::new(),
+		},
+		Some(4),
 		&mut backend,
+		&invoker,
 		&etable,
 	);
 

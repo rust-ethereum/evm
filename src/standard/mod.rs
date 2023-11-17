@@ -4,7 +4,7 @@ mod invoker;
 
 pub use self::config::Config;
 pub use self::gasometer::{Gasometer, TransactGasometer};
-pub use self::invoker::Invoker;
+pub use self::invoker::{Invoker, TransactArgs};
 
 pub type Machine = crate::Machine<crate::RuntimeState>;
 pub type Efn<H> = crate::Efn<crate::RuntimeState, H, crate::Opcode>;

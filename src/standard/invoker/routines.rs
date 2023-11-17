@@ -1,4 +1,4 @@
-use super::{CallCreateTrapEnterData, CallTrapData, CreateTrapData, Invoker};
+use super::{CallTrapData, CreateTrapData, Invoker, SubstackInvoke};
 use crate::standard::{Config, MergeableRuntimeState};
 use crate::{
 	ExitError, ExitException, GasedMachine, Gasometer as GasometerT, Machine, MergeStrategy,
@@ -6,52 +6,6 @@ use crate::{
 };
 use alloc::rc::Rc;
 use primitive_types::{H160, U256};
-
-macro_rules! try_or_oog {
-	($e:expr) => {
-		match $e {
-			Ok(v) => v,
-			Err(e) => return (Err(e), ::primitive_types::U256::zero()),
-		}
-	}
-}
-pub(crate) use try_or_oog;
-
-pub fn transact_and_work<'config, H, R, F>(
-	_invoker: &Invoker<'config>,
-	caller: H160,
-	gas_limit: U256,
-	gas_price: U256,
-	handler: &mut H,
-	f: F,
-) -> Result<R, ExitError>
-where
-	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	F: FnOnce(&mut H) -> (Result<R, ExitError>, U256),
-{
-	let gas_fee = gas_limit.saturating_mul(gas_price);
-	handler.withdrawal(caller, gas_fee)?;
-
-	handler.push_substate();
-
-	let (result, refunded_gas) = f(handler);
-	let refunded_fee = refunded_gas.saturating_mul(gas_price);
-	let coinbase_reward = gas_fee.saturating_sub(refunded_fee);
-
-	handler.deposit(caller, refunded_fee);
-	handler.deposit(handler.block_coinbase(), coinbase_reward);
-
-	match result {
-		Ok(exit) => {
-			handler.pop_substate(MergeStrategy::Commit);
-			Ok(exit)
-		}
-		Err(err) => {
-			handler.pop_substate(MergeStrategy::Discard);
-			Err(err)
-		}
-	}
-}
 
 pub fn make_enter_call_machine<'config, S, G, H>(
 	invoker: &Invoker<'config>,
@@ -144,7 +98,7 @@ where
 	})
 }
 
-pub fn enter_call_trap_stack<'config, S, G, H>(
+pub fn enter_call_substack<'config, S, G, H>(
 	invoker: &Invoker<'config>,
 	code: Vec<u8>,
 	trap_data: CallTrapData,
@@ -152,7 +106,7 @@ pub fn enter_call_trap_stack<'config, S, G, H>(
 	state: S,
 	gasometer: G,
 	handler: &mut H,
-) -> Result<(CallCreateTrapEnterData, GasedMachine<S, G>), ExitError>
+) -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError>
 where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
@@ -160,7 +114,7 @@ where
 {
 	handler.push_substate();
 
-	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<S, G>), ExitError> {
+	let work = || -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError> {
 		let machine = make_enter_call_machine(
 			invoker,
 			code,
@@ -172,7 +126,7 @@ where
 			handler,
 		)?;
 
-		Ok((CallCreateTrapEnterData::Call { trap: trap_data }, machine))
+		Ok((SubstackInvoke::Call { trap: trap_data }, machine))
 	};
 
 	match work() {
@@ -184,7 +138,7 @@ where
 	}
 }
 
-pub fn enter_create_trap_stack<'config, S, G, H>(
+pub fn enter_create_substack<'config, S, G, H>(
 	invoker: &Invoker<'config>,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
@@ -192,7 +146,7 @@ pub fn enter_create_trap_stack<'config, S, G, H>(
 	state: S,
 	gasometer: G,
 	handler: &mut H,
-) -> Result<(CallCreateTrapEnterData, GasedMachine<S, G>), ExitError>
+) -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError>
 where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
@@ -200,7 +154,7 @@ where
 {
 	handler.push_substate();
 
-	let work = || -> Result<(CallCreateTrapEnterData, GasedMachine<S, G>), ExitError> {
+	let work = || -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError> {
 		let CreateTrapData {
 			scheme,
 			value,
@@ -221,7 +175,7 @@ where
 		)?;
 
 		Ok((
-			CallCreateTrapEnterData::Create {
+			SubstackInvoke::Create {
 				address,
 				trap: trap_data,
 			},
@@ -247,17 +201,16 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 
 pub fn deploy_create_code<'config, S, G, H>(
 	invoker: &Invoker<'config>,
-	result: Result<H160, ExitError>,
+	address: H160,
 	retbuf: &Vec<u8>,
 	gasometer: &mut G,
 	handler: &mut H,
-) -> Result<H160, ExitError>
+) -> Result<(), ExitError>
 where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	let address = result?;
 	check_first_byte(invoker.config, &retbuf[..])?;
 
 	if let Some(limit) = invoker.config.create_contract_limit {
@@ -270,5 +223,5 @@ where
 
 	handler.set_code(address, retbuf.clone());
 
-	Ok(address)
+	Ok(())
 }
