@@ -1,6 +1,8 @@
 //! EVM gasometer.
 
-use crate::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode, RuntimeState};
+use crate::{
+	Capture, Control, Etable, ExitError, ExitResult, Machine, MergeStrategy, Opcode, RuntimeState,
+};
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 use primitive_types::U256;
 
@@ -17,13 +19,6 @@ pub trait Gas:
 impl Gas for u64 {}
 impl Gas for U256 {}
 
-#[derive(Clone, Copy)]
-pub enum GasometerMergeStrategy {
-	Commit,
-	Revert,
-	Discard,
-}
-
 pub trait Gasometer<S, H>: Sized {
 	fn record_stepn(
 		&mut self,
@@ -34,7 +29,7 @@ pub trait Gasometer<S, H>: Sized {
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 	fn gas(&self) -> U256;
 	fn submeter(&mut self, gas_limit: U256, code: &[u8]) -> Result<Self, ExitError>;
-	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy);
+	fn merge(&mut self, other: Self, strategy: MergeStrategy);
 }
 
 pub struct GasedMachine<S, G> {

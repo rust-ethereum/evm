@@ -185,6 +185,10 @@ pub enum ExitFatal {
 	UnhandledInterrupt,
 	/// The environment explicitly set call errors as fatal error.
 	ExceptionAsFatal(ExitException),
+	/// Already exited.
+	AlreadyExited,
+	/// Unfinished execution.
+	Unfinished,
 
 	/// Other fatal errors.
 	Other(Cow<'static, str>),

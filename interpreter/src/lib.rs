@@ -154,13 +154,13 @@ impl<S> Machine<S> {
 	{
 		let position = self.position;
 		if position >= self.code.len() {
-			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
+			return Err(Capture::Exit(ExitFatal::AlreadyExited.into()));
 		}
 
 		let opcode = Opcode(self.code[position]);
 		let control = etable[opcode.as_usize()](self, handle, opcode, self.position);
 
-		match control {
+		let mut ret = match control {
 			Control::Continue => {
 				self.position += 1;
 				Ok(())
@@ -181,7 +181,13 @@ impl<S> Machine<S> {
 				self.position = position + 1;
 				Err(Capture::Trap(opcode))
 			}
+		};
+
+		if position >= self.code.len() {
+			ret = Err(Capture::Exit(ExitSucceed::Stopped.into()));
 		}
+
+		ret
 	}
 
 	/// Pick the next opcode.

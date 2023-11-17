@@ -2,32 +2,39 @@ use crate::{Capture, ExitError, ExitResult, GasedMachine};
 
 pub trait Invoker<S, G, H, Tr> {
 	type Interrupt;
-	type CallCreateTrapPrepareData;
-	type CallCreateTrapEnterData;
 
-	fn exit_trap_stack(
+	type TransactArgs;
+	type TransactInvoke;
+	type TransactValue;
+	type SubstackInvoke;
+
+	fn new_transact(
+		&self,
+		args: Self::TransactArgs,
+		handler: &mut H,
+	) -> Result<(Self::TransactInvoke, GasedMachine<S, G>), ExitError>;
+	fn finalize_transact(
+		&self,
+		invoke: &Self::TransactInvoke,
+		exit: ExitResult,
+		machine: GasedMachine<S, G>,
+		handler: &mut H,
+	) -> Result<Self::TransactValue, ExitError>;
+
+	fn exit_substack(
 		&self,
 		result: ExitResult,
 		child: GasedMachine<S, G>,
-		trap_data: Self::CallCreateTrapEnterData,
+		trap_data: Self::SubstackInvoke,
 		parent: &mut GasedMachine<S, G>,
 		handler: &mut H,
 	) -> Result<(), ExitError>;
 
-	/// The separation of `prepare_trap` and `enter_trap_stack` is to give an opportunity for the
-	/// trait to return `Self::Interrupt`. When `Self::Interrupt` is `Infallible`, there's no
-	/// difference whether a code is in `prepare_trap` or `enter_trap_stack`.
-	fn prepare_trap(
+	fn enter_substack(
 		&self,
 		trap: Tr,
 		machine: &mut GasedMachine<S, G>,
 		handler: &mut H,
 		depth: usize,
-	) -> Capture<Result<Self::CallCreateTrapPrepareData, ExitError>, Self::Interrupt>;
-
-	fn enter_trap_stack(
-		&self,
-		trap_data: Self::CallCreateTrapPrepareData,
-		handler: &mut H,
-	) -> Result<(Self::CallCreateTrapEnterData, GasedMachine<S, G>), ExitError>;
+	) -> Capture<Result<(Self::SubstackInvoke, GasedMachine<S, G>), ExitError>, Self::Interrupt>;
 }

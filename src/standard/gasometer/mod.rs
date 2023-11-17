@@ -4,7 +4,7 @@ mod utils;
 
 use crate::standard::Config;
 use crate::{
-	ExitError, ExitException, Gasometer as GasometerT, GasometerMergeStrategy, Machine, Opcode,
+	ExitError, ExitException, Gasometer as GasometerT, Machine, MergeStrategy, Opcode,
 	RuntimeBackend, RuntimeState, Stack,
 };
 use core::cmp::max;
@@ -196,16 +196,16 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 		Ok(Self::new(gas_limit, code, self.config))
 	}
 
-	fn merge(&mut self, other: Self, strategy: GasometerMergeStrategy) {
+	fn merge(&mut self, other: Self, strategy: MergeStrategy) {
 		match strategy {
-			GasometerMergeStrategy::Commit => {
+			MergeStrategy::Commit => {
 				self.used_gas -= other.gas();
 				self.refunded_gas += other.refunded_gas;
 			}
-			GasometerMergeStrategy::Revert => {
+			MergeStrategy::Revert => {
 				self.used_gas -= other.gas();
 			}
-			GasometerMergeStrategy::Discard => {}
+			MergeStrategy::Discard => {}
 		}
 	}
 }

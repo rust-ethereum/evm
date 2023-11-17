@@ -1,6 +1,6 @@
 use crate::{
-	ExitError, ExitException, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment,
-	TransactionalBackend, TransactionalMergeStrategy,
+	ExitError, ExitException, Log, MergeStrategy, RuntimeBackend, RuntimeBaseBackend,
+	RuntimeEnvironment, TransactionalBackend,
 };
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
@@ -249,14 +249,14 @@ impl TransactionalBackend for InMemoryBackend {
 		self.layers.push(layer);
 	}
 
-	fn pop_substate(&mut self, strategy: TransactionalMergeStrategy) {
+	fn pop_substate(&mut self, strategy: MergeStrategy) {
 		let layer = self.layers.pop().expect("current layer exist");
 
 		match strategy {
-			TransactionalMergeStrategy::Commit => {
+			MergeStrategy::Commit => {
 				*self.current_layer_mut() = layer;
 			}
-			TransactionalMergeStrategy::Discard => (),
+			MergeStrategy::Discard | MergeStrategy::Revert => (),
 		}
 	}
 }
