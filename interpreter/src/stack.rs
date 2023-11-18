@@ -99,10 +99,10 @@ impl Stack {
 	}
 
 	pub fn check_pop_push(&self, pop: usize, push: usize) -> Result<(), ExitException> {
-		if self.data.len() >= pop {
+		if self.data.len() < pop {
 			return Err(ExitException::StackUnderflow);
 		}
-		if self.data.len() - pop + push <= self.limit {
+		if self.data.len() - pop + push + 1 > self.limit {
 			return Err(ExitException::StackOverflow);
 		}
 		Ok(())

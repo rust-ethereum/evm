@@ -128,6 +128,10 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	fn deleted(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed.
 	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
+	fn is_hot(&self, address: H160, index: Option<H256>) -> bool {
+		!self.is_cold(address, index)
+	}
+
 	/// Mark an address or (address, index) pair as hot.
 	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError>;
 	/// Set storage value of address at index.

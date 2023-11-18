@@ -151,7 +151,7 @@ impl RuntimeBackend for InMemoryBackend {
 			.get(&address)
 			.cloned()
 			.unwrap_or(Default::default())
-			.storage
+			.original_storage
 			.get(&index)
 			.cloned()
 			.unwrap_or(H256::default())

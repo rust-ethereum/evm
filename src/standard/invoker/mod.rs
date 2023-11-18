@@ -208,7 +208,7 @@ where
 							context,
 							transaction_context: Rc::new(transaction_context),
 							retbuf: Vec::new(),
-							gas: U256::zero(),
+							gas: U256::from(gas_limit),
 						}),
 						gasometer,
 						handler,
@@ -247,7 +247,7 @@ where
 							context,
 							transaction_context: Rc::new(transaction_context),
 							retbuf: Vec::new(),
-							gas: U256::zero(),
+							gas: U256::from(gas_limit),
 						}),
 						gasometer,
 						handler,
@@ -274,6 +274,8 @@ where
 		mut machine: GasedMachine<S, G>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
+		let left_gas = machine.gasometer.gas();
+
 		let work = || -> Result<Self::TransactValue, ExitError> {
 			if result.is_ok() {
 				if let Some(address) = invoke.create_address {
@@ -289,20 +291,22 @@ where
 				}
 			}
 
-			let refunded_gas = match result {
-				Ok(_) | Err(ExitError::Reverted) => machine.gasometer.gas(),
-				Err(_) => U256::zero(),
-			};
-			let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
-			let coinbase_reward = invoke.gas_fee.saturating_sub(refunded_fee);
-
-			handler.deposit(invoke.caller, refunded_fee);
-			handler.deposit(handler.block_coinbase(), coinbase_reward);
-
 			result.map(|s| (s, invoke.create_address))
 		};
 
-		match work() {
+		let result = work();
+
+		let refunded_gas = match result {
+			Ok(_) | Err(ExitError::Reverted) => left_gas,
+			Err(_) => U256::zero(),
+		};
+		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
+		let coinbase_reward = invoke.gas_fee.saturating_sub(refunded_fee);
+
+		handler.deposit(invoke.caller, refunded_fee);
+		handler.deposit(handler.block_coinbase(), coinbase_reward);
+
+		match result {
 			Ok(exit) => {
 				handler.pop_substate(MergeStrategy::Commit);
 				Ok(exit)
@@ -377,7 +381,7 @@ where
 					context: call_trap_data.context.clone(),
 					transaction_context,
 					retbuf: Vec::new(),
-					gas: U256::zero(),
+					gas: U256::from(gas_limit),
 				});
 
 				Capture::Exit(routines::enter_call_substack(
@@ -401,7 +405,7 @@ where
 					},
 					transaction_context,
 					retbuf: Vec::new(),
-					gas: U256::zero(),
+					gas: U256::from(gas_limit),
 				});
 
 				Capture::Exit(routines::enter_create_substack(

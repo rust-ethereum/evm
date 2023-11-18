@@ -107,11 +107,13 @@ pub enum Fork {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TestPostState {
 	pub hash: H256,
 	pub indexes: TestPostStateIndexes,
 	pub logs: H256,
 	pub txbytes: HexBytes,
+	pub expect_exception: Option<String>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]

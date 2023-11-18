@@ -14,9 +14,12 @@ use std::io::BufReader;
 #[command(author, version, about, long_about = None)]
 struct Cli {
 	filenames: Vec<String>,
+
+	#[arg(short, long, default_value_t = false)]
+	debug: bool,
 }
 
-fn run_file(filename: &str) -> Result<(), Error> {
+fn run_file(filename: &str, debug: bool) -> Result<(), Error> {
 	let test_multi: BTreeMap<String, TestMulti> =
 		serde_json::from_reader(BufReader::new(File::open(filename)?))?;
 
@@ -24,11 +27,18 @@ fn run_file(filename: &str) -> Result<(), Error> {
 		let tests = test_multi.tests();
 
 		for test in tests {
-			print!(
-				"{}/{}/{:?}/{}: ",
-				filename, test_name, test.fork, test.index
-			);
-			match crate::run::run_test(filename, &test_name, test) {
+			if debug {
+				println!(
+					"{}/{}/{:?}/{} ===>",
+					filename, test_name, test.fork, test.index
+				);
+			} else {
+				print!(
+					"{}/{}/{:?}/{}: ",
+					filename, test_name, test.fork, test.index
+				);
+			}
+			match crate::run::run_test(filename, &test_name, test, debug) {
 				Ok(()) => println!("okay"),
 				Err(Error::UnsupportedFork) => println!("skipped"),
 				Err(err) => {
@@ -36,21 +46,24 @@ fn run_file(filename: &str) -> Result<(), Error> {
 					return Err(err);
 				}
 			}
+			if debug {
+				println!("");
+			}
 		}
 	}
 
 	Ok(())
 }
 
-fn run_single(filename: &str) -> Result<(), Error> {
+fn run_single(filename: &str, debug: bool) -> Result<(), Error> {
 	if fs::metadata(&filename)?.is_dir() {
 		for filename in fs::read_dir(&filename)? {
 			let filepath = filename?.path();
 			let filename = filepath.to_str().ok_or(Error::NonUtf8Filename)?;
-			run_file(filename)?;
+			run_file(filename, debug)?;
 		}
 	} else {
-		run_file(&filename)?;
+		run_file(&filename, debug)?;
 	}
 
 	Ok(())
@@ -60,7 +73,7 @@ fn main() -> Result<(), Error> {
 	let cli = Cli::parse();
 
 	for filename in cli.filenames {
-		run_single(&filename)?;
+		run_single(&filename, cli.debug)?;
 	}
 
 	Ok(())
