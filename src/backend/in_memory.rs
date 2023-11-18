@@ -174,12 +174,13 @@ impl RuntimeBackend for InMemoryBackend {
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
-		self.current_layer_mut()
-			.state
-			.entry(address)
-			.or_default()
-			.storage
-			.insert(index, value);
+		let entry = self.current_layer_mut().state.entry(address).or_default();
+
+		if value == H256::default() {
+			entry.storage.remove(&index);
+		} else {
+			entry.storage.insert(index, value);
+		}
 		Ok(())
 	}
 

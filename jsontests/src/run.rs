@@ -15,6 +15,12 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		_ => return Err(Error::UnsupportedFork),
 	};
 
+	if test.post.expect_exception == Some(TestExpectException::TR_TypeNotSupported) {
+		// The `evm` crate does not understand transaction format, only the `ethereum` crate. So
+		// there's nothing for us to test here for `TR_TypeNotSupported`.
+		return Ok(());
+	}
+
 	let env = InMemoryEnvironment {
 		block_hashes: BTreeMap::new(), // TODO: fill in this field.
 		block_number: test.env.current_number,
@@ -35,6 +41,7 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 			let storage = account
 				.storage
 				.into_iter()
+				.filter(|(_, value)| *value != U256::zero())
 				.map(|(key, value)| (u256_to_h256(key), u256_to_h256(value)))
 				.collect::<BTreeMap<_, _>>();
 
@@ -60,7 +67,12 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		data: test.transaction.data,
 		gas_limit: test.transaction.gas_limit,
 		gas_price: test.transaction.gas_price,
-		access_list: Vec::new(),
+		access_list: test
+			.transaction
+			.access_list
+			.into_iter()
+			.map(|access| (access.address, access.storage_keys))
+			.collect(),
 	};
 
 	let mut run_backend = InMemoryBackend {
