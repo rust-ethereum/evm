@@ -193,6 +193,13 @@ where
 					access_list,
 					..
 				} => {
+					for (address, keys) in &access_list {
+						handler.mark_hot(*address, None)?;
+						for key in keys {
+							handler.mark_hot(*address, Some(*key))?;
+						}
+					}
+
 					let code = handler.code(address);
 
 					let gasometer =

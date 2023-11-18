@@ -39,6 +39,10 @@ impl TestMulti {
 						sender: self.transaction.sender,
 						to: self.transaction.to,
 						value: self.transaction.value[post_state.indexes.value],
+						access_list: match &self.transaction.access_lists {
+							Some(access_lists) => access_lists[post_state.indexes.data].clone(),
+							None => Vec::new(),
+						},
 					},
 				});
 			}
@@ -113,7 +117,14 @@ pub struct TestPostState {
 	pub indexes: TestPostStateIndexes,
 	pub logs: H256,
 	pub txbytes: HexBytes,
-	pub expect_exception: Option<String>,
+	pub expect_exception: Option<TestExpectException>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[allow(non_camel_case_types)]
+pub enum TestExpectException {
+	TR_TypeNotSupported,
+	TR_IntrinsicGas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
@@ -144,6 +155,14 @@ pub struct TestMultiTransaction {
 	pub sender: H160,
 	pub to: H160,
 	pub value: Vec<U256>,
+	pub access_lists: Option<Vec<Vec<TestAccessListItem>>>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TestAccessListItem {
+	pub address: H160,
+	pub storage_keys: Vec<H256>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -156,6 +175,7 @@ pub struct TestTransaction {
 	pub sender: H160,
 	pub to: H160,
 	pub value: U256,
+	pub access_list: Vec<TestAccessListItem>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
