@@ -41,6 +41,7 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 			let storage = account
 				.storage
 				.into_iter()
+				.filter(|(_, value)| *value != U256::zero())
 				.map(|(key, value)| (u256_to_h256(key), u256_to_h256(value)))
 				.collect::<BTreeMap<_, _>>();
 
