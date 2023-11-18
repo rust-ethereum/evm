@@ -20,12 +20,21 @@ impl Gas for u64 {}
 impl Gas for U256 {}
 
 pub trait Gasometer<S, H>: Sized {
+	fn record_step(
+		&mut self,
+		machine: &Machine<S>,
+		is_static: bool,
+		backend: &H,
+	) -> Result<(), ExitError>;
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,
 		is_static: bool,
 		backend: &H,
-	) -> Result<usize, ExitError>;
+	) -> Result<usize, ExitError> {
+		self.record_step(machine, is_static, backend)?;
+		Ok(1)
+	}
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 	fn gas(&self) -> U256;
 	fn submeter(&mut self, gas_limit: U256, code: &[u8]) -> Result<Self, ExitError>;
@@ -39,6 +48,27 @@ pub struct GasedMachine<S, G> {
 }
 
 impl<S: AsMut<RuntimeState>, G> GasedMachine<S, G> {
+	pub fn step<H, Tr, F>(
+		&mut self,
+		handler: &mut H,
+		etable: &Etable<S, H, Tr, F>,
+	) -> Result<(), Capture<ExitResult, Tr>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+		G: Gasometer<S, H>,
+	{
+		match self
+			.gasometer
+			.record_step(&self.machine, self.is_static, handler)
+		{
+			Ok(()) => {
+				self.machine.state.as_mut().gas = self.gasometer.gas().into();
+				self.machine.step(handler, etable)
+			}
+			Err(e) => return Err(Capture::Exit(Err(e))),
+		}
+	}
+
 	pub fn run<H, Tr, F>(
 		&mut self,
 		handler: &mut H,
