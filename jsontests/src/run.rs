@@ -51,7 +51,19 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test) -> Result<(), Err
 		})
 		.collect::<BTreeMap<_, _>>();
 
-	let mut backend = InMemoryBackend {
+	let etable = Etable::runtime();
+	let invoker = Invoker::new(&config);
+	let args = TransactArgs::Call {
+		caller: test.transaction.sender,
+		address: test.transaction.to,
+		value: test.transaction.value,
+		data: test.transaction.data,
+		gas_limit: test.transaction.gas_limit,
+		gas_price: test.transaction.gas_price,
+		access_list: Vec::new(),
+	};
+
+	let mut run_backend = InMemoryBackend {
 		environment: env,
 		layers: vec![InMemoryLayer {
 			state,
@@ -60,26 +72,35 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test) -> Result<(), Err
 			hots: BTreeSet::new(),
 		}],
 	};
+	let mut step_backend = run_backend.clone();
 
-	let etable = Etable::runtime();
-	let invoker = Invoker::new(&config);
-	let _result = evm::transact::<RuntimeState, Gasometer, _, _, _, _>(
-		TransactArgs::Call {
-			caller: test.transaction.sender,
-			address: test.transaction.to,
-			value: test.transaction.value,
-			data: test.transaction.data,
-			gas_limit: test.transaction.gas_limit,
-			gas_price: test.transaction.gas_price,
-			access_list: Vec::new(),
-		},
+	// Run
+
+	let _run_result = evm::transact::<RuntimeState, Gasometer, _, _, _, _>(
+		args.clone(),
 		Some(4),
-		&mut backend,
+		&mut run_backend,
 		&invoker,
 		&etable,
 	);
 
-	let state_root = crate::hash::state_root(&backend);
+	// Step
+	let mut stepper = evm::HeapTransact::<RuntimeState, Gasometer, _, _, _>::new(
+		args,
+		&invoker,
+		&mut step_backend,
+	)?;
+	let _step_result = loop {
+		println!(
+			"opcode: {:?}",
+			stepper.last_machine()?.machine.peek_opcode()
+		);
+		if let Err(result) = stepper.step(&etable) {
+			break result;
+		}
+	};
+
+	let state_root = crate::hash::state_root(&run_backend);
 
 	if state_root != test.post.hash {
 		return Err(TestError::StateMismatch.into());

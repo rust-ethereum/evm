@@ -64,9 +64,9 @@ where
 		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	{
 		loop {
-			let step_ret = self.step(etable);
+			let step_ret = self.step_run(etable);
 
-			if let Some(step_ret) = step_ret {
+			if let Err(step_ret) = step_ret {
 				return step_ret;
 			}
 		}
@@ -75,9 +75,40 @@ where
 	pub fn step<F>(
 		&mut self,
 		etable: &Etable<S, H, Tr, F>,
-	) -> Option<Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
+	) -> Result<(), Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
 	where
 		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	{
+		self.step_with(etable, |machine, handler, etable| {
+			let result = machine.step(handler, etable);
+			match result {
+				Ok(()) => LastSubstackStatus::Running,
+				Err(result) => LastSubstackStatus::Exited(result),
+			}
+		})
+	}
+
+	pub fn step_run<F>(
+		&mut self,
+		etable: &Etable<S, H, Tr, F>,
+	) -> Result<(), Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	{
+		self.step_with(etable, |machine, handler, etable| {
+			let result = machine.run(handler, etable);
+			LastSubstackStatus::Exited(result)
+		})
+	}
+
+	fn step_with<F, FS>(
+		&mut self,
+		etable: &Etable<S, H, Tr, F>,
+		fs: FS,
+	) -> Result<(), Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+		FS: Fn(&mut GasedMachine<S, G>, &mut H, &Etable<S, H, Tr, F>) -> LastSubstackStatus<Tr>,
 	{
 		let mut step_ret = None;
 
@@ -97,11 +128,8 @@ where
 				status: LastSubstackStatus::Running,
 				mut machine,
 			}) => {
-				let result = machine.run(self.backend, etable);
-				Some(LastSubstack {
-					status: LastSubstackStatus::Exited(result),
-					machine,
-				})
+				let status = fs(&mut machine, self.backend, etable);
+				Some(LastSubstack { status, machine })
 			}
 			Some(LastSubstack {
 				status: LastSubstackStatus::Exited(Capture::Exit(exit)),
@@ -173,7 +201,10 @@ where
 			}
 		};
 
-		step_ret
+		match step_ret {
+			Some(res) => Err(res),
+			None => Ok(()),
+		}
 	}
 }
 
@@ -274,19 +305,27 @@ where
 		})
 	}
 
-	pub fn step<F>(
+	fn step_with<F, FS>(
 		&mut self,
 		etable: &Etable<S, H, Tr, F>,
-	) -> Option<Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
+		fs: FS,
+	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
 	where
 		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+		FS: Fn(
+			&mut CallStack<S, G, H, Tr, I>,
+			&Etable<S, H, Tr, F>,
+		) -> Result<
+			(),
+			Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>,
+		>,
 	{
-		match self.call_stack.step(etable) {
-			None => None,
-			Some(Capture::Trap(interrupt)) => Some(Capture::Trap(interrupt)),
-			Some(Capture::Exit(Err(fatal))) => Some(Capture::Exit(Err(fatal.into()))),
-			Some(Capture::Exit(Ok((ret, machine)))) => {
-				Some(Capture::Exit(self.call_stack.invoker.finalize_transact(
+		match fs(&mut self.call_stack, etable) {
+			Ok(()) => Ok(()),
+			Err(Capture::Trap(interrupt)) => Err(Capture::Trap(interrupt)),
+			Err(Capture::Exit(Err(fatal))) => Err(Capture::Exit(Err(fatal.into()))),
+			Err(Capture::Exit(Ok((ret, machine)))) => {
+				Err(Capture::Exit(self.call_stack.invoker.finalize_transact(
 					&self.transact_invoke,
 					ret,
 					machine,
@@ -294,6 +333,26 @@ where
 				)))
 			}
 		}
+	}
+
+	pub fn step_run<F>(
+		&mut self,
+		etable: &Etable<S, H, Tr, F>,
+	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	{
+		self.step_with(etable, |call_stack, etable| call_stack.step_run(etable))
+	}
+
+	pub fn step<F>(
+		&mut self,
+		etable: &Etable<S, H, Tr, F>,
+	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
+	where
+		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	{
+		self.step_with(etable, |call_stack, etable| call_stack.step(etable))
 	}
 
 	pub fn run<F>(
@@ -304,11 +363,18 @@ where
 		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	{
 		loop {
-			let step_ret = self.step(etable);
+			let step_ret = self.step_run(etable);
 
-			if let Some(step_ret) = step_ret {
+			if let Err(step_ret) = step_ret {
 				return step_ret;
 			}
+		}
+	}
+
+	pub fn last_machine(&self) -> Result<&GasedMachine<S, G>, ExitError> {
+		match &self.call_stack.last {
+			Some(last) => Ok(&last.machine),
+			None => Err(ExitFatal::AlreadyExited.into()),
 		}
 	}
 }

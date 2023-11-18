@@ -128,12 +128,12 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 }
 
 impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
-	fn record_stepn(
+	fn record_step(
 		&mut self,
 		machine: &Machine<S>,
 		is_static: bool,
 		handler: &H,
-	) -> Result<usize, ExitError> {
+	) -> Result<(), ExitError> {
 		self.perform(|gasometer| {
 			let opcode = machine.peek_opcode().ok_or(ExitException::OutOfGas)?;
 
@@ -169,7 +169,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 				gas.extra_check(after_gas, gasometer.config)?;
 			}
 
-			Ok(1)
+			Ok(())
 		})
 	}
 
