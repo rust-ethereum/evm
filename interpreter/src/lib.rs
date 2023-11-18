@@ -177,10 +177,7 @@ impl<S> Machine<S> {
 				self.position = p;
 				Ok(())
 			}
-			Control::Trap(opcode) => {
-				self.position = position + 1;
-				Err(Capture::Trap(opcode))
-			}
+			Control::Trap(opcode) => Err(Capture::Trap(opcode)),
 		};
 
 		if position >= self.code.len() {

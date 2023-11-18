@@ -4,6 +4,8 @@ use thiserror::Error;
 pub enum TestError {
 	#[error("state root is different")]
 	StateMismatch,
+	#[error("expect error, but got okay")]
+	ExpectException,
 }
 
 #[derive(Error, Debug)]
