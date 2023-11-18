@@ -370,6 +370,13 @@ where
 			}
 		}
 	}
+
+	pub fn last_machine(&self) -> Result<&GasedMachine<S, G>, ExitError> {
+		match &self.call_stack.last {
+			Some(last) => Ok(&last.machine),
+			None => Err(ExitFatal::AlreadyExited.into()),
+		}
+	}
 }
 
 impl<'backend, 'invoker, S, G, H, Tr, I> Drop for HeapTransact<'backend, 'invoker, S, G, H, Tr, I>

@@ -39,6 +39,7 @@ pub struct TransactInvoke {
 	pub caller: H160,
 }
 
+#[derive(Clone, Debug)]
 pub enum TransactArgs {
 	Call {
 		caller: H160,
