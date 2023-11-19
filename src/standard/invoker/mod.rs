@@ -281,7 +281,7 @@ where
 		mut machine: GasedMachine<S, G>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = machine.gasometer.gas();
+		let left_gas = machine.gasometer.effective_gas();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
 			if result.is_ok() {

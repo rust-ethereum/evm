@@ -10,3 +10,5 @@ target
 **/result
 tests.bin
 Cargo.lock
+perf.data
+perf.data.old

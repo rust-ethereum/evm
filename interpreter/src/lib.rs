@@ -122,6 +122,7 @@ impl<S> Machine<S> {
 		}
 	}
 
+	#[inline]
 	/// Step the machine N times.
 	pub fn stepn<H, Tr, F>(
 		&mut self,
@@ -152,6 +153,10 @@ impl<S> Machine<S> {
 	where
 		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	{
+		if self.is_empty() {
+			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
+		}
+
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitFatal::AlreadyExited.into()));
@@ -187,6 +192,10 @@ impl<S> Machine<S> {
 	/// Pick the next opcode.
 	pub fn peek_opcode(&self) -> Option<Opcode> {
 		self.code.get(self.position).map(|opcode| Opcode(*opcode))
+	}
+
+	pub fn is_empty(&self) -> bool {
+		self.code.is_empty()
 	}
 
 	pub fn advance(&mut self) {

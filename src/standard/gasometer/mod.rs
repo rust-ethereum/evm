@@ -4,10 +4,10 @@ mod utils;
 
 use crate::standard::Config;
 use crate::{
-	ExitError, ExitException, Gasometer as GasometerT, Machine, MergeStrategy, Opcode,
+	ExitError, ExitException, ExitFatal, Gasometer as GasometerT, Machine, MergeStrategy, Opcode,
 	RuntimeBackend, RuntimeState, Stack,
 };
-use core::cmp::max;
+use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 
 pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
@@ -25,6 +25,8 @@ pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
 		access_list: &Vec<(H160, Vec<H256>)>,
 		config: &'config Config,
 	) -> Result<Self, ExitError>;
+
+	fn effective_gas(&self) -> U256;
 }
 
 pub struct Gasometer<'config> {
@@ -36,6 +38,7 @@ pub struct Gasometer<'config> {
 }
 
 impl<'config> Gasometer<'config> {
+	#[inline]
 	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
 		&mut self,
 		f: F,
@@ -125,6 +128,17 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 		s.record_cost(transaction_cost)?;
 		Ok(s)
 	}
+
+	fn effective_gas(&self) -> U256 {
+		U256::from(
+			self.gas_limit
+				- (self.total_used_gas()
+					- min(
+						self.total_used_gas() / self.config.max_refund_quotient,
+						self.refunded_gas,
+					)),
+		)
+	}
 }
 
 impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
@@ -134,8 +148,12 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 		is_static: bool,
 		handler: &H,
 	) -> Result<(), ExitError> {
+		if machine.is_empty() {
+			return Ok(());
+		}
+
 		self.perform(|gasometer| {
-			let opcode = machine.peek_opcode().ok_or(ExitException::OutOfGas)?;
+			let opcode = machine.peek_opcode().ok_or(ExitFatal::AlreadyExited)?;
 
 			if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
 				gasometer.record_cost(cost)?;
