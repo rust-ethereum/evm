@@ -126,7 +126,7 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitException> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
-	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code, config))
+	let gas = (U256::from(address_access_cost(is_cold, config)) + config.gas_ext_code)
 		.checked_add(
 			U256::from(G_COPY)
 				.checked_mul(if wordr == U256::zero() {
@@ -272,12 +272,13 @@ pub fn call_cost(
 	config: &Config,
 ) -> u64 {
 	let transfers_value = value != U256::default();
-	address_access_cost(is_cold, config.gas_call, config)
+	address_access_cost(is_cold, config)
+		+ config.gas_call
 		+ xfer_cost(is_call_or_callcode, transfers_value)
 		+ new_cost(is_call_or_staticcall, new_account, transfers_value, config)
 }
 
-pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -> u64 {
+pub fn address_access_cost(is_cold: bool, config: &Config) -> u64 {
 	if config.increase_state_access_gas {
 		if is_cold {
 			config.gas_account_access_cold
@@ -285,7 +286,7 @@ pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -
 			config.gas_storage_read_warm
 		}
 	} else {
-		regular_value
+		0
 	}
 }
 

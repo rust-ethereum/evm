@@ -670,18 +670,18 @@ impl GasCost {
 			GasCost::Invalid(opcode) => return Err(ExitException::InvalidOpcode(opcode).into()),
 
 			GasCost::ExtCodeSize { target_is_cold } => {
-				costs::address_access_cost(target_is_cold, config.gas_ext_code, config)
+				costs::address_access_cost(target_is_cold, config) + config.gas_ext_code
 			}
 			GasCost::ExtCodeCopy {
 				target_is_cold,
 				len,
 			} => costs::extcodecopy_cost(len, target_is_cold, config)?,
 			GasCost::Balance { target_is_cold } => {
-				costs::address_access_cost(target_is_cold, config.gas_balance, config)
+				costs::address_access_cost(target_is_cold, config) + config.gas_balance
 			}
 			GasCost::BlockHash => consts::G_BLOCKHASH,
 			GasCost::ExtCodeHash { target_is_cold } => {
-				costs::address_access_cost(target_is_cold, config.gas_ext_code_hash, config)
+				costs::address_access_cost(target_is_cold, config) + config.gas_ext_code_hash
 			}
 		})
 	}
