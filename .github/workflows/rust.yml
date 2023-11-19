@@ -39,4 +39,7 @@ jobs:
         jsontests/res/ethtests/GeneralStateTests/stExample/ \
         jsontests/res/ethtests/GeneralStateTests/stSLoadTest/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmArithmeticTest/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmBitwiseLogicOperation/
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmBitwiseLogicOperation/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmIOandFlowOperations/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmLogTest/
+
