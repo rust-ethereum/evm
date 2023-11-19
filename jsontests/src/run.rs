@@ -94,6 +94,7 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		&invoker,
 		&etable,
 	);
+	run_backend.layers[0].clear_pending();
 
 	// Step
 	if debug {
@@ -116,6 +117,7 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 				break result;
 			}
 		});
+		step_backend.layers[0].clear_pending();
 	}
 
 	let state_root = crate::hash::state_root(&run_backend);

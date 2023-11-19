@@ -4,6 +4,7 @@ use crate::{
 };
 use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
+use std::mem;
 
 #[derive(Clone, Debug)]
 pub struct InMemoryEnvironment {
@@ -30,7 +31,6 @@ pub struct InMemoryAccount {
 #[derive(Clone, Debug)]
 pub struct InMemorySuicideInfo {
 	pub address: H160,
-	pub target: H160,
 }
 
 #[derive(Clone, Debug)]
@@ -39,6 +39,18 @@ pub struct InMemoryLayer {
 	pub logs: Vec<Log>,
 	pub suicides: Vec<InMemorySuicideInfo>,
 	pub hots: BTreeSet<(H160, Option<H256>)>,
+}
+
+impl InMemoryLayer {
+	pub fn clear_pending(&mut self) {
+		self.hots.clear();
+
+		let mut suicides = Vec::new();
+		mem::swap(&mut suicides, &mut self.suicides);
+		for suicide in suicides {
+			self.state.remove(&suicide.address);
+		}
+	}
 }
 
 #[derive(Clone, Debug)]
@@ -168,9 +180,8 @@ impl RuntimeBackend for InMemoryBackend {
 		!self.current_layer().hots.contains(&(address, index))
 	}
 
-	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError> {
+	fn mark_hot(&mut self, address: H160, index: Option<H256>) {
 		self.current_layer_mut().hots.insert((address, index));
-		Ok(())
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
@@ -189,11 +200,10 @@ impl RuntimeBackend for InMemoryBackend {
 		Ok(())
 	}
 
-	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
+	fn mark_delete(&mut self, address: H160) {
 		self.current_layer_mut()
 			.suicides
-			.push(InMemorySuicideInfo { address, target });
-		Ok(())
+			.push(InMemorySuicideInfo { address });
 	}
 
 	fn reset_storage(&mut self, address: H160) {

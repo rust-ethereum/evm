@@ -194,9 +194,9 @@ where
 					..
 				} => {
 					for (address, keys) in &access_list {
-						handler.mark_hot(*address, None)?;
+						handler.mark_hot(*address, None);
 						for key in keys {
-							handler.mark_hot(*address, Some(*key))?;
+							handler.mark_hot(*address, Some(*key));
 						}
 					}
 
@@ -224,10 +224,10 @@ where
 					if self.config.increase_state_access_gas {
 						if self.config.warm_coinbase_address {
 							let coinbase = handler.block_coinbase();
-							handler.mark_hot(coinbase, None)?;
+							handler.mark_hot(coinbase, None);
 						}
-						handler.mark_hot(caller, None)?;
-						handler.mark_hot(address, None)?;
+						handler.mark_hot(caller, None);
+						handler.mark_hot(address, None);
 					}
 
 					handler.inc_nonce(caller)?;
@@ -286,7 +286,7 @@ where
 		let work = || -> Result<Self::TransactValue, ExitError> {
 			if result.is_ok() {
 				if let Some(address) = invoke.create_address {
-					let retbuf = machine.machine.into_retbuf();
+					let retbuf = machine.machine.retval;
 
 					routines::deploy_create_code(
 						self,
@@ -444,7 +444,7 @@ where
 
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {
-				let retbuf = child.machine.memory.into_data();
+				let retbuf = child.machine.retval;
 				parent.machine.state.merge(child.machine.state, strategy);
 
 				let mut child_gasometer = child.gasometer;
@@ -470,7 +470,7 @@ where
 			SubstackInvoke::Call { trap } => {
 				parent.machine.state.merge(child.machine.state, strategy);
 
-				let retbuf = child.machine.memory.into_data();
+				let retbuf = child.machine.retval;
 
 				handler.pop_substate(strategy);
 				GasometerT::<S, H>::merge(&mut parent.gasometer, child.gasometer, strategy);

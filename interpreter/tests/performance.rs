@@ -15,7 +15,7 @@ macro_rules! ret_test {
 				vm.run(&mut (), &ETABLE),
 				Capture::Exit(Ok(ExitSucceed::Returned.into()))
 			);
-			assert_eq!(vm.into_retbuf(), hex::decode($ret).unwrap());
+			assert_eq!(vm.retval, hex::decode($ret).unwrap());
 		}
 	};
 }

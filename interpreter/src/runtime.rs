@@ -133,13 +133,13 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	}
 
 	/// Mark an address or (address, index) pair as hot.
-	fn mark_hot(&mut self, address: H160, index: Option<H256>) -> Result<(), ExitError>;
+	fn mark_hot(&mut self, address: H160, index: Option<H256>);
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, log: Log) -> Result<(), ExitError>;
-	/// Mark an address to be deleted, with funds transferred to target.
-	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
+	/// Mark an address to be deleted.
+	fn mark_delete(&mut self, address: H160);
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);
 	/// Set code of an account.
