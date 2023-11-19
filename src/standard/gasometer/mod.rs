@@ -203,14 +203,24 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 		self.gas().into()
 	}
 
-	fn submeter(&mut self, gas_limit: U256, code: &[u8]) -> Result<Self, ExitError> {
-		let gas_limit = if gas_limit > U256::from(u64::MAX) {
+	fn submeter(
+		&mut self,
+		gas_limit: U256,
+		call_has_value: bool,
+		code: &[u8],
+	) -> Result<Self, ExitError> {
+		let mut gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
 			gas_limit.as_u64()
 		};
 
 		self.record_cost(gas_limit)?;
+
+		if call_has_value {
+			gas_limit = gas_limit.saturating_add(self.config.call_stipend);
+		}
+
 		Ok(Self::new(gas_limit, code, self.config))
 	}
 

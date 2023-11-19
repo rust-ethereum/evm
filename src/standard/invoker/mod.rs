@@ -356,14 +356,12 @@ where
 			machine.gasometer.gas()
 		};
 		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
-		let mut gas_limit = min(after_gas, target_gas);
+		let gas_limit = min(after_gas, target_gas);
 
-		match &trap_data {
-			CallCreateTrapData::Call(call) if call.has_value() => {
-				gas_limit = gas_limit.saturating_add(U256::from(self.config.call_stipend));
-			}
-			_ => (),
-		}
+		let call_has_value = match &trap_data {
+			CallCreateTrapData::Call(call) if call.has_value() => true,
+			_ => false,
+		};
 
 		let is_static = if machine.is_static {
 			true
@@ -377,7 +375,7 @@ where
 		let transaction_context = machine.machine.state.as_ref().transaction_context.clone();
 
 		let code = trap_data.code(handler);
-		let submeter = match machine.gasometer.submeter(gas_limit, &code) {
+		let submeter = match machine.gasometer.submeter(gas_limit, call_has_value, &code) {
 			Ok(submeter) => submeter,
 			Err(err) => return Capture::Exit(Err(err)),
 		};
