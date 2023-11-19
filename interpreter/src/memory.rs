@@ -1,7 +1,7 @@
 use crate::{ExitException, ExitFatal};
 use alloc::vec::Vec;
-use core::cmp::min;
 use core::ops::{BitAnd, Not, Range};
+use core::{cmp::min, mem};
 use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
@@ -48,9 +48,10 @@ impl Memory {
 		&self.data
 	}
 
-	/// Into the full data.
-	pub fn into_data(self) -> Vec<u8> {
-		self.data
+	pub(crate) fn swap_and_clear(&mut self, other: &mut Vec<u8>) {
+		mem::swap(&mut self.data, other);
+		self.data = Vec::new();
+		self.effective_len = U256::zero();
 	}
 
 	/// Resize the memory, making it cover the memory region of `offset..(offset

@@ -1,7 +1,7 @@
 use super::Control;
 use crate::{
 	ExitException, ExitFatal, ExitSucceed, Log, Machine, RuntimeBackend, RuntimeEnvironment,
-	RuntimeState,
+	RuntimeState, Transfer,
 };
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
@@ -47,7 +47,7 @@ pub fn balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, address);
-	try_or_fail!(handler.mark_hot(address.into(), None));
+	handler.mark_hot(address.into(), None);
 	push_u256!(machine, handler.balance(address.into()));
 
 	Control::Continue
@@ -127,7 +127,7 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, address);
-	try_or_fail!(handler.mark_hot(address.into(), None));
+	handler.mark_hot(address.into(), None);
 	let code_size = handler.code_size(address.into());
 	push_u256!(machine, code_size);
 
@@ -139,7 +139,7 @@ pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, address);
-	try_or_fail!(handler.mark_hot(address.into(), None));
+	handler.mark_hot(address.into(), None);
 	let code_hash = handler.code_hash(address.into());
 	push!(machine, code_hash);
 
@@ -153,7 +153,7 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	pop!(machine, address);
 	pop_u256!(machine, memory_offset, code_offset, len);
 
-	try_or_fail!(handler.mark_hot(address.into(), None));
+	handler.mark_hot(address.into(), None);
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 
 	let code = handler.code(address.into());
@@ -265,7 +265,7 @@ pub fn sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, index);
-	try_or_fail!(handler.mark_hot(machine.state.as_ref().context.address, Some(index)));
+	handler.mark_hot(machine.state.as_ref().context.address, Some(index));
 	let value = handler.storage(machine.state.as_ref().context.address, index);
 	push!(machine, value);
 
@@ -277,7 +277,7 @@ pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, index, value);
-	try_or_fail!(handler.mark_hot(machine.state.as_ref().context.address, Some(index)));
+	handler.mark_hot(machine.state.as_ref().context.address, Some(index));
 
 	match handler.set_storage(machine.state.as_ref().context.address, index, value) {
 		Ok(()) => Control::Continue,
@@ -335,12 +335,23 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, target);
+	let address = machine.state.as_ref().context.address;
 
-	match handler.mark_delete(machine.state.as_ref().context.address, target.into()) {
-		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+	match machine.stack.perform_pop1_push0(|target| {
+		let balance = handler.balance(address);
+
+		handler.transfer(Transfer {
+			source: address,
+			target: (*target).into(),
+			value: balance,
+		})?;
+
+		handler.mark_delete(address);
+		handler.reset_balance(address);
+
+		Ok(((), ()))
+	}) {
+		Ok(()) => Control::Exit(ExitSucceed::Suicided.into()),
+		Err(e) => Control::Exit(Err(e)),
 	}
-
-	Control::Exit(ExitSucceed::Suicided.into())
 }

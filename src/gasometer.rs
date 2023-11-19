@@ -37,7 +37,12 @@ pub trait Gasometer<S, H>: Sized {
 	}
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 	fn gas(&self) -> U256;
-	fn submeter(&mut self, gas_limit: U256, code: &[u8]) -> Result<Self, ExitError>;
+	fn submeter(
+		&mut self,
+		gas_limit: U256,
+		call_has_value: bool,
+		code: &[u8],
+	) -> Result<Self, ExitError>;
 	fn merge(&mut self, other: Self, strategy: MergeStrategy);
 }
 

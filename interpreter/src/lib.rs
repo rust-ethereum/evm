@@ -40,6 +40,10 @@ pub struct Machine<S> {
 	position: usize,
 	/// Code validity maps.
 	valids: Valids,
+	/// Return value. Note the difference between `retbuf`.
+	/// A `retval` holds what's returned by the current machine, with `RETURN` or `REVERT` opcode.
+	/// A `retbuf` holds the buffer of returned value by sub-calls.
+	pub retval: Vec<u8>,
 	/// Memory.
 	pub memory: Memory,
 	/// Stack.
@@ -69,6 +73,7 @@ impl<S> Machine<S> {
 			code,
 			position: 0,
 			valids,
+			retval: Vec::new(),
 			memory: Memory::new(memory_limit),
 			stack: Stack::new(stack_limit),
 			state,
@@ -91,11 +96,6 @@ impl<S> Machine<S> {
 	/// Explicit exit of the machine. Further step will return error.
 	pub fn exit(&mut self) {
 		self.position = self.code.len();
-	}
-
-	/// Return value of the machine.
-	pub fn into_retbuf(self) -> Vec<u8> {
-		self.memory.into_data()
 	}
 
 	/// Inspect the machine's next opcode and current stack.

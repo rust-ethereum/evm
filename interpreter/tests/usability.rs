@@ -25,7 +25,7 @@ fn etable_wrap() {
 	let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
 	let result = vm.run(&mut (), &wrapped_etable);
 	assert_eq!(result, Capture::Exit(Ok(ExitSucceed::Returned.into())));
-	assert_eq!(vm.into_retbuf(), hex::decode(&RET1).unwrap());
+	assert_eq!(vm.retval, hex::decode(&RET1).unwrap());
 }
 
 #[test]
@@ -125,7 +125,7 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 
-	fn mark_hot(&mut self, _address: H160, _index: Option<H256>) -> Result<(), ExitError> {
+	fn mark_hot(&mut self, _address: H160, _index: Option<H256>) {
 		unimplemented!()
 	}
 
@@ -135,7 +135,7 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 	fn log(&mut self, _log: Log) -> Result<(), ExitError> {
 		unimplemented!()
 	}
-	fn mark_delete(&mut self, _address: H160, _target: H160) -> Result<(), ExitError> {
+	fn mark_delete(&mut self, _address: H160) {
 		unimplemented!()
 	}
 
@@ -194,5 +194,5 @@ fn etable_runtime() {
 
 	let res = vm.run(&mut handler, &RUNTIME_ETABLE).exit().unwrap();
 	assert_eq!(res, Ok(ExitSucceed::Returned.into()));
-	assert_eq!(vm.into_retbuf(), hex::decode(&RET1).unwrap());
+	assert_eq!(vm.retval, hex::decode(&RET1).unwrap());
 }

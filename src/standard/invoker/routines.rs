@@ -22,7 +22,7 @@ where
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	handler.mark_hot(state.as_ref().context.address, None)?;
+	handler.mark_hot(state.as_ref().context.address, None);
 
 	if let Some(transfer) = transfer {
 		handler.transfer(transfer)?;
@@ -66,8 +66,8 @@ where
 		}
 	}
 
-	handler.mark_hot(caller, None)?;
-	handler.mark_hot(state.as_ref().context.address, None)?;
+	handler.mark_hot(caller, None);
+	handler.mark_hot(state.as_ref().context.address, None);
 
 	handler.transfer(transfer)?;
 
