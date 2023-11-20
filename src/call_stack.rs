@@ -1,16 +1,13 @@
-use crate::{
-	Capture, Control, Etable, ExitError, ExitFatal, ExitResult, GasedMachine, Gasometer, Invoker,
-	Machine, Opcode, RuntimeState,
-};
+use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker};
 use core::convert::Infallible;
 
-struct Substack<S, G, TrD> {
+struct Substack<M, TrD> {
 	invoke: TrD,
-	machine: GasedMachine<S, G>,
+	machine: M,
 }
 
-struct LastSubstack<S, G, Tr> {
-	machine: GasedMachine<S, G>,
+struct LastSubstack<M, Tr> {
+	machine: M,
 	status: LastSubstackStatus<Tr>,
 }
 
@@ -22,22 +19,20 @@ enum LastSubstackStatus<Tr> {
 
 // Note: this should not be exposed to public because it does not implement
 // Drop.
-struct CallStack<'backend, 'invoker, S, G, H, Tr, I: Invoker<S, G, H, Tr>> {
-	stack: Vec<Substack<S, G, I::SubstackInvoke>>,
-	last: Option<LastSubstack<S, G, Tr>>,
+struct CallStack<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
+	stack: Vec<Substack<I::Machine, I::SubstackInvoke>>,
+	last: Option<LastSubstack<I::Machine, Tr>>,
 	initial_depth: usize,
 	backend: &'backend mut H,
 	invoker: &'invoker I,
 }
 
-impl<'backend, 'invoker, S, G, H, Tr, I> CallStack<'backend, 'invoker, S, G, H, Tr, I>
+impl<'backend, 'invoker, H, Tr, I> CallStack<'backend, 'invoker, H, Tr, I>
 where
-	S: AsMut<RuntimeState>,
-	G: Gasometer<S, H>,
-	I: Invoker<S, G, H, Tr>,
+	I: Invoker<H, Tr>,
 {
 	pub fn new(
-		machine: GasedMachine<S, G>,
+		machine: I::Machine,
 		initial_depth: usize,
 		backend: &'backend mut H,
 		invoker: &'invoker I,
@@ -56,15 +51,9 @@ where
 		call_stack
 	}
 
-	pub fn run<F>(
-		&mut self,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>
-	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	{
+	pub fn run(&mut self) -> Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt> {
 		loop {
-			let step_ret = self.step_run(etable);
+			let step_ret = self.step_run();
 
 			if let Err(step_ret) = step_ret {
 				return step_ret;
@@ -72,15 +61,11 @@ where
 		}
 	}
 
-	pub fn step<F>(
+	pub fn step(
 		&mut self,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Result<(), Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
-	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	{
-		self.step_with(etable, |machine, handler, etable| {
-			let result = machine.step(handler, etable);
+	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
+		self.step_with(|invoker, machine, handler| {
+			let result = invoker.step_machine(machine, handler);
 			match result {
 				Ok(()) => LastSubstackStatus::Running,
 				Err(result) => LastSubstackStatus::Exited(result),
@@ -88,27 +73,21 @@ where
 		})
 	}
 
-	pub fn step_run<F>(
+	pub fn step_run(
 		&mut self,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Result<(), Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
-	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	{
-		self.step_with(etable, |machine, handler, etable| {
-			let result = machine.run(handler, etable);
+	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
+		self.step_with(|invoker, machine, handler| {
+			let result = invoker.run_machine(machine, handler);
 			LastSubstackStatus::Exited(result)
 		})
 	}
 
-	fn step_with<F, FS>(
+	fn step_with<FS>(
 		&mut self,
-		etable: &Etable<S, H, Tr, F>,
 		fs: FS,
-	) -> Result<(), Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>>
+	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-		FS: Fn(&mut GasedMachine<S, G>, &mut H, &Etable<S, H, Tr, F>) -> LastSubstackStatus<Tr>,
+		FS: Fn(&I, &mut I::Machine, &mut H) -> LastSubstackStatus<Tr>,
 	{
 		let mut step_ret = None;
 
@@ -128,7 +107,7 @@ where
 				status: LastSubstackStatus::Running,
 				mut machine,
 			}) => {
-				let status = fs(&mut machine, self.backend, etable);
+				let status = fs(self.invoker, &mut machine, self.backend);
 				Some(LastSubstack { status, machine })
 			}
 			Some(LastSubstack {
@@ -208,21 +187,17 @@ where
 	}
 }
 
-fn execute<S, G, H, Tr, I, F>(
-	mut machine: GasedMachine<S, G>,
+fn execute<H, Tr, I>(
+	mut machine: I::Machine,
 	initial_depth: usize,
 	heap_depth: Option<usize>,
 	backend: &mut H,
 	invoker: &I,
-	etable: &Etable<S, H, Tr, F>,
-) -> Result<(ExitResult, GasedMachine<S, G>), ExitFatal>
+) -> Result<(ExitResult, I::Machine), ExitFatal>
 where
-	S: AsMut<RuntimeState>,
-	G: Gasometer<S, H>,
-	I: Invoker<S, G, H, Tr, Interrupt = Infallible>,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	I: Invoker<H, Tr, Interrupt = Infallible>,
 {
-	let mut result = machine.run(backend, etable);
+	let mut result = invoker.run_machine(&mut machine, backend);
 
 	loop {
 		match result {
@@ -235,20 +210,13 @@ where
 							.unwrap_or(false)
 						{
 							match CallStack::new(sub_machine, initial_depth + 1, backend, invoker)
-								.run(etable)
+								.run()
 							{
 								Capture::Exit(v) => v?,
 								Capture::Trap(infallible) => match infallible {},
 							}
 						} else {
-							execute(
-								sub_machine,
-								initial_depth + 1,
-								heap_depth,
-								backend,
-								invoker,
-								etable,
-							)?
+							execute(sub_machine, initial_depth + 1, heap_depth, backend, invoker)?
 						};
 
 						match invoker.exit_substack(
@@ -259,7 +227,7 @@ where
 							backend,
 						) {
 							Ok(()) => {
-								result = machine.run(backend, etable);
+								result = invoker.run_machine(&mut machine, backend);
 							}
 							Err(err) => return Ok((Err(err), machine)),
 						}
@@ -272,24 +240,14 @@ where
 	}
 }
 
-pub struct HeapTransact<
-	'backend,
-	'invoker,
-	S: AsMut<RuntimeState>,
-	G: Gasometer<S, H>,
-	H,
-	Tr,
-	I: Invoker<S, G, H, Tr>,
-> {
-	call_stack: CallStack<'backend, 'invoker, S, G, H, Tr, I>,
+pub struct HeapTransact<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
+	call_stack: CallStack<'backend, 'invoker, H, Tr, I>,
 	transact_invoke: I::TransactInvoke,
 }
 
-impl<'backend, 'invoker, S, G, H, Tr, I> HeapTransact<'backend, 'invoker, S, G, H, Tr, I>
+impl<'backend, 'invoker, H, Tr, I> HeapTransact<'backend, 'invoker, H, Tr, I>
 where
-	S: AsMut<RuntimeState>,
-	G: Gasometer<S, H>,
-	I: Invoker<S, G, H, Tr>,
+	I: Invoker<H, Tr>,
 {
 	pub fn new(
 		args: I::TransactArgs,
@@ -305,22 +263,16 @@ where
 		})
 	}
 
-	fn step_with<F, FS>(
+	fn step_with<FS>(
 		&mut self,
-		etable: &Etable<S, H, Tr, F>,
 		fs: FS,
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
 	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 		FS: Fn(
-			&mut CallStack<S, G, H, Tr, I>,
-			&Etable<S, H, Tr, F>,
-		) -> Result<
-			(),
-			Capture<Result<(ExitResult, GasedMachine<S, G>), ExitFatal>, I::Interrupt>,
-		>,
+			&mut CallStack<H, Tr, I>,
+		) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>>,
 	{
-		match fs(&mut self.call_stack, etable) {
+		match fs(&mut self.call_stack) {
 			Ok(()) => Ok(()),
 			Err(Capture::Trap(interrupt)) => Err(Capture::Trap(interrupt)),
 			Err(Capture::Exit(Err(fatal))) => Err(Capture::Exit(Err(fatal.into()))),
@@ -335,35 +287,21 @@ where
 		}
 	}
 
-	pub fn step_run<F>(
+	pub fn step_run(
 		&mut self,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
-	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	{
-		self.step_with(etable, |call_stack, etable| call_stack.step_run(etable))
+	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
+		self.step_with(|call_stack| call_stack.step_run())
 	}
 
-	pub fn step<F>(
+	pub fn step(
 		&mut self,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
-	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	{
-		self.step_with(etable, |call_stack, etable| call_stack.step(etable))
+	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
+		self.step_with(|call_stack| call_stack.step())
 	}
 
-	pub fn run<F>(
-		&mut self,
-		etable: &Etable<S, H, Tr, F>,
-	) -> Capture<Result<I::TransactValue, ExitError>, I::Interrupt>
-	where
-		F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	{
+	pub fn run(&mut self) -> Capture<Result<I::TransactValue, ExitError>, I::Interrupt> {
 		loop {
-			let step_ret = self.step_run(etable);
+			let step_ret = self.step_run();
 
 			if let Err(step_ret) = step_ret {
 				return step_ret;
@@ -371,7 +309,7 @@ where
 		}
 	}
 
-	pub fn last_machine(&self) -> Result<&GasedMachine<S, G>, ExitError> {
+	pub fn last_machine(&self) -> Result<&I::Machine, ExitError> {
 		match &self.call_stack.last {
 			Some(last) => Ok(&last.machine),
 			None => Err(ExitFatal::AlreadyExited.into()),
@@ -379,11 +317,9 @@ where
 	}
 }
 
-impl<'backend, 'invoker, S, G, H, Tr, I> Drop for HeapTransact<'backend, 'invoker, S, G, H, Tr, I>
+impl<'backend, 'invoker, H, Tr, I> Drop for HeapTransact<'backend, 'invoker, H, Tr, I>
 where
-	S: AsMut<RuntimeState>,
-	G: Gasometer<S, H>,
-	I: Invoker<S, G, H, Tr>,
+	I: Invoker<H, Tr>,
 {
 	fn drop(&mut self) {
 		if let Some(mut last) = self.call_stack.last.take() {
@@ -418,20 +354,16 @@ where
 	}
 }
 
-pub fn transact<S, G, H, Tr, I, F>(
+pub fn transact<H, Tr, I>(
 	args: I::TransactArgs,
 	heap_depth: Option<usize>,
 	backend: &mut H,
 	invoker: &I,
-	etable: &Etable<S, H, Tr, F>,
 ) -> Result<I::TransactValue, ExitError>
 where
-	S: AsMut<RuntimeState>,
-	G: Gasometer<S, H>,
-	I: Invoker<S, G, H, Tr, Interrupt = Infallible>,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	I: Invoker<H, Tr, Interrupt = Infallible>,
 {
 	let (transact_invoke, machine) = invoker.new_transact(args, backend)?;
-	let (ret, machine) = execute(machine, 0, heap_depth, backend, invoker, etable)?;
+	let (ret, machine) = execute(machine, 0, heap_depth, backend, invoker)?;
 	invoker.finalize_transact(&transact_invoke, ret, machine, backend)
 }

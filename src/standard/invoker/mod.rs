@@ -3,13 +3,15 @@ mod routines;
 use super::{Config, MergeableRuntimeState, TransactGasometer};
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
-	Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed, GasedMachine,
-	Gasometer as GasometerT, Invoker as InvokerT, MergeStrategy, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend, Transfer,
+	Capture, Context, Control, Etable, ExitError, ExitException, ExitResult, ExitSucceed,
+	GasedMachine, Gasometer as GasometerT, Invoker as InvokerT, Machine, MergeStrategy, Opcode,
+	RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend,
+	Transfer,
 };
 use alloc::rc::Rc;
 use core::cmp::min;
 use core::convert::Infallible;
+use core::marker::PhantomData;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -98,28 +100,52 @@ impl TransactArgs {
 	}
 }
 
-pub struct Invoker<'config> {
+pub struct Invoker<'config, 'etable, S, G, H, Tr, F> {
 	config: &'config Config,
+	etable: &'etable Etable<S, H, Tr, F>,
+	_marker: PhantomData<G>,
 }
 
-impl<'config> Invoker<'config> {
-	pub fn new(config: &'config Config) -> Self {
-		Self { config }
+impl<'config, 'etable, S, G, H, Tr, F> Invoker<'config, 'etable, S, G, H, Tr, F> {
+	pub fn new(config: &'config Config, etable: &'etable Etable<S, H, Tr, F>) -> Self {
+		Self {
+			config,
+			etable,
+			_marker: PhantomData,
+		}
 	}
 }
 
-impl<'config, S, G, H, Tr> InvokerT<S, G, H, Tr> for Invoker<'config>
+impl<'config, 'etable, S, G, H, Tr, F> InvokerT<H, Tr> for Invoker<'config, 'etable, S, G, H, Tr, F>
 where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	Tr: IntoCallCreateTrap,
+	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
+	type Machine = GasedMachine<S, G>;
 	type Interrupt = Tr::Interrupt;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
 	type TransactValue = (ExitSucceed, Option<H160>);
 	type SubstackInvoke = SubstackInvoke;
+
+	fn run_machine(
+		&self,
+		machine: &mut GasedMachine<S, G>,
+		handler: &mut H,
+	) -> Capture<ExitResult, Tr> {
+		machine.run(handler, self.etable)
+	}
+
+	fn step_machine(
+		&self,
+		machine: &mut GasedMachine<S, G>,
+		handler: &mut H,
+	) -> Result<(), Capture<ExitResult, Tr>> {
+		machine.step(handler, self.etable)
+	}
 
 	fn new_transact(
 		&self,
@@ -208,7 +234,7 @@ where
 						G::new_transact_call(gas_limit, &code, &data, &access_list, self.config)?;
 
 					let machine = routines::make_enter_call_machine(
-						self,
+						self.config,
 						code,
 						data,
 						false, // is_static
@@ -245,7 +271,7 @@ where
 						G::new_transact_create(gas_limit, &init_code, &access_list, self.config)?;
 
 					let machine = routines::make_enter_create_machine(
-						self,
+						self.config,
 						caller,
 						init_code,
 						false, // is_static
@@ -289,7 +315,7 @@ where
 					let retbuf = machine.machine.retval;
 
 					routines::deploy_create_code(
-						self,
+						self.config,
 						address,
 						&retbuf,
 						&mut machine.gasometer,
@@ -390,7 +416,7 @@ where
 				});
 
 				Capture::Exit(routines::enter_call_substack(
-					self,
+					self.config,
 					code,
 					call_trap_data,
 					is_static,
@@ -414,7 +440,7 @@ where
 				});
 
 				Capture::Exit(routines::enter_create_substack(
-					self,
+					self.config,
 					code,
 					create_trap_data,
 					is_static,
@@ -448,7 +474,7 @@ where
 				let mut child_gasometer = child.gasometer;
 				let result = result.and_then(|_| {
 					routines::deploy_create_code(
-						self,
+						self.config,
 						address,
 						&retbuf,
 						&mut child_gasometer,
