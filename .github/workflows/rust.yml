@@ -38,6 +38,7 @@ jobs:
         cargo run --release --verbose -p jsontests -- \
         jsontests/res/ethtests/GeneralStateTests/stCodeCopyTest/ \
         jsontests/res/ethtests/GeneralStateTests/stExample/ \
+        jsontests/res/ethtests/GeneralStateTests/stSelfBalance \
         jsontests/res/ethtests/GeneralStateTests/stSLoadTest/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmArithmeticTest/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmBitwiseLogicOperation/ \

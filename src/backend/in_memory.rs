@@ -240,6 +240,10 @@ impl RuntimeBackend for InMemoryBackend {
 	}
 
 	fn deposit(&mut self, target: H160, value: U256) {
+		if value == U256::zero() {
+			return;
+		}
+
 		self.current_layer_mut()
 			.state
 			.entry(target)
