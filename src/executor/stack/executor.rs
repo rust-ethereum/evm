@@ -985,7 +985,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		match reason {
 			ExitReason::Succeed(s) => {
-				let out = return_data;
+				let mut out = return_data;
 				let address = created_address;
 				// As of EIP-3541 code starting with 0xef cannot be deployed
 				if let Err(e) = check_first_byte(self.config, &out) {
@@ -1002,12 +1002,20 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					}
 				}
 
-				match self
-					.state
-					.metadata_mut()
-					.gasometer
-					.record_deposit(out.len())
-				{
+				// Before EIP-2 is possible to create empty contract
+				let result = if self.config.empty_considered_exists {
+					if self.state.metadata().gasometer.can_deposit(out.len()) {
+						out.clear();
+					}
+					Ok(())
+				} else {
+					self.state
+						.metadata_mut()
+						.gasometer
+						.record_deposit(out.len())
+				};
+
+				match result {
 					Ok(()) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 						if let Err(e) = self.record_external_operation(
