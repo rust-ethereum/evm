@@ -1,4 +1,4 @@
-use super::{CallTrapData, CreateTrapData, Invoker, SubstackInvoke};
+use super::{CallTrapData, CreateTrapData, SubstackInvoke};
 use crate::standard::{Config, MergeableRuntimeState};
 use crate::{
 	ExitError, ExitException, GasedMachine, Gasometer as GasometerT, Machine, MergeStrategy,
@@ -8,7 +8,7 @@ use alloc::rc::Rc;
 use primitive_types::{H160, U256};
 
 pub fn make_enter_call_machine<'config, S, G, H>(
-	invoker: &Invoker<'config>,
+	config: &'config Config,
 	code: Vec<u8>,
 	input: Vec<u8>,
 	is_static: bool,
@@ -33,8 +33,8 @@ where
 	let machine = Machine::<S>::new(
 		Rc::new(code),
 		Rc::new(input.clone()),
-		invoker.config.stack_limit,
-		invoker.config.memory_limit,
+		config.stack_limit,
+		config.memory_limit,
 		state,
 	);
 
@@ -46,7 +46,7 @@ where
 }
 
 pub fn make_enter_create_machine<'config, S, G, H>(
-	invoker: &Invoker<'config>,
+	config: &'config Config,
 	caller: H160,
 	init_code: Vec<u8>,
 	is_static: bool,
@@ -60,7 +60,7 @@ where
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	if let Some(limit) = invoker.config.max_initcode_size {
+	if let Some(limit) = config.max_initcode_size {
 		if init_code.len() > limit {
 			return Err(ExitException::CreateContractLimit.into());
 		}
@@ -77,7 +77,7 @@ where
 		return Err(ExitException::CreateCollision.into());
 	}
 	handler.inc_nonce(caller)?;
-	if invoker.config.create_increase_nonce {
+	if config.create_increase_nonce {
 		handler.inc_nonce(state.as_ref().context.address)?;
 	}
 
@@ -86,8 +86,8 @@ where
 	let machine = Machine::new(
 		Rc::new(init_code),
 		Rc::new(Vec::new()),
-		invoker.config.stack_limit,
-		invoker.config.memory_limit,
+		config.stack_limit,
+		config.memory_limit,
 		state,
 	);
 
@@ -99,7 +99,7 @@ where
 }
 
 pub fn enter_call_substack<'config, S, G, H>(
-	invoker: &Invoker<'config>,
+	config: &'config Config,
 	code: Vec<u8>,
 	trap_data: CallTrapData,
 	is_static: bool,
@@ -116,7 +116,7 @@ where
 
 	let work = || -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError> {
 		let machine = make_enter_call_machine(
-			invoker,
+			config,
 			code,
 			trap_data.input.clone(),
 			is_static,
@@ -139,7 +139,7 @@ where
 }
 
 pub fn enter_create_substack<'config, S, G, H>(
-	invoker: &Invoker<'config>,
+	config: &'config Config,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
 	is_static: bool,
@@ -171,7 +171,7 @@ where
 		};
 
 		let machine = make_enter_create_machine(
-			invoker, caller, code, is_static, transfer, state, gasometer, handler,
+			config, caller, code, is_static, transfer, state, gasometer, handler,
 		)?;
 
 		Ok((
@@ -200,7 +200,7 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 }
 
 pub fn deploy_create_code<'config, S, G, H>(
-	invoker: &Invoker<'config>,
+	config: &'config Config,
 	address: H160,
 	retbuf: &Vec<u8>,
 	gasometer: &mut G,
@@ -211,9 +211,9 @@ where
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	check_first_byte(invoker.config, &retbuf[..])?;
+	check_first_byte(config, &retbuf[..])?;
 
-	if let Some(limit) = invoker.config.create_contract_limit {
+	if let Some(limit) = config.create_contract_limit {
 		if retbuf.len() > limit {
 			return Err(ExitException::CreateContractLimit.into());
 		}
