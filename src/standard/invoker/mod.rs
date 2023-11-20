@@ -132,6 +132,8 @@ where
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
 		handler.withdrawal(caller, gas_fee)?;
 
+		handler.inc_nonce(caller)?;
+
 		let address = match &args {
 			TransactArgs::Call { address, .. } => *address,
 			TransactArgs::Create {
@@ -230,8 +232,6 @@ where
 						handler.mark_hot(address, None);
 					}
 
-					handler.inc_nonce(caller)?;
-
 					Ok((invoke, machine))
 				}
 				TransactArgs::Create {
@@ -310,19 +310,19 @@ where
 		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
 		let coinbase_reward = invoke.gas_fee.saturating_sub(refunded_fee);
 
+		match &result {
+			Ok(_) => {
+				handler.pop_substate(MergeStrategy::Commit);
+			}
+			Err(_) => {
+				handler.pop_substate(MergeStrategy::Discard);
+			}
+		}
+
 		handler.deposit(invoke.caller, refunded_fee);
 		handler.deposit(handler.block_coinbase(), coinbase_reward);
 
-		match result {
-			Ok(exit) => {
-				handler.pop_substate(MergeStrategy::Commit);
-				Ok(exit)
-			}
-			Err(err) => {
-				handler.pop_substate(MergeStrategy::Discard);
-				Err(err)
-			}
-		}
+		result
 	}
 
 	fn enter_substack(

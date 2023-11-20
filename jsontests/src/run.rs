@@ -81,7 +81,13 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 			state,
 			logs: Vec::new(),
 			suicides: Vec::new(),
-			hots: BTreeSet::new(),
+			hots: {
+				let mut hots = BTreeSet::new();
+				for i in 1..10 {
+					hots.insert((u256_to_h256(U256::from(i)).into(), None));
+				}
+				hots
+			},
 		}],
 	};
 	let mut step_backend = run_backend.clone();
