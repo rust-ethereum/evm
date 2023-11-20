@@ -1002,20 +1002,35 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					}
 				}
 
-				match self
-					.state
-					.metadata_mut()
-					.gasometer
-					.record_deposit(out.len())
+				// Before EIP-2 is possible to create empty contract
+				let bytecode = if self.config.empty_considered_exists
+					&& !self.state.metadata().gasometer.can_deposit(out.len())
 				{
-					Ok(()) => {
+					Ok(None)
+				} else {
+					self.state
+						.metadata_mut()
+						.gasometer
+						.record_deposit(out.len())
+						.map(|_| Some(out))
+				};
+
+				match bytecode {
+					Ok(Some(bytecode)) => {
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 						if let Err(e) = self.record_external_operation(
-							crate::ExternalOperation::Write(U256::from(out.len())),
+							crate::ExternalOperation::Write(U256::from(bytecode.len())),
 						) {
 							return (e.into(), None, Vec::new());
 						}
-						self.state.set_code(address, out);
+						self.state.set_code(address, bytecode);
+						if let Err(e) = exit_result {
+							return (e.into(), None, Vec::new());
+						}
+						(ExitReason::Succeed(s), Some(address), Vec::new())
+					}
+					Ok(None) => {
+						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
 						}

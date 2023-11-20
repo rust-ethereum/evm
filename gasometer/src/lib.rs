@@ -173,6 +173,14 @@ impl<'config> Gasometer<'config> {
 	}
 
 	#[inline]
+	/// Check gas limit before `CREATE` code deposit. (See EIP-2)
+	pub fn can_deposit(&self, len: usize) -> bool {
+		let cost = len as u64 * consts::G_CODEDEPOSIT;
+		let all_gas_cost = self.total_used_gas() + cost;
+		self.gas_limit >= all_gas_cost
+	}
+
+	#[inline]
 	/// Record `CREATE` code deposit.
 	pub fn record_deposit(&mut self, len: usize) -> Result<(), ExitError> {
 		let cost = len as u64 * consts::G_CODEDEPOSIT;
