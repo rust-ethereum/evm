@@ -1,7 +1,13 @@
 use crate::{Capture, ExitError, ExitResult};
 
+pub enum InvokerControl<VE, VD> {
+	Enter(VE),
+	DirectExit(VD),
+}
+
 pub trait Invoker<H, Tr> {
 	type Machine;
+	type MachineDeconstruct;
 	type Interrupt;
 
 	type TransactArgs;
@@ -15,29 +21,26 @@ pub trait Invoker<H, Tr> {
 		machine: &mut Self::Machine,
 		handler: &mut H,
 	) -> Result<(), Capture<ExitResult, Tr>>;
+	fn deconstruct_machine(&self, machine: Self::Machine) -> Self::MachineDeconstruct;
 
 	fn new_transact(
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<(Self::TransactInvoke, Self::Machine), ExitError>;
-
+	) -> Result<
+		(
+			Self::TransactInvoke,
+			InvokerControl<Self::Machine, (ExitResult, Self::MachineDeconstruct)>,
+		),
+		ExitError,
+	>;
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
 		exit: ExitResult,
-		machine: Self::Machine,
+		machine: Self::MachineDeconstruct,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
-
-	fn exit_substack(
-		&self,
-		result: ExitResult,
-		child: Self::Machine,
-		trap_data: Self::SubstackInvoke,
-		parent: &mut Self::Machine,
-		handler: &mut H,
-	) -> Result<(), ExitError>;
 
 	fn enter_substack(
 		&self,
@@ -45,5 +48,22 @@ pub trait Invoker<H, Tr> {
 		machine: &mut Self::Machine,
 		handler: &mut H,
 		depth: usize,
-	) -> Capture<Result<(Self::SubstackInvoke, Self::Machine), ExitError>, Self::Interrupt>;
+	) -> Capture<
+		Result<
+			(
+				Self::SubstackInvoke,
+				InvokerControl<Self::Machine, (ExitResult, Self::MachineDeconstruct)>,
+			),
+			ExitError,
+		>,
+		Self::Interrupt,
+	>;
+	fn exit_substack(
+		&self,
+		result: ExitResult,
+		child: Self::MachineDeconstruct,
+		trap_data: Self::SubstackInvoke,
+		parent: &mut Self::Machine,
+		handler: &mut H,
+	) -> Result<(), ExitError>;
 }
