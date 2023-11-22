@@ -5,7 +5,7 @@ use evm::backend::in_memory::{
 };
 use evm::standard::{Config, Etable, Gasometer, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
-use evm::{Capture, GasedMachine};
+use evm::Capture;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -59,7 +59,7 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		.collect::<BTreeMap<_, _>>();
 
 	let etable = Etable::runtime();
-	let invoker = Invoker::<_, Gasometer, _, _, _>::new(&config, &etable);
+	let invoker = Invoker::<_, Gasometer, _, (), _, _>::new(&config, &(), &etable);
 	let args = TransactArgs::Call {
 		caller: test.transaction.sender,
 		address: test.transaction.to,
@@ -101,13 +101,14 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		let _step_result = evm::HeapTransact::new(args, &invoker, &mut step_backend).and_then(
 			|mut stepper| loop {
 				{
-					let machine: &GasedMachine<_, Gasometer> = stepper.last_machine()?;
-					println!(
-						"pc: {}, opcode: {:?}, gas: 0x{:x}",
-						machine.machine.position(),
-						machine.machine.peek_opcode(),
-						machine.gasometer.gas(),
-					);
+					if let Some(machine) = stepper.last_machine() {
+						println!(
+							"pc: {}, opcode: {:?}, gas: 0x{:x}",
+							machine.machine.position(),
+							machine.machine.peek_opcode(),
+							machine.gasometer.gas(),
+						);
+					}
 				}
 				if let Err(Capture::Exit(result)) = stepper.step() {
 					break result;

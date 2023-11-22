@@ -1,4 +1,4 @@
-use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker};
+use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl};
 use core::convert::Infallible;
 
 struct Substack<M, TrD> {
@@ -123,6 +123,7 @@ where
 						.pop()
 						.expect("checked stack is not empty above; qed");
 
+					let machine = self.invoker.deconstruct_machine(machine);
 					let feedback_result = self.invoker.exit_substack(
 						exit,
 						machine,
@@ -153,7 +154,7 @@ where
 					self.backend,
 					self.initial_depth + self.stack.len() + 1,
 				) {
-					Capture::Exit(Ok((trap_data, sub_machine))) => {
+					Capture::Exit(Ok((trap_data, InvokerControl::Enter(sub_machine)))) => {
 						self.stack.push(Substack {
 							invoke: trap_data,
 							machine,
@@ -163,6 +164,29 @@ where
 							status: LastSubstackStatus::Running,
 							machine: sub_machine,
 						})
+					}
+					Capture::Exit(Ok((
+						trap_data,
+						InvokerControl::DirectExit((exit, sub_machine)),
+					))) => {
+						let feedback_result = self.invoker.exit_substack(
+							exit,
+							sub_machine,
+							trap_data,
+							&mut machine,
+							self.backend,
+						);
+
+						match feedback_result {
+							Ok(()) => Some(LastSubstack {
+								status: LastSubstackStatus::Running,
+								machine,
+							}),
+							Err(err) => Some(LastSubstack {
+								machine,
+								status: LastSubstackStatus::Exited(Capture::Exit(Err(err))),
+							}),
+						}
 					}
 					Capture::Exit(Err(err)) => Some(LastSubstack {
 						status: LastSubstackStatus::Exited(Capture::Exit(Err(err))),
@@ -204,7 +228,7 @@ where
 			Capture::Exit(exit) => return Ok((exit, machine)),
 			Capture::Trap(trap) => {
 				match invoker.enter_substack(trap, &mut machine, backend, initial_depth + 1) {
-					Capture::Exit(Ok((trap_data, sub_machine))) => {
+					Capture::Exit(Ok((trap_data, InvokerControl::Enter(sub_machine)))) => {
 						let (sub_result, sub_machine) = if heap_depth
 							.map(|hd| initial_depth + 1 >= hd)
 							.unwrap_or(false)
@@ -219,6 +243,23 @@ where
 							execute(sub_machine, initial_depth + 1, heap_depth, backend, invoker)?
 						};
 
+						match invoker.exit_substack(
+							sub_result,
+							invoker.deconstruct_machine(sub_machine),
+							trap_data,
+							&mut machine,
+							backend,
+						) {
+							Ok(()) => {
+								result = invoker.run_machine(&mut machine, backend);
+							}
+							Err(err) => return Ok((Err(err), machine)),
+						}
+					}
+					Capture::Exit(Ok((
+						trap_data,
+						InvokerControl::DirectExit((sub_result, sub_machine)),
+					))) => {
 						match invoker.exit_substack(
 							sub_result,
 							sub_machine,
@@ -240,10 +281,21 @@ where
 	}
 }
 
-pub struct HeapTransact<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
-	call_stack: CallStack<'backend, 'invoker, H, Tr, I>,
-	transact_invoke: I::TransactInvoke,
+enum HeapTransactState<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
+	Created {
+		args: I::TransactArgs,
+		invoker: &'invoker I,
+		backend: &'backend mut H,
+	},
+	Running {
+		call_stack: CallStack<'backend, 'invoker, H, Tr, I>,
+		transact_invoke: I::TransactInvoke,
+	},
 }
+
+pub struct HeapTransact<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>>(
+	Option<HeapTransactState<'backend, 'invoker, H, Tr, I>>,
+);
 
 impl<'backend, 'invoker, H, Tr, I> HeapTransact<'backend, 'invoker, H, Tr, I>
 where
@@ -254,13 +306,11 @@ where
 		invoker: &'invoker I,
 		backend: &'backend mut H,
 	) -> Result<Self, ExitError> {
-		let (transact_invoke, machine) = invoker.new_transact(args, backend)?;
-		let call_stack = CallStack::new(machine, 0, backend, invoker);
-
-		Ok(Self {
-			transact_invoke,
-			call_stack,
-		})
+		Ok(Self(Some(HeapTransactState::Created {
+			args,
+			invoker,
+			backend,
+		})))
 	}
 
 	fn step_with<FS>(
@@ -269,22 +319,70 @@ where
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
 	where
 		FS: Fn(
-			&mut CallStack<H, Tr, I>,
+			&mut CallStack<'backend, 'invoker, H, Tr, I>,
 		) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>>,
 	{
-		match fs(&mut self.call_stack) {
-			Ok(()) => Ok(()),
-			Err(Capture::Trap(interrupt)) => Err(Capture::Trap(interrupt)),
-			Err(Capture::Exit(Err(fatal))) => Err(Capture::Exit(Err(fatal.into()))),
-			Err(Capture::Exit(Ok((ret, machine)))) => {
-				Err(Capture::Exit(self.call_stack.invoker.finalize_transact(
-					&self.transact_invoke,
-					ret,
-					machine,
-					self.call_stack.backend,
-				)))
+		let ret;
+
+		self.0 = match self.0.take() {
+			Some(HeapTransactState::Running {
+				mut call_stack,
+				transact_invoke,
+			}) => {
+				ret = match fs(&mut call_stack) {
+					Ok(()) => Ok(()),
+					Err(Capture::Trap(interrupt)) => Err(Capture::Trap(interrupt)),
+					Err(Capture::Exit(Err(fatal))) => Err(Capture::Exit(Err(fatal.into()))),
+					Err(Capture::Exit(Ok((ret, machine)))) => {
+						let machine = call_stack.invoker.deconstruct_machine(machine);
+						Err(Capture::Exit(call_stack.invoker.finalize_transact(
+							&transact_invoke,
+							ret,
+							machine,
+							call_stack.backend,
+						)))
+					}
+				};
+
+				Some(HeapTransactState::Running {
+					call_stack,
+					transact_invoke,
+				})
 			}
-		}
+			Some(HeapTransactState::Created {
+				args,
+				invoker,
+				backend,
+			}) => {
+				let (transact_invoke, control) = match invoker.new_transact(args, backend) {
+					Ok((transact_invoke, control)) => (transact_invoke, control),
+					Err(err) => return Err(Capture::Exit(Err(err))),
+				};
+
+				match control {
+					InvokerControl::Enter(machine) => {
+						let call_stack = CallStack::new(machine, 0, backend, invoker);
+
+						ret = Ok(());
+						Some(HeapTransactState::Running {
+							call_stack,
+							transact_invoke,
+						})
+					}
+					InvokerControl::DirectExit((exit, machine)) => {
+						return Err(Capture::Exit(invoker.finalize_transact(
+							&transact_invoke,
+							exit,
+							machine,
+							backend,
+						)));
+					}
+				}
+			}
+			None => return Err(Capture::Exit(Err(ExitFatal::AlreadyExited.into()))),
+		};
+
+		ret
 	}
 
 	pub fn step_run(
@@ -309,10 +407,13 @@ where
 		}
 	}
 
-	pub fn last_machine(&self) -> Result<&I::Machine, ExitError> {
-		match &self.call_stack.last {
-			Some(last) => Ok(&last.machine),
-			None => Err(ExitFatal::AlreadyExited.into()),
+	pub fn last_machine(&self) -> Option<&I::Machine> {
+		match &self.0 {
+			Some(HeapTransactState::Running { call_stack, .. }) => match &call_stack.last {
+				Some(last) => Some(&last.machine),
+				None => None,
+			},
+			_ => None,
 		}
 	}
 }
@@ -322,34 +423,47 @@ where
 	I: Invoker<H, Tr>,
 {
 	fn drop(&mut self) {
-		if let Some(mut last) = self.call_stack.last.take() {
-			loop {
-				if let Some(mut parent) = self.call_stack.stack.pop() {
-					let _ = self.call_stack.invoker.exit_substack(
-						ExitFatal::Unfinished.into(),
-						last.machine,
-						parent.invoke,
-						&mut parent.machine,
-						self.call_stack.backend,
-					);
+		if let Some(state) = self.0.take() {
+			match state {
+				HeapTransactState::Running {
+					mut call_stack,
+					transact_invoke,
+				} => {
+					if let Some(mut last) = call_stack.last.take() {
+						loop {
+							if let Some(mut parent) = call_stack.stack.pop() {
+								let last_machine =
+									call_stack.invoker.deconstruct_machine(last.machine);
+								let _ = call_stack.invoker.exit_substack(
+									ExitFatal::Unfinished.into(),
+									last_machine,
+									parent.invoke,
+									&mut parent.machine,
+									call_stack.backend,
+								);
 
-					last = LastSubstack {
-						machine: parent.machine,
-						status: LastSubstackStatus::Exited(Capture::Exit(
+								last = LastSubstack {
+									machine: parent.machine,
+									status: LastSubstackStatus::Exited(Capture::Exit(
+										ExitFatal::Unfinished.into(),
+									)),
+								};
+							} else {
+								break;
+							}
+						}
+
+						let last_machine = call_stack.invoker.deconstruct_machine(last.machine);
+						let _ = call_stack.invoker.finalize_transact(
+							&transact_invoke,
 							ExitFatal::Unfinished.into(),
-						)),
-					};
-				} else {
-					break;
+							last_machine,
+							call_stack.backend,
+						);
+					}
 				}
+				_ => (),
 			}
-
-			let _ = self.call_stack.invoker.finalize_transact(
-				&self.transact_invoke,
-				ExitFatal::Unfinished.into(),
-				last.machine,
-				self.call_stack.backend,
-			);
 		}
 	}
 }
@@ -363,7 +477,16 @@ pub fn transact<H, Tr, I>(
 where
 	I: Invoker<H, Tr, Interrupt = Infallible>,
 {
-	let (transact_invoke, machine) = invoker.new_transact(args, backend)?;
-	let (ret, machine) = execute(machine, 0, heap_depth, backend, invoker)?;
-	invoker.finalize_transact(&transact_invoke, ret, machine, backend)
+	let (transact_invoke, control) = invoker.new_transact(args, backend)?;
+
+	match control {
+		InvokerControl::Enter(machine) => {
+			let (ret, machine) = execute(machine, 0, heap_depth, backend, invoker)?;
+			let machine = invoker.deconstruct_machine(machine);
+			invoker.finalize_transact(&transact_invoke, ret, machine, backend)
+		}
+		InvokerControl::DirectExit((exit, machine)) => {
+			invoker.finalize_transact(&transact_invoke, exit, machine, backend)
+		}
+	}
 }

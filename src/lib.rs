@@ -18,7 +18,7 @@ pub use evm_interpreter::*;
 pub use crate::backend::TransactionalBackend;
 pub use crate::call_stack::{transact, HeapTransact};
 pub use crate::gasometer::{Gas, GasedMachine, Gasometer};
-pub use crate::invoker::Invoker;
+pub use crate::invoker::{Invoker, InvokerControl};
 
 #[derive(Clone, Debug, Copy)]
 pub enum MergeStrategy {
