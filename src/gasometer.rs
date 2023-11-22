@@ -19,7 +19,13 @@ pub trait Gas:
 impl Gas for u64 {}
 impl Gas for U256 {}
 
-pub trait Gasometer<S, H>: Sized {
+pub trait StaticGasometer: Sized {
+	fn record_cost(&mut self, cost: U256) -> Result<(), ExitError>;
+	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
+	fn gas(&self) -> U256;
+}
+
+pub trait Gasometer<S, H>: StaticGasometer {
 	fn record_step(
 		&mut self,
 		machine: &Machine<S>,
@@ -35,8 +41,6 @@ pub trait Gasometer<S, H>: Sized {
 		self.record_step(machine, is_static, backend)?;
 		Ok(1)
 	}
-	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
-	fn gas(&self) -> U256;
 	fn submeter(
 		&mut self,
 		gas_limit: U256,

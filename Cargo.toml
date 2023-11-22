@@ -61,5 +61,6 @@ with-serde = [
 members = [
 	"interpreter",
 	"jsontests",
+	"precompiles",
 	"tracer",
 ]
