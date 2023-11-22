@@ -5,7 +5,7 @@ mod utils;
 use crate::standard::Config;
 use crate::{
 	ExitError, ExitException, ExitFatal, Gasometer as GasometerT, Machine, MergeStrategy, Opcode,
-	RuntimeBackend, RuntimeState, Stack,
+	RuntimeBackend, RuntimeState, Stack, StaticGasometer,
 };
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
@@ -141,6 +141,28 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 	}
 }
 
+impl<'config> StaticGasometer for Gasometer<'config> {
+	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
+		self.perform(|gasometer| {
+			let cost = len as u64 * consts::G_CODEDEPOSIT;
+			gasometer.record_cost(cost)?;
+			Ok(())
+		})
+	}
+
+	fn record_cost(&mut self, cost: U256) -> Result<(), ExitError> {
+		if cost > U256::from(u64::MAX) {
+			return Err(ExitException::OutOfGas.into());
+		}
+
+		self.record_cost(cost.as_u64())
+	}
+
+	fn gas(&self) -> U256 {
+		self.gas().into()
+	}
+}
+
 impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
 	fn record_step(
 		&mut self,
@@ -189,18 +211,6 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 
 			Ok(())
 		})
-	}
-
-	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
-		self.perform(|gasometer| {
-			let cost = len as u64 * consts::G_CODEDEPOSIT;
-			gasometer.record_cost(cost)?;
-			Ok(())
-		})
-	}
-
-	fn gas(&self) -> U256 {
-		self.gas().into()
 	}
 
 	fn submeter(

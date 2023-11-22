@@ -103,6 +103,7 @@ impl TransactArgs {
 pub trait PrecompileSet<S, G, H> {
 	fn execute(
 		&self,
+		input: &[u8],
 		state: &mut S,
 		gasometer: &mut G,
 		handler: &mut H,
@@ -112,6 +113,7 @@ pub trait PrecompileSet<S, G, H> {
 impl<S, G, H> PrecompileSet<S, G, H> for () {
 	fn execute(
 		&self,
+		_input: &[u8],
 		_state: &mut S,
 		_gasometer: &mut G,
 		_handler: &mut H,

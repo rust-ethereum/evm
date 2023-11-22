@@ -2,8 +2,8 @@ use super::{CallTrapData, CreateTrapData, PrecompileSet, SubstackInvoke};
 use crate::standard::{Config, MergeableRuntimeState};
 use crate::{
 	ExitError, ExitException, ExitResult, GasedMachine, Gasometer as GasometerT, InvokerControl,
-	Machine, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, TransactionalBackend,
-	Transfer,
+	Machine, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, StaticGasometer,
+	TransactionalBackend, Transfer,
 };
 use alloc::rc::Rc;
 use primitive_types::{H160, U256};
@@ -31,7 +31,7 @@ where
 		handler.transfer(transfer)?;
 	}
 
-	if let Some((exit, retval)) = precompile.execute(&mut state, &mut gasometer, handler) {
+	if let Some((exit, retval)) = precompile.execute(&input, &mut state, &mut gasometer, handler) {
 		Ok(InvokerControl::DirectExit((
 			exit,
 			(state, gasometer, retval),
@@ -39,7 +39,7 @@ where
 	} else {
 		let machine = Machine::<S>::new(
 			Rc::new(code),
-			Rc::new(input.clone()),
+			Rc::new(input),
 			config.stack_limit,
 			config.memory_limit,
 			state,
@@ -236,7 +236,7 @@ where
 		}
 	}
 
-	GasometerT::<S, H>::record_codedeposit(gasometer, retbuf.len())?;
+	StaticGasometer::record_codedeposit(gasometer, retbuf.len())?;
 
 	handler.set_code(address, retbuf.clone());
 
