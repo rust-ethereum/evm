@@ -56,9 +56,9 @@ where
 				is_static,
 			}))
 		}
-		ResolvedCode::Precompile(precompile) => {
-			Ok(precompile.execute(&input, state, gasometer, handler))
-		}
+		ResolvedCode::Precompile(precompile) => Ok(InvokerControl::DirectExit(
+			precompile.execute(&input, state, gasometer, handler),
+		)),
 	}
 }
 

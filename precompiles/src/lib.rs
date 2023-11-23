@@ -27,10 +27,7 @@ pub use crate::simple::{ECRecover, Identity, Ripemd160, Sha256};
 
 use alloc::vec::Vec;
 use evm::standard::{CodeResolver, Config, Precompile, ResolvedCode};
-use evm::{
-	ExitError, ExitException, ExitResult, GasedMachine, InvokerControl, RuntimeBackend,
-	RuntimeState, StaticGasometer,
-};
+use evm::{ExitError, ExitException, ExitResult, RuntimeBackend, RuntimeState, StaticGasometer};
 
 use primitive_types::H160;
 
@@ -62,7 +59,7 @@ impl<S: AsRef<RuntimeState>, G: StaticGasometer, H> Precompile<S, G, H> for Stan
 		state: S,
 		mut gasometer: G,
 		_handler: &mut H,
-	) -> InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))> {
+	) -> (ExitResult, (S, G, Vec<u8>)) {
 		let (exit, retval) = match self {
 			Self::ECRecover => ECRecover.execute(input, state.as_ref(), &mut gasometer),
 			Self::Sha256 => Sha256.execute(input, state.as_ref(), &mut gasometer),
@@ -75,7 +72,7 @@ impl<S: AsRef<RuntimeState>, G: StaticGasometer, H> Precompile<S, G, H> for Stan
 			Self::Blake2F => Blake2F.execute(input, state.as_ref(), &mut gasometer),
 		};
 
-		InvokerControl::DirectExit((exit, (state, gasometer, retval)))
+		(exit, (state, gasometer, retval))
 	}
 }
 
