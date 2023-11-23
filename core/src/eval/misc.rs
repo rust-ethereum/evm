@@ -87,7 +87,7 @@ pub fn mload(state: &mut Machine) -> Control {
 	trace_op!("MLoad: {}", index);
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
-	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
+	let value = state.memory.get_h256(index);
 	push!(state, value);
 	Control::Continue(1)
 }
