@@ -58,6 +58,10 @@ impl<S> Machine<S> {
 		self.position
 	}
 
+	pub fn code(&self) -> &[u8] {
+		&self.code
+	}
+
 	/// Create a new machine with given code and data.
 	pub fn new(
 		code: Rc<Vec<u8>>,

@@ -307,11 +307,8 @@ where
 					let mut gasometer =
 						G::new_transact_call(gas_limit, &data, &access_list, self.config)?;
 					let code = self.resolver.resolve(address, &mut gasometer, handler)?;
-					if let ResolvedCode::Normal(code) = &code {
-						gasometer.analyse_code(&code);
-					}
 
-					let machine = routines::make_enter_call_machine(
+					let mut machine = routines::make_enter_call_machine(
 						self.config,
 						code,
 						data,
@@ -326,6 +323,7 @@ where
 						gasometer,
 						handler,
 					)?;
+					routines::maybe_analyse_code(&mut machine);
 
 					if self.config.increase_state_access_gas {
 						if self.config.warm_coinbase_address {
@@ -345,11 +343,10 @@ where
 					access_list,
 					..
 				} => {
-					let mut gasometer =
+					let gasometer =
 						G::new_transact_create(gas_limit, &init_code, &access_list, self.config)?;
-					gasometer.analyse_code(&init_code);
 
-					let machine = InvokerControl::Enter(routines::make_enter_create_machine(
+					let mut machine = routines::make_enter_create_machine(
 						self.config,
 						caller,
 						init_code,
@@ -363,7 +360,8 @@ where
 						}),
 						gasometer,
 						handler,
-					)?);
+					)?;
+					routines::maybe_analyse_code(&mut machine);
 
 					Ok((invoke, machine))
 				}
@@ -502,9 +500,6 @@ where
 						Ok(code) => code,
 						Err(err) => return Capture::Exit(Err(err)),
 					};
-				if let ResolvedCode::Normal(code) = &code {
-					submeter.analyse_code(&code);
-				}
 
 				let substate = machine.machine.state.substate(
 					RuntimeState {
@@ -528,11 +523,10 @@ where
 			}
 			CallCreateTrapData::Create(create_trap_data) => {
 				let code = create_trap_data.code.clone();
-				let mut submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
+				let submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
 					Ok(submeter) => submeter,
 					Err(err) => return Capture::Exit(Err(err)),
 				};
-				submeter.analyse_code(&code);
 
 				let caller = create_trap_data.scheme.caller();
 				let address = create_trap_data.scheme.address(handler);
@@ -550,18 +544,15 @@ where
 					&machine,
 				);
 
-				Capture::Exit(
-					routines::enter_create_substack(
-						self.config,
-						code,
-						create_trap_data,
-						is_static,
-						substate,
-						submeter,
-						handler,
-					)
-					.map(|(invoke, machine)| (invoke, InvokerControl::Enter(machine))),
-				)
+				Capture::Exit(routines::enter_create_substack(
+					self.config,
+					code,
+					create_trap_data,
+					is_static,
+					substate,
+					submeter,
+					handler,
+				))
 			}
 		}
 	}
