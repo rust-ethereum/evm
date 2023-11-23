@@ -1,9 +1,9 @@
 use super::{CallTrapData, CreateTrapData, Precompile, ResolvedCode, SubstackInvoke};
-use crate::standard::{Config, MergeableRuntimeState};
+use crate::standard::Config;
 use crate::{
 	ExitError, ExitException, ExitResult, GasedMachine, Gasometer as GasometerT, InvokerControl,
-	Machine, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, StaticGasometer,
-	TransactionalBackend, Transfer,
+	Machine, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState,
+	StaticGasometer, TransactionalBackend, Transfer,
 };
 use alloc::rc::Rc;
 use primitive_types::{H160, U256};
@@ -19,7 +19,7 @@ pub fn make_enter_call_machine<'config, 'precompile, S, G, H, P>(
 	handler: &mut H,
 ) -> Result<InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>, ExitError>
 where
-	S: MergeableRuntimeState,
+	S: AsRef<RuntimeState>,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	P: Precompile<S, G, H>,
@@ -67,7 +67,7 @@ pub fn make_enter_create_machine<'config, S, G, H>(
 	handler: &mut H,
 ) -> Result<GasedMachine<S, G>, ExitError>
 where
-	S: MergeableRuntimeState,
+	S: AsRef<RuntimeState>,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
@@ -125,7 +125,7 @@ pub fn enter_call_substack<'config, 'precompile, S, G, H, P>(
 	ExitError,
 >
 where
-	S: MergeableRuntimeState,
+	S: AsRef<RuntimeState>,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	P: Precompile<S, G, H>,
@@ -166,7 +166,7 @@ pub fn enter_create_substack<'config, S, G, H>(
 	handler: &mut H,
 ) -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError>
 where
-	S: MergeableRuntimeState,
+	S: AsRef<RuntimeState>,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
@@ -225,7 +225,6 @@ pub fn deploy_create_code<'config, S, G, H>(
 	handler: &mut H,
 ) -> Result<(), ExitError>
 where
-	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
