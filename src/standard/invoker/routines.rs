@@ -14,8 +14,8 @@ pub fn make_enter_call_machine<'config, 'precompile, S, G, H, P>(
 	input: Vec<u8>,
 	is_static: bool,
 	transfer: Option<Transfer>,
-	mut state: S,
-	mut gasometer: G,
+	state: S,
+	gasometer: G,
 	handler: &mut H,
 ) -> Result<InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>, ExitError>
 where
@@ -47,11 +47,7 @@ where
 			}))
 		}
 		ResolvedCode::Precompile(precompile) => {
-			let (exit, retval) = precompile.execute(&input, &mut state, &mut gasometer, handler);
-			Ok(InvokerControl::DirectExit((
-				exit,
-				(state, gasometer, retval),
-			)))
+			Ok(precompile.execute(&input, state, gasometer, handler))
 		}
 	}
 }

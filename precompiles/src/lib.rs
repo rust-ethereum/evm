@@ -27,7 +27,10 @@ pub use crate::simple::{ECRecover, Identity, Ripemd160, Sha256};
 
 use alloc::vec::Vec;
 use evm::standard::{CodeResolver, Config, Precompile, ResolvedCode};
-use evm::{ExitError, ExitException, ExitResult, RuntimeBackend, RuntimeState, StaticGasometer};
+use evm::{
+	ExitError, ExitException, ExitResult, GasedMachine, InvokerControl, RuntimeBackend,
+	RuntimeState, StaticGasometer,
+};
 
 use primitive_types::H160;
 
@@ -56,21 +59,23 @@ impl<S: AsRef<RuntimeState>, G: StaticGasometer, H> Precompile<S, G, H> for Stan
 	fn execute(
 		&self,
 		input: &[u8],
-		state: &mut S,
-		gasometer: &mut G,
+		state: S,
+		mut gasometer: G,
 		_handler: &mut H,
-	) -> (ExitResult, Vec<u8>) {
-		match self {
-			Self::ECRecover => ECRecover.execute(input, state.as_ref(), gasometer),
-			Self::Sha256 => Sha256.execute(input, state.as_ref(), gasometer),
-			Self::Ripemd160 => Ripemd160.execute(input, state.as_ref(), gasometer),
-			Self::Identity => Identity.execute(input, state.as_ref(), gasometer),
-			Self::Modexp => Modexp.execute(input, state.as_ref(), gasometer),
-			Self::Bn128Add => Bn128Add.execute(input, state.as_ref(), gasometer),
-			Self::Bn128Mul => Bn128Mul.execute(input, state.as_ref(), gasometer),
-			Self::Bn128Pairing => Bn128Pairing.execute(input, state.as_ref(), gasometer),
-			Self::Blake2F => Blake2F.execute(input, state.as_ref(), gasometer),
-		}
+	) -> InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))> {
+		let (exit, retval) = match self {
+			Self::ECRecover => ECRecover.execute(input, state.as_ref(), &mut gasometer),
+			Self::Sha256 => Sha256.execute(input, state.as_ref(), &mut gasometer),
+			Self::Ripemd160 => Ripemd160.execute(input, state.as_ref(), &mut gasometer),
+			Self::Identity => Identity.execute(input, state.as_ref(), &mut gasometer),
+			Self::Modexp => Modexp.execute(input, state.as_ref(), &mut gasometer),
+			Self::Bn128Add => Bn128Add.execute(input, state.as_ref(), &mut gasometer),
+			Self::Bn128Mul => Bn128Mul.execute(input, state.as_ref(), &mut gasometer),
+			Self::Bn128Pairing => Bn128Pairing.execute(input, state.as_ref(), &mut gasometer),
+			Self::Blake2F => Blake2F.execute(input, state.as_ref(), &mut gasometer),
+		};
+
+		InvokerControl::DirectExit((exit, (state, gasometer, retval)))
 	}
 }
 
