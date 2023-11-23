@@ -238,7 +238,7 @@ where
 
 	StaticGasometer::record_codedeposit(gasometer, retbuf.len())?;
 
-	handler.set_code(address, retbuf.clone());
+	handler.set_code(address, retbuf.clone())?;
 
 	Ok(())
 }

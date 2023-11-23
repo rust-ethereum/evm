@@ -143,7 +143,7 @@ impl<'a> RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 
-	fn set_code(&mut self, _address: H160, _code: Vec<u8>) {
+	fn set_code(&mut self, _address: H160, _code: Vec<u8>) -> Result<(), ExitError> {
 		unimplemented!()
 	}
 
