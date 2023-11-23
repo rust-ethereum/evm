@@ -100,32 +100,61 @@ impl TransactArgs {
 	}
 }
 
-pub trait PrecompileSet<S, G, H> {
+pub enum ResolvedCode<Pre> {
+	Normal(Vec<u8>),
+	Precompile(Pre),
+}
+
+pub trait Precompile<S, G, H> {
 	fn execute(
 		&self,
 		input: &[u8],
 		state: &mut S,
 		gasometer: &mut G,
 		handler: &mut H,
-	) -> Option<(ExitResult, Vec<u8>)>;
+	) -> (ExitResult, Vec<u8>);
 }
 
-impl<S, G, H> PrecompileSet<S, G, H> for () {
+impl<S, G, H> Precompile<S, G, H> for Infallible {
 	fn execute(
 		&self,
 		_input: &[u8],
 		_state: &mut S,
 		_gasometer: &mut G,
 		_handler: &mut H,
-	) -> Option<(ExitResult, Vec<u8>)> {
-		None
+	) -> (ExitResult, Vec<u8>) {
+		match *self {}
+	}
+}
+
+pub trait CodeResolver<S, G, H> {
+	type Precompile: Precompile<S, G, H>;
+
+	fn resolve(
+		&self,
+		address: H160,
+		gasometer: &mut G,
+		handler: &mut H,
+	) -> Result<ResolvedCode<Self::Precompile>, ExitError>;
+}
+
+impl<S, G, H: RuntimeBackend> CodeResolver<S, G, H> for () {
+	type Precompile = Infallible;
+
+	fn resolve(
+		&self,
+		address: H160,
+		_gasometer: &mut G,
+		handler: &mut H,
+	) -> Result<ResolvedCode<Infallible>, ExitError> {
+		Ok(ResolvedCode::Normal(handler.code(address)))
 	}
 }
 
 pub struct Invoker<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F> {
 	config: &'config Config,
 	etable: &'etable Etable<S, H, Tr, F>,
-	precompile: &'precompile Pre,
+	resolver: &'precompile Pre,
 	_marker: PhantomData<G>,
 }
 
@@ -134,13 +163,13 @@ impl<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F>
 {
 	pub fn new(
 		config: &'config Config,
-		precompile: &'precompile Pre,
+		resolver: &'precompile Pre,
 		etable: &'etable Etable<S, H, Tr, F>,
 	) -> Self {
 		Self {
 			config,
 			etable,
-			precompile,
+			resolver,
 			_marker: PhantomData,
 		}
 	}
@@ -152,7 +181,7 @@ where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	Pre: PrecompileSet<S, G, H>,
+	Pre: CodeResolver<S, G, H>,
 	Tr: IntoCallCreateTrap,
 	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
@@ -275,14 +304,15 @@ where
 						}
 					}
 
-					let code = handler.code(address);
-
-					let gasometer =
-						G::new_transact_call(gas_limit, &code, &data, &access_list, self.config)?;
+					let mut gasometer =
+						G::new_transact_call(gas_limit, &data, &access_list, self.config)?;
+					let code = self.resolver.resolve(address, &mut gasometer, handler)?;
+					if let ResolvedCode::Normal(code) = &code {
+						gasometer.analyse_code(&code);
+					}
 
 					let machine = routines::make_enter_call_machine(
 						self.config,
-						self.precompile,
 						code,
 						data,
 						false, // is_static
@@ -315,8 +345,9 @@ where
 					access_list,
 					..
 				} => {
-					let gasometer =
+					let mut gasometer =
 						G::new_transact_create(gas_limit, &init_code, &access_list, self.config)?;
+					gasometer.analyse_code(&init_code);
 
 					let machine = InvokerControl::Enter(routines::make_enter_create_machine(
 						self.config,
@@ -457,14 +488,24 @@ where
 
 		let transaction_context = machine.machine.state.as_ref().transaction_context.clone();
 
-		let code = trap_data.code(handler);
-		let submeter = match machine.gasometer.submeter(gas_limit, call_has_value, &code) {
-			Ok(submeter) => submeter,
-			Err(err) => return Capture::Exit(Err(err)),
-		};
-
 		match trap_data {
 			CallCreateTrapData::Call(call_trap_data) => {
+				let mut submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
+					Ok(submeter) => submeter,
+					Err(err) => return Capture::Exit(Err(err)),
+				};
+				let code =
+					match self
+						.resolver
+						.resolve(call_trap_data.target, &mut submeter, handler)
+					{
+						Ok(code) => code,
+						Err(err) => return Capture::Exit(Err(err)),
+					};
+				if let ResolvedCode::Normal(code) = &code {
+					submeter.analyse_code(&code);
+				}
+
 				let substate = machine.machine.state.substate(RuntimeState {
 					context: call_trap_data.context.clone(),
 					transaction_context,
@@ -474,7 +515,6 @@ where
 
 				Capture::Exit(routines::enter_call_substack(
 					self.config,
-					self.precompile,
 					code,
 					call_trap_data,
 					is_static,
@@ -484,6 +524,13 @@ where
 				))
 			}
 			CallCreateTrapData::Create(create_trap_data) => {
+				let code = create_trap_data.code.clone();
+				let mut submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
+					Ok(submeter) => submeter,
+					Err(err) => return Capture::Exit(Err(err)),
+				};
+				submeter.analyse_code(&code);
+
 				let caller = create_trap_data.scheme.caller();
 				let address = create_trap_data.scheme.address(handler);
 				let substate = machine.machine.state.substate(RuntimeState {
@@ -546,7 +593,7 @@ where
 				});
 
 				handler.pop_substate(strategy);
-				GasometerT::<S, H>::merge(&mut parent.gasometer, child_gasometer, strategy);
+				TransactGasometer::<S>::merge(&mut parent.gasometer, child_gasometer, strategy);
 
 				trap.feedback(result, retbuf, &mut parent.machine)?;
 
@@ -558,7 +605,7 @@ where
 				let retbuf = retval;
 
 				handler.pop_substate(strategy);
-				GasometerT::<S, H>::merge(&mut parent.gasometer, submeter, strategy);
+				TransactGasometer::<S>::merge(&mut parent.gasometer, submeter, strategy);
 
 				trap.feedback(result, retbuf, &mut parent.machine)?;
 

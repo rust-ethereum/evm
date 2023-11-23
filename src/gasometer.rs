@@ -1,8 +1,6 @@
 //! EVM gasometer.
 
-use crate::{
-	Capture, Control, Etable, ExitError, ExitResult, Machine, MergeStrategy, Opcode, RuntimeState,
-};
+use crate::{Capture, Control, Etable, ExitError, ExitResult, Machine, Opcode, RuntimeState};
 use core::ops::{Add, AddAssign, Sub, SubAssign};
 use primitive_types::U256;
 
@@ -41,13 +39,6 @@ pub trait Gasometer<S, H>: StaticGasometer {
 		self.record_step(machine, is_static, backend)?;
 		Ok(1)
 	}
-	fn submeter(
-		&mut self,
-		gas_limit: U256,
-		call_has_value: bool,
-		code: &[u8],
-	) -> Result<Self, ExitError>;
-	fn merge(&mut self, other: Self, strategy: MergeStrategy);
 }
 
 pub struct GasedMachine<S, G> {

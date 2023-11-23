@@ -1,4 +1,4 @@
-use super::{CallTrapData, CreateTrapData, PrecompileSet, SubstackInvoke};
+use super::{CallTrapData, CreateTrapData, Precompile, ResolvedCode, SubstackInvoke};
 use crate::standard::{Config, MergeableRuntimeState};
 use crate::{
 	ExitError, ExitException, ExitResult, GasedMachine, Gasometer as GasometerT, InvokerControl,
@@ -8,10 +8,9 @@ use crate::{
 use alloc::rc::Rc;
 use primitive_types::{H160, U256};
 
-pub fn make_enter_call_machine<'config, 'precompile, S, G, H, Pre>(
+pub fn make_enter_call_machine<'config, 'precompile, S, G, H, P>(
 	config: &'config Config,
-	precompile: &'precompile Pre,
-	code: Vec<u8>,
+	code: ResolvedCode<P>,
 	input: Vec<u8>,
 	is_static: bool,
 	transfer: Option<Transfer>,
@@ -23,7 +22,7 @@ where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	Pre: PrecompileSet<S, G, H>,
+	P: Precompile<S, G, H>,
 {
 	handler.mark_hot(state.as_ref().context.address, None);
 
@@ -31,25 +30,29 @@ where
 		handler.transfer(transfer)?;
 	}
 
-	if let Some((exit, retval)) = precompile.execute(&input, &mut state, &mut gasometer, handler) {
-		Ok(InvokerControl::DirectExit((
-			exit,
-			(state, gasometer, retval),
-		)))
-	} else {
-		let machine = Machine::<S>::new(
-			Rc::new(code),
-			Rc::new(input),
-			config.stack_limit,
-			config.memory_limit,
-			state,
-		);
+	match code {
+		ResolvedCode::Normal(code) => {
+			let machine = Machine::<S>::new(
+				Rc::new(code),
+				Rc::new(input),
+				config.stack_limit,
+				config.memory_limit,
+				state,
+			);
 
-		Ok(InvokerControl::Enter(GasedMachine {
-			machine,
-			gasometer,
-			is_static,
-		}))
+			Ok(InvokerControl::Enter(GasedMachine {
+				machine,
+				gasometer,
+				is_static,
+			}))
+		}
+		ResolvedCode::Precompile(precompile) => {
+			let (exit, retval) = precompile.execute(&input, &mut state, &mut gasometer, handler);
+			Ok(InvokerControl::DirectExit((
+				exit,
+				(state, gasometer, retval),
+			)))
+		}
 	}
 }
 
@@ -106,10 +109,9 @@ where
 	})
 }
 
-pub fn enter_call_substack<'config, 'precompile, S, G, H, Pre>(
+pub fn enter_call_substack<'config, 'precompile, S, G, H, P>(
 	config: &'config Config,
-	precompile: &'precompile Pre,
-	code: Vec<u8>,
+	code: ResolvedCode<P>,
 	trap_data: CallTrapData,
 	is_static: bool,
 	state: S,
@@ -126,14 +128,13 @@ where
 	S: MergeableRuntimeState,
 	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	Pre: PrecompileSet<S, G, H>,
+	P: Precompile<S, G, H>,
 {
 	handler.push_substate();
 
 	let work = || -> Result<(SubstackInvoke, _), ExitError> {
 		let machine = make_enter_call_machine(
 			config,
-			precompile,
 			code,
 			trap_data.input.clone(),
 			is_static,
