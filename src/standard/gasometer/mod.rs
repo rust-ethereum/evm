@@ -75,12 +75,30 @@ impl<'config> Gasometer<'config> {
 
 	/// Record an explicit cost.
 	pub fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
-		let all_gas_cost = self.total_used_gas() + cost;
-		if self.gas_limit < all_gas_cost {
-			Err(ExitException::OutOfGas.into())
+		let all_gas_cost = self.total_used_gas().checked_add(cost);
+		if let Some(all_gas_cost) = all_gas_cost {
+			if self.gas_limit < all_gas_cost {
+				Err(ExitException::OutOfGas.into())
+			} else {
+				self.used_gas += cost;
+				Ok(())
+			}
 		} else {
-			self.used_gas += cost;
-			Ok(())
+			Err(ExitException::OutOfGas.into())
+		}
+	}
+
+	pub fn set_memory_gas(&mut self, memory_cost: u64) -> Result<(), ExitError> {
+		let all_gas_cost = self.used_gas.checked_add(memory_cost);
+		if let Some(all_gas_cost) = all_gas_cost {
+			if self.gas_limit < all_gas_cost {
+				Err(ExitException::OutOfGas.into())
+			} else {
+				self.memory_gas = memory_cost;
+				Ok(())
+			}
+		} else {
+			Err(ExitException::OutOfGas.into())
 		}
 	}
 
@@ -235,7 +253,7 @@ impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Ga
 				if let Some(memory_gas) = memory_gas {
 					let memory_cost = memory_gas.cost()?;
 					if let Some(memory_cost) = memory_cost {
-						gasometer.memory_gas = max(gasometer.memory_gas, memory_cost);
+						gasometer.set_memory_gas(max(gasometer.memory_gas, memory_cost))?;
 					}
 				}
 
