@@ -26,8 +26,8 @@ pub use crate::modexp::Modexp;
 pub use crate::simple::{ECRecover, Identity, Ripemd160, Sha256};
 
 use alloc::vec::Vec;
-use evm::standard::{CodeResolver, Config, Precompile, ResolvedCode};
-use evm::{ExitError, ExitException, ExitResult, RuntimeBackend, RuntimeState, StaticGasometer};
+use evm::standard::{Config, PrecompileSet};
+use evm::{ExitError, ExitException, ExitResult, RuntimeState, StaticGasometer};
 
 use primitive_types::H160;
 
@@ -40,86 +40,51 @@ pub trait PurePrecompile<G> {
 	) -> (ExitResult, Vec<u8>);
 }
 
-pub enum StandardPrecompile {
-	ECRecover,
-	Sha256,
-	Ripemd160,
-	Identity,
-	Modexp,
-	Bn128Add,
-	Bn128Mul,
-	Bn128Pairing,
-	Blake2F,
-}
-
-impl<S: AsRef<RuntimeState>, G: StaticGasometer, H> Precompile<S, G, H> for StandardPrecompile {
-	fn execute(
-		&self,
-		input: &[u8],
-		state: S,
-		mut gasometer: G,
-		_handler: &mut H,
-	) -> (ExitResult, (S, G, Vec<u8>)) {
-		let (exit, retval) = match self {
-			Self::ECRecover => ECRecover.execute(input, state.as_ref(), &mut gasometer),
-			Self::Sha256 => Sha256.execute(input, state.as_ref(), &mut gasometer),
-			Self::Ripemd160 => Ripemd160.execute(input, state.as_ref(), &mut gasometer),
-			Self::Identity => Identity.execute(input, state.as_ref(), &mut gasometer),
-			Self::Modexp => Modexp.execute(input, state.as_ref(), &mut gasometer),
-			Self::Bn128Add => Bn128Add.execute(input, state.as_ref(), &mut gasometer),
-			Self::Bn128Mul => Bn128Mul.execute(input, state.as_ref(), &mut gasometer),
-			Self::Bn128Pairing => Bn128Pairing.execute(input, state.as_ref(), &mut gasometer),
-			Self::Blake2F => Blake2F.execute(input, state.as_ref(), &mut gasometer),
-		};
-
-		(exit, (state, gasometer, retval))
-	}
-}
-
-pub struct StandardResolver<'config> {
+pub struct StandardPrecompileSet<'config> {
 	_config: &'config Config,
 }
 
-impl<'config> StandardResolver<'config> {
+impl<'config> StandardPrecompileSet<'config> {
 	pub fn new(config: &'config Config) -> Self {
 		Self { _config: config }
 	}
 }
 
-impl<'config, S: AsRef<RuntimeState>, G: StaticGasometer, H: RuntimeBackend> CodeResolver<S, G, H>
-	for StandardResolver<'config>
+impl<'config, S: AsRef<RuntimeState>, G: StaticGasometer, H> PrecompileSet<S, G, H>
+	for StandardPrecompileSet<'config>
 {
-	type Precompile = StandardPrecompile;
-
-	fn resolve(
+	fn execute(
 		&self,
-		addr: H160,
-		_gasometer: &mut G,
-		handler: &mut H,
-	) -> Result<ResolvedCode<Self::Precompile>, ExitError> {
+		code_address: H160,
+		input: &[u8],
+		_is_static: bool,
+		state: &mut S,
+		gasometer: &mut G,
+		_handler: &mut H,
+	) -> Option<(ExitResult, Vec<u8>)> {
 		// TODO: selectively disable precompiles based on config.
 
-		Ok(if addr == address(1) {
-			ResolvedCode::Precompile(StandardPrecompile::ECRecover)
-		} else if addr == address(2) {
-			ResolvedCode::Precompile(StandardPrecompile::Sha256)
-		} else if addr == address(3) {
-			ResolvedCode::Precompile(StandardPrecompile::Ripemd160)
-		} else if addr == address(4) {
-			ResolvedCode::Precompile(StandardPrecompile::Identity)
-		} else if addr == address(5) {
-			ResolvedCode::Precompile(StandardPrecompile::Modexp)
-		} else if addr == address(6) {
-			ResolvedCode::Precompile(StandardPrecompile::Bn128Add)
-		} else if addr == address(7) {
-			ResolvedCode::Precompile(StandardPrecompile::Bn128Mul)
-		} else if addr == address(8) {
-			ResolvedCode::Precompile(StandardPrecompile::Bn128Pairing)
-		} else if addr == address(9) {
-			ResolvedCode::Precompile(StandardPrecompile::Blake2F)
+		if code_address == address(1) {
+			Some(ECRecover.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(2) {
+			Some(Sha256.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(3) {
+			Some(Ripemd160.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(4) {
+			Some(Identity.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(5) {
+			Some(Modexp.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(6) {
+			Some(Bn128Add.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(7) {
+			Some(Bn128Mul.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(8) {
+			Some(Bn128Pairing.execute(input, state.as_ref(), gasometer))
+		} else if code_address == address(9) {
+			Some(Blake2F.execute(input, state.as_ref(), gasometer))
 		} else {
-			ResolvedCode::Normal(handler.code(addr))
-		})
+			None
+		}
 	}
 }
 

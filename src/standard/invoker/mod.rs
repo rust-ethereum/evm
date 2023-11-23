@@ -1,12 +1,15 @@
+mod resolver;
 mod routines;
+
+pub use resolver::{EtableResolver, PrecompileSet, Resolver};
 
 use super::{Config, MergeableRuntimeState, TransactGasometer};
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
-	Capture, Context, Control, Etable, ExitError, ExitException, ExitResult, ExitSucceed,
-	GasedMachine, Gasometer as GasometerT, Invoker as InvokerT, InvokerControl, Machine,
-	MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
-	TransactionalBackend, Transfer,
+	Capture, ColoredMachine, Context, ExitError, ExitException, ExitResult, ExitSucceed,
+	Gasometer as GasometerT, Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode,
+	RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend,
+	Transfer,
 };
 use alloc::rc::Rc;
 use core::cmp::min;
@@ -100,122 +103,37 @@ impl TransactArgs {
 	}
 }
 
-pub enum ResolvedCode<Pre> {
-	Normal(Vec<u8>),
-	Precompile(Pre),
-}
-
-pub trait Precompile<S, G, H> {
-	fn execute(
-		&self,
-		input: &[u8],
-		state: S,
-		gasometer: G,
-		handler: &mut H,
-	) -> (ExitResult, (S, G, Vec<u8>));
-}
-
-impl<S, G, H> Precompile<S, G, H> for Infallible {
-	fn execute(
-		&self,
-		_input: &[u8],
-		_state: S,
-		_gasometer: G,
-		_handler: &mut H,
-	) -> (ExitResult, (S, G, Vec<u8>)) {
-		match *self {}
-	}
-}
-
-pub trait CodeResolver<S, G, H> {
-	type Precompile: Precompile<S, G, H>;
-
-	fn resolve(
-		&self,
-		address: H160,
-		gasometer: &mut G,
-		handler: &mut H,
-	) -> Result<ResolvedCode<Self::Precompile>, ExitError>;
-}
-
-impl<S, G, H: RuntimeBackend> CodeResolver<S, G, H> for () {
-	type Precompile = Infallible;
-
-	fn resolve(
-		&self,
-		address: H160,
-		_gasometer: &mut G,
-		handler: &mut H,
-	) -> Result<ResolvedCode<Infallible>, ExitError> {
-		Ok(ResolvedCode::Normal(handler.code(address)))
-	}
-}
-
-pub struct Invoker<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F> {
+pub struct Invoker<'config, 'resolver, S, G, H, R, Tr> {
 	config: &'config Config,
-	etable: &'etable Etable<S, H, Tr, F>,
-	resolver: &'precompile Pre,
-	_marker: PhantomData<G>,
+	resolver: &'resolver R,
+	_marker: PhantomData<(S, G, H, Tr)>,
 }
 
-impl<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F>
-	Invoker<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F>
-{
-	pub fn new(
-		config: &'config Config,
-		resolver: &'precompile Pre,
-		etable: &'etable Etable<S, H, Tr, F>,
-	) -> Self {
+impl<'config, 'resolver, S, G, H, R, Tr> Invoker<'config, 'resolver, S, G, H, R, Tr> {
+	pub fn new(config: &'config Config, resolver: &'resolver R) -> Self {
 		Self {
 			config,
-			etable,
 			resolver,
 			_marker: PhantomData,
 		}
 	}
 }
 
-impl<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F> InvokerT<H, Tr>
-	for Invoker<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F>
+impl<'config, 'resolver, S, G, H, R, Tr> InvokerT<H, Tr>
+	for Invoker<'config, 'resolver, S, G, H, R, Tr>
 where
-	S: MergeableRuntimeState<GasedMachine<S, G>>,
+	S: MergeableRuntimeState<ColoredMachine<S, G, R::Color>>,
 	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	Pre: CodeResolver<S, G, H>,
+	R: Resolver<S, G, H, Tr>,
 	Tr: IntoCallCreateTrap,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
-	type Machine = GasedMachine<S, G>;
-	type MachineDeconstruct = (S, G, Vec<u8>);
+	type Machine = ColoredMachine<S, G, R::Color>;
 	type Interrupt = Tr::Interrupt;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
 	type TransactValue = (ExitSucceed, Option<H160>);
 	type SubstackInvoke = SubstackInvoke;
-
-	fn run_machine(
-		&self,
-		machine: &mut GasedMachine<S, G>,
-		handler: &mut H,
-	) -> Capture<ExitResult, Tr> {
-		machine.run(handler, self.etable)
-	}
-
-	fn step_machine(
-		&self,
-		machine: &mut GasedMachine<S, G>,
-		handler: &mut H,
-	) -> Result<(), Capture<ExitResult, Tr>> {
-		machine.step(handler, self.etable)
-	}
-
-	fn deconstruct_machine(&self, machine: GasedMachine<S, G>) -> (S, G, Vec<u8>) {
-		(
-			machine.machine.state,
-			machine.gasometer,
-			machine.machine.retval,
-		)
-	}
 
 	fn new_transact(
 		&self,
@@ -224,7 +142,7 @@ where
 	) -> Result<
 		(
 			TransactInvoke,
-			InvokerControl<GasedMachine<S, G>, (ExitResult, Self::MachineDeconstruct)>,
+			InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>,
 		),
 		ExitError,
 	> {
@@ -304,13 +222,13 @@ where
 						}
 					}
 
-					let mut gasometer =
+					let gasometer =
 						G::new_transact_call(gas_limit, &data, &access_list, self.config)?;
-					let code = self.resolver.resolve(address, &mut gasometer, handler)?;
 
-					let mut machine = routines::make_enter_call_machine(
+					let machine = routines::make_enter_call_machine(
 						self.config,
-						code,
+						self.resolver,
+						address,
 						data,
 						false, // is_static
 						Some(transfer),
@@ -323,7 +241,6 @@ where
 						gasometer,
 						handler,
 					)?;
-					routines::maybe_analyse_code(&mut machine);
 
 					if self.config.increase_state_access_gas {
 						if self.config.warm_coinbase_address {
@@ -346,8 +263,9 @@ where
 					let gasometer =
 						G::new_transact_create(gas_limit, &init_code, &access_list, self.config)?;
 
-					let mut machine = routines::make_enter_create_machine(
+					let machine = routines::make_enter_create_machine(
 						self.config,
+						self.resolver,
 						caller,
 						init_code,
 						false, // is_static
@@ -361,7 +279,6 @@ where
 						gasometer,
 						handler,
 					)?;
-					routines::maybe_analyse_code(&mut machine);
 
 					Ok((invoke, machine))
 				}
@@ -431,14 +348,14 @@ where
 	fn enter_substack(
 		&self,
 		trap: Tr,
-		machine: &mut GasedMachine<S, G>,
+		machine: &mut ColoredMachine<S, G, R::Color>,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
 		Result<
 			(
 				SubstackInvoke,
-				InvokerControl<GasedMachine<S, G>, (ExitResult, Self::MachineDeconstruct)>,
+				InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>,
 			),
 			ExitError,
 		>,
@@ -488,18 +405,10 @@ where
 
 		match trap_data {
 			CallCreateTrapData::Call(call_trap_data) => {
-				let mut submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
+				let submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
 					Ok(submeter) => submeter,
 					Err(err) => return Capture::Exit(Err(err)),
 				};
-				let code =
-					match self
-						.resolver
-						.resolve(call_trap_data.target, &mut submeter, handler)
-					{
-						Ok(code) => code,
-						Err(err) => return Capture::Exit(Err(err)),
-					};
 
 				let substate = machine.machine.state.substate(
 					RuntimeState {
@@ -511,10 +420,13 @@ where
 					&machine,
 				);
 
+				let target = call_trap_data.target;
+
 				Capture::Exit(routines::enter_call_substack(
 					self.config,
-					code,
+					self.resolver,
 					call_trap_data,
+					target,
 					is_static,
 					substate,
 					submeter,
@@ -546,6 +458,7 @@ where
 
 				Capture::Exit(routines::enter_create_substack(
 					self.config,
+					self.resolver,
 					code,
 					create_trap_data,
 					is_static,
@@ -562,7 +475,7 @@ where
 		result: ExitResult,
 		(substate, submeter, retval): (S, G, Vec<u8>),
 		trap_data: SubstackInvoke,
-		parent: &mut GasedMachine<S, G>,
+		parent: &mut ColoredMachine<S, G, R::Color>,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
 		let strategy = match &result {
