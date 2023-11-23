@@ -1,0 +1,3 @@
+[submodule "evm-tests"]
+	path = evm-tests
+	url = https://github.com/aurora-is-near/evm-tests.git
