@@ -1,9 +1,8 @@
-use crate::{address, PurePrecompileSet};
+use crate::PurePrecompile;
 use alloc::{vec, vec::Vec};
 use core::cmp::max;
 use evm::{ExitException, ExitResult, ExitSucceed, RuntimeState, StaticGasometer};
 use num::{BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
-use primitive_types::H160;
 
 pub struct Modexp;
 
@@ -87,114 +86,108 @@ fn read_input(source: &[u8], target: &mut [u8], source_offset: &mut usize) {
 	target[..len].copy_from_slice(&source[offset..][..len]);
 }
 
-impl<G: StaticGasometer> PurePrecompileSet<G> for Modexp {
+impl<G: StaticGasometer> PurePrecompile<G> for Modexp {
 	fn execute(
 		&self,
 		input: &[u8],
-		state: &RuntimeState,
+		_state: &RuntimeState,
 		gasometer: &mut G,
-	) -> Option<(ExitResult, Vec<u8>)> {
-		const ADDRESS: H160 = address(5);
+	) -> (ExitResult, Vec<u8>) {
+		let mut input_offset = 0;
 
-		if state.context.address == ADDRESS {
-			let mut input_offset = 0;
+		// Yellowpaper: whenever the input is too short, the missing bytes are
+		// considered to be zero.
+		let mut base_len_buf = [0u8; 32];
+		read_input(input, &mut base_len_buf, &mut input_offset);
+		let mut exp_len_buf = [0u8; 32];
+		read_input(input, &mut exp_len_buf, &mut input_offset);
+		let mut mod_len_buf = [0u8; 32];
+		read_input(input, &mut mod_len_buf, &mut input_offset);
 
-			// Yellowpaper: whenever the input is too short, the missing bytes are
-			// considered to be zero.
-			let mut base_len_buf = [0u8; 32];
-			read_input(input, &mut base_len_buf, &mut input_offset);
-			let mut exp_len_buf = [0u8; 32];
-			read_input(input, &mut exp_len_buf, &mut input_offset);
-			let mut mod_len_buf = [0u8; 32];
-			read_input(input, &mut mod_len_buf, &mut input_offset);
+		// reasonable assumption: this must fit within the Ethereum EVM's max stack size
+		let max_size_big = BigUint::from_u32(1024).expect("can't create BigUint");
 
-			// reasonable assumption: this must fit within the Ethereum EVM's max stack size
-			let max_size_big = BigUint::from_u32(1024).expect("can't create BigUint");
+		let base_len_big = BigUint::from_bytes_be(&base_len_buf);
+		if base_len_big > max_size_big {
+			try_some!(Err(ExitException::Other(
+				"unreasonably large base length".into()
+			)));
+		}
 
-			let base_len_big = BigUint::from_bytes_be(&base_len_buf);
-			if base_len_big > max_size_big {
-				try_some!(Err(ExitException::Other(
-					"unreasonably large base length".into()
-				)));
-			}
+		let exp_len_big = BigUint::from_bytes_be(&exp_len_buf);
+		if exp_len_big > max_size_big {
+			try_some!(Err(ExitException::Other(
+				"unreasonably large exponent length".into()
+			)));
+		}
 
-			let exp_len_big = BigUint::from_bytes_be(&exp_len_buf);
-			if exp_len_big > max_size_big {
-				try_some!(Err(ExitException::Other(
-					"unreasonably large exponent length".into()
-				)));
-			}
+		let mod_len_big = BigUint::from_bytes_be(&mod_len_buf);
+		if mod_len_big > max_size_big {
+			try_some!(Err(ExitException::Other(
+				"unreasonably large modulus length".into()
+			)));
+		}
 
-			let mod_len_big = BigUint::from_bytes_be(&mod_len_buf);
-			if mod_len_big > max_size_big {
-				try_some!(Err(ExitException::Other(
-					"unreasonably large modulus length".into()
-				)));
-			}
+		// bounds check handled above
+		let base_len = base_len_big.to_usize().expect("base_len out of bounds");
+		let exp_len = exp_len_big.to_usize().expect("exp_len out of bounds");
+		let mod_len = mod_len_big.to_usize().expect("mod_len out of bounds");
 
-			// bounds check handled above
-			let base_len = base_len_big.to_usize().expect("base_len out of bounds");
-			let exp_len = exp_len_big.to_usize().expect("exp_len out of bounds");
-			let mod_len = mod_len_big.to_usize().expect("mod_len out of bounds");
+		// if mod_len is 0 output must be empty
+		if mod_len == 0 {
+			return (ExitSucceed::Returned.into(), Vec::new());
+		}
 
-			// if mod_len is 0 output must be empty
-			if mod_len == 0 {
-				return Some((ExitSucceed::Returned.into(), Vec::new()));
-			}
+		// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
+		let r = if base_len == 0 && mod_len == 0 {
+			try_some!(gasometer.record_cost(MIN_GAS_COST.into()));
+			BigUint::zero()
+		} else {
+			// read the numbers themselves.
+			let mut base_buf = vec![0u8; base_len];
+			read_input(input, &mut base_buf, &mut input_offset);
+			let base = BigUint::from_bytes_be(&base_buf);
 
-			// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
-			let r = if base_len == 0 && mod_len == 0 {
-				try_some!(gasometer.record_cost(MIN_GAS_COST.into()));
+			let mut exp_buf = vec![0u8; exp_len];
+			read_input(input, &mut exp_buf, &mut input_offset);
+			let exponent = BigUint::from_bytes_be(&exp_buf);
+
+			let mut mod_buf = vec![0u8; mod_len];
+			read_input(input, &mut mod_buf, &mut input_offset);
+			let modulus = BigUint::from_bytes_be(&mod_buf);
+
+			// do our gas accounting
+			let gas_cost = calculate_gas_cost(
+				base_len as u64,
+				mod_len as u64,
+				&exponent,
+				&exp_buf,
+				modulus.is_even(),
+			);
+
+			try_some!(gasometer.record_cost(gas_cost.into()));
+
+			if modulus.is_zero() || modulus.is_one() {
 				BigUint::zero()
 			} else {
-				// read the numbers themselves.
-				let mut base_buf = vec![0u8; base_len];
-				read_input(input, &mut base_buf, &mut input_offset);
-				let base = BigUint::from_bytes_be(&base_buf);
-
-				let mut exp_buf = vec![0u8; exp_len];
-				read_input(input, &mut exp_buf, &mut input_offset);
-				let exponent = BigUint::from_bytes_be(&exp_buf);
-
-				let mut mod_buf = vec![0u8; mod_len];
-				read_input(input, &mut mod_buf, &mut input_offset);
-				let modulus = BigUint::from_bytes_be(&mod_buf);
-
-				// do our gas accounting
-				let gas_cost = calculate_gas_cost(
-					base_len as u64,
-					mod_len as u64,
-					&exponent,
-					&exp_buf,
-					modulus.is_even(),
-				);
-
-				try_some!(gasometer.record_cost(gas_cost.into()));
-
-				if modulus.is_zero() || modulus.is_one() {
-					BigUint::zero()
-				} else {
-					base.modpow(&exponent, &modulus)
-				}
-			};
-
-			// write output to given memory, left padded and same length as the modulus.
-			let bytes = r.to_bytes_be();
-
-			// always true except in the case of zero-length modulus, which leads to
-			// output of length and value 1.
-			if bytes.len() == mod_len {
-				Some((ExitSucceed::Returned.into(), bytes.to_vec()))
-			} else if bytes.len() < mod_len {
-				let mut ret = Vec::with_capacity(mod_len);
-				ret.extend(core::iter::repeat(0).take(mod_len - bytes.len()));
-				ret.extend_from_slice(&bytes[..]);
-				Some((ExitSucceed::Returned.into(), ret.to_vec()))
-			} else {
-				return Some((ExitException::Other("failed".into()).into(), Vec::new()));
+				base.modpow(&exponent, &modulus)
 			}
+		};
+
+		// write output to given memory, left padded and same length as the modulus.
+		let bytes = r.to_bytes_be();
+
+		// always true except in the case of zero-length modulus, which leads to
+		// output of length and value 1.
+		if bytes.len() == mod_len {
+			(ExitSucceed::Returned.into(), bytes.to_vec())
+		} else if bytes.len() < mod_len {
+			let mut ret = Vec::with_capacity(mod_len);
+			ret.extend(core::iter::repeat(0).take(mod_len - bytes.len()));
+			ret.extend_from_slice(&bytes[..]);
+			(ExitSucceed::Returned.into(), ret.to_vec())
 		} else {
-			None
+			return (ExitException::Other("failed".into()).into(), Vec::new());
 		}
 	}
 }

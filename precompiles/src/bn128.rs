@@ -1,7 +1,7 @@
-use crate::{address, PurePrecompileSet};
+use crate::PurePrecompile;
 use alloc::vec::Vec;
 use evm::{ExitError, ExitException, ExitResult, ExitSucceed, RuntimeState, StaticGasometer};
-use primitive_types::{H160, U256};
+use primitive_types::U256;
 
 /// Copy bytes from input to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {
@@ -54,38 +54,35 @@ impl Bn128Add {
 	const GAS_COST: u64 = 150; // https://eips.ethereum.org/EIPS/eip-1108
 }
 
-impl<G: StaticGasometer> PurePrecompileSet<G> for Bn128Add {
+impl<G: StaticGasometer> PurePrecompile<G> for Bn128Add {
 	fn execute(
 		&self,
 		input: &[u8],
-		state: &RuntimeState,
+		_state: &RuntimeState,
 		gasometer: &mut G,
-	) -> Option<(ExitResult, Vec<u8>)> {
-		const ADDRESS: H160 = address(6);
+	) -> (ExitResult, Vec<u8>) {
+		use bn::AffineG1;
 
-		if state.context.address == ADDRESS {
-			use bn::AffineG1;
+		try_some!(gasometer.record_cost(Bn128Add::GAS_COST.into()));
 
-			try_some!(gasometer.record_cost(Bn128Add::GAS_COST.into()));
+		let p1 = try_some!(read_point(input, 0));
+		let p2 = try_some!(read_point(input, 64));
 
-			let p1 = try_some!(read_point(input, 0));
-			let p2 = try_some!(read_point(input, 64));
-
-			let mut buf = [0u8; 64];
-			if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
-				// point not at infinity
-				try_some!(sum.x().to_big_endian(&mut buf[0..32]).map_err(
-					|_| ExitException::Other("Cannot fail since 0..32 is 32-byte length".into())
-				));
-				try_some!(sum.y().to_big_endian(&mut buf[32..64]).map_err(|_| {
-					ExitException::Other("Cannot fail since 32..64 is 32-byte length".into())
-				}));
-			}
-
-			Some((ExitSucceed::Returned.into(), buf.to_vec()))
-		} else {
-			None
+		let mut buf = [0u8; 64];
+		if let Some(sum) = AffineG1::from_jacobian(p1 + p2) {
+			// point not at infinity
+			try_some!(sum
+				.x()
+				.to_big_endian(&mut buf[0..32])
+				.map_err(|_| ExitException::Other(
+					"Cannot fail since 0..32 is 32-byte length".into()
+				)));
+			try_some!(sum.y().to_big_endian(&mut buf[32..64]).map_err(|_| {
+				ExitException::Other("Cannot fail since 32..64 is 32-byte length".into())
+			}));
 		}
+
+		(ExitSucceed::Returned.into(), buf.to_vec())
 	}
 }
 
@@ -96,38 +93,35 @@ impl Bn128Mul {
 	const GAS_COST: u64 = 6_000; // https://eips.ethereum.org/EIPS/eip-1108
 }
 
-impl<G: StaticGasometer> PurePrecompileSet<G> for Bn128Mul {
+impl<G: StaticGasometer> PurePrecompile<G> for Bn128Mul {
 	fn execute(
 		&self,
 		input: &[u8],
-		state: &RuntimeState,
+		_state: &RuntimeState,
 		gasometer: &mut G,
-	) -> Option<(ExitResult, Vec<u8>)> {
-		const ADDRESS: H160 = address(7);
+	) -> (ExitResult, Vec<u8>) {
+		use bn::AffineG1;
 
-		if state.context.address == ADDRESS {
-			use bn::AffineG1;
+		try_some!(gasometer.record_cost(Bn128Mul::GAS_COST.into()));
 
-			try_some!(gasometer.record_cost(Bn128Mul::GAS_COST.into()));
+		let p = try_some!(read_point(input, 0));
+		let fr = try_some!(read_fr(input, 64));
 
-			let p = try_some!(read_point(input, 0));
-			let fr = try_some!(read_fr(input, 64));
-
-			let mut buf = [0u8; 64];
-			if let Some(sum) = AffineG1::from_jacobian(p * fr) {
-				// point not at infinity
-				try_some!(sum.x().to_big_endian(&mut buf[0..32]).map_err(
-					|_| ExitException::Other("Cannot fail since 0..32 is 32-byte length".into())
-				));
-				try_some!(sum.y().to_big_endian(&mut buf[32..64]).map_err(|_| {
-					ExitException::Other("Cannot fail since 32..64 is 32-byte length".into())
-				}));
-			}
-
-			Some((ExitSucceed::Returned.into(), buf.to_vec()))
-		} else {
-			None
+		let mut buf = [0u8; 64];
+		if let Some(sum) = AffineG1::from_jacobian(p * fr) {
+			// point not at infinity
+			try_some!(sum
+				.x()
+				.to_big_endian(&mut buf[0..32])
+				.map_err(|_| ExitException::Other(
+					"Cannot fail since 0..32 is 32-byte length".into()
+				)));
+			try_some!(sum.y().to_big_endian(&mut buf[32..64]).map_err(|_| {
+				ExitException::Other("Cannot fail since 32..64 is 32-byte length".into())
+			}));
 		}
+
+		(ExitSucceed::Returned.into(), buf.to_vec())
 	}
 }
 
@@ -140,108 +134,95 @@ impl Bn128Pairing {
 	const GAS_COST_PER_PAIRING: u64 = 34_000;
 }
 
-impl<G: StaticGasometer> PurePrecompileSet<G> for Bn128Pairing {
+impl<G: StaticGasometer> PurePrecompile<G> for Bn128Pairing {
 	fn execute(
 		&self,
 		input: &[u8],
-		state: &RuntimeState,
+		_state: &RuntimeState,
 		gasometer: &mut G,
-	) -> Option<(ExitResult, Vec<u8>)> {
-		const ADDRESS: H160 = address(8);
+	) -> (ExitResult, Vec<u8>) {
+		use bn::{pairing_batch, AffineG1, AffineG2, Fq, Fq2, Group, Gt, G1, G2};
 
-		if state.context.address == ADDRESS {
-			use bn::{pairing_batch, AffineG1, AffineG2, Fq, Fq2, Group, Gt, G1, G2};
+		let ret_val = if input.is_empty() {
+			try_some!(gasometer.record_cost(Bn128Pairing::BASE_GAS_COST.into()));
+			U256::one()
+		} else {
+			if input.len() % 192 > 0 {
+				return (
+					ExitException::Other("bad elliptic curve pairing size".into()).into(),
+					Vec::new(),
+				);
+			}
 
-			let ret_val = if input.is_empty() {
-				try_some!(gasometer.record_cost(Bn128Pairing::BASE_GAS_COST.into()));
+			// (a, b_a, b_b - each 64-byte affine coordinates)
+			let elements = input.len() / 192;
+
+			let gas_cost: u64 = Bn128Pairing::BASE_GAS_COST
+				+ (elements as u64 * Bn128Pairing::GAS_COST_PER_PAIRING);
+
+			try_some!(gasometer.record_cost(gas_cost.into()));
+
+			let mut vals = Vec::new();
+			for idx in 0..elements {
+				let a_x = try_some!(Fq::from_slice(&input[idx * 192..idx * 192 + 32])
+					.map_err(|_| ExitException::Other("Invalid a argument x coordinate".into())));
+
+				let a_y = try_some!(Fq::from_slice(&input[idx * 192 + 32..idx * 192 + 64])
+					.map_err(|_| ExitException::Other("Invalid a argument y coordinate".into(),)));
+
+				let b_a_y = try_some!(Fq::from_slice(&input[idx * 192 + 64..idx * 192 + 96])
+					.map_err(|_| {
+						ExitException::Other(
+							"Invalid b argument imaginary coeff x coordinate".into(),
+						)
+					}));
+
+				let b_a_x = try_some!(Fq::from_slice(&input[idx * 192 + 96..idx * 192 + 128])
+					.map_err(|_| ExitException::Other(
+						"Invalid b argument imaginary coeff y coordinate".into(),
+					)));
+
+				let b_b_y = try_some!(Fq::from_slice(&input[idx * 192 + 128..idx * 192 + 160])
+					.map_err(|_| {
+						ExitException::Other("Invalid b argument real coeff x coordinate".into())
+					}));
+
+				let b_b_x = try_some!(Fq::from_slice(&input[idx * 192 + 160..idx * 192 + 192])
+					.map_err(|_| {
+						ExitException::Other("Invalid b argument real coeff y coordinate".into())
+					}));
+
+				let b_a = Fq2::new(b_a_x, b_a_y);
+				let b_b = Fq2::new(b_b_x, b_b_y);
+				let b = if b_a.is_zero() && b_b.is_zero() {
+					G2::zero()
+				} else {
+					G2::from(try_some!(AffineG2::new(b_a, b_b).map_err(|_| {
+						ExitException::Other("Invalid b argument - not on curve".into())
+					})))
+				};
+				let a = if a_x.is_zero() && a_y.is_zero() {
+					G1::zero()
+				} else {
+					G1::from(try_some!(AffineG1::new(a_x, a_y).map_err(|_| {
+						ExitException::Other("Invalid a argument - not on curve".into())
+					},)))
+				};
+				vals.push((a, b));
+			}
+
+			let mul = pairing_batch(&vals);
+
+			if mul == Gt::one() {
 				U256::one()
 			} else {
-				if input.len() % 192 > 0 {
-					return Some((
-						ExitException::Other("bad elliptic curve pairing size".into()).into(),
-						Vec::new(),
-					));
-				}
+				U256::zero()
+			}
+		};
 
-				// (a, b_a, b_b - each 64-byte affine coordinates)
-				let elements = input.len() / 192;
+		let mut buf = [0u8; 32];
+		ret_val.to_big_endian(&mut buf);
 
-				let gas_cost: u64 = Bn128Pairing::BASE_GAS_COST
-					+ (elements as u64 * Bn128Pairing::GAS_COST_PER_PAIRING);
-
-				try_some!(gasometer.record_cost(gas_cost.into()));
-
-				let mut vals = Vec::new();
-				for idx in 0..elements {
-					let a_x = try_some!(Fq::from_slice(&input[idx * 192..idx * 192 + 32]).map_err(
-						|_| ExitException::Other("Invalid a argument x coordinate".into())
-					));
-
-					let a_y = try_some!(Fq::from_slice(&input[idx * 192 + 32..idx * 192 + 64])
-						.map_err(|_| ExitException::Other(
-							"Invalid a argument y coordinate".into(),
-						)));
-
-					let b_a_y = try_some!(Fq::from_slice(&input[idx * 192 + 64..idx * 192 + 96])
-						.map_err(|_| {
-							ExitException::Other(
-								"Invalid b argument imaginary coeff x coordinate".into(),
-							)
-						}));
-
-					let b_a_x = try_some!(Fq::from_slice(&input[idx * 192 + 96..idx * 192 + 128])
-						.map_err(|_| ExitException::Other(
-							"Invalid b argument imaginary coeff y coordinate".into(),
-						)));
-
-					let b_b_y = try_some!(Fq::from_slice(&input[idx * 192 + 128..idx * 192 + 160])
-						.map_err(|_| {
-							ExitException::Other(
-								"Invalid b argument real coeff x coordinate".into(),
-							)
-						}));
-
-					let b_b_x = try_some!(Fq::from_slice(&input[idx * 192 + 160..idx * 192 + 192])
-						.map_err(|_| {
-							ExitException::Other(
-								"Invalid b argument real coeff y coordinate".into(),
-							)
-						}));
-
-					let b_a = Fq2::new(b_a_x, b_a_y);
-					let b_b = Fq2::new(b_b_x, b_b_y);
-					let b = if b_a.is_zero() && b_b.is_zero() {
-						G2::zero()
-					} else {
-						G2::from(try_some!(AffineG2::new(b_a, b_b).map_err(|_| {
-							ExitException::Other("Invalid b argument - not on curve".into())
-						})))
-					};
-					let a = if a_x.is_zero() && a_y.is_zero() {
-						G1::zero()
-					} else {
-						G1::from(try_some!(AffineG1::new(a_x, a_y).map_err(|_| {
-							ExitException::Other("Invalid a argument - not on curve".into())
-						},)))
-					};
-					vals.push((a, b));
-				}
-
-				let mul = pairing_batch(&vals);
-
-				if mul == Gt::one() {
-					U256::one()
-				} else {
-					U256::zero()
-				}
-			};
-
-			let mut buf = [0u8; 32];
-			ret_val.to_big_endian(&mut buf);
-
-			Some((ExitSucceed::Returned.into(), buf.to_vec()))
-		} else {
-			None
-		}
+		(ExitSucceed::Returned.into(), buf.to_vec())
 	}
 }

@@ -6,7 +6,7 @@ use evm::backend::in_memory::{
 use evm::standard::{Config, Etable, Gasometer, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;
-use precompiles::StandardPrecompileSet;
+use precompiles::StandardResolver;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -60,8 +60,8 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		.collect::<BTreeMap<_, _>>();
 
 	let etable = Etable::runtime();
-	let precompiles = StandardPrecompileSet::new(&config);
-	let invoker = Invoker::<_, Gasometer, _, _, _, _>::new(&config, &precompiles, &etable);
+	let resolver = StandardResolver::new(&config);
+	let invoker = Invoker::<_, Gasometer, _, _, _, _>::new(&config, &resolver, &etable);
 	let args = TransactArgs::Call {
 		caller: test.transaction.sender,
 		address: test.transaction.to,
