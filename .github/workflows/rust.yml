@@ -12,7 +12,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2z
+    - uses: actions/checkout@v4
     - name: Rustfmt
       run: cargo fmt --all -- --check
     - name: Clippy
