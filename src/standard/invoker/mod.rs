@@ -178,7 +178,7 @@ impl<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F>
 impl<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F> InvokerT<H, Tr>
 	for Invoker<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F>
 where
-	S: MergeableRuntimeState,
+	S: MergeableRuntimeState<GasedMachine<S, G>>,
 	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	Pre: CodeResolver<S, G, H>,
@@ -506,12 +506,15 @@ where
 					submeter.analyse_code(&code);
 				}
 
-				let substate = machine.machine.state.substate(RuntimeState {
-					context: call_trap_data.context.clone(),
-					transaction_context,
-					retbuf: Vec::new(),
-					gas: U256::from(gas_limit),
-				});
+				let substate = machine.machine.state.substate(
+					RuntimeState {
+						context: call_trap_data.context.clone(),
+						transaction_context,
+						retbuf: Vec::new(),
+						gas: U256::from(gas_limit),
+					},
+					&machine,
+				);
 
 				Capture::Exit(routines::enter_call_substack(
 					self.config,
@@ -533,16 +536,19 @@ where
 
 				let caller = create_trap_data.scheme.caller();
 				let address = create_trap_data.scheme.address(handler);
-				let substate = machine.machine.state.substate(RuntimeState {
-					context: Context {
-						address,
-						caller,
-						apparent_value: create_trap_data.value,
+				let substate = machine.machine.state.substate(
+					RuntimeState {
+						context: Context {
+							address,
+							caller,
+							apparent_value: create_trap_data.value,
+						},
+						transaction_context,
+						retbuf: Vec::new(),
+						gas: U256::from(gas_limit),
 					},
-					transaction_context,
-					retbuf: Vec::new(),
-					gas: U256::from(gas_limit),
-				});
+					&machine,
+				);
 
 				Capture::Exit(
 					routines::enter_create_substack(
