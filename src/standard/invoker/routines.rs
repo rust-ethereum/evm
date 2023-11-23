@@ -1,4 +1,6 @@
-use super::{CallTrapData, CreateTrapData, Precompile, ResolvedCode, SubstackInvoke};
+use super::{
+	CallTrapData, CreateTrapData, Precompile, ResolvedCode, SubstackInvoke, TransactGasometer,
+};
 use crate::standard::Config;
 use crate::{
 	ExitError, ExitException, ExitResult, GasedMachine, Gasometer as GasometerT, InvokerControl,
@@ -7,6 +9,14 @@ use crate::{
 };
 use alloc::rc::Rc;
 use primitive_types::{H160, U256};
+
+pub fn maybe_analyse_code<'config, S: AsRef<RuntimeState>, G: TransactGasometer<'config, S>>(
+	result: &mut InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>,
+) {
+	if let InvokerControl::Enter(machine) = result {
+		machine.gasometer.analyse_code(&machine.machine.code())
+	}
+}
 
 pub fn make_enter_call_machine<'config, 'precompile, S, G, H, P>(
 	config: &'config Config,
@@ -61,7 +71,7 @@ pub fn make_enter_create_machine<'config, S, G, H>(
 	state: S,
 	gasometer: G,
 	handler: &mut H,
-) -> Result<GasedMachine<S, G>, ExitError>
+) -> Result<InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>, ExitError>
 where
 	S: AsRef<RuntimeState>,
 	G: GasometerT<S, H>,
@@ -98,11 +108,11 @@ where
 		state,
 	);
 
-	Ok(GasedMachine {
+	Ok(InvokerControl::Enter(GasedMachine {
 		machine,
 		gasometer,
 		is_static,
-	})
+	}))
 }
 
 pub fn enter_call_substack<'config, 'precompile, S, G, H, P>(
@@ -122,14 +132,14 @@ pub fn enter_call_substack<'config, 'precompile, S, G, H, P>(
 >
 where
 	S: AsRef<RuntimeState>,
-	G: GasometerT<S, H>,
+	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	P: Precompile<S, G, H>,
 {
 	handler.push_substate();
 
 	let work = || -> Result<(SubstackInvoke, _), ExitError> {
-		let machine = make_enter_call_machine(
+		let mut machine = make_enter_call_machine(
 			config,
 			code,
 			trap_data.input.clone(),
@@ -139,6 +149,7 @@ where
 			gasometer,
 			handler,
 		)?;
+		maybe_analyse_code(&mut machine);
 
 		Ok((SubstackInvoke::Call { trap: trap_data }, machine))
 	};
@@ -160,15 +171,21 @@ pub fn enter_create_substack<'config, S, G, H>(
 	state: S,
 	gasometer: G,
 	handler: &mut H,
-) -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError>
+) -> Result<
+	(
+		SubstackInvoke,
+		InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>,
+	),
+	ExitError,
+>
 where
 	S: AsRef<RuntimeState>,
-	G: GasometerT<S, H>,
+	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	handler.push_substate();
 
-	let work = || -> Result<(SubstackInvoke, GasedMachine<S, G>), ExitError> {
+	let work = || -> Result<(SubstackInvoke, InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>), ExitError> {
 		let CreateTrapData {
 			scheme,
 			value,
@@ -184,9 +201,10 @@ where
 			value,
 		};
 
-		let machine = make_enter_create_machine(
+		let mut machine = make_enter_create_machine(
 			config, caller, code, is_static, transfer, state, gasometer, handler,
 		)?;
+		maybe_analyse_code(&mut machine);
 
 		Ok((
 			SubstackInvoke::Create {
