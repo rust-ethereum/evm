@@ -1,4 +1,4 @@
-use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl};
+use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl, InvokerMachine};
 use core::convert::Infallible;
 
 struct Substack<M, TrD> {
@@ -64,8 +64,8 @@ where
 	pub fn step(
 		&mut self,
 	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
-		self.step_with(|invoker, machine, handler| {
-			let result = invoker.step_machine(machine, handler);
+		self.step_with(|machine, handler| {
+			let result = machine.step(handler);
 			match result {
 				Ok(()) => LastSubstackStatus::Running,
 				Err(result) => LastSubstackStatus::Exited(result),
@@ -76,8 +76,8 @@ where
 	pub fn step_run(
 		&mut self,
 	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
-		self.step_with(|invoker, machine, handler| {
-			let result = invoker.run_machine(machine, handler);
+		self.step_with(|machine, handler| {
+			let result = machine.run(handler);
 			LastSubstackStatus::Exited(result)
 		})
 	}
@@ -87,7 +87,7 @@ where
 		fs: FS,
 	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>>
 	where
-		FS: Fn(&I, &mut I::Machine, &mut H) -> LastSubstackStatus<Tr>,
+		FS: Fn(&mut I::Machine, &mut H) -> LastSubstackStatus<Tr>,
 	{
 		let mut step_ret = None;
 
@@ -107,7 +107,7 @@ where
 				status: LastSubstackStatus::Running,
 				mut machine,
 			}) => {
-				let status = fs(self.invoker, &mut machine, self.backend);
+				let status = fs(&mut machine, self.backend);
 				Some(LastSubstack { status, machine })
 			}
 			Some(LastSubstack {
@@ -123,7 +123,7 @@ where
 						.pop()
 						.expect("checked stack is not empty above; qed");
 
-					let machine = self.invoker.deconstruct_machine(machine);
+					let machine = machine.deconstruct();
 					let feedback_result = self.invoker.exit_substack(
 						exit,
 						machine,
@@ -221,7 +221,7 @@ fn execute<H, Tr, I>(
 where
 	I: Invoker<H, Tr, Interrupt = Infallible>,
 {
-	let mut result = invoker.run_machine(&mut machine, backend);
+	let mut result = machine.run(backend);
 
 	loop {
 		match result {
@@ -245,13 +245,13 @@ where
 
 						match invoker.exit_substack(
 							sub_result,
-							invoker.deconstruct_machine(sub_machine),
+							sub_machine.deconstruct(),
 							trap_data,
 							&mut machine,
 							backend,
 						) {
 							Ok(()) => {
-								result = invoker.run_machine(&mut machine, backend);
+								result = machine.run(backend);
 							}
 							Err(err) => return Ok((Err(err), machine)),
 						}
@@ -268,7 +268,7 @@ where
 							backend,
 						) {
 							Ok(()) => {
-								result = invoker.run_machine(&mut machine, backend);
+								result = machine.run(backend);
 							}
 							Err(err) => return Ok((Err(err), machine)),
 						}
@@ -334,7 +334,7 @@ where
 					Err(Capture::Trap(interrupt)) => Err(Capture::Trap(interrupt)),
 					Err(Capture::Exit(Err(fatal))) => Err(Capture::Exit(Err(fatal.into()))),
 					Err(Capture::Exit(Ok((ret, machine)))) => {
-						let machine = call_stack.invoker.deconstruct_machine(machine);
+						let machine = machine.deconstruct();
 						Err(Capture::Exit(call_stack.invoker.finalize_transact(
 							&transact_invoke,
 							ret,
@@ -432,8 +432,7 @@ where
 					if let Some(mut last) = call_stack.last.take() {
 						loop {
 							if let Some(mut parent) = call_stack.stack.pop() {
-								let last_machine =
-									call_stack.invoker.deconstruct_machine(last.machine);
+								let last_machine = last.machine.deconstruct();
 								let _ = call_stack.invoker.exit_substack(
 									ExitFatal::Unfinished.into(),
 									last_machine,
@@ -453,7 +452,7 @@ where
 							}
 						}
 
-						let last_machine = call_stack.invoker.deconstruct_machine(last.machine);
+						let last_machine = last.machine.deconstruct();
 						let _ = call_stack.invoker.finalize_transact(
 							&transact_invoke,
 							ExitFatal::Unfinished.into(),
@@ -482,7 +481,7 @@ where
 	match control {
 		InvokerControl::Enter(machine) => {
 			let (ret, machine) = execute(machine, 0, heap_depth, backend, invoker)?;
-			let machine = invoker.deconstruct_machine(machine);
+			let machine = machine.deconstruct();
 			invoker.finalize_transact(&transact_invoke, ret, machine, backend)
 		}
 		InvokerControl::DirectExit((exit, machine)) => {
