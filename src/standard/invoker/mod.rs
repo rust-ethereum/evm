@@ -109,20 +109,20 @@ pub trait Precompile<S, G, H> {
 	fn execute(
 		&self,
 		input: &[u8],
-		state: &mut S,
-		gasometer: &mut G,
+		state: S,
+		gasometer: G,
 		handler: &mut H,
-	) -> (ExitResult, Vec<u8>);
+	) -> InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))>;
 }
 
 impl<S, G, H> Precompile<S, G, H> for Infallible {
 	fn execute(
 		&self,
 		_input: &[u8],
-		_state: &mut S,
-		_gasometer: &mut G,
+		_state: S,
+		_gasometer: G,
 		_handler: &mut H,
-	) -> (ExitResult, Vec<u8>) {
+	) -> InvokerControl<GasedMachine<S, G>, (ExitResult, (S, G, Vec<u8>))> {
 		match *self {}
 	}
 }
