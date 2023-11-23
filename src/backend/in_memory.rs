@@ -214,12 +214,14 @@ impl RuntimeBackend for InMemoryBackend {
 			.storage = Default::default();
 	}
 
-	fn set_code(&mut self, address: H160, code: Vec<u8>) {
+	fn set_code(&mut self, address: H160, code: Vec<u8>) -> Result<(), ExitError> {
 		self.current_layer_mut()
 			.state
 			.entry(address)
 			.or_default()
 			.code = code;
+
+		Ok(())
 	}
 
 	fn reset_balance(&mut self, address: H160) {
