@@ -33,6 +33,10 @@ pub enum Event<'a> {
 		target: H160,
 		balance: U256,
 	},
+	CreateOutput {
+		address: H160,
+		code: &'a [u8],
+	},
 	Exit {
 		reason: &'a ExitReason,
 		return_value: &'a [u8],

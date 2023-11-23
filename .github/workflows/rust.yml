@@ -4,7 +4,6 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -17,13 +16,15 @@ jobs:
     - name: Rustfmt
       run: cargo fmt --all -- --check
     - name: Clippy
-      run: cargo clippy --all
+      run: cargo clippy --workspace --all-targets -- -D clippy::all -D clippy::nursery
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
+    - name: Build NoStd
+      run: cargo build --no-default-features --verbose
     - name: Build for feature (tracing)
       run: cargo build --features tracing --verbose
     - name: Run tests

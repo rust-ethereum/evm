@@ -74,19 +74,22 @@ pub fn finish_create(
 
 	match reason {
 		ExitReason::Succeed(_) => {
-			runtime.machine.stack_mut().push(create_address)?;
+			runtime
+				.machine
+				.stack_mut()
+				.push(U256::from_big_endian(&create_address[..]))?;
 			Ok(())
 		}
 		ExitReason::Revert(_) => {
-			runtime.machine.stack_mut().push(H256::default())?;
+			runtime.machine.stack_mut().push(U256::zero())?;
 			Ok(())
 		}
 		ExitReason::Error(_) => {
-			runtime.machine.stack_mut().push(H256::default())?;
+			runtime.machine.stack_mut().push(U256::zero())?;
 			Ok(())
 		}
 		ExitReason::Fatal(e) => {
-			runtime.machine.stack_mut().push(H256::default())?;
+			runtime.machine.stack_mut().push(U256::zero())?;
 			Err(e.into())
 		}
 	}
@@ -94,13 +97,13 @@ pub fn finish_create(
 
 pub fn finish_call(
 	runtime: &mut Runtime,
-	out_len: U256,
-	out_offset: U256,
+	out_len: usize,
+	out_offset: usize,
 	reason: ExitReason,
 	return_data: Vec<u8>,
 ) -> Result<(), ExitReason> {
 	runtime.return_data_buffer = return_data;
-	let target_len = min(out_len, U256::from(runtime.return_data_buffer.len()));
+	let target_len = min(out_len, runtime.return_data_buffer.len());
 
 	match reason {
 		ExitReason::Succeed(_) => {
@@ -111,19 +114,17 @@ pub fn finish_call(
 				&runtime.return_data_buffer[..],
 			) {
 				Ok(()) => {
-					let mut value = H256::default();
-					U256::one().to_big_endian(&mut value[..]);
-					runtime.machine.stack_mut().push(value)?;
+					runtime.machine.stack_mut().push(U256::one())?;
 					Ok(())
 				}
 				Err(_) => {
-					runtime.machine.stack_mut().push(H256::default())?;
+					runtime.machine.stack_mut().push(U256::zero())?;
 					Ok(())
 				}
 			}
 		}
 		ExitReason::Revert(_) => {
-			runtime.machine.stack_mut().push(H256::default())?;
+			runtime.machine.stack_mut().push(U256::zero())?;
 
 			let _ = runtime.machine.memory_mut().copy_large(
 				out_offset,
@@ -135,12 +136,12 @@ pub fn finish_call(
 			Ok(())
 		}
 		ExitReason::Error(_) => {
-			runtime.machine.stack_mut().push(H256::default())?;
+			runtime.machine.stack_mut().push(U256::zero())?;
 
 			Ok(())
 		}
 		ExitReason::Fatal(e) => {
-			runtime.machine.stack_mut().push(H256::default())?;
+			runtime.machine.stack_mut().push(U256::zero())?;
 
 			Err(e.into())
 		}
