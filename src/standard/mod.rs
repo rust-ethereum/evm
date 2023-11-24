@@ -11,6 +11,8 @@ pub type Efn<H> = crate::Efn<crate::RuntimeState, H, crate::Opcode>;
 pub type Etable<H, F = Efn<H>> = crate::Etable<crate::RuntimeState, H, crate::Opcode, F>;
 pub type ColoredMachine<'etable, G, H, F = Efn<H>> =
 	crate::ColoredMachine<crate::RuntimeState, G, &'etable Etable<H, F>>;
+pub type SimpleInvoker<'config, 'resolver, H, R> =
+	Invoker<'config, 'resolver, crate::RuntimeState, Gasometer<'config>, H, R, crate::Opcode>;
 
 pub trait MergeableRuntimeState<M>:
 	AsRef<crate::RuntimeState> + AsMut<crate::RuntimeState>
