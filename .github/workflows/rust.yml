@@ -12,7 +12,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Rustfmt
       run: cargo fmt --all -- --check
     - name: Clippy
@@ -20,7 +20,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build
       run: cargo build --verbose
     - name: Build NoStd
@@ -32,17 +32,10 @@ jobs:
   jsontests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
       with:
-        repository: "rust-blockchain/evm-tests"
         submodules: recursive
-    - name: Submodules
-      run: |
-        cd evm
-        git remote set-url origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY"
-        git fetch origin $GITHUB_SHA
-        git checkout $GITHUB_SHA
     - name: Run tests
       run: |
-        cd jsontests
-        cargo test --release --verbose
+        cd evm-tests/jsontests
+        cargo test --release
