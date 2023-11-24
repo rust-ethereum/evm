@@ -6,7 +6,7 @@ use evm::backend::in_memory::{
 use evm::standard::{Config, Etable, EtableResolver, Gasometer, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;
-use precompiles::StandardPrecompileSet;
+use evm_precompile::StandardPrecompileSet;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
 
