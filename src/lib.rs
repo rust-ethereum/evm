@@ -1,31 +1,30 @@
 //! Ethereum Virtual Machine implementation in Rust
 
-#![deny(warnings)]
-#![forbid(unsafe_code, unused_variables)]
+// #![deny(warnings)]
+// #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 
-pub use evm_core::*;
-pub use evm_gasometer as gasometer;
-pub use evm_runtime::*;
-
-#[cfg(feature = "tracing")]
-pub mod tracing;
-
-#[cfg(feature = "tracing")]
-macro_rules! event {
-	($x:expr) => {
-		use crate::tracing::Event::*;
-		crate::tracing::with(|listener| listener.event($x));
-	};
-}
-
-#[cfg(not(feature = "tracing"))]
-macro_rules! event {
-	($x:expr) => {};
-}
-
 pub mod backend;
-pub mod executor;
-pub mod maybe_borrowed;
+pub mod standard;
+
+mod call_stack;
+mod color;
+mod gasometer;
+mod invoker;
+
+pub use evm_interpreter::*;
+
+pub use crate::backend::TransactionalBackend;
+pub use crate::call_stack::{transact, HeapTransact};
+pub use crate::color::{Color, ColoredMachine};
+pub use crate::gasometer::{Gas, Gasometer, StaticGasometer};
+pub use crate::invoker::{Invoker, InvokerControl, InvokerMachine};
+
+#[derive(Clone, Debug, Copy)]
+pub enum MergeStrategy {
+	Commit,
+	Revert,
+	Discard,
+}

@@ -1,0 +1,28 @@
+[package]
+name = "precompiles"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Standard EVM precompiles."
+
+[dependencies]
+evm = { path = "..", default-features = false }
+primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
+k256 = { version = "0.13", features = ["ecdsa"], default-features = false }
+sha3 = { version = "0.10", default-features = false }
+sha2 = { version = "0.10", default-features = false }
+ripemd = { version = "0.1", default-features = false }
+num = { version = "0.4", default-features = false, features = ["alloc"] }
+bn = { package = "substrate-bn", version = "0.6", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"evm/std",
+	"primitive-types/std",
+	"sha3/std",
+	"k256/std",
+	"sha2/std",
+	"ripemd/std",
+	"num/std",
+]

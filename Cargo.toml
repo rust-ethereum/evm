@@ -1,6 +1,6 @@
 [package]
 name = "evm"
-version = "0.41.0"
+version = "0.40.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "SputnikVM - a Portable Blockchain Virtual Machine"
@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 auto_impl = "1.0"
-ethereum = { version = "0.15", default-features = false }
+ethereum = { version = "0.14", default-features = false }
 log = { version = "0.4", default-features = false }
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 rlp = { version = "0.5", default-features = false }
@@ -22,17 +22,11 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
-evm-core = { version = "0.41", path = "core", default-features = false }
-evm-gasometer = { version = "0.41", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.41", path = "runtime", default-features = false }
+evm-interpreter = { version = "0.2.0-dev", path = "interpreter", default-features = false }
 
 [dev-dependencies]
 criterion = "0.4"
 hex = "0.4"
-
-[[bench]]
-name = "loop"
-harness = false
 
 [features]
 default = ["std"]
@@ -46,9 +40,7 @@ std = [
 	"scale-codec/std",
 	"scale-info/std",
 	"serde/std",
-	"evm-core/std",
-	"evm-gasometer/std",
-	"evm-runtime/std",
+	"evm-interpreter/std",
 ]
 with-codec = [
 	"scale-codec",
@@ -56,28 +48,19 @@ with-codec = [
 	"primitive-types/codec",
 	"primitive-types/scale-info",
 	"ethereum/with-codec",
-	"evm-core/with-codec",
+	"evm-interpreter/with-codec",
 ]
 with-serde = [
 	"serde",
 	"primitive-types/impl-serde",
-	"evm-core/with-serde",
+	"evm-interpreter/with-serde",
 	"ethereum/with-serde",
-]
-tracing = [
-	"environmental",
-	"evm-gasometer/tracing",
-	"evm-runtime/tracing",
-]
-force-debug = [
-	"evm-core/force-debug",
-	"evm-gasometer/force-debug",
 ]
 
 [workspace]
 members = [
-	"core",
-	"gasometer",
-	"runtime",
-	"fuzzer",
+	"interpreter",
+	"jsontests",
+	"precompiles",
+	"tracer",
 ]
