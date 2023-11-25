@@ -1,11 +1,17 @@
+[workspace.package]
+license = "Apache-2.0"
+authors = ["rust-evm Developers <contact-rust-evm@pacna.org>"]
+repository = "https://github.com/rust-ethereum/evm"
+keywords = ["no_std", "ethereum", "evm"]
+
 [package]
 name = "evm"
-version = "0.40.0"
-license = "Apache-2.0"
-authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
-description = "SputnikVM - a Portable Blockchain Virtual Machine"
-repository = "https://github.com/sorpaas/rust-evm"
-keywords = ["no_std", "ethereum"]
+version = "1.0.0-dev"
+license = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+keywords = { workspace = true }
+description = "Ethereum Virtual Machine"
 edition = "2018"
 
 [dependencies]
@@ -22,7 +28,7 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
-evm-interpreter = { version = "0.2.0-dev", path = "interpreter", default-features = false }
+evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
 
 [dev-dependencies]
 criterion = "0.4"

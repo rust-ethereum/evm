@@ -1,8 +1,11 @@
 [package]
 name = "evm-precompile"
-version = "0.1.0"
+version = "0.0.0-dev"
 edition = "2021"
-license = "Apache-2.0"
+license = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+keywords = { workspace = true }
 description = "Standard EVM precompiles."
 
 [dependencies]
