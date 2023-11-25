@@ -1,6 +1,6 @@
 [package]
 name = "evm-interpreter"
-version = "1.0.0-dev"
+version = "1.0.0-alpha.1"
 license = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }

@@ -6,7 +6,7 @@ keywords = ["no_std", "ethereum", "evm"]
 
 [package]
 name = "evm"
-version = "1.0.0-dev"
+version = "1.0.0-alpha.1"
 license = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -28,7 +28,7 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
-evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
+evm-interpreter = { version = "1.0.0-alpha.1", path = "interpreter", default-features = false }
 
 [dev-dependencies]
 criterion = "0.4"
