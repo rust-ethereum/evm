@@ -18,9 +18,13 @@ use core::marker::PhantomData;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
+/// A trap that can be turned into either a call/create trap (where we push new
+/// call stack), or an interrupt (an external signal).
 pub trait IntoCallCreateTrap {
+	/// An external signal.
 	type Interrupt;
 
+	/// Turn the current trap into either a call/create trap or an interrupt.
 	fn into_call_create_trap(self) -> Result<Opcode, Self::Interrupt>;
 }
 
@@ -32,11 +36,13 @@ impl IntoCallCreateTrap for Opcode {
 	}
 }
 
+/// The invoke used in a substack.
 pub enum SubstackInvoke {
 	Call { trap: CallTrapData },
 	Create { trap: CreateTrapData, address: H160 },
 }
 
+/// The invoke used in a top-layer transaction stack.
 pub struct TransactInvoke {
 	pub create_address: Option<H160>,
 	pub gas_fee: U256,
@@ -44,29 +50,47 @@ pub struct TransactInvoke {
 	pub caller: H160,
 }
 
+/// Transaction arguments.
 #[derive(Clone, Debug)]
 pub enum TransactArgs {
+	/// A call transaction.
 	Call {
+		/// Transaction sender.
 		caller: H160,
+		/// Transaction target.
 		address: H160,
+		/// Transaction value.
 		value: U256,
+		/// Transaction call data.
 		data: Vec<u8>,
+		/// Transaction gas limit.
 		gas_limit: U256,
+		/// Transaction gas price.
 		gas_price: U256,
+		/// Access list information, in the format of (address, storage keys).
 		access_list: Vec<(H160, Vec<H256>)>,
 	},
+	/// A create transaction.
 	Create {
+		/// Transaction sender.
 		caller: H160,
+		/// Transaction value.
 		value: U256,
+		/// Init code.
 		init_code: Vec<u8>,
-		salt: Option<H256>, // Some for CREATE2
+		/// Salt of `CREATE2`. `None` for a normal create transaction.
+		salt: Option<H256>,
+		/// Transaction gas limit.
 		gas_limit: U256,
+		/// Transaction gas price.
 		gas_price: U256,
+		/// Access list information, in the format of (address, storage keys).
 		access_list: Vec<(H160, Vec<H256>)>,
 	},
 }
 
 impl TransactArgs {
+	/// Transaction gas limit.
 	pub fn gas_limit(&self) -> U256 {
 		match self {
 			Self::Call { gas_limit, .. } => *gas_limit,
@@ -74,6 +98,7 @@ impl TransactArgs {
 		}
 	}
 
+	/// Transaction gas price.
 	pub fn gas_price(&self) -> U256 {
 		match self {
 			Self::Call { gas_price, .. } => *gas_price,
@@ -81,6 +106,7 @@ impl TransactArgs {
 		}
 	}
 
+	/// Access list information.
 	pub fn access_list(&self) -> &Vec<(H160, Vec<H256>)> {
 		match self {
 			Self::Call { access_list, .. } => access_list,
@@ -88,6 +114,7 @@ impl TransactArgs {
 		}
 	}
 
+	/// Transaction sender.
 	pub fn caller(&self) -> H160 {
 		match self {
 			Self::Call { caller, .. } => *caller,
@@ -95,6 +122,7 @@ impl TransactArgs {
 		}
 	}
 
+	/// Transaction value.
 	pub fn value(&self) -> U256 {
 		match self {
 			Self::Call { value, .. } => *value,
@@ -103,6 +131,16 @@ impl TransactArgs {
 	}
 }
 
+/// Standard invoker.
+///
+/// The generic parameters are as follows:
+/// * `S`: The runtime state, usually [RuntimeState] but can be customized.
+/// * `G`: Gasometer type, usually [crate::standard::Gasometer] but can be
+///   customized.
+/// * `H`: Backend type.
+/// * `R`: Code resolver type, also handle precompiles. Usually
+///   [EtableResolver] but can be customized.
+/// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
 pub struct Invoker<'config, 'resolver, S, G, H, R, Tr> {
 	config: &'config Config,
 	resolver: &'resolver R,
@@ -110,6 +148,7 @@ pub struct Invoker<'config, 'resolver, S, G, H, R, Tr> {
 }
 
 impl<'config, 'resolver, S, G, H, R, Tr> Invoker<'config, 'resolver, S, G, H, R, Tr> {
+	/// Create a new standard invoker with the given config and resolver.
 	pub fn new(config: &'config Config, resolver: &'resolver R) -> Self {
 		Self {
 			config,

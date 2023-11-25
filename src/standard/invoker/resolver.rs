@@ -7,9 +7,17 @@ use crate::{
 use alloc::rc::Rc;
 use primitive_types::H160;
 
+/// A code resolver.
+///
+/// The resolver handles how a call (with the target code address) or create
+/// (with the init code) is turned into a colored machine. The resolver can
+/// construct a machine, pushing the call stack, or directly exit, handling a
+/// precompile.
 pub trait Resolver<S, G, H, Tr> {
+	/// Color of the machine. See [ColoredMachine] for more information.
 	type Color: Color<S, G, H, Tr>;
 
+	/// Resolve a call (with the target code address).
 	fn resolve_call(
 		&self,
 		code_address: H160,
@@ -23,6 +31,7 @@ pub trait Resolver<S, G, H, Tr> {
 		ExitError,
 	>;
 
+	/// Resolve a create (with the init code).
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
@@ -36,7 +45,10 @@ pub trait Resolver<S, G, H, Tr> {
 	>;
 }
 
+/// A set of precompiles.
 pub trait PrecompileSet<S, G, H> {
+	/// Attempt to execute the precompile at the given `code_address`. Returns
+	/// `None` if it's not a precompile.
 	fn execute(
 		&self,
 		code_address: H160,
@@ -62,6 +74,8 @@ impl<S, G, H> PrecompileSet<S, G, H> for () {
 	}
 }
 
+/// The standard code resolver where the color is an [Etable]. This is usually
+/// what you need.
 pub struct EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, F> {
 	config: &'config Config,
 	etable: &'etable Etable<S, H, Tr, F>,
@@ -71,6 +85,7 @@ pub struct EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, F> {
 impl<'config, 'precompile, 'etable, S, H, Pre, Tr, F>
 	EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, F>
 {
+	/// Create a new [Etable] code resolver.
 	pub fn new(
 		config: &'config Config,
 		precompiles: &'precompile Pre,

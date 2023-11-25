@@ -58,6 +58,7 @@ impl<S> Machine<S> {
 		self.position
 	}
 
+	/// Machine code.
 	pub fn code(&self) -> &[u8] {
 		&self.code
 	}
@@ -84,6 +85,8 @@ impl<S> Machine<S> {
 		}
 	}
 
+	/// Perform any operation. If the operation fails, then set the machine
+	/// status to already exited.
 	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
 		&mut self,
 		f: F,
@@ -198,10 +201,12 @@ impl<S> Machine<S> {
 		self.code.get(self.position).map(|opcode| Opcode(*opcode))
 	}
 
+	/// Whether the machine has empty code.
 	pub fn is_empty(&self) -> bool {
 		self.code.is_empty()
 	}
 
+	/// Advance the PC to the next opcode.
 	pub fn advance(&mut self) {
 		if self.position == self.code.len() {
 			return;

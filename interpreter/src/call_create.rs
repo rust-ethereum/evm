@@ -1,3 +1,5 @@
+//! Call and create trap handler.
+
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
 	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeBackend,
@@ -72,8 +74,11 @@ pub enum CallScheme {
 	StaticCall,
 }
 
+/// Combined call create trap data.
 pub enum CallCreateTrapData {
+	/// A call trap data.
 	Call(CallTrapData),
+	/// A create trap data.
 	Create(CreateTrapData),
 }
 

@@ -10,7 +10,9 @@ use crate::{
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 
+/// A gasometer that handles transaction metering.
 pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
+	/// Create a new top-layer gasometer from a call transaction.
 	fn new_transact_call(
 		gas_limit: U256,
 		data: &[u8],
@@ -18,6 +20,7 @@ pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
 		config: &'config Config,
 	) -> Result<Self, ExitError>;
 
+	/// Create a new top-layer gasometer from a create transaction.
 	fn new_transact_create(
 		gas_limit: U256,
 		code: &[u8],
@@ -25,16 +28,21 @@ pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
 		config: &'config Config,
 	) -> Result<Self, ExitError>;
 
+	/// Effective gas, assuming the current gasometer is a top-layer gasometer,
+	/// reducing the amount of refunded gas.
 	fn effective_gas(&self) -> U256;
 
+	/// Derive a sub-gasometer from the current one, pushing the call stack.
 	fn submeter(&mut self, gas_limit: U256, call_has_value: bool) -> Result<Self, ExitError>;
 
+	/// Merge a sub-gasometer using the given strategy, poping the call stack.
 	fn merge(&mut self, other: Self, strategy: MergeStrategy);
 
 	/// Analyse the code so that the gasometer can apply further optimizations.
 	fn analyse_code(&mut self, _code: &[u8]) {}
 }
 
+/// Standard gasometer implementation.
 pub struct Gasometer<'config> {
 	gas_limit: u64,
 	memory_gas: u64,
@@ -44,6 +52,8 @@ pub struct Gasometer<'config> {
 }
 
 impl<'config> Gasometer<'config> {
+	/// Perform any operation on the gasometer. Set the gasometer to `OutOfGas`
+	/// if the operation fails.
 	#[inline]
 	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
 		&mut self,
@@ -58,6 +68,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	/// Set the current gasometer to `OutOfGas`.
 	pub fn oog(&mut self) {
 		self.memory_gas = 0;
 		self.refunded_gas = 0;
@@ -69,6 +80,7 @@ impl<'config> Gasometer<'config> {
 		self.used_gas + self.memory_gas
 	}
 
+	/// Left gas that is supposed to be available to the current interpreter.
 	pub fn gas(&self) -> u64 {
 		self.gas_limit - self.memory_gas - self.used_gas
 	}
@@ -88,6 +100,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	/// Set memory gas usage.
 	pub fn set_memory_gas(&mut self, memory_cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.used_gas.checked_add(memory_cost);
 		if let Some(all_gas_cost) = all_gas_cost {
@@ -102,6 +115,7 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
+	/// Create a new gasometer with the given gas limit and chain config.
 	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
@@ -504,7 +518,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 /// Gas cost.
 #[derive(Debug, Clone, Copy)]
-pub enum GasCost {
+enum GasCost {
 	/// Zero gas cost.
 	Zero,
 	/// Base gas cost.
@@ -754,7 +768,7 @@ impl GasCost {
 
 /// Memory cost.
 #[derive(Debug, Clone, Copy)]
-pub struct MemoryCost {
+struct MemoryCost {
 	/// Affected memory offset.
 	pub offset: U256,
 	/// Affected length.
@@ -807,7 +821,7 @@ impl MemoryCost {
 
 /// Transaction cost.
 #[derive(Debug, Clone, Copy)]
-pub enum TransactionCost {
+enum TransactionCost {
 	/// Call transaction cost.
 	Call {
 		/// Length of zeros in transaction data.
@@ -912,7 +926,7 @@ fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
 	(access_list_address_len, access_list_storage_len)
 }
 
-pub fn init_code_cost(data: &[u8]) -> u64 {
+fn init_code_cost(data: &[u8]) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.

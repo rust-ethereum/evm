@@ -1,35 +1,27 @@
 //! EVM gasometer.
 
 use crate::{ExitError, Machine};
-use core::ops::{Add, AddAssign, Sub, SubAssign};
 use primitive_types::U256;
 
-pub trait Gas:
-	Copy
-	+ Into<U256>
-	+ Add<Self, Output = Self>
-	+ AddAssign<Self>
-	+ Sub<Self, Output = Self>
-	+ SubAssign<Self>
-{
-}
-
-impl Gas for u64 {}
-impl Gas for U256 {}
-
+/// A static gasometer, exposing functions for precompile cost recording or for
+/// transactions.
 pub trait StaticGasometer: Sized {
 	fn record_cost(&mut self, cost: U256) -> Result<(), ExitError>;
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 	fn gas(&self) -> U256;
 }
 
+/// A gasometer that is suitable for an interpreter machine.
 pub trait Gasometer<S, H>: StaticGasometer {
+	/// Record gas cost for a single opcode step.
 	fn record_step(
 		&mut self,
 		machine: &Machine<S>,
 		is_static: bool,
 		backend: &H,
 	) -> Result<(), ExitError>;
+	/// Record gas cost, advancing as much as possible (possibly into the next
+	/// branch). Returns the number of advances.
 	fn record_stepn(
 		&mut self,
 		machine: &Machine<S>,

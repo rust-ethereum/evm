@@ -293,6 +293,9 @@ enum HeapTransactState<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
 	},
 }
 
+/// Heap-based call stack for a transaction. This is suitable for single
+/// stepping or debugging. The hybrid version [transact] uses a heap-based call
+/// stack internally after certain depth.
 pub struct HeapTransact<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>>(
 	Option<HeapTransactState<'backend, 'invoker, H, Tr, I>>,
 );
@@ -301,6 +304,7 @@ impl<'backend, 'invoker, H, Tr, I> HeapTransact<'backend, 'invoker, H, Tr, I>
 where
 	I: Invoker<H, Tr>,
 {
+	/// Create a new heap-based call stack.
 	pub fn new(
 		args: I::TransactArgs,
 		invoker: &'invoker I,
@@ -385,18 +389,21 @@ where
 		ret
 	}
 
+	/// Step the call stack, but run the interpreter inside.
 	pub fn step_run(
 		&mut self,
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
 		self.step_with(|call_stack| call_stack.step_run())
 	}
 
+	/// Step the call stack, and step the interpreter inside.
 	pub fn step(
 		&mut self,
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
 		self.step_with(|call_stack| call_stack.step())
 	}
 
+	/// Run the call stack until it exits or receives interrupts.
 	pub fn run(&mut self) -> Capture<Result<I::TransactValue, ExitError>, I::Interrupt> {
 		loop {
 			let step_ret = self.step_run();
@@ -407,6 +414,8 @@ where
 		}
 	}
 
+	/// The machine of the last item on the call stack. This will be `None` if
+	/// the heap stack is just created.
 	pub fn last_machine(&self) -> Option<&I::Machine> {
 		match &self.0 {
 			Some(HeapTransactState::Running { call_stack, .. }) => match &call_stack.last {
@@ -467,6 +476,18 @@ where
 	}
 }
 
+/// Initiate a transaction, using a hybrid call stack.
+///
+/// Up until `heap_depth`, a stack-based call stack is used first. A stack-based
+/// call stack is faster, but for really deep calls, it can reach the default
+/// stack size limit of the platform and thus overflow.
+///
+/// After `heap_depth`, a heap-based call stack is then used.
+///
+/// If `heap_depth` is `None`, then always use a stack-based call stack.
+///
+/// Because a stack-based call stack cannot handle interrupts, the [Invoker]
+/// type must have its `Interrupt` type set to [Infallible].
 pub fn transact<H, Tr, I>(
 	args: I::TransactArgs,
 	heap_depth: Option<usize>,

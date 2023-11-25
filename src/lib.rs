@@ -29,7 +29,7 @@
 //! ## Debugging
 //!
 //! Rust EVM supports two different methods for debugging. You can either single
-//! stepping the execution, or you can trace the opcodes.
+//! step the execution, or you can trace the opcodes.
 //!
 //! ### Single stepping
 //!
@@ -46,6 +46,18 @@
 //!
 //! If you also want to trace inside gasometers, simply create a wrapper struct
 //! of the gasometer you use, and pass that into the invoker.
+//!
+//! ## Customization
+//!
+//! All aspects of the interpreter can be customized individually.
+//!
+//! * New opcodes can be added or customized through [Etable].
+//! * Gas metering behavior can be customized by wrapping [standard::Gasometer] or creating new
+//!   ones.
+//! * Code resolution and precompiles can be customized by [standard::Resolver].
+//! * Call invocation and transaction behavior can be customized via [standard::Invoker].
+//! * Finally, each machine on the call stack has the concept of [Color], which allows you to
+//!   implement account versioning, or specialized precompiles that invoke subcalls.
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables)]
@@ -66,12 +78,18 @@ pub use evm_interpreter::*;
 pub use crate::backend::TransactionalBackend;
 pub use crate::call_stack::{transact, HeapTransact};
 pub use crate::color::{Color, ColoredMachine};
-pub use crate::gasometer::{Gas, Gasometer, StaticGasometer};
+pub use crate::gasometer::{Gasometer, StaticGasometer};
 pub use crate::invoker::{Invoker, InvokerControl, InvokerMachine};
 
+/// Merge strategy of a backend substate layer or a call stack gasometer layer.
 #[derive(Clone, Debug, Copy)]
 pub enum MergeStrategy {
+	/// Fully commit the sub-layer into the parent. This happens if the sub-machine executes
+	/// successfully.
 	Commit,
+	/// Revert the state, but keep remaining gases. This happens with the `REVERT` opcode.
 	Revert,
+	/// Discard the state and gases. This happens in all situations where the machine encounters an
+	/// error.
 	Discard,
 }
