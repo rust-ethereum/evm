@@ -2,10 +2,31 @@ use crate::{
 	Capture, Control, Etable, ExitResult, Gasometer, InvokerMachine, Machine, Opcode, RuntimeState,
 };
 
+/// # Colored machine.
+///
+/// A colored machine combines the machine interpreter, the gasometer, as well
+/// as a [Color]. It's the machine type that is pushed into a standard
+/// [crate::standard::Invoker] call stack.
+///
+/// ## About the color field
+///
+/// A color is anything that implements the [Color] trait, defining how the
+/// combined machine should be stepped or ran.
+///
+/// The standard color for a machine is an [Etable] (resolved by the standard
+/// [crate::standard::EtableResolver]). The machine will use the opcode handler
+/// defined in the etable for the machine invocation.
+///
+/// A customized color can allow you to implement account versioning or a
+/// complex precompile that invoke subcalls.
 pub struct ColoredMachine<S, G, C> {
+	/// The interpreter machine.
 	pub machine: Machine<S>,
+	/// The gasometer.
 	pub gasometer: G,
+	/// Whether the current call stack is static.
 	pub is_static: bool,
+	/// The color of the machine.
 	pub color: C,
 }
 
@@ -38,7 +59,9 @@ where
 	}
 }
 
+/// A color of an machine.
 pub trait Color<S, G, H, Tr> {
+	/// Step the machine.
 	fn step(
 		&self,
 		machine: &mut Machine<S>,
@@ -47,6 +70,7 @@ pub trait Color<S, G, H, Tr> {
 		handler: &mut H,
 	) -> Result<(), Capture<ExitResult, Tr>>;
 
+	/// Run the machine.
 	fn run(
 		&self,
 		machine: &mut Machine<S>,

@@ -1,4 +1,4 @@
-use evm::backend::in_memory::InMemoryBackend;
+use crate::in_memory::InMemoryBackend;
 use evm::utils::h256_to_u256;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};

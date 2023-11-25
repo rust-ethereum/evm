@@ -18,6 +18,10 @@ macro_rules! impl_perform_popn_pushn {
 		($($peek_push:expr),*),
 		$pop_pushn_f:ident
 	) => {
+		/// Pop $pop_len values from the stack, and then push $push_len values
+		/// into the stack.
+		///
+		/// If `f` returns error, then the stack will not be changed.
 		#[allow(unused_parens)]
 		pub fn $name<R, F>(&mut self, f: F) -> Result<R, ExitError> where
 			F: FnOnce(
@@ -98,6 +102,7 @@ impl Stack {
 		Ok(())
 	}
 
+	/// Check whether it's possible to pop and push enough items in the stack.
 	pub fn check_pop_push(&self, pop: usize, push: usize) -> Result<(), ExitException> {
 		if self.data.len() < pop {
 			return Err(ExitException::StackUnderflow);

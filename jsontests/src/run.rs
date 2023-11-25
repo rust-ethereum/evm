@@ -1,8 +1,6 @@
 use crate::error::{Error, TestError};
+use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer};
 use crate::types::*;
-use evm::backend::in_memory::{
-	InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer,
-};
 use evm::standard::{Config, Etable, EtableResolver, Gasometer, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;

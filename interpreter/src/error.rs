@@ -27,6 +27,7 @@ impl<E, T> Capture<E, T> {
 	}
 }
 
+/// Exit result.
 pub type ExitResult = Result<ExitSucceed, ExitError>;
 
 /// Exit reason.

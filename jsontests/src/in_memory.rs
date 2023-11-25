@@ -1,10 +1,12 @@
-use crate::{
+use evm::{
 	ExitError, ExitException, Log, MergeStrategy, RuntimeBackend, RuntimeBaseBackend,
 	RuntimeEnvironment, TransactionalBackend,
 };
-use alloc::collections::{BTreeMap, BTreeSet};
 use primitive_types::{H160, H256, U256};
-use std::mem;
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	mem,
+};
 
 #[derive(Clone, Debug)]
 pub struct InMemoryEnvironment {
