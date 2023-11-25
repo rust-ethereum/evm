@@ -1,11 +1,11 @@
 [package]
 name = "evm-interpreter"
-version = "0.2.0-dev"
-license = "Apache-2.0"
-authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
-description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
-repository = "https://github.com/sorpaas/rust-evm"
-keywords = ["no_std", "ethereum"]
+version = "1.0.0-dev"
+license = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+keywords = { workspace = true }
+description = "The interpreter part of Ethereum Virtual Machine"
 edition = "2018"
 
 [dependencies]
