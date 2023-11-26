@@ -1,11 +1,11 @@
 [package]
 name = "evm-tracer"
 version = "0.0.0-dev"
+edition = "2021"
 license = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
 keywords = { workspace = true }
-edition = "2021"
 
 [dependencies]
 evm = { path = ".." }
