@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use super::routines;
 use crate::standard::{Config, TransactGasometer};
 use crate::{

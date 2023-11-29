@@ -1,5 +1,8 @@
 //! Call and create trap handler.
 
+#[cfg(not(feature = "std"))]
+use crate::Vec;
+
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
 	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeBackend,

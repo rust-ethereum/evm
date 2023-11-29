@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl, InvokerMachine};
 use core::convert::Infallible;
 

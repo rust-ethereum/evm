@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use super::{CallTrapData, CreateTrapData, Resolver, SubstackInvoke, TransactGasometer};
 use crate::standard::Config;
 use crate::{

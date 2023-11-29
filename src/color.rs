@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
+
 use crate::{
 	Capture, Control, Etable, ExitResult, Gasometer, InvokerMachine, Machine, Opcode, RuntimeState,
 };

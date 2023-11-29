@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use crate::Vec;
+
 use crate::{ExitError, Opcode};
 use alloc::rc::Rc;
 use primitive_types::{H160, H256, U256};
