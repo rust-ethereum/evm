@@ -38,11 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - uses: actions/checkout@v4
       with:
-        path: jsontests/res/ethtests
-        repository: ethereum/tests
-        ref: 428f218d7d6f4a52544e12684afbfe6e2882ffbf
+        submodules: recursive
     - name: Run tests
       run: |
         cargo run --release --verbose -p jsontests -- \
