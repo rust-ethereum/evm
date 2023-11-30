@@ -24,7 +24,7 @@ impl Memory {
 	}
 
 	/// Memory limit.
-	pub fn limit(&self) -> usize {
+	pub const fn limit(&self) -> usize {
 		self.limit
 	}
 
@@ -34,7 +34,7 @@ impl Memory {
 	}
 
 	/// Get the effective length.
-	pub fn effective_len(&self) -> U256 {
+	pub const fn effective_len(&self) -> U256 {
 		self.effective_len
 	}
 
@@ -44,7 +44,7 @@ impl Memory {
 	}
 
 	/// Return the full memory.
-	pub fn data(&self) -> &Vec<u8> {
+	pub const fn data(&self) -> &Vec<u8> {
 		&self.data
 	}
 

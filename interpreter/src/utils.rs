@@ -46,7 +46,7 @@ pub struct I256(pub Sign, pub U256);
 
 impl I256 {
 	/// Zero value of I256.
-	pub fn zero() -> I256 {
+	pub const fn zero() -> I256 {
 		I256(Sign::Zero, U256::zero())
 	}
 	/// Minimum value of I256.

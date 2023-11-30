@@ -62,7 +62,7 @@ where
 
 impl<S, H, Tr> Etable<S, H, Tr> {
 	/// Default core value for Etable.
-	pub const fn core() -> Etable<S, H, Tr> {
+	pub const fn core() -> Self {
 		let mut table = [eval_unknown as _; 256];
 
 		table[Opcode::STOP.as_usize()] = eval_stop as _;
@@ -186,7 +186,7 @@ impl<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr: CallCre
 	Etable<S, H, Tr>
 {
 	/// Runtime Etable.
-	pub const fn runtime() -> Etable<S, H, Tr> {
+	pub const fn runtime() -> Self {
 		let mut table = Self::core();
 
 		table.0[Opcode::SHA3.as_usize()] = eval_sha3 as _;

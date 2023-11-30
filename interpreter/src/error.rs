@@ -168,7 +168,7 @@ impl From<ExitException> for ExitResult {
 
 impl From<ExitException> for ExitError {
 	fn from(s: ExitException) -> Self {
-		ExitError::Exception(s)
+		Self::Exception(s)
 	}
 }
 
@@ -203,6 +203,6 @@ impl From<ExitFatal> for ExitResult {
 
 impl From<ExitFatal> for ExitError {
 	fn from(s: ExitFatal) -> Self {
-		ExitError::Fatal(s)
+		Self::Fatal(s)
 	}
 }

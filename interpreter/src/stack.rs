@@ -48,7 +48,7 @@ macro_rules! impl_perform_popn_pushn {
 
 impl Stack {
 	/// Create a new stack with given limit.
-	pub fn new(limit: usize) -> Self {
+	pub const fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
 			limit,
@@ -57,7 +57,7 @@ impl Stack {
 
 	#[inline]
 	/// Stack limit.
-	pub fn limit(&self) -> usize {
+	pub const fn limit(&self) -> usize {
 		self.limit
 	}
 
@@ -75,7 +75,7 @@ impl Stack {
 
 	#[inline]
 	/// Stack data.
-	pub fn data(&self) -> &Vec<H256> {
+	pub const fn data(&self) -> &Vec<H256> {
 		&self.data
 	}
 

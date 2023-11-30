@@ -18,13 +18,13 @@ pub struct RuntimeState {
 	pub gas: U256,
 }
 
-impl AsRef<RuntimeState> for RuntimeState {
+impl AsRef<Self> for RuntimeState {
 	fn as_ref(&self) -> &Self {
 		self
 	}
 }
 
-impl AsMut<RuntimeState> for RuntimeState {
+impl AsMut<Self> for RuntimeState {
 	fn as_mut(&mut self) -> &mut Self {
 		self
 	}
