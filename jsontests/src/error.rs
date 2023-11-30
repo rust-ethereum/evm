@@ -1,3 +1,4 @@
+#![allow(clippy::upper_case_acronyms)]
 use thiserror::Error;
 
 #[derive(Error, Debug)]

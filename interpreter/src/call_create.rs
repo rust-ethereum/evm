@@ -140,6 +140,7 @@ pub struct CallTrapData {
 }
 
 impl CallTrapData {
+	#[allow(clippy::too_many_arguments)]
 	fn new_from_params<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		scheme: CallScheme,
 		memory: &mut Memory,

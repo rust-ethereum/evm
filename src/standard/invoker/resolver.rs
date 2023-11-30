@@ -21,6 +21,7 @@ pub trait Resolver<S, G, H, Tr> {
 	type Color: Color<S, G, H, Tr>;
 
 	/// Resolve a call (with the target code address).
+	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
 		code_address: H160,
@@ -35,6 +36,7 @@ pub trait Resolver<S, G, H, Tr> {
 	>;
 
 	/// Resolve a create (with the init code).
+	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,

@@ -26,7 +26,7 @@ impl TestMulti {
 				tests.push(Test {
 					info: self.info.clone(),
 					env: self.env.clone(),
-					fork: fork.clone(),
+					fork: *fork,
 					index,
 					post: post_state.clone(),
 					pre: self.pre.clone(),

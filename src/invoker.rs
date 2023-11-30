@@ -45,6 +45,7 @@ pub trait Invoker<H, Tr> {
 	type SubstackInvoke;
 
 	/// Create a new transaction with the given transaction arguments.
+	#[allow(clippy::type_complexity)]
 	fn new_transact(
 		&self,
 		args: Self::TransactArgs,
@@ -73,6 +74,7 @@ pub trait Invoker<H, Tr> {
 	) -> Result<Self::TransactValue, ExitError>;
 
 	/// Enter a sub-layer call stack.
+	#[allow(clippy::type_complexity)]
 	fn enter_substack(
 		&self,
 		trap: Tr,

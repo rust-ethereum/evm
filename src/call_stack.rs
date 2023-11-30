@@ -40,7 +40,7 @@ where
 		backend: &'backend mut H,
 		invoker: &'invoker I,
 	) -> Self {
-		let call_stack = Self {
+		Self {
 			stack: Vec::new(),
 			last: Some(LastSubstack {
 				machine,
@@ -49,11 +49,10 @@ where
 			initial_depth,
 			backend,
 			invoker,
-		};
-
-		call_stack
+		}
 	}
 
+	#[allow(clippy::type_complexity)]
 	pub fn run(&mut self) -> Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt> {
 		loop {
 			let step_ret = self.step_run();
@@ -64,6 +63,7 @@ where
 		}
 	}
 
+	#[allow(clippy::type_complexity)]
 	pub fn step(
 		&mut self,
 	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
@@ -76,6 +76,7 @@ where
 		})
 	}
 
+	#[allow(clippy::type_complexity)]
 	pub fn step_run(
 		&mut self,
 	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
@@ -85,6 +86,7 @@ where
 		})
 	}
 
+	#[allow(clippy::type_complexity)]
 	fn step_with<FS>(
 		&mut self,
 		fs: FS,
@@ -96,7 +98,7 @@ where
 
 		self.last = match self.last.take() {
 			None => {
-				step_ret = Some(Capture::Exit(Err(ExitFatal::AlreadyExited.into())));
+				step_ret = Some(Capture::Exit(Err(ExitFatal::AlreadyExited)));
 				None
 			}
 			Some(LastSubstack {
@@ -320,6 +322,7 @@ where
 		})))
 	}
 
+	#[allow(clippy::type_complexity)]
 	fn step_with<FS>(
 		&mut self,
 		fs: FS,
@@ -393,6 +396,7 @@ where
 	}
 
 	/// Step the call stack, but run the interpreter inside.
+	#[allow(clippy::type_complexity)]
 	pub fn step_run(
 		&mut self,
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
@@ -400,6 +404,7 @@ where
 	}
 
 	/// Step the call stack, and step the interpreter inside.
+	#[allow(clippy::type_complexity)]
 	pub fn step(
 		&mut self,
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
@@ -435,45 +440,37 @@ where
 	I: Invoker<H, Tr>,
 {
 	fn drop(&mut self) {
-		if let Some(state) = self.0.take() {
-			match state {
-				HeapTransactState::Running {
-					mut call_stack,
-					transact_invoke,
-				} => {
-					if let Some(mut last) = call_stack.last.take() {
-						loop {
-							if let Some(mut parent) = call_stack.stack.pop() {
-								let last_machine = last.machine.deconstruct();
-								let _ = call_stack.invoker.exit_substack(
-									ExitFatal::Unfinished.into(),
-									last_machine,
-									parent.invoke,
-									&mut parent.machine,
-									call_stack.backend,
-								);
+		if let Some(HeapTransactState::Running {
+			mut call_stack,
+			transact_invoke,
+		}) = self.0.take()
+		{
+			if let Some(mut last) = call_stack.last.take() {
+				while let Some(mut parent) = call_stack.stack.pop() {
+					let last_machine = last.machine.deconstruct();
+					let _ = call_stack.invoker.exit_substack(
+						ExitFatal::Unfinished.into(),
+						last_machine,
+						parent.invoke,
+						&mut parent.machine,
+						call_stack.backend,
+					);
 
-								last = LastSubstack {
-									machine: parent.machine,
-									status: LastSubstackStatus::Exited(Capture::Exit(
-										ExitFatal::Unfinished.into(),
-									)),
-								};
-							} else {
-								break;
-							}
-						}
-
-						let last_machine = last.machine.deconstruct();
-						let _ = call_stack.invoker.finalize_transact(
-							&transact_invoke,
+					last = LastSubstack {
+						machine: parent.machine,
+						status: LastSubstackStatus::Exited(Capture::Exit(
 							ExitFatal::Unfinished.into(),
-							last_machine,
-							call_stack.backend,
-						);
-					}
+						)),
+					};
 				}
-				_ => (),
+
+				let last_machine = last.machine.deconstruct();
+				let _ = call_stack.invoker.finalize_transact(
+					&transact_invoke,
+					ExitFatal::Unfinished.into(),
+					last_machine,
+					call_stack.backend,
+				);
 			}
 		}
 	}

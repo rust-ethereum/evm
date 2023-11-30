@@ -207,7 +207,7 @@ where
 				Some(salt) => {
 					let scheme = CreateScheme::Create2 {
 						caller: *caller,
-						code_hash: H256::from_slice(Keccak256::digest(&init_code).as_slice()),
+						code_hash: H256::from_slice(Keccak256::digest(init_code).as_slice()),
 						salt: *salt,
 					};
 					scheme.address(handler)
@@ -278,7 +278,7 @@ where
 							context,
 							transaction_context: Rc::new(transaction_context),
 							retbuf: Vec::new(),
-							gas: U256::from(gas_limit),
+							gas: gas_limit,
 						}),
 						gasometer,
 						handler,
@@ -316,7 +316,7 @@ where
 							context,
 							transaction_context: Rc::new(transaction_context),
 							retbuf: Vec::new(),
-							gas: U256::from(gas_limit),
+							gas: gas_limit,
 						}),
 						gasometer,
 						handler,
@@ -429,10 +429,8 @@ where
 		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
 		let gas_limit = min(after_gas, target_gas);
 
-		let call_has_value = match &trap_data {
-			CallCreateTrapData::Call(call) if call.has_value() => true,
-			_ => false,
-		};
+		let call_has_value =
+			matches!(&trap_data, CallCreateTrapData::Call(call) if call.has_value());
 
 		let is_static = if machine.is_static {
 			true
@@ -457,9 +455,9 @@ where
 						context: call_trap_data.context.clone(),
 						transaction_context,
 						retbuf: Vec::new(),
-						gas: U256::from(gas_limit),
+						gas: gas_limit,
 					},
-					&machine,
+					machine,
 				);
 
 				let target = call_trap_data.target;
@@ -493,9 +491,9 @@ where
 						},
 						transaction_context,
 						retbuf: Vec::new(),
-						gas: U256::from(gas_limit),
+						gas: gas_limit,
 					},
-					&machine,
+					machine,
 				);
 
 				Capture::Exit(routines::enter_create_substack(

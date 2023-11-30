@@ -19,7 +19,7 @@ pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
 	fn new_transact_call(
 		gas_limit: U256,
 		data: &[u8],
-		access_list: &Vec<(H160, Vec<H256>)>,
+		access_list: &[(H160, Vec<H256>)],
 		config: &'config Config,
 	) -> Result<Self, ExitError>;
 
@@ -27,7 +27,7 @@ pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
 	fn new_transact_create(
 		gas_limit: U256,
 		code: &[u8],
-		access_list: &Vec<(H160, Vec<H256>)>,
+		access_list: &[(H160, Vec<H256>)],
 		config: &'config Config,
 	) -> Result<Self, ExitError>;
 
@@ -134,7 +134,7 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 	fn new_transact_call(
 		gas_limit: U256,
 		data: &[u8],
-		access_list: &Vec<(H160, Vec<H256>)>,
+		access_list: &[(H160, Vec<H256>)],
 		config: &'config Config,
 	) -> Result<Self, ExitError> {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
@@ -153,7 +153,7 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 	fn new_transact_create(
 		gas_limit: U256,
 		code: &[u8],
-		access_list: &Vec<(H160, Vec<H256>)>,
+		access_list: &[(H160, Vec<H256>)],
 		config: &'config Config,
 	) -> Result<Self, ExitError> {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
@@ -881,7 +881,7 @@ impl TransactionCost {
 	}
 
 	pub fn cost(&self, config: &Config) -> u64 {
-		let gas_cost = match self {
+		match self {
 			TransactionCost::Call {
 				zero_data_len,
 				non_zero_data_len,
@@ -915,9 +915,7 @@ impl TransactionCost {
 
 				cost
 			}
-		};
-
-		gas_cost
+		}
 	}
 }
 

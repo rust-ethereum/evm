@@ -51,7 +51,7 @@ where
 			self.0.map(|f| {
 				let fr = wrapper(f, current_opcode);
 				if current_opcode != Opcode(255) {
-					current_opcode.0 = current_opcode.0 + 1;
+					current_opcode.0 += current_opcode.0;
 				}
 				fr
 			}),

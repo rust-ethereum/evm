@@ -96,12 +96,12 @@ where
 		is_static: bool,
 		handler: &mut H,
 	) -> Result<(), Capture<ExitResult, Tr>> {
-		match gasometer.record_step(&machine, is_static, handler) {
+		match gasometer.record_step(machine, is_static, handler) {
 			Ok(()) => {
-				machine.state.as_mut().gas = gasometer.gas().into();
+				machine.state.as_mut().gas = gasometer.gas();
 				machine.step(handler, self)
 			}
-			Err(e) => return Err(Capture::Exit(Err(e))),
+			Err(e) => Err(Capture::Exit(Err(e))),
 		}
 	}
 
@@ -113,9 +113,9 @@ where
 		handler: &mut H,
 	) -> Capture<ExitResult, Tr> {
 		loop {
-			match gasometer.record_stepn(&machine, is_static, handler) {
+			match gasometer.record_stepn(machine, is_static, handler) {
 				Ok(stepn) => {
-					machine.state.as_mut().gas = gasometer.gas().into();
+					machine.state.as_mut().gas = gasometer.gas();
 					match machine.stepn(stepn, handler, self) {
 						Ok(()) => (),
 						Err(c) => return c,

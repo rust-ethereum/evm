@@ -82,9 +82,7 @@ impl Memory {
 	/// Resize to range. Used for return value.
 	pub fn resize_to_range(&mut self, return_range: Range<U256>) {
 		let ret = if return_range.start > U256::from(usize::MAX) {
-			let mut ret = Vec::new();
-			ret.resize((return_range.end - return_range.start).as_usize(), 0);
-			ret
+			vec![0; (return_range.end - return_range.start).as_usize()]
 		} else if return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.get(
 				return_range.start.as_usize(),
@@ -111,8 +109,7 @@ impl Memory {
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
 	pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
-		let mut ret = Vec::new();
-		ret.resize(size, 0);
+		let mut ret = vec![0; size];
 
 		#[allow(clippy::needless_range_loop)]
 		for index in 0..size {
