@@ -47,9 +47,9 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn make_enter_create_machine<'config, 'resolver, S, G, H, R, Tr>(
-	config: &'config Config,
-	resolver: &'resolver R,
+pub fn make_enter_create_machine<S, G, H, R, Tr>(
+	config: &Config,
+	resolver: &R,
 	caller: H160,
 	init_code: Vec<u8>,
 	is_static: bool,
