@@ -91,7 +91,7 @@ where
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn enter_call_substack<'config, 'resolver, S, G, H, R, Tr>(
 	config: &'config Config,
-	resolver: &'resolver R,
+	resolver: &R,
 	trap_data: CallTrapData,
 	code_address: H160,
 	is_static: bool,
@@ -139,9 +139,9 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn enter_create_substack<'config, 'resolver, S, G, H, R, Tr>(
+pub fn enter_create_substack<'config, S, G, H, R, Tr>(
 	config: &'config Config,
-	resolver: &'resolver R,
+	resolver: &R,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
 	is_static: bool,
