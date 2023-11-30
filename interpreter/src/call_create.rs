@@ -5,6 +5,7 @@ use crate::{
 	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeBackend,
 	RuntimeState, Transfer,
 };
+use alloc::vec::Vec;
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -31,7 +32,7 @@ pub enum CreateScheme {
 impl CreateScheme {
 	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
 		match self {
-			CreateScheme::Create2 {
+			Self::Create2 {
 				caller,
 				code_hash,
 				salt,
@@ -43,7 +44,7 @@ impl CreateScheme {
 				hasher.update(&code_hash[..]);
 				H256::from_slice(hasher.finalize().as_slice()).into()
 			}
-			CreateScheme::Legacy { caller } => {
+			Self::Legacy { caller } => {
 				let nonce = handler.nonce(*caller);
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(caller);
@@ -53,7 +54,7 @@ impl CreateScheme {
 		}
 	}
 
-	pub fn caller(&self) -> H160 {
+	pub const fn caller(&self) -> H160 {
 		match self {
 			Self::Create2 { caller, .. } => *caller,
 			Self::Legacy { caller } => *caller,
@@ -83,7 +84,7 @@ pub enum CallCreateTrapData {
 }
 
 impl CallCreateTrapData {
-	pub fn target_gas(&self) -> Option<U256> {
+	pub const fn target_gas(&self) -> Option<U256> {
 		match self {
 			Self::Call(CallTrapData { gas, .. }) => Some(*gas),
 			Self::Create(_) => None,
@@ -137,6 +138,7 @@ pub struct CallTrapData {
 }
 
 impl CallTrapData {
+	#[allow(clippy::too_many_arguments)]
 	fn new_from_params<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		scheme: CallScheme,
 		memory: &mut Memory,

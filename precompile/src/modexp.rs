@@ -179,6 +179,7 @@ impl<G: StaticGasometer> PurePrecompile<G> for Modexp {
 
 		// always true except in the case of zero-length modulus, which leads to
 		// output of length and value 1.
+		#[allow(clippy::comparison_chain)]
 		if bytes.len() == mod_len {
 			(ExitSucceed::Returned.into(), bytes.to_vec())
 		} else if bytes.len() < mod_len {

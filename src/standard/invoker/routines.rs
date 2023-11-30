@@ -5,19 +5,22 @@ use crate::{
 	MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState, StaticGasometer,
 	TransactionalBackend, Transfer,
 };
+use alloc::vec::Vec;
 use primitive_types::{H160, U256};
 
+#[allow(clippy::type_complexity)]
 pub fn maybe_analyse_code<'config, S: AsRef<RuntimeState>, G: TransactGasometer<'config, S>, C>(
 	result: &mut InvokerControl<ColoredMachine<S, G, C>, (ExitResult, (S, G, Vec<u8>))>,
 ) {
 	if let InvokerControl::Enter(machine) = result {
-		machine.gasometer.analyse_code(&machine.machine.code())
+		machine.gasometer.analyse_code(machine.machine.code())
 	}
 }
 
-pub fn make_enter_call_machine<'config, 'resolver, S, G, H, R, Tr>(
-	_config: &'config Config,
-	resolver: &'resolver R,
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+pub fn make_enter_call_machine<S, G, H, R, Tr>(
+	_config: &Config,
+	resolver: &R,
 	code_address: H160,
 	input: Vec<u8>,
 	is_static: bool,
@@ -41,9 +44,10 @@ where
 	resolver.resolve_call(code_address, input, is_static, state, gasometer, handler)
 }
 
-pub fn make_enter_create_machine<'config, 'resolver, S, G, H, R, Tr>(
-	config: &'config Config,
-	resolver: &'resolver R,
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn make_enter_create_machine<S, G, H, R, Tr>(
+	config: &Config,
+	resolver: &R,
 	caller: H160,
 	init_code: Vec<u8>,
 	is_static: bool,
@@ -84,9 +88,10 @@ where
 	resolver.resolve_create(init_code, is_static, state, gasometer, handler)
 }
 
-pub fn enter_call_substack<'config, 'resolver, S, G, H, R, Tr>(
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn enter_call_substack<'config, S, G, H, R, Tr>(
 	config: &'config Config,
-	resolver: &'resolver R,
+	resolver: &R,
 	trap_data: CallTrapData,
 	code_address: H160,
 	is_static: bool,
@@ -133,9 +138,10 @@ where
 	}
 }
 
-pub fn enter_create_substack<'config, 'resolver, S, G, H, R, Tr>(
+#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+pub fn enter_create_substack<'config, S, G, H, R, Tr>(
 	config: &'config Config,
-	resolver: &'resolver R,
+	resolver: &R,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
 	is_static: bool,
@@ -202,8 +208,8 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 	Ok(())
 }
 
-pub fn deploy_create_code<'config, S, G, H>(
-	config: &'config Config,
+pub fn deploy_create_code<S, G, H>(
+	config: &Config,
 	address: H160,
 	retbuf: &Vec<u8>,
 	gasometer: &mut G,

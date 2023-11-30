@@ -48,7 +48,7 @@ fn run_file(filename: &str, debug: bool) -> Result<(), Error> {
 				}
 			}
 			if debug {
-				println!("");
+				println!();
 			}
 		}
 	}
@@ -57,14 +57,14 @@ fn run_file(filename: &str, debug: bool) -> Result<(), Error> {
 }
 
 fn run_single(filename: &str, debug: bool) -> Result<(), Error> {
-	if fs::metadata(&filename)?.is_dir() {
-		for filename in fs::read_dir(&filename)? {
+	if fs::metadata(filename)?.is_dir() {
+		for filename in fs::read_dir(filename)? {
 			let filepath = filename?.path();
 			let filename = filepath.to_str().ok_or(Error::NonUtf8Filename)?;
 			run_file(filename, debug)?;
 		}
 	} else {
-		run_file(&filename, debug)?;
+		run_file(filename, debug)?;
 	}
 
 	Ok(())

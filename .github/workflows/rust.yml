@@ -13,22 +13,32 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Rustfmt
       run: cargo fmt --all -- --check
+    - name: clippy
+      run: cargo clippy --workspace -- -D warnings
+    - name: clippy no-std
+      run: cargo clippy --workspace --no-default-features --all-targets -- -D warnings
+    - name: clippy with features
+      run: cargo clippy --workspace --all-features --all-targets -- -D warnings
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Build
       run: cargo build --verbose
+    - name: Build no-std
+      run: cargo build --no-default-features
+    - name: Build all-features
+      run: cargo build --all-features
     - name: Run tests
       run: cargo test --verbose
   jsontests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
         path: jsontests/res/ethtests
         repository: ethereum/tests

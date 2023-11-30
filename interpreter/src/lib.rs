@@ -54,7 +54,7 @@ pub struct Machine<S> {
 
 impl<S> Machine<S> {
 	/// Return a reference of the program counter.
-	pub fn position(&self) -> usize {
+	pub const fn position(&self) -> usize {
 		self.position
 	}
 

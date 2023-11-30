@@ -1,5 +1,6 @@
 use crate::{ExitError, Opcode};
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -15,13 +16,13 @@ pub struct RuntimeState {
 	pub gas: U256,
 }
 
-impl AsRef<RuntimeState> for RuntimeState {
+impl AsRef<Self> for RuntimeState {
 	fn as_ref(&self) -> &Self {
 		self
 	}
 }
 
-impl AsMut<RuntimeState> for RuntimeState {
+impl AsMut<Self> for RuntimeState {
 	fn as_mut(&mut self) -> &mut Self {
 		self
 	}
