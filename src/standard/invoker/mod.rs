@@ -1,9 +1,7 @@
 mod resolver;
 mod routines;
 
-#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
-
 pub use resolver::{EtableResolver, PrecompileSet, Resolver};
 
 use super::{Config, MergeableRuntimeState, TransactGasometer};

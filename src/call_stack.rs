@@ -1,7 +1,5 @@
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl, InvokerMachine};
+use alloc::vec::Vec;
 use core::convert::Infallible;
 
 struct Substack<M, TrD> {

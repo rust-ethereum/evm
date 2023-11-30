@@ -1,6 +1,3 @@
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use super::{CallTrapData, CreateTrapData, Resolver, SubstackInvoke, TransactGasometer};
 use crate::standard::Config;
 use crate::{
@@ -8,6 +5,7 @@ use crate::{
 	MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState, StaticGasometer,
 	TransactionalBackend, Transfer,
 };
+use alloc::vec::Vec;
 use primitive_types::{H160, U256};
 
 #[allow(clippy::type_complexity)]

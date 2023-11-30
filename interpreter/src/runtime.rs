@@ -1,8 +1,6 @@
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use crate::{ExitError, Opcode};
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 

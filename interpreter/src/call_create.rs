@@ -1,13 +1,11 @@
 //! Call and create trap handler.
 
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
 	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeBackend,
 	RuntimeState, Transfer,
 };
+use alloc::vec::Vec;
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};

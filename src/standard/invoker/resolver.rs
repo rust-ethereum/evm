@@ -1,6 +1,3 @@
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use super::routines;
 use crate::standard::{Config, TransactGasometer};
 use crate::{
@@ -8,6 +5,7 @@ use crate::{
 	Machine, Opcode, RuntimeBackend, RuntimeState,
 };
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use primitive_types::H160;
 
 /// A code resolver.

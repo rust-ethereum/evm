@@ -2,14 +2,12 @@ mod consts;
 mod costs;
 mod utils;
 
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use crate::standard::Config;
 use crate::{
 	ExitError, ExitException, ExitFatal, Gasometer as GasometerT, Machine, MergeStrategy, Opcode,
 	RuntimeBackend, RuntimeState, Stack, StaticGasometer,
 };
+use alloc::vec::Vec;
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 
