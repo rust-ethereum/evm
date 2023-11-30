@@ -89,7 +89,7 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn enter_call_substack<'config, 'resolver, S, G, H, R, Tr>(
+pub fn enter_call_substack<'config, S, G, H, R, Tr>(
 	config: &'config Config,
 	resolver: &R,
 	trap_data: CallTrapData,
