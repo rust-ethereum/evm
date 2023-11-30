@@ -11,8 +11,8 @@ const RET1: &str = "000000000000000000000000000000000000000000000000000000000000
 
 #[test]
 fn etable_wrap() {
-	let code = hex::decode(&CODE1).unwrap();
-	let data = hex::decode(&DATA1).unwrap();
+	let code = hex::decode(CODE1).unwrap();
+	let data = hex::decode(DATA1).unwrap();
 
 	let wrapped_etable = Etable::<_, _, Opcode>::core().wrap(|f, opcode_t| {
 		move |machine, handle, opcode, position| {
@@ -24,14 +24,15 @@ fn etable_wrap() {
 
 	let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
 	let result = vm.run(&mut (), &wrapped_etable);
-	assert_eq!(result, Capture::Exit(Ok(ExitSucceed::Returned.into())));
-	assert_eq!(vm.retval, hex::decode(&RET1).unwrap());
+	assert_eq!(result, Capture::Exit(Ok(ExitSucceed::Returned)));
+	assert_eq!(vm.retval, hex::decode(RET1).unwrap());
 }
 
 #[test]
+#[allow(clippy::type_complexity)]
 fn etable_wrap2() {
-	let code = hex::decode(&CODE1).unwrap();
-	let data = hex::decode(&DATA1).unwrap();
+	let code = hex::decode(CODE1).unwrap();
+	let data = hex::decode(DATA1).unwrap();
 
 	let wrapped_etable = Etable::core().wrap(
 		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), Opcode, usize) -> Control<Opcode>> {
@@ -87,7 +88,7 @@ impl RuntimeEnvironment for UnimplementedHandler {
 	}
 }
 
-impl<'a> RuntimeBaseBackend for UnimplementedHandler {
+impl RuntimeBaseBackend for UnimplementedHandler {
 	fn balance(&self, _address: H160) -> U256 {
 		unimplemented!()
 	}
@@ -113,7 +114,7 @@ impl<'a> RuntimeBaseBackend for UnimplementedHandler {
 	}
 }
 
-impl<'a> RuntimeBackend for UnimplementedHandler {
+impl RuntimeBackend for UnimplementedHandler {
 	fn original_storage(&self, _address: H160, _index: H256) -> H256 {
 		unimplemented!()
 	}
@@ -167,8 +168,8 @@ static RUNTIME_ETABLE: Etable<RuntimeState, UnimplementedHandler, Opcode> = Etab
 
 #[test]
 fn etable_runtime() {
-	let code = hex::decode(&CODE1).unwrap();
-	let data = hex::decode(&DATA1).unwrap();
+	let code = hex::decode(CODE1).unwrap();
+	let data = hex::decode(DATA1).unwrap();
 	let mut handler = UnimplementedHandler;
 
 	let mut vm = Machine::new(
@@ -193,6 +194,6 @@ fn etable_runtime() {
 	);
 
 	let res = vm.run(&mut handler, &RUNTIME_ETABLE).exit().unwrap();
-	assert_eq!(res, Ok(ExitSucceed::Returned.into()));
-	assert_eq!(vm.retval, hex::decode(&RET1).unwrap());
+	assert_eq!(res, Ok(ExitSucceed::Returned));
+	assert_eq!(vm.retval, hex::decode(RET1).unwrap());
 }

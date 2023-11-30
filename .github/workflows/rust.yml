@@ -19,9 +19,9 @@ jobs:
     - name: clippy
       run: cargo clippy --workspace -- -D warnings
     - name: clippy no-std
-      run: cargo clippy --workspace --no-default-features -- -D warnings
+      run: cargo clippy --workspace --no-default-features --all-targets  -- -D warnings
     - name: clippy with features
-      run: cargo clippy --workspace --features=with-codec,with-serde -- -D warnings
+      run: cargo clippy --workspace --all-features --all-targets -- -D warnings
   build:
     runs-on: ubuntu-latest
     steps:

@@ -1,3 +1,6 @@
+#[cfg(not(feature = "std"))]
+use alloc::vec;
+
 use crate::{ExitException, ExitFatal};
 use alloc::vec::Vec;
 use core::ops::{BitAnd, Not, Range};
