@@ -1,5 +1,5 @@
 #[cfg(not(feature = "std"))]
-use crate::Vec;
+use alloc::vec::Vec;
 
 use crate::{ExitError, Opcode};
 use alloc::rc::Rc;
