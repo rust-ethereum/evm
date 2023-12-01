@@ -252,7 +252,7 @@ pub struct Config {
 	pub call_l64_after_gas: bool,
 	/// Whether empty account is considered exists.
 	pub empty_considered_exists: bool,
-	/// Allow create empty contract if the user don't have gas for paying code deposit.
+	/// Create empty contract if there's no gas for paying code deposit.
 	pub can_create_empty_contract: bool,
 	/// Whether create transactions and create opcode increases nonce by one.
 	pub create_increase_nonce: bool,
