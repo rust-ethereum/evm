@@ -377,6 +377,7 @@ impl Config {
 		config.gas_suicide = 5_000;
 		config.gas_suicide_new_account = 30_000;
 		config.err_on_call_with_more_gas = false;
+		config.call_l64_after_gas = true;
 		config
 	}
 
