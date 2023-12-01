@@ -252,6 +252,8 @@ pub struct Config {
 	pub call_l64_after_gas: bool,
 	/// Whether empty account is considered exists.
 	pub empty_considered_exists: bool,
+	/// Allow create empty contract if the user don't have gas for paying code deposit.
+	pub can_create_empty_contract: bool,
 	/// Whether create transactions and create opcode increases nonce by one.
 	pub create_increase_nonce: bool,
 	/// Stack limit.
@@ -323,6 +325,7 @@ impl Config {
 			warm_coinbase_address: false,
 			err_on_call_with_more_gas: true,
 			empty_considered_exists: true,
+			can_create_empty_contract: true,
 			create_increase_nonce: false,
 			call_l64_after_gas: false,
 			stack_limit: 1024,
@@ -343,6 +346,38 @@ impl Config {
 			has_push0: false,
 			estimate: false,
 		}
+	}
+
+	/// Homestead hard fork configuration.
+	pub const fn homestead() -> Config {
+		let mut config = Self::frontier();
+		// makes edits to contract creation process
+		// see [EIP-2](https://eips.ethereum.org/EIPS/eip-2)
+		config.gas_transaction_create = 53_000;
+		config.can_create_empty_contract = false;
+		config.empty_considered_exists = true;
+
+		// Enable delegate call opcode
+		// see [EIP-7](https://eips.ethereum.org/EIPS/eip-7)
+		config.has_delegate_call = true;
+		config
+	}
+
+	/// Tangerine whistle hard fork configuration.
+	pub const fn tangerine_whistle() -> Config {
+		let mut config = Self::homestead();
+		// Gas cost changes for IO-heavy operations
+		// see [EIP-150](https://eips.ethereum.org/EIPS/eip-150)
+		config.gas_ext_code = 700;
+		config.gas_ext_code_hash = 700;
+		config.gas_balance = 400;
+		config.gas_sload = 200;
+		config.gas_call = 700;
+		config.gas_ext_code = 700;
+		config.gas_suicide = 5_000;
+		config.gas_suicide_new_account = 30_000;
+		config.err_on_call_with_more_gas = false;
+		config
 	}
 
 	/// Istanbul hard fork configuration.
@@ -377,6 +412,7 @@ impl Config {
 			warm_coinbase_address: false,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
+			can_create_empty_contract: false,
 			create_increase_nonce: true,
 			call_l64_after_gas: true,
 			stack_limit: 1024,
@@ -474,6 +510,7 @@ impl Config {
 			warm_coinbase_address,
 			err_on_call_with_more_gas: false,
 			empty_considered_exists: false,
+			can_create_empty_contract: false,
 			create_increase_nonce: true,
 			call_l64_after_gas: true,
 			stack_limit: 1024,

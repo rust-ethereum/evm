@@ -1003,7 +1003,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				}
 
 				// Before EIP-2 is possible to create empty contract
-				let bytecode = if self.config.empty_considered_exists
+				let bytecode = if self.config.can_create_empty_contract
 					&& !self.state.metadata().gasometer.can_deposit(out.len())
 				{
 					Ok(None)
@@ -1335,6 +1335,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		stack: &Stack,
 	) -> Result<(), ExitError> {
 		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, gasometer.gas());
+		// log::trace!(target: "evm", "Running opcode: {:?}, Pre gas-left: {:?}", opcode, self.state.metadata().gasometer.gas());
 
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
 			self.state.metadata_mut().gasometer.record_cost(cost)?;
