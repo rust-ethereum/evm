@@ -280,6 +280,8 @@ pub struct Config {
 	pub has_bitwise_shifting: bool,
 	/// Has chain ID.
 	pub has_chain_id: bool,
+	/// Has static_call. See [EIP-214](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-214.md)
+	pub has_static_call: bool,
 	/// Has self balance.
 	pub has_self_balance: bool,
 	/// Has ext code hash.
@@ -340,6 +342,7 @@ impl Config {
 			has_return_data: false,
 			has_bitwise_shifting: false,
 			has_chain_id: false,
+			has_static_call: false,
 			has_self_balance: false,
 			has_ext_code_hash: false,
 			has_base_fee: false,
@@ -370,11 +373,9 @@ impl Config {
 		// Gas cost changes for IO-heavy operations
 		// see [EIP-150](https://eips.ethereum.org/EIPS/eip-150)
 		config.gas_ext_code = 700;
-		config.gas_ext_code_hash = 700;
 		config.gas_balance = 400;
 		config.gas_sload = 200;
 		config.gas_call = 700;
-		config.gas_ext_code = 700;
 		config.gas_suicide = 5_000;
 		config.gas_suicide_new_account = 25_000;
 		config.err_on_call_with_more_gas = false;
@@ -385,10 +386,6 @@ impl Config {
 	/// Spurious Dragon hard fork configuration.
 	pub const fn spurious_dragon() -> Config {
 		let mut config = Self::tangerine_whistle();
-		// Simple replay attack protection
-		// see [EIP-155](https://eips.ethereum.org/EIPS/eip-155)
-		config.has_chain_id = true;
-
 		// EXP cost increase
 		// see [EIP-160](https://eips.ethereum.org/EIPS/eip-160)
 		config.gas_expbyte = 50;
@@ -424,8 +421,28 @@ impl Config {
 		// see [EIP-211](https://eips.ethereum.org/EIPS/eip-211)
 		config.has_return_data = true;
 
-		// TODO: enable STATICCALL opcode
-		// Ref: https://github.com/rust-ethereum/evm/issues/248
+		// adds STATICCALL opcode, allowing non-state-changing calls to other contracts.
+		// see [EIP-214](https://eips.ethereum.org/EIPS/eip-214)
+		config.has_static_call = true;
+		config
+	}
+
+	/// Constantinople hard fork configuration.
+	pub const fn constantinople() -> Config {
+		let mut config = Self::byzantium();
+
+		// adds Bitwise shifting instructions
+		// see [EIP-145](https://eips.ethereum.org/EIPS/eip-145)
+		config.has_bitwise_shifting = true;
+
+		// allows you to interact with addresses that have yet to be created.
+		// see [EIP-1014](https://eips.ethereum.org/EIPS/eip-1014)
+		config.has_create2 = true;
+
+		// adds EXTCODEHASH opcode
+		// see [EIP-1052](https://eips.ethereum.org/EIPS/eip-1052)
+		config.has_ext_code_hash = true;
+		config.gas_ext_code_hash = 400;
 		config
 	}
 
@@ -476,6 +493,7 @@ impl Config {
 			has_return_data: true,
 			has_bitwise_shifting: true,
 			has_chain_id: true,
+			has_static_call: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			has_base_fee: false,
@@ -574,6 +592,7 @@ impl Config {
 			has_return_data: true,
 			has_bitwise_shifting: true,
 			has_chain_id: true,
+			has_static_call: true,
 			has_self_balance: true,
 			has_ext_code_hash: true,
 			has_base_fee,
