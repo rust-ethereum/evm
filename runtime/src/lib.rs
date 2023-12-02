@@ -349,6 +349,7 @@ impl Config {
 	}
 
 	/// Homestead hard fork configuration.
+	/// mainnet block number: 1,150,000
 	pub const fn homestead() -> Config {
 		let mut config = Self::frontier();
 		// makes edits to contract creation process
@@ -378,6 +379,53 @@ impl Config {
 		config.gas_suicide_new_account = 25_000;
 		config.err_on_call_with_more_gas = false;
 		config.call_l64_after_gas = true;
+		config
+	}
+
+	/// Spurious Dragon hard fork configuration.
+	pub const fn spurious_dragon() -> Config {
+		let mut config = Self::tangerine_whistle();
+		// Simple replay attack protection
+		// see [EIP-155](https://eips.ethereum.org/EIPS/eip-155)
+		config.has_chain_id = true;
+
+		// EXP cost increase
+		// see [EIP-160](https://eips.ethereum.org/EIPS/eip-160)
+		config.gas_expbyte = 50;
+
+		// State trie clearing
+		// - An account is considered empty when it has no code and zero nonce and zero balance. It should be noted
+		// that very few state changes can ultimately result in accounts that are empty following the execution of the transaction:
+		//    - an empty account has zero value transferred to it through CALL;
+		//    - an empty account has zero value transferred to it through SUICIDE;
+		//    - an empty account has zero value transferred to it through a message-call transaction;
+		//    - an empty account has zero value transferred to it through a zero-gas-price fees transfer.
+		//    - empty account deletions are reverted when the state is reverted.
+		// - An account is considered dead when either it is non-existent or it is empty.
+		// see [EIP-161](https://eips.ethereum.org/EIPS/eip-161)
+		config.create_increase_nonce = true;
+		config.empty_considered_exists = false;
+
+		// Contract code size limit
+		// see [EIP-170](https://eips.ethereum.org/EIPS/eip-170)
+		config.create_contract_limit = Some(0x6000);
+		config
+	}
+
+	/// Byzantium hard fork configuration.
+	pub const fn byzantium() -> Config {
+		let mut config = Self::spurious_dragon();
+
+		// adds REVERT opcode
+		// see [EIP-140](https://eips.ethereum.org/EIPS/eip-140)
+		config.has_revert = true;
+
+		// adds support for variable length return values
+		// see [EIP-211](https://eips.ethereum.org/EIPS/eip-211)
+		config.has_return_data = true;
+
+		// TODO: enable STATICCALL opcode
+		// Ref: https://github.com/rust-ethereum/evm/issues/248
 		config
 	}
 
