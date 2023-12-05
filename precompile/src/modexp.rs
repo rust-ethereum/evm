@@ -1,7 +1,7 @@
 use crate::PurePrecompile;
 use alloc::{vec, vec::Vec};
 use core::cmp::max;
-use evm::{ExitException, ExitResult, ExitSucceed, RuntimeState, StaticGasometer};
+use evm::{standard::GasMutState, ExitException, ExitResult, ExitSucceed};
 use num::{BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 
 pub struct Modexp;
@@ -86,13 +86,8 @@ fn read_input(source: &[u8], target: &mut [u8], source_offset: &mut usize) {
 	target[..len].copy_from_slice(&source[offset..][..len]);
 }
 
-impl<G: StaticGasometer> PurePrecompile<G> for Modexp {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Modexp {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		let mut input_offset = 0;
 
 		// Yellowpaper: whenever the input is too short, the missing bytes are
@@ -140,7 +135,7 @@ impl<G: StaticGasometer> PurePrecompile<G> for Modexp {
 
 		// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
 		let r = if base_len == 0 && mod_len == 0 {
-			try_some!(gasometer.record_cost(MIN_GAS_COST.into()));
+			try_some!(gasometer.record_gas(MIN_GAS_COST.into()));
 			BigUint::zero()
 		} else {
 			// read the numbers themselves.
@@ -165,7 +160,7 @@ impl<G: StaticGasometer> PurePrecompile<G> for Modexp {
 				modulus.is_even(),
 			);
 
-			try_some!(gasometer.record_cost(gas_cost.into()));
+			try_some!(gasometer.record_gas(gas_cost.into()));
 
 			if modulus.is_zero() || modulus.is_one() {
 				BigUint::zero()

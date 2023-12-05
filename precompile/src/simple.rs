@@ -1,17 +1,17 @@
 use crate::{linear_cost, PurePrecompile};
 use core::cmp::min;
-use evm::{ExitException, ExitResult, ExitSucceed, RuntimeState, StaticGasometer};
+use evm::{standard::GasMutState, ExitException, ExitResult, ExitSucceed};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub struct ECRecover;
 
-impl<G: StaticGasometer> PurePrecompile<G> for ECRecover {
-	fn execute(&self, i: &[u8], _state: &RuntimeState, gasometer: &mut G) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for ECRecover {
+	fn execute(&self, i: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const COST_BASE: u64 = 3000;
 		const COST_WORD: u64 = 0;
-		try_some!(gasometer.record_cost(U256::from(try_some!(linear_cost(
+		try_some!(gasometer.record_gas(U256::from(try_some!(linear_cost(
 			i.len() as u64,
 			COST_BASE,
 			COST_WORD
@@ -49,16 +49,11 @@ impl<G: StaticGasometer> PurePrecompile<G> for ECRecover {
 
 pub struct Sha256;
 
-impl<G: StaticGasometer> PurePrecompile<G> for Sha256 {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Sha256 {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const COST_BASE: u64 = 600;
 		const COST_WORD: u64 = 120;
-		try_some!(gasometer.record_cost(U256::from(try_some!(linear_cost(
+		try_some!(gasometer.record_gas(U256::from(try_some!(linear_cost(
 			input.len() as u64,
 			COST_BASE,
 			COST_WORD
@@ -74,16 +69,11 @@ impl<G: StaticGasometer> PurePrecompile<G> for Sha256 {
 
 pub struct Ripemd160;
 
-impl<G: StaticGasometer> PurePrecompile<G> for Ripemd160 {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Ripemd160 {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const COST_BASE: u64 = 60;
 		const COST_WORD: u64 = 12;
-		try_some!(gasometer.record_cost(U256::from(try_some!(linear_cost(
+		try_some!(gasometer.record_gas(U256::from(try_some!(linear_cost(
 			input.len() as u64,
 			COST_BASE,
 			COST_WORD
@@ -97,16 +87,11 @@ impl<G: StaticGasometer> PurePrecompile<G> for Ripemd160 {
 
 pub struct Identity;
 
-impl<G: StaticGasometer> PurePrecompile<G> for Identity {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Identity {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const COST_BASE: u64 = 15;
 		const COST_WORD: u64 = 3;
-		try_some!(gasometer.record_cost(U256::from(try_some!(linear_cost(
+		try_some!(gasometer.record_gas(U256::from(try_some!(linear_cost(
 			input.len() as u64,
 			COST_BASE,
 			COST_WORD

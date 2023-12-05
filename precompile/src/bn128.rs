@@ -1,6 +1,6 @@
 use crate::PurePrecompile;
 use alloc::vec::Vec;
-use evm::{ExitError, ExitException, ExitResult, ExitSucceed, RuntimeState, StaticGasometer};
+use evm::{standard::GasMutState, ExitError, ExitException, ExitResult, ExitSucceed};
 use primitive_types::U256;
 
 /// Copy bytes from input to target.
@@ -54,16 +54,11 @@ impl Bn128Add {
 	const GAS_COST: u64 = 150; // https://eips.ethereum.org/EIPS/eip-1108
 }
 
-impl<G: StaticGasometer> PurePrecompile<G> for Bn128Add {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Bn128Add {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		use bn::AffineG1;
 
-		try_some!(gasometer.record_cost(Bn128Add::GAS_COST.into()));
+		try_some!(gasometer.record_gas(Bn128Add::GAS_COST.into()));
 
 		let p1 = try_some!(read_point(input, 0));
 		let p2 = try_some!(read_point(input, 64));
@@ -93,16 +88,11 @@ impl Bn128Mul {
 	const GAS_COST: u64 = 6_000; // https://eips.ethereum.org/EIPS/eip-1108
 }
 
-impl<G: StaticGasometer> PurePrecompile<G> for Bn128Mul {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Bn128Mul {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		use bn::AffineG1;
 
-		try_some!(gasometer.record_cost(Bn128Mul::GAS_COST.into()));
+		try_some!(gasometer.record_gas(Bn128Mul::GAS_COST.into()));
 
 		let p = try_some!(read_point(input, 0));
 		let fr = try_some!(read_fr(input, 64));
@@ -134,17 +124,12 @@ impl Bn128Pairing {
 	const GAS_COST_PER_PAIRING: u64 = 34_000;
 }
 
-impl<G: StaticGasometer> PurePrecompile<G> for Bn128Pairing {
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+impl<G: GasMutState> PurePrecompile<G> for Bn128Pairing {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		use bn::{pairing_batch, AffineG1, AffineG2, Fq, Fq2, Group, Gt, G1, G2};
 
 		let ret_val = if input.is_empty() {
-			try_some!(gasometer.record_cost(Bn128Pairing::BASE_GAS_COST.into()));
+			try_some!(gasometer.record_gas(Bn128Pairing::BASE_GAS_COST.into()));
 			U256::one()
 		} else {
 			if input.len() % 192 > 0 {
@@ -160,7 +145,7 @@ impl<G: StaticGasometer> PurePrecompile<G> for Bn128Pairing {
 			let gas_cost: u64 = Bn128Pairing::BASE_GAS_COST
 				+ (elements as u64 * Bn128Pairing::GAS_COST_PER_PAIRING);
 
-			try_some!(gasometer.record_cost(gas_cost.into()));
+			try_some!(gasometer.record_gas(gas_cost.into()));
 
 			let mut vals = Vec::new();
 			for idx in 0..elements {

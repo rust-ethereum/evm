@@ -1,39 +1,26 @@
-use super::{CallTrapData, CreateTrapData, Resolver, SubstackInvoke, TransactGasometer};
+use super::{CallTrapData, CreateTrapData, InvokerState, Resolver, SubstackInvoke};
 use crate::standard::Config;
 use crate::{
-	ColoredMachine, ExitError, ExitException, ExitResult, Gasometer as GasometerT, InvokerControl,
-	MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState, StaticGasometer,
-	TransactionalBackend, Transfer,
+	ExitError, ExitException, ExitResult, InvokerControl, MergeStrategy, Opcode, RuntimeBackend,
+	RuntimeEnvironment, RuntimeState, TransactionalBackend, Transfer,
 };
 use alloc::vec::Vec;
 use primitive_types::{H160, U256};
 
-#[allow(clippy::type_complexity)]
-pub fn maybe_analyse_code<'config, S: AsRef<RuntimeState>, G: TransactGasometer<'config, S>, C>(
-	result: &mut InvokerControl<ColoredMachine<S, G, C>, (ExitResult, (S, G, Vec<u8>))>,
-) {
-	if let InvokerControl::Enter(machine) = result {
-		machine.gasometer.analyse_code(machine.machine.code())
-	}
-}
-
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn make_enter_call_machine<S, G, H, R, Tr>(
+pub fn make_enter_call_machine<S, H, R, Tr>(
 	_config: &Config,
 	resolver: &R,
 	code_address: H160,
 	input: Vec<u8>,
-	is_static: bool,
 	transfer: Option<Transfer>,
 	state: S,
-	gasometer: G,
 	handler: &mut H,
-) -> Result<InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>
 where
 	S: AsRef<RuntimeState>,
-	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, G, H, Tr>,
+	R: Resolver<S, H, Tr>,
 {
 	handler.mark_hot(state.as_ref().context.address, None);
 
@@ -41,26 +28,23 @@ where
 		handler.transfer(transfer)?;
 	}
 
-	resolver.resolve_call(code_address, input, is_static, state, gasometer, handler)
+	resolver.resolve_call(code_address, input, state, handler)
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn make_enter_create_machine<S, G, H, R, Tr>(
+pub fn make_enter_create_machine<S, H, R, Tr>(
 	config: &Config,
 	resolver: &R,
 	caller: H160,
 	init_code: Vec<u8>,
-	is_static: bool,
 	transfer: Transfer,
 	state: S,
-	gasometer: G,
 	handler: &mut H,
-) -> Result<InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>
 where
 	S: AsRef<RuntimeState>,
-	G: GasometerT<S, H>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, G, H, Tr>,
+	R: Resolver<S, H, Tr>,
 {
 	if let Some(limit) = config.max_initcode_size {
 		if init_code.len() > limit {
@@ -85,31 +69,28 @@ where
 
 	handler.reset_storage(state.as_ref().context.address);
 
-	resolver.resolve_create(init_code, is_static, state, gasometer, handler)
+	resolver.resolve_create(init_code, state, handler)
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn enter_call_substack<'config, S, G, H, R, Tr>(
-	config: &'config Config,
+pub fn enter_call_substack<S, H, R, Tr>(
+	config: &Config,
 	resolver: &R,
 	trap_data: CallTrapData,
 	code_address: H160,
-	is_static: bool,
 	state: S,
-	gasometer: G,
 	handler: &mut H,
 ) -> Result<
 	(
 		SubstackInvoke,
-		InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>,
+		InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>,
 	),
 	ExitError,
 >
 where
 	S: AsRef<RuntimeState>,
-	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, G, H, Tr>,
+	R: Resolver<S, H, Tr>,
 {
 	handler.push_substate();
 
@@ -119,10 +100,8 @@ where
 			resolver,
 			code_address,
 			trap_data.input.clone(),
-			is_static,
 			trap_data.transfer.clone(),
 			state,
-			gasometer,
 			handler,
 		)?;
 
@@ -139,31 +118,28 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn enter_create_substack<'config, S, G, H, R, Tr>(
-	config: &'config Config,
+pub fn enter_create_substack<S, H, R, Tr>(
+	config: &Config,
 	resolver: &R,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
-	is_static: bool,
 	state: S,
-	gasometer: G,
 	handler: &mut H,
 ) -> Result<
 	(
 		SubstackInvoke,
-		InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>,
+		InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>,
 	),
 	ExitError,
 >
 where
 	S: AsRef<RuntimeState>,
-	G: GasometerT<S, H> + TransactGasometer<'config, S>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, G, H, Tr>,
+	R: Resolver<S, H, Tr>,
 {
 	handler.push_substate();
 
-	let work = || -> Result<(SubstackInvoke, InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>), ExitError> {
+	let work = || -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>), ExitError> {
 		let CreateTrapData {
 			scheme,
 			value,
@@ -180,7 +156,7 @@ where
 		};
 
 		let machine = make_enter_create_machine(
-			config, resolver, caller, code, is_static, transfer, state, gasometer, handler,
+			config, resolver, caller, code, transfer, state, handler,
 		)?;
 
 		Ok((
@@ -208,15 +184,15 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 	Ok(())
 }
 
-pub fn deploy_create_code<S, G, H>(
+pub fn deploy_create_code<'config, S, H>(
 	config: &Config,
 	address: H160,
-	retbuf: &Vec<u8>,
-	gasometer: &mut G,
+	retbuf: Vec<u8>,
+	state: &mut S,
 	handler: &mut H,
 ) -> Result<(), ExitError>
 where
-	G: GasometerT<S, H>,
+	S: InvokerState<'config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
 	check_first_byte(config, &retbuf[..])?;
@@ -227,9 +203,9 @@ where
 		}
 	}
 
-	StaticGasometer::record_codedeposit(gasometer, retbuf.len())?;
+	state.record_codedeposit(retbuf.len())?;
 
-	handler.set_code(address, retbuf.clone())?;
+	handler.set_code(address, retbuf)?;
 
 	Ok(())
 }

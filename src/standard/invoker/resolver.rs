@@ -1,11 +1,9 @@
-use super::routines;
-use crate::standard::{Config, TransactGasometer};
 use crate::{
-	Color, ColoredMachine, Control, Etable, ExitError, ExitResult, Gasometer, InvokerControl,
-	Machine, Opcode, RuntimeBackend, RuntimeState,
+	standard::Config, EtableInterpreter, EtableSet, ExitError, ExitResult, Interpreter,
+	InvokerControl, Machine, RuntimeBackend, RuntimeState,
 };
-use alloc::rc::Rc;
-use alloc::vec::Vec;
+use alloc::{rc::Rc, vec::Vec};
+use core::marker::PhantomData;
 use primitive_types::H160;
 
 /// A code resolver.
@@ -14,9 +12,8 @@ use primitive_types::H160;
 /// (with the init code) is turned into a colored machine. The resolver can
 /// construct a machine, pushing the call stack, or directly exit, handling a
 /// precompile.
-pub trait Resolver<S, G, H, Tr> {
-	/// Color of the machine. See [ColoredMachine] for more information.
-	type Color: Color<S, G, H, Tr>;
+pub trait Resolver<S, H, Tr> {
+	type Interpreter: Interpreter<S, H, Tr>;
 
 	/// Resolve a call (with the target code address).
 	#[allow(clippy::type_complexity)]
@@ -24,53 +21,39 @@ pub trait Resolver<S, G, H, Tr> {
 		&self,
 		code_address: H160,
 		input: Vec<u8>,
-		is_static: bool,
 		state: S,
-		gasometer: G,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<ColoredMachine<S, G, Self::Color>, (ExitResult, (S, G, Vec<u8>))>,
-		ExitError,
-	>;
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>;
 
 	/// Resolve a create (with the init code).
 	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		is_static: bool,
 		state: S,
-		gasometer: G,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<ColoredMachine<S, G, Self::Color>, (ExitResult, (S, G, Vec<u8>))>,
-		ExitError,
-	>;
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>;
 }
 
 /// A set of precompiles.
-pub trait PrecompileSet<S, G, H> {
+pub trait PrecompileSet<S, H> {
 	/// Attempt to execute the precompile at the given `code_address`. Returns
 	/// `None` if it's not a precompile.
 	fn execute(
 		&self,
 		code_address: H160,
 		input: &[u8],
-		is_static: bool,
 		state: &mut S,
-		gasometer: &mut G,
 		handler: &mut H,
 	) -> Option<(ExitResult, Vec<u8>)>;
 }
 
-impl<S, G, H> PrecompileSet<S, G, H> for () {
+impl<S, H> PrecompileSet<S, H> for () {
 	fn execute(
 		&self,
 		_code_address: H160,
 		_input: &[u8],
-		_is_static: bool,
 		_state: &mut S,
-		_gasometer: &mut G,
 		_handler: &mut H,
 	) -> Option<(ExitResult, Vec<u8>)> {
 		None
@@ -79,64 +62,54 @@ impl<S, G, H> PrecompileSet<S, G, H> for () {
 
 /// The standard code resolver where the color is an [Etable]. This is usually
 /// what you need.
-pub struct EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, F> {
+pub struct EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES> {
 	config: &'config Config,
-	etable: &'etable Etable<S, H, Tr, F>,
+	etable: &'etable ES,
 	precompiles: &'precompile Pre,
+	_marker: PhantomData<(S, H, Tr)>,
 }
 
-impl<'config, 'precompile, 'etable, S, H, Pre, Tr, F>
-	EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, F>
+impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
+	EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
 {
-	/// Create a new [Etable] code resolver.
 	pub fn new(
 		config: &'config Config,
 		precompiles: &'precompile Pre,
-		etable: &'etable Etable<S, H, Tr, F>,
+		etable: &'etable ES,
 	) -> Self {
 		Self {
 			config,
 			precompiles,
 			etable,
+			_marker: PhantomData,
 		}
 	}
 }
 
-impl<'config, 'precompile, 'etable, S, G, H, Pre, Tr, F> Resolver<S, G, H, Tr>
-	for EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, F>
+impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES> Resolver<S, H, Tr>
+	for EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	G: Gasometer<S, H> + TransactGasometer<'config, S>,
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	H: RuntimeBackend,
-	Pre: PrecompileSet<S, G, H>,
+	Pre: PrecompileSet<S, H>,
+	ES: EtableSet<S, H, Tr>,
 {
-	type Color = &'etable Etable<S, H, Tr, F>;
+	type Interpreter = EtableInterpreter<'etable, S, H, Tr, ES>;
 
+	/// Resolve a call (with the target code address).
+	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
 		code_address: H160,
 		input: Vec<u8>,
-		is_static: bool,
 		mut state: S,
-		mut gasometer: G,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<
-			ColoredMachine<S, G, &'etable Etable<S, H, Tr, F>>,
-			(ExitResult, (S, G, Vec<u8>)),
-		>,
-		ExitError,
-	> {
-		if let Some((r, retval)) = self.precompiles.execute(
-			code_address,
-			&input,
-			is_static,
-			&mut state,
-			&mut gasometer,
-			handler,
-		) {
-			return Ok(InvokerControl::DirectExit((r, (state, gasometer, retval))));
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError> {
+		if let Some((r, retval)) =
+			self.precompiles
+				.execute(code_address, &input, &mut state, handler)
+		{
+			return Ok(InvokerControl::DirectExit((r, (state, retval))));
 		}
 
 		let code = handler.code(code_address);
@@ -149,31 +122,19 @@ where
 			state,
 		);
 
-		let mut ret = InvokerControl::Enter(ColoredMachine {
-			machine,
-			gasometer,
-			is_static,
-			color: self.etable,
-		});
-		routines::maybe_analyse_code(&mut ret);
+		let ret = InvokerControl::Enter(EtableInterpreter::new(machine, self.etable));
 
 		Ok(ret)
 	}
 
+	/// Resolve a create (with the init code).
+	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		is_static: bool,
 		state: S,
-		gasometer: G,
 		_handler: &mut H,
-	) -> Result<
-		InvokerControl<
-			ColoredMachine<S, G, &'etable Etable<S, H, Tr, F>>,
-			(ExitResult, (S, G, Vec<u8>)),
-		>,
-		ExitError,
-	> {
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError> {
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
@@ -182,13 +143,7 @@ where
 			state,
 		);
 
-		let mut ret = InvokerControl::Enter(ColoredMachine {
-			machine,
-			gasometer,
-			is_static,
-			color: self.etable,
-		});
-		routines::maybe_analyse_code(&mut ret);
+		let ret = InvokerControl::Enter(EtableInterpreter::new(machine, self.etable));
 
 		Ok(ret)
 	}

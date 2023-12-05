@@ -26,18 +26,13 @@ pub use crate::modexp::Modexp;
 pub use crate::simple::{ECRecover, Identity, Ripemd160, Sha256};
 
 use alloc::vec::Vec;
-use evm::standard::{Config, PrecompileSet};
-use evm::{ExitError, ExitException, ExitResult, RuntimeState, StaticGasometer};
+use evm::standard::{Config, GasMutState, PrecompileSet};
+use evm::{ExitError, ExitException, ExitResult, RuntimeState};
 
 use primitive_types::H160;
 
 pub trait PurePrecompile<G> {
-	fn execute(
-		&self,
-		input: &[u8],
-		state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>);
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);
 }
 
 pub struct StandardPrecompileSet<'config> {
@@ -50,38 +45,36 @@ impl<'config> StandardPrecompileSet<'config> {
 	}
 }
 
-impl<'config, S: AsRef<RuntimeState>, G: StaticGasometer, H> PrecompileSet<S, G, H>
+impl<'config, G: AsRef<RuntimeState> + GasMutState, H> PrecompileSet<G, H>
 	for StandardPrecompileSet<'config>
 {
 	fn execute(
 		&self,
 		code_address: H160,
 		input: &[u8],
-		_is_static: bool,
-		state: &mut S,
 		gasometer: &mut G,
 		_handler: &mut H,
 	) -> Option<(ExitResult, Vec<u8>)> {
 		// TODO: selectively disable precompiles based on config.
 
 		if code_address == address(1) {
-			Some(ECRecover.execute(input, state.as_ref(), gasometer))
+			Some(ECRecover.execute(input, gasometer))
 		} else if code_address == address(2) {
-			Some(Sha256.execute(input, state.as_ref(), gasometer))
+			Some(Sha256.execute(input, gasometer))
 		} else if code_address == address(3) {
-			Some(Ripemd160.execute(input, state.as_ref(), gasometer))
+			Some(Ripemd160.execute(input, gasometer))
 		} else if code_address == address(4) {
-			Some(Identity.execute(input, state.as_ref(), gasometer))
+			Some(Identity.execute(input, gasometer))
 		} else if code_address == address(5) {
-			Some(Modexp.execute(input, state.as_ref(), gasometer))
+			Some(Modexp.execute(input, gasometer))
 		} else if code_address == address(6) {
-			Some(Bn128Add.execute(input, state.as_ref(), gasometer))
+			Some(Bn128Add.execute(input, gasometer))
 		} else if code_address == address(7) {
-			Some(Bn128Mul.execute(input, state.as_ref(), gasometer))
+			Some(Bn128Mul.execute(input, gasometer))
 		} else if code_address == address(8) {
-			Some(Bn128Pairing.execute(input, state.as_ref(), gasometer))
+			Some(Bn128Pairing.execute(input, gasometer))
 		} else if code_address == address(9) {
-			Some(Blake2F.execute(input, state.as_ref(), gasometer))
+			Some(Blake2F.execute(input, gasometer))
 		} else {
 			None
 		}

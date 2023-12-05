@@ -273,7 +273,7 @@ impl CallTrapData {
 		let target_len = min(self.out_len, U256::from(retbuf.len()));
 		let out_offset = self.out_offset;
 
-		let ret = machine.perform(|machine| match reason {
+		let ret = match reason {
 			Ok(_) => {
 				match machine
 					.memory
@@ -313,13 +313,12 @@ impl CallTrapData {
 
 				Err(e.into())
 			}
-		});
+		};
 
 		match ret {
 			Ok(()) => {
 				machine.state.as_mut().retbuf = retbuf;
 
-				machine.advance();
 				Ok(())
 			}
 			Err(e) => Err(e),
@@ -430,7 +429,7 @@ impl CreateTrapData {
 		retbuf: Vec<u8>,
 		machine: &mut Machine<S>,
 	) -> Result<(), ExitError> {
-		let ret = machine.perform(|machine| match reason {
+		let ret = match reason {
 			Ok(address) => {
 				machine.stack.push(address.into())?;
 				Ok(())
@@ -447,13 +446,12 @@ impl CreateTrapData {
 				machine.stack.push(H256::default())?;
 				Err(e.into())
 			}
-		});
+		};
 
 		match ret {
 			Ok(()) => {
 				machine.state.as_mut().retbuf = retbuf;
 
-				machine.advance();
 				Ok(())
 			}
 			Err(e) => Err(e),

@@ -1,18 +1,19 @@
 mod resolver;
 mod routines;
+mod state;
 
-use alloc::vec::Vec;
-pub use resolver::{EtableResolver, PrecompileSet, Resolver};
+pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
+pub use self::state::InvokerState;
 
-use super::{Config, MergeableRuntimeState, TransactGasometer};
+use super::Config;
 use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
-	Capture, ColoredMachine, Context, ExitError, ExitException, ExitResult, ExitSucceed,
-	Gasometer as GasometerT, Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode,
-	RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend,
-	Transfer,
+	Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed, Interpreter,
+	Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment,
+	RuntimeState, TransactionContext, TransactionalBackend, Transfer,
 };
 use alloc::rc::Rc;
+use alloc::vec::Vec;
 use core::cmp::min;
 use core::convert::Infallible;
 use core::marker::PhantomData;
@@ -136,19 +137,17 @@ impl TransactArgs {
 ///
 /// The generic parameters are as follows:
 /// * `S`: The runtime state, usually [RuntimeState] but can be customized.
-/// * `G`: Gasometer type, usually [crate::standard::Gasometer] but can be
-///   customized.
 /// * `H`: Backend type.
 /// * `R`: Code resolver type, also handle precompiles. Usually
 ///   [EtableResolver] but can be customized.
 /// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
-pub struct Invoker<'config, 'resolver, S, G, H, R, Tr> {
+pub struct Invoker<'config, 'resolver, S, H, R, Tr> {
 	config: &'config Config,
 	resolver: &'resolver R,
-	_marker: PhantomData<(S, G, H, Tr)>,
+	_marker: PhantomData<(S, H, Tr)>,
 }
 
-impl<'config, 'resolver, S, G, H, R, Tr> Invoker<'config, 'resolver, S, G, H, R, Tr> {
+impl<'config, 'resolver, S, H, R, Tr> Invoker<'config, 'resolver, S, H, R, Tr> {
 	/// Create a new standard invoker with the given config and resolver.
 	pub fn new(config: &'config Config, resolver: &'resolver R) -> Self {
 		Self {
@@ -159,16 +158,15 @@ impl<'config, 'resolver, S, G, H, R, Tr> Invoker<'config, 'resolver, S, G, H, R,
 	}
 }
 
-impl<'config, 'resolver, S, G, H, R, Tr> InvokerT<H, Tr>
-	for Invoker<'config, 'resolver, S, G, H, R, Tr>
+impl<'config, 'resolver, S, H, R, Tr> InvokerT<S, H, Tr>
+	for Invoker<'config, 'resolver, S, H, R, Tr>
 where
-	S: MergeableRuntimeState<ColoredMachine<S, G, R::Color>>,
-	G: GasometerT<S, H> + TransactGasometer<'config, S>,
+	S: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, G, H, Tr>,
+	R: Resolver<S, H, Tr>,
 	Tr: IntoCallCreateTrap,
 {
-	type Machine = ColoredMachine<S, G, R::Color>;
+	type Interpreter = R::Interpreter;
 	type Interrupt = Tr::Interrupt;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
@@ -177,12 +175,12 @@ where
 
 	fn new_transact(
 		&self,
-		args: TransactArgs,
+		args: Self::TransactArgs,
 		handler: &mut H,
 	) -> Result<
 		(
-			TransactInvoke,
-			InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>,
+			Self::TransactInvoke,
+			InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
 		),
 		ExitError,
 	> {
@@ -262,23 +260,25 @@ where
 						}
 					}
 
-					let gasometer =
-						G::new_transact_call(gas_limit, &data, &access_list, self.config)?;
+					let state = S::new_transact_call(
+						RuntimeState {
+							context,
+							transaction_context: Rc::new(transaction_context),
+							retbuf: Vec::new(),
+						},
+						gas_limit,
+						&data,
+						&access_list,
+						self.config,
+					)?;
 
 					let machine = routines::make_enter_call_machine(
 						self.config,
 						self.resolver,
 						address,
 						data,
-						false, // is_static
 						Some(transfer),
-						S::new_transact_call(RuntimeState {
-							context,
-							transaction_context: Rc::new(transaction_context),
-							retbuf: Vec::new(),
-							gas: gas_limit,
-						}),
-						gasometer,
+						state,
 						handler,
 					)?;
 
@@ -300,23 +300,25 @@ where
 					access_list,
 					..
 				} => {
-					let gasometer =
-						G::new_transact_create(gas_limit, &init_code, &access_list, self.config)?;
+					let state = S::new_transact_create(
+						RuntimeState {
+							context,
+							transaction_context: Rc::new(transaction_context),
+							retbuf: Vec::new(),
+						},
+						gas_limit,
+						&init_code,
+						&access_list,
+						self.config,
+					)?;
 
 					let machine = routines::make_enter_create_machine(
 						self.config,
 						self.resolver,
 						caller,
 						init_code,
-						false, // is_static
 						transfer,
-						S::new_transact_create(RuntimeState {
-							context,
-							transaction_context: Rc::new(transaction_context),
-							retbuf: Vec::new(),
-							gas: gas_limit,
-						}),
-						gasometer,
+						state,
 						handler,
 					)?;
 
@@ -336,12 +338,12 @@ where
 
 	fn finalize_transact(
 		&self,
-		invoke: &TransactInvoke,
+		invoke: &Self::TransactInvoke,
 		result: ExitResult,
-		(_substate, mut submeter, retval): (S, G, Vec<u8>),
+		(mut substate, retval): (S, Vec<u8>),
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = submeter.effective_gas();
+		let left_gas = substate.effective_gas();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
 			if result.is_ok() {
@@ -351,8 +353,8 @@ where
 					routines::deploy_create_code(
 						self.config,
 						address,
-						&retbuf,
-						&mut submeter,
+						retbuf,
+						&mut substate,
 						handler,
 					)?;
 				}
@@ -388,18 +390,18 @@ where
 	fn enter_substack(
 		&self,
 		trap: Tr,
-		machine: &mut ColoredMachine<S, G, R::Color>,
+		machine: &mut Self::Interpreter,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
 		Result<
 			(
-				SubstackInvoke,
-				InvokerControl<ColoredMachine<S, G, R::Color>, (ExitResult, (S, G, Vec<u8>))>,
+				Self::SubstackInvoke,
+				InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
 			),
 			ExitError,
 		>,
-		Tr::Interrupt,
+		Self::Interrupt,
 	> {
 		fn l64(gas: U256) -> U256 {
 			gas - gas / U256::from(64)
@@ -414,15 +416,15 @@ where
 			return Capture::Exit(Err(ExitException::CallTooDeep.into()));
 		}
 
-		let trap_data = match CallCreateTrapData::new_from(opcode, &mut machine.machine) {
+		let trap_data = match CallCreateTrapData::new_from(opcode, machine.machine_mut()) {
 			Ok(trap_data) => trap_data,
 			Err(err) => return Capture::Exit(Err(err)),
 		};
 
 		let after_gas = if self.config.call_l64_after_gas {
-			l64(machine.gasometer.gas())
+			l64(machine.machine().state.gas())
 		} else {
-			machine.gasometer.gas()
+			machine.machine().state.gas()
 		};
 		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
 		let gas_limit = min(after_gas, target_gas);
@@ -430,7 +432,7 @@ where
 		let call_has_value =
 			matches!(&trap_data, CallCreateTrapData::Call(call) if call.has_value());
 
-		let is_static = if machine.is_static {
+		let is_static = if machine.machine().state.is_static() {
 			true
 		} else {
 			match &trap_data {
@@ -439,24 +441,23 @@ where
 			}
 		};
 
-		let transaction_context = machine.machine.state.as_ref().transaction_context.clone();
+		let transaction_context = machine.machine().state.as_ref().transaction_context.clone();
 
 		match trap_data {
 			CallCreateTrapData::Call(call_trap_data) => {
-				let submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
-					Ok(submeter) => submeter,
-					Err(err) => return Capture::Exit(Err(err)),
-				};
-
-				let substate = machine.machine.state.substate(
+				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
 						context: call_trap_data.context.clone(),
 						transaction_context,
 						retbuf: Vec::new(),
-						gas: gas_limit,
 					},
-					machine,
-				);
+					gas_limit,
+					is_static,
+					call_has_value,
+				) {
+					Ok(submeter) => submeter,
+					Err(err) => return Capture::Exit(Err(err)),
+				};
 
 				let target = call_trap_data.target;
 
@@ -465,22 +466,16 @@ where
 					self.resolver,
 					call_trap_data,
 					target,
-					is_static,
 					substate,
-					submeter,
 					handler,
 				))
 			}
 			CallCreateTrapData::Create(create_trap_data) => {
-				let code = create_trap_data.code.clone();
-				let submeter = match machine.gasometer.submeter(gas_limit, call_has_value) {
-					Ok(submeter) => submeter,
-					Err(err) => return Capture::Exit(Err(err)),
-				};
-
 				let caller = create_trap_data.scheme.caller();
 				let address = create_trap_data.scheme.address(handler);
-				let substate = machine.machine.state.substate(
+				let code = create_trap_data.code.clone();
+
+				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
 						context: Context {
 							address,
@@ -489,19 +484,21 @@ where
 						},
 						transaction_context,
 						retbuf: Vec::new(),
-						gas: gas_limit,
 					},
-					machine,
-				);
+					gas_limit,
+					is_static,
+					call_has_value,
+				) {
+					Ok(submeter) => submeter,
+					Err(err) => return Capture::Exit(Err(err)),
+				};
 
 				Capture::Exit(routines::enter_create_substack(
 					self.config,
 					self.resolver,
 					code,
 					create_trap_data,
-					is_static,
 					substate,
-					submeter,
 					handler,
 				))
 			}
@@ -511,9 +508,9 @@ where
 	fn exit_substack(
 		&self,
 		result: ExitResult,
-		(substate, submeter, retval): (S, G, Vec<u8>),
-		trap_data: SubstackInvoke,
-		parent: &mut ColoredMachine<S, G, R::Color>,
+		(mut substate, retval): (S, Vec<u8>),
+		trap_data: Self::SubstackInvoke,
+		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
 		let strategy = match &result {
@@ -525,37 +522,35 @@ where
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {
 				let retbuf = retval;
-				parent.machine.state.merge(substate, strategy);
 
-				let mut child_gasometer = submeter;
 				let result = result.and_then(|_| {
 					routines::deploy_create_code(
 						self.config,
 						address,
-						&retbuf,
-						&mut child_gasometer,
+						retbuf.clone(),
+						&mut substate,
 						handler,
 					)?;
 
 					Ok(address)
 				});
 
+				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);
-				TransactGasometer::<S>::merge(&mut parent.gasometer, child_gasometer, strategy);
 
-				trap.feedback(result, retbuf, &mut parent.machine)?;
+				trap.feedback(result, retbuf, parent.machine_mut())?;
+				parent.advance();
 
 				Ok(())
 			}
 			SubstackInvoke::Call { trap } => {
-				parent.machine.state.merge(substate, strategy);
-
 				let retbuf = retval;
 
+				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);
-				TransactGasometer::<S>::merge(&mut parent.gasometer, submeter, strategy);
 
-				trap.feedback(result, retbuf, &mut parent.machine)?;
+				trap.feedback(result, retbuf, parent.machine_mut())?;
+				parent.advance();
 
 				Ok(())
 			}

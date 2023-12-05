@@ -9,52 +9,125 @@ mod gasometer;
 mod invoker;
 
 pub use self::config::Config;
-pub use self::gasometer::{Gasometer, TransactGasometer};
-pub use self::invoker::{EtableResolver, Invoker, PrecompileSet, Resolver, TransactArgs};
+pub use self::gasometer::{eval as eval_gasometer, GasometerState};
+pub use self::invoker::{
+	EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, TransactArgs,
+};
 
-/// Standard EVM machine, where the runtime state is [crate::RuntimeState].
-pub type Machine = crate::Machine<crate::RuntimeState>;
+use crate::{ExitError, GasState, MergeStrategy, RuntimeState};
+use alloc::vec::Vec;
+use primitive_types::{H160, H256, U256};
+
+/// Standard machine.
+pub type Machine<'config> = crate::Machine<State<'config>>;
 
 /// Standard Etable opcode handle function.
-pub type Efn<H> = crate::Efn<crate::RuntimeState, H, crate::Opcode>;
+pub type Efn<'config, H> = crate::Efn<State<'config>, H, crate::Opcode>;
 
 /// Standard Etable.
-pub type Etable<H, F = Efn<H>> = crate::Etable<crate::RuntimeState, H, crate::Opcode, F>;
+pub type Etable<'config, H, F = Efn<'config, H>> =
+	crate::Etable<State<'config>, H, crate::Opcode, F>;
 
-/// Standard colored machine, combining an interpreter machine, a gasometer, and the standard
-/// "color" -- an etable.
-pub type ColoredMachine<'etable, G, H, F = Efn<H>> =
-	crate::ColoredMachine<crate::RuntimeState, G, &'etable Etable<H, F>>;
-
-/// Simply [Invoker] with common generics fixed, using standard [Gasometer] and standard trap
-/// [crate::Opcode].
-pub type SimpleInvoker<'config, 'resolver, H, R> =
-	Invoker<'config, 'resolver, crate::RuntimeState, Gasometer<'config>, H, R, crate::Opcode>;
-
-/// A runtime state that can be merged across call stack substate layers.
-pub trait MergeableRuntimeState<M>:
-	AsRef<crate::RuntimeState> + AsMut<crate::RuntimeState>
-{
-	/// Derive a new substate from the substate runtime.
-	fn substate(&self, runtime: crate::RuntimeState, parent: &M) -> Self;
-	/// Merge a substate into the current runtime state, using the given
-	/// strategy.
-	fn merge(&mut self, substate: Self, strategy: crate::MergeStrategy);
-	/// Create a new top-layer runtime state with a call transaction.
-	fn new_transact_call(runtime: crate::RuntimeState) -> Self;
-	/// Create a new top-layer runtime state with a create transaction.
-	fn new_transact_create(runtime: crate::RuntimeState) -> Self;
+pub trait GasMutState: GasState {
+	fn record_gas(&mut self, gas: U256) -> Result<(), ExitError>;
 }
 
-impl<M> MergeableRuntimeState<M> for crate::RuntimeState {
-	fn substate(&self, runtime: crate::RuntimeState, _parent: &M) -> Self {
-		runtime
+pub struct State<'config> {
+	pub runtime: RuntimeState,
+	pub gasometer: GasometerState<'config>,
+}
+
+impl<'config> AsRef<RuntimeState> for State<'config> {
+	fn as_ref(&self) -> &RuntimeState {
+		&self.runtime
 	}
-	fn merge(&mut self, _substate: Self, _strategy: crate::MergeStrategy) {}
-	fn new_transact_call(runtime: crate::RuntimeState) -> Self {
-		runtime
+}
+
+impl<'config> AsMut<RuntimeState> for State<'config> {
+	fn as_mut(&mut self) -> &mut RuntimeState {
+		&mut self.runtime
 	}
-	fn new_transact_create(runtime: crate::RuntimeState) -> Self {
-		runtime
+}
+
+impl<'config> AsRef<GasometerState<'config>> for State<'config> {
+	fn as_ref(&self) -> &GasometerState<'config> {
+		&self.gasometer
+	}
+}
+
+impl<'config> AsMut<GasometerState<'config>> for State<'config> {
+	fn as_mut(&mut self) -> &mut GasometerState<'config> {
+		&mut self.gasometer
+	}
+}
+
+impl<'config> GasState for State<'config> {
+	fn gas(&self) -> U256 {
+		self.gasometer.gas()
+	}
+}
+
+impl<'config> GasMutState for State<'config> {
+	fn record_gas(&mut self, gas: U256) -> Result<(), ExitError> {
+		self.gasometer.record_gas(gas)
+	}
+}
+
+impl<'config> InvokerState<'config> for State<'config> {
+	fn new_transact_call(
+		runtime: RuntimeState,
+		gas_limit: U256,
+		data: &[u8],
+		access_list: &[(H160, Vec<H256>)],
+		config: &'config Config,
+	) -> Result<Self, ExitError> {
+		Ok(Self {
+			runtime,
+			gasometer: GasometerState::new_transact_call(gas_limit, data, access_list, config)?,
+		})
+	}
+	fn new_transact_create(
+		runtime: RuntimeState,
+		gas_limit: U256,
+		code: &[u8],
+		access_list: &[(H160, Vec<H256>)],
+		config: &'config Config,
+	) -> Result<Self, ExitError> {
+		Ok(Self {
+			runtime,
+			gasometer: GasometerState::new_transact_create(gas_limit, code, access_list, config)?,
+		})
+	}
+
+	fn substate(
+		&mut self,
+		runtime: RuntimeState,
+		gas_limit: U256,
+		is_static: bool,
+		call_has_value: bool,
+	) -> Result<Self, ExitError> {
+		Ok(Self {
+			runtime,
+			gasometer: self
+				.gasometer
+				.submeter(gas_limit, is_static, call_has_value)?,
+		})
+	}
+	fn merge(&mut self, substate: Self, strategy: MergeStrategy) {
+		self.gasometer.merge(substate.gasometer, strategy)
+	}
+
+	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
+		self.gasometer.record_codedeposit(len)
+	}
+
+	fn is_static(&self) -> bool {
+		self.gasometer.is_static
+	}
+	fn effective_gas(&self) -> U256 {
+		self.gasometer.effective_gas()
+	}
+	fn config(&self) -> &Config {
+		self.gasometer.config
 	}
 }
