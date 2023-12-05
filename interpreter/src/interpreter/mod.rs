@@ -3,6 +3,7 @@ mod etable;
 pub use self::etable::EtableInterpreter;
 
 use crate::{Capture, ExitResult, Machine};
+use alloc::vec::Vec;
 
 pub trait Interpreter<S, H, Tr> {
 	fn machine(&self) -> &Machine<S>;

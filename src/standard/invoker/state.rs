@@ -1,4 +1,5 @@
 use crate::{standard::Config, ExitError, GasState, MergeStrategy, RuntimeState};
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 pub trait InvokerState<'config>: GasState + Sized {

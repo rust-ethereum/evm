@@ -2,6 +2,7 @@ use crate::{
 	Capture, Control, EtableSet, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed,
 	Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
 };
+use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 

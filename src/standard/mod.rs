@@ -15,6 +15,7 @@ pub use self::invoker::{
 };
 
 use crate::{ExitError, GasState, MergeStrategy, RuntimeState};
+use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
 /// Standard machine.
