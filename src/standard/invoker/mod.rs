@@ -416,7 +416,7 @@ where
 			return Capture::Exit(Err(ExitException::CallTooDeep.into()));
 		}
 
-		let trap_data = match CallCreateTrapData::new_from(opcode, &mut machine.machine_mut()) {
+		let trap_data = match CallCreateTrapData::new_from(opcode, machine.machine_mut()) {
 			Ok(trap_data) => trap_data,
 			Err(err) => return Capture::Exit(Err(err)),
 		};
@@ -549,7 +549,7 @@ where
 				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, &mut parent.machine_mut())?;
+				trap.feedback(result, retbuf, parent.machine_mut())?;
 				parent.advance();
 
 				Ok(())
