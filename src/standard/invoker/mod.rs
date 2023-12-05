@@ -353,7 +353,7 @@ where
 					routines::deploy_create_code(
 						self.config,
 						address,
-						&retbuf,
+						retbuf,
 						&mut substate,
 						handler,
 					)?;
@@ -527,7 +527,7 @@ where
 					routines::deploy_create_code(
 						self.config,
 						address,
-						&retbuf,
+						retbuf.clone(),
 						&mut substate,
 						handler,
 					)?;

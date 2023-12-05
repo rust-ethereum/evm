@@ -187,7 +187,7 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 pub fn deploy_create_code<'config, S, H>(
 	config: &Config,
 	address: H160,
-	retbuf: &Vec<u8>,
+	retbuf: Vec<u8>,
 	state: &mut S,
 	handler: &mut H,
 ) -> Result<(), ExitError>
@@ -205,7 +205,7 @@ where
 
 	state.record_codedeposit(retbuf.len())?;
 
-	handler.set_code(address, retbuf.clone())?;
+	handler.set_code(address, retbuf)?;
 
 	Ok(())
 }
