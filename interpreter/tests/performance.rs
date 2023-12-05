@@ -1,4 +1,4 @@
-use evm_interpreter::{Capture, Etable, ExitSucceed, Machine};
+use evm_interpreter::{Capture, Etable, EtableInterpreter, ExitSucceed, Interpreter, Machine};
 use std::rc::Rc;
 
 static ETABLE: Etable<(), (), ()> = Etable::core();
@@ -10,9 +10,10 @@ macro_rules! ret_test {
 			let code = hex::decode($code).unwrap();
 			let data = hex::decode($data).unwrap();
 
-			let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
+			let machine = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
+			let mut vm = EtableInterpreter::new(machine, &ETABLE);
 			assert_eq!(
-				vm.run(&mut (), &ETABLE),
+				vm.run(&mut ()),
 				Capture::Exit(Ok(ExitSucceed::Returned.into()))
 			);
 			assert_eq!(vm.retval, hex::decode($ret).unwrap());

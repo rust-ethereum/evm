@@ -1,9 +1,10 @@
 use crate::error::{Error, TestError};
 use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer};
 use crate::types::*;
-use evm::standard::{Config, Etable, EtableResolver, Gasometer, Invoker, TransactArgs};
+use evm::standard::{Config, Etable, EtableResolver, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;
+use evm::{GasState, Interpreter};
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
@@ -57,10 +58,12 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		})
 		.collect::<BTreeMap<_, _>>();
 
-	let etable = Etable::runtime();
+	let gas_etable = Etable::single(evm::standard::eval_gasometer);
+	let exec_etable = Etable::runtime();
+	let etable = (gas_etable, exec_etable);
 	let precompiles = StandardPrecompileSet::new(&config);
 	let resolver = EtableResolver::new(&config, &precompiles, &etable);
-	let invoker = Invoker::<_, Gasometer, _, _, _>::new(&config, &resolver);
+	let invoker = Invoker::new(&config, &resolver);
 	let args = TransactArgs::Call {
 		caller: test.transaction.sender,
 		address: test.transaction.to,
@@ -102,12 +105,12 @@ pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> R
 		let _step_result = evm::HeapTransact::new(args, &invoker, &mut step_backend).and_then(
 			|mut stepper| loop {
 				{
-					if let Some(machine) = stepper.last_machine() {
+					if let Some(machine) = stepper.last_interpreter() {
 						println!(
 							"pc: {}, opcode: {:?}, gas: 0x{:x}",
-							machine.machine.position(),
-							machine.machine.peek_opcode(),
-							machine.gasometer.gas(),
+							machine.position(),
+							machine.peek_opcode(),
+							machine.machine().state.gas(),
 						);
 					}
 				}

@@ -4,55 +4,23 @@ mod utils;
 
 use crate::standard::Config;
 use crate::{
-	ExitError, ExitException, ExitFatal, Gasometer as GasometerT, Machine, MergeStrategy, Opcode,
-	RuntimeBackend, RuntimeState, Stack, StaticGasometer,
+	Control, ExitError, ExitException, Machine, MergeStrategy, Opcode, RuntimeBackend,
+	RuntimeState, Stack,
 };
 use alloc::vec::Vec;
 use core::cmp::{max, min};
 use primitive_types::{H160, H256, U256};
 
-/// A gasometer that handles transaction metering.
-pub trait TransactGasometer<'config, S: AsRef<RuntimeState>>: Sized {
-	/// Create a new top-layer gasometer from a call transaction.
-	fn new_transact_call(
-		gas_limit: U256,
-		data: &[u8],
-		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
-	) -> Result<Self, ExitError>;
-
-	/// Create a new top-layer gasometer from a create transaction.
-	fn new_transact_create(
-		gas_limit: U256,
-		code: &[u8],
-		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
-	) -> Result<Self, ExitError>;
-
-	/// Effective gas, assuming the current gasometer is a top-layer gasometer,
-	/// reducing the amount of refunded gas.
-	fn effective_gas(&self) -> U256;
-
-	/// Derive a sub-gasometer from the current one, pushing the call stack.
-	fn submeter(&mut self, gas_limit: U256, call_has_value: bool) -> Result<Self, ExitError>;
-
-	/// Merge a sub-gasometer using the given strategy, poping the call stack.
-	fn merge(&mut self, other: Self, strategy: MergeStrategy);
-
-	/// Analyse the code so that the gasometer can apply further optimizations.
-	fn analyse_code(&mut self, _code: &[u8]) {}
-}
-
-/// Standard gasometer implementation.
-pub struct Gasometer<'config> {
+pub struct GasometerState<'config> {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
 	refunded_gas: u64,
-	config: &'config Config,
+	pub is_static: bool,
+	pub config: &'config Config,
 }
 
-impl<'config> Gasometer<'config> {
+impl<'config> GasometerState<'config> {
 	/// Perform any operation on the gasometer. Set the gasometer to `OutOfGas`
 	/// if the operation fails.
 	#[inline]
@@ -82,12 +50,16 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Left gas that is supposed to be available to the current interpreter.
-	pub fn gas(&self) -> u64 {
+	pub fn gas64(&self) -> u64 {
 		self.gas_limit - self.memory_gas - self.used_gas
 	}
 
+	pub fn gas(&self) -> U256 {
+		self.gas64().into()
+	}
+
 	/// Record an explicit cost.
-	pub fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
+	pub fn record_gas64(&mut self, cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.total_used_gas().checked_add(cost);
 		if let Some(all_gas_cost) = all_gas_cost {
 			if self.gas_limit < all_gas_cost {
@@ -99,6 +71,22 @@ impl<'config> Gasometer<'config> {
 		} else {
 			Err(ExitException::OutOfGas.into())
 		}
+	}
+
+	pub fn record_gas(&mut self, cost: U256) -> Result<(), ExitError> {
+		if cost > U256::from(u64::MAX) {
+			return Err(ExitException::OutOfGas.into());
+		}
+
+		self.record_gas64(cost.as_u64())
+	}
+
+	pub fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
+		self.perform(|gasometer| {
+			let cost = len as u64 * consts::G_CODEDEPOSIT;
+			gasometer.record_gas64(cost)?;
+			Ok(())
+		})
 	}
 
 	/// Set memory gas usage.
@@ -117,19 +105,18 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Create a new gasometer with the given gas limit and chain config.
-	pub fn new(gas_limit: u64, config: &'config Config) -> Self {
+	pub fn new(gas_limit: u64, is_static: bool, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
 			memory_gas: 0,
 			used_gas: 0,
 			refunded_gas: 0,
+			is_static,
 			config,
 		}
 	}
-}
 
-impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasometer<'config> {
-	fn new_transact_call(
+	pub fn new_transact_call(
 		gas_limit: U256,
 		data: &[u8],
 		access_list: &[(H160, Vec<H256>)],
@@ -141,14 +128,14 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, config);
+		let mut s = Self::new(gas_limit, false, config);
 		let transaction_cost = TransactionCost::call(data, access_list).cost(config);
 
-		s.record_cost(transaction_cost)?;
+		s.record_gas64(transaction_cost)?;
 		Ok(s)
 	}
 
-	fn new_transact_create(
+	pub fn new_transact_create(
 		gas_limit: U256,
 		code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
@@ -160,14 +147,14 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, config);
+		let mut s = Self::new(gas_limit, false, config);
 		let transaction_cost = TransactionCost::create(code, access_list).cost(config);
 
-		s.record_cost(transaction_cost)?;
+		s.record_gas64(transaction_cost)?;
 		Ok(s)
 	}
 
-	fn effective_gas(&self) -> U256 {
+	pub fn effective_gas(&self) -> U256 {
 		U256::from(
 			self.gas_limit
 				- (self.total_used_gas()
@@ -178,107 +165,109 @@ impl<'config, S: AsRef<RuntimeState>> TransactGasometer<'config, S> for Gasomete
 		)
 	}
 
-	fn submeter(&mut self, gas_limit: U256, call_has_value: bool) -> Result<Self, ExitError> {
+	pub fn submeter(
+		&mut self,
+		gas_limit: U256,
+		is_static: bool,
+		call_has_value: bool,
+	) -> Result<Self, ExitError> {
 		let mut gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
 			gas_limit.as_u64()
 		};
 
-		self.record_cost(gas_limit)?;
+		self.record_gas64(gas_limit)?;
 
 		if call_has_value {
 			gas_limit = gas_limit.saturating_add(self.config.call_stipend);
 		}
 
-		Ok(Self::new(gas_limit, self.config))
+		Ok(Self::new(gas_limit, is_static, self.config))
 	}
 
-	fn merge(&mut self, other: Self, strategy: MergeStrategy) {
+	pub fn merge(&mut self, other: Self, strategy: MergeStrategy) {
 		match strategy {
 			MergeStrategy::Commit => {
-				self.used_gas -= other.gas();
+				self.used_gas -= other.gas64();
 				self.refunded_gas += other.refunded_gas;
 			}
 			MergeStrategy::Revert => {
-				self.used_gas -= other.gas();
+				self.used_gas -= other.gas64();
 			}
 			MergeStrategy::Discard => {}
 		}
 	}
 }
 
-impl<'config> StaticGasometer for Gasometer<'config> {
-	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
-		self.perform(|gasometer| {
-			let cost = len as u64 * consts::G_CODEDEPOSIT;
-			gasometer.record_cost(cost)?;
-			Ok(())
-		})
-	}
-
-	fn record_cost(&mut self, cost: U256) -> Result<(), ExitError> {
-		if cost > U256::from(u64::MAX) {
-			return Err(ExitException::OutOfGas.into());
-		}
-
-		self.record_cost(cost.as_u64())
-	}
-
-	fn gas(&self) -> U256 {
-		self.gas().into()
+pub fn eval<'config, S, H, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+	opcode: Opcode,
+	position: usize,
+) -> Control<Tr>
+where
+	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
+	H: RuntimeBackend,
+{
+	match eval_to_result(machine, handler, opcode, position) {
+		Ok(()) => Control::Continue,
+		Err(err) => Control::Exit(Err(err)),
 	}
 }
 
-impl<'config, S: AsRef<RuntimeState>, H: RuntimeBackend> GasometerT<S, H> for Gasometer<'config> {
-	fn record_step(
-		&mut self,
-		machine: &Machine<S>,
-		is_static: bool,
-		handler: &H,
-	) -> Result<(), ExitError> {
-		if machine.is_empty() {
-			return Ok(());
-		}
+fn eval_to_result<'config, S, H>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+	opcode: Opcode,
+	_position: usize,
+) -> Result<(), ExitError>
+where
+	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
+	H: RuntimeBackend,
+{
+	if machine.code().is_empty() {
+		return Ok(());
+	}
 
-		self.perform(|gasometer| {
-			let opcode = machine.peek_opcode().ok_or(ExitFatal::AlreadyExited)?;
+	let address = AsRef::<RuntimeState>::as_ref(&machine.state)
+		.context
+		.address;
 
-			if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
-				gasometer.record_cost(cost)?;
+	machine.state.as_mut().perform(|gasometer| {
+		if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
+			gasometer.record_gas64(cost)?;
+		} else {
+			let (gas, memory_gas) = dynamic_opcode_cost(
+				address,
+				opcode,
+				&machine.stack,
+				gasometer.is_static,
+				gasometer.config,
+				handler,
+			)?;
+			let cost = gas.cost(gasometer.gas64(), gasometer.config)?;
+			let refund = gas.refund(gasometer.config);
+
+			gasometer.record_gas64(cost)?;
+			if refund >= 0 {
+				gasometer.refunded_gas += refund as u64;
 			} else {
-				let address = machine.state.as_ref().context.address;
-				let (gas, memory_gas) = dynamic_opcode_cost(
-					address,
-					opcode,
-					&machine.stack,
-					is_static,
-					gasometer.config,
-					handler,
-				)?;
-				let cost = gas.cost(gasometer.gas(), gasometer.config)?;
-				let refund = gas.refund(gasometer.config);
-
-				gasometer.record_cost(cost)?;
-				if refund >= 0 {
-					gasometer.refunded_gas += refund as u64;
-				} else {
-					gasometer.refunded_gas = gasometer.refunded_gas.saturating_sub(-refund as u64);
+				gasometer.refunded_gas = gasometer.refunded_gas.saturating_sub(-refund as u64);
+			}
+			if let Some(memory_gas) = memory_gas {
+				let memory_cost = memory_gas.cost()?;
+				if let Some(memory_cost) = memory_cost {
+					gasometer.set_memory_gas(max(gasometer.memory_gas, memory_cost))?;
 				}
-				if let Some(memory_gas) = memory_gas {
-					let memory_cost = memory_gas.cost()?;
-					if let Some(memory_cost) = memory_cost {
-						gasometer.set_memory_gas(max(gasometer.memory_gas, memory_cost))?;
-					}
-				}
-
-				let after_gas = gasometer.gas();
-				gas.extra_check(after_gas, gasometer.config)?;
 			}
 
-			Ok(())
-		})
-	}
+			let after_gas = gasometer.gas64();
+			gas.extra_check(after_gas, gasometer.config)?;
+		}
+
+		Ok(())
+	})
 }
 
 /// Calculate the opcode cost.

@@ -123,11 +123,7 @@ pub fn jump<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, dest);
 	let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
 
-	if state.valids.is_valid(dest) {
-		Control::Jump(dest)
-	} else {
-		Control::Exit(ExitException::InvalidJump.into())
-	}
+	Control::Jump(dest)
 }
 
 #[inline]
@@ -137,11 +133,7 @@ pub fn jumpi<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 
 	if value != H256::zero() {
 		let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
-		if state.valids.is_valid(dest) {
-			Control::Jump(dest)
-		} else {
-			Control::Exit(ExitException::InvalidJump.into())
-		}
+		Control::Jump(dest)
 	} else {
 		Control::Continue
 	}

@@ -1,4 +1,7 @@
-use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl, InvokerMachine};
+use crate::{
+	Capture, ExitError, ExitFatal, ExitResult, Interpreter, Invoker, InvokerControl,
+	StepInterpreter,
+};
 use alloc::vec::Vec;
 use core::convert::Infallible;
 
@@ -20,20 +23,20 @@ enum LastSubstackStatus<Tr> {
 
 // Note: this should not be exposed to public because it does not implement
 // Drop.
-struct CallStack<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
-	stack: Vec<Substack<I::Machine, I::SubstackInvoke>>,
-	last: Option<LastSubstack<I::Machine, Tr>>,
+struct CallStack<'backend, 'invoker, S, H, Tr, I: Invoker<S, H, Tr>> {
+	stack: Vec<Substack<I::Interpreter, I::SubstackInvoke>>,
+	last: Option<LastSubstack<I::Interpreter, Tr>>,
 	initial_depth: usize,
 	backend: &'backend mut H,
 	invoker: &'invoker I,
 }
 
-impl<'backend, 'invoker, H, Tr, I> CallStack<'backend, 'invoker, H, Tr, I>
+impl<'backend, 'invoker, S, H, Tr, I> CallStack<'backend, 'invoker, S, H, Tr, I>
 where
-	I: Invoker<H, Tr>,
+	I: Invoker<S, H, Tr>,
 {
 	pub fn new(
-		machine: I::Machine,
+		machine: I::Interpreter,
 		initial_depth: usize,
 		backend: &'backend mut H,
 		invoker: &'invoker I,
@@ -51,7 +54,9 @@ where
 	}
 
 	#[allow(clippy::type_complexity)]
-	pub fn run(&mut self) -> Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt> {
+	pub fn run(
+		&mut self,
+	) -> Capture<Result<(ExitResult, I::Interpreter), ExitFatal>, I::Interrupt> {
 		loop {
 			let step_ret = self.step_run();
 
@@ -62,22 +67,9 @@ where
 	}
 
 	#[allow(clippy::type_complexity)]
-	pub fn step(
-		&mut self,
-	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
-		self.step_with(|machine, handler| {
-			let result = machine.step(handler);
-			match result {
-				Ok(()) => LastSubstackStatus::Running,
-				Err(result) => LastSubstackStatus::Exited(result),
-			}
-		})
-	}
-
-	#[allow(clippy::type_complexity)]
 	pub fn step_run(
 		&mut self,
-	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>> {
+	) -> Result<(), Capture<Result<(ExitResult, I::Interpreter), ExitFatal>, I::Interrupt>> {
 		self.step_with(|machine, handler| {
 			let result = machine.run(handler);
 			LastSubstackStatus::Exited(result)
@@ -88,9 +80,9 @@ where
 	fn step_with<FS>(
 		&mut self,
 		fs: FS,
-	) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>>
+	) -> Result<(), Capture<Result<(ExitResult, I::Interpreter), ExitFatal>, I::Interrupt>>
 	where
-		FS: Fn(&mut I::Machine, &mut H) -> LastSubstackStatus<Tr>,
+		FS: Fn(&mut I::Interpreter, &mut H) -> LastSubstackStatus<Tr>,
 	{
 		let mut step_ret = None;
 
@@ -214,15 +206,34 @@ where
 	}
 }
 
-fn execute<H, Tr, I>(
-	mut machine: I::Machine,
+impl<'backend, 'invoker, S, H, Tr, I> CallStack<'backend, 'invoker, S, H, Tr, I>
+where
+	I: Invoker<S, H, Tr>,
+	I::Interpreter: StepInterpreter<S, H, Tr>,
+{
+	#[allow(clippy::type_complexity)]
+	pub fn step(
+		&mut self,
+	) -> Result<(), Capture<Result<(ExitResult, I::Interpreter), ExitFatal>, I::Interrupt>> {
+		self.step_with(|machine, handler| {
+			let result = machine.step(handler);
+			match result {
+				Ok(()) => LastSubstackStatus::Running,
+				Err(result) => LastSubstackStatus::Exited(result),
+			}
+		})
+	}
+}
+
+fn execute<S, H, Tr, I>(
+	mut machine: I::Interpreter,
 	initial_depth: usize,
 	heap_depth: Option<usize>,
 	backend: &mut H,
 	invoker: &I,
-) -> Result<(ExitResult, I::Machine), ExitFatal>
+) -> Result<(ExitResult, I::Interpreter), ExitFatal>
 where
-	I: Invoker<H, Tr, Interrupt = Infallible>,
+	I: Invoker<S, H, Tr, Interrupt = Infallible>,
 {
 	let mut result = machine.run(backend);
 
@@ -284,14 +295,14 @@ where
 	}
 }
 
-enum HeapTransactState<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
+enum HeapTransactState<'backend, 'invoker, S, H, Tr, I: Invoker<S, H, Tr>> {
 	Created {
 		args: I::TransactArgs,
 		invoker: &'invoker I,
 		backend: &'backend mut H,
 	},
 	Running {
-		call_stack: CallStack<'backend, 'invoker, H, Tr, I>,
+		call_stack: CallStack<'backend, 'invoker, S, H, Tr, I>,
 		transact_invoke: I::TransactInvoke,
 	},
 }
@@ -299,13 +310,13 @@ enum HeapTransactState<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>> {
 /// Heap-based call stack for a transaction. This is suitable for single
 /// stepping or debugging. The hybrid version [transact] uses a heap-based call
 /// stack internally after certain depth.
-pub struct HeapTransact<'backend, 'invoker, H, Tr, I: Invoker<H, Tr>>(
-	Option<HeapTransactState<'backend, 'invoker, H, Tr, I>>,
+pub struct HeapTransact<'backend, 'invoker, S, H, Tr, I: Invoker<S, H, Tr>>(
+	Option<HeapTransactState<'backend, 'invoker, S, H, Tr, I>>,
 );
 
-impl<'backend, 'invoker, H, Tr, I> HeapTransact<'backend, 'invoker, H, Tr, I>
+impl<'backend, 'invoker, S, H, Tr, I> HeapTransact<'backend, 'invoker, S, H, Tr, I>
 where
-	I: Invoker<H, Tr>,
+	I: Invoker<S, H, Tr>,
 {
 	/// Create a new heap-based call stack.
 	pub fn new(
@@ -327,8 +338,11 @@ where
 	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>>
 	where
 		FS: Fn(
-			&mut CallStack<'backend, 'invoker, H, Tr, I>,
-		) -> Result<(), Capture<Result<(ExitResult, I::Machine), ExitFatal>, I::Interrupt>>,
+			&mut CallStack<'backend, 'invoker, S, H, Tr, I>,
+		) -> Result<
+			(),
+			Capture<Result<(ExitResult, I::Interpreter), ExitFatal>, I::Interrupt>,
+		>,
 	{
 		let ret;
 
@@ -401,14 +415,6 @@ where
 		self.step_with(|call_stack| call_stack.step_run())
 	}
 
-	/// Step the call stack, and step the interpreter inside.
-	#[allow(clippy::type_complexity)]
-	pub fn step(
-		&mut self,
-	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
-		self.step_with(|call_stack| call_stack.step())
-	}
-
 	/// Run the call stack until it exits or receives interrupts.
 	pub fn run(&mut self) -> Capture<Result<I::TransactValue, ExitError>, I::Interrupt> {
 		loop {
@@ -422,7 +428,7 @@ where
 
 	/// The machine of the last item on the call stack. This will be `None` if
 	/// the heap stack is just created.
-	pub fn last_machine(&self) -> Option<&I::Machine> {
+	pub fn last_interpreter(&self) -> Option<&I::Interpreter> {
 		match &self.0 {
 			Some(HeapTransactState::Running { call_stack, .. }) => match &call_stack.last {
 				Some(last) => Some(&last.machine),
@@ -433,9 +439,23 @@ where
 	}
 }
 
-impl<'backend, 'invoker, H, Tr, I> Drop for HeapTransact<'backend, 'invoker, H, Tr, I>
+impl<'backend, 'invoker, S, H, Tr, I> HeapTransact<'backend, 'invoker, S, H, Tr, I>
 where
-	I: Invoker<H, Tr>,
+	I: Invoker<S, H, Tr>,
+	I::Interpreter: StepInterpreter<S, H, Tr>,
+{
+	/// Step the call stack, and step the interpreter inside.
+	#[allow(clippy::type_complexity)]
+	pub fn step(
+		&mut self,
+	) -> Result<(), Capture<Result<I::TransactValue, ExitError>, I::Interrupt>> {
+		self.step_with(|call_stack| call_stack.step())
+	}
+}
+
+impl<'backend, 'invoker, S, H, Tr, I> Drop for HeapTransact<'backend, 'invoker, S, H, Tr, I>
+where
+	I: Invoker<S, H, Tr>,
 {
 	fn drop(&mut self) {
 		if let Some(HeapTransactState::Running {
@@ -486,14 +506,14 @@ where
 ///
 /// Because a stack-based call stack cannot handle interrupts, the [Invoker]
 /// type must have its `Interrupt` type set to [Infallible].
-pub fn transact<H, Tr, I>(
+pub fn transact<S, H, Tr, I>(
 	args: I::TransactArgs,
 	heap_depth: Option<usize>,
 	backend: &mut H,
 	invoker: &I,
 ) -> Result<I::TransactValue, ExitError>
 where
-	I: Invoker<H, Tr, Interrupt = Infallible>,
+	I: Invoker<S, H, Tr, Interrupt = Infallible>,
 {
 	let (transact_invoke, control) = invoker.new_transact(args, backend)?;
 

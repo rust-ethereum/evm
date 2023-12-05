@@ -1,7 +1,7 @@
 mod eip152;
 
 use crate::PurePrecompile;
-use evm::{ExitException, ExitResult, ExitSucceed, RuntimeState, StaticGasometer};
+use evm::{standard::GasMutState, ExitException, ExitResult, ExitSucceed};
 
 pub struct Blake2F;
 
@@ -9,15 +9,10 @@ impl Blake2F {
 	const GAS_COST_PER_ROUND: u64 = 1; // https://eips.ethereum.org/EIPS/eip-152#gas-costs-and-benchmarks
 }
 
-impl<G: StaticGasometer> PurePrecompile<G> for Blake2F {
+impl<G: GasMutState> PurePrecompile<G> for Blake2F {
 	/// Format of `input`:
 	/// [4 bytes for rounds][64 bytes for h][128 bytes for m][8 bytes for t_0][8 bytes for t_1][1 byte for f]
-	fn execute(
-		&self,
-		input: &[u8],
-		_state: &RuntimeState,
-		gasometer: &mut G,
-	) -> (ExitResult, Vec<u8>) {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const BLAKE2_F_ARG_LEN: usize = 213;
 
 		if input.len() != BLAKE2_F_ARG_LEN {
@@ -35,7 +30,7 @@ impl<G: StaticGasometer> PurePrecompile<G> for Blake2F {
 		let rounds: u32 = u32::from_be_bytes(rounds_buf);
 
 		let gas_cost: u64 = (rounds as u64) * Blake2F::GAS_COST_PER_ROUND;
-		try_some!(gasometer.record_cost(gas_cost.into()));
+		try_some!(gasometer.record_gas(gas_cost.into()));
 
 		// we use from_le_bytes below to effectively swap byte order to LE if architecture is BE
 		let mut h_buf: [u8; 64] = [0; 64];

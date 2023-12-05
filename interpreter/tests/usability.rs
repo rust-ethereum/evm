@@ -1,6 +1,7 @@
 use evm_interpreter::{
-	Capture, Context, Control, Etable, ExitError, ExitSucceed, Log, Machine, Opcode,
-	RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
+	Capture, Context, Control, Etable, EtableInterpreter, ExitError, ExitSucceed, Interpreter, Log,
+	Machine, Opcode, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
+	TransactionContext,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -22,8 +23,9 @@ fn etable_wrap() {
 		}
 	});
 
-	let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
-	let result = vm.run(&mut (), &wrapped_etable);
+	let machine = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
+	let mut vm = EtableInterpreter::new(machine, &wrapped_etable);
+	let result = vm.run(&mut ());
 	assert_eq!(result, Capture::Exit(Ok(ExitSucceed::Returned)));
 	assert_eq!(vm.retval, hex::decode(RET1).unwrap());
 }
@@ -51,8 +53,9 @@ fn etable_wrap2() {
 		},
 	);
 
-	let mut vm = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
-	let result = vm.run(&mut (), &wrapped_etable);
+	let machine = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
+	let mut vm = EtableInterpreter::new(machine, &wrapped_etable);
+	let result = vm.run(&mut ());
 	assert_eq!(result, Capture::Trap(Opcode(0x50)));
 }
 
@@ -172,7 +175,7 @@ fn etable_runtime() {
 	let data = hex::decode(DATA1).unwrap();
 	let mut handler = UnimplementedHandler;
 
-	let mut vm = Machine::new(
+	let machine = Machine::new(
 		Rc::new(code),
 		Rc::new(data),
 		1024,
@@ -189,11 +192,11 @@ fn etable_runtime() {
 			}
 			.into(),
 			retbuf: Vec::new(),
-			gas: U256::zero(),
 		},
 	);
+	let mut vm = EtableInterpreter::new(machine, &RUNTIME_ETABLE);
 
-	let res = vm.run(&mut handler, &RUNTIME_ETABLE).exit().unwrap();
+	let res = vm.run(&mut handler).exit().unwrap();
 	assert_eq!(res, Ok(ExitSucceed::Returned));
 	assert_eq!(vm.retval, hex::decode(RET1).unwrap());
 }

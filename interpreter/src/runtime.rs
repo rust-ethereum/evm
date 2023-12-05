@@ -4,6 +4,11 @@ use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
+/// Gas state.
+pub trait GasState {
+	fn gas(&self) -> U256;
+}
+
 /// Runtime state.
 #[derive(Clone, Debug)]
 pub struct RuntimeState {
@@ -12,8 +17,6 @@ pub struct RuntimeState {
 	pub transaction_context: Rc<TransactionContext>,
 	/// Return data buffer.
 	pub retbuf: Vec<u8>,
-	/// Current gas.
-	pub gas: U256,
 }
 
 impl AsRef<Self> for RuntimeState {
@@ -25,6 +28,12 @@ impl AsRef<Self> for RuntimeState {
 impl AsMut<Self> for RuntimeState {
 	fn as_mut(&mut self) -> &mut Self {
 		self
+	}
+}
+
+impl GasState for RuntimeState {
+	fn gas(&self) -> U256 {
+		U256::zero()
 	}
 }
 

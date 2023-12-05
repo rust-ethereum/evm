@@ -1,7 +1,7 @@
 use super::Control;
 use crate::{
-	ExitException, ExitFatal, ExitSucceed, Log, Machine, RuntimeBackend, RuntimeEnvironment,
-	RuntimeState, Transfer,
+	ExitException, ExitFatal, ExitSucceed, GasState, Log, Machine, RuntimeBackend,
+	RuntimeEnvironment, RuntimeState, Transfer,
 };
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
@@ -285,11 +285,11 @@ pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	}
 }
 
-pub fn gas<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+pub fn gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handler: &H,
 ) -> Control<Tr> {
-	push_u256!(machine, machine.state.as_ref().gas);
+	push_u256!(machine, machine.state.gas());
 
 	Control::Continue
 }
