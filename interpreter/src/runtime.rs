@@ -1,4 +1,4 @@
-use crate::{ExitError, Opcode};
+use crate::ExitError;
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
@@ -73,16 +73,6 @@ pub struct Log {
 	pub address: H160,
 	pub topics: Vec<H256>,
 	pub data: Vec<u8>,
-}
-
-pub trait CallCreateTrap: Sized {
-	fn call_create_trap(opcode: Opcode) -> Self;
-}
-
-impl CallCreateTrap for Opcode {
-	fn call_create_trap(opcode: Opcode) -> Self {
-		opcode
-	}
 }
 
 pub trait RuntimeEnvironment {

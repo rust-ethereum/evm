@@ -1,6 +1,6 @@
 use crate::{
-	eval::*, CallCreateTrap, ExitResult, GasState, Machine, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState,
+	call_create::CallCreateTrap, eval::*, ExitResult, GasState, Machine, Opcode, RuntimeBackend,
+	RuntimeEnvironment, RuntimeState, TrapConstruct,
 };
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
@@ -236,7 +236,7 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 	}
 }
 
-impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr: CallCreateTrap> Etable<S, H, Tr>
+impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr: TrapConstruct<CallCreateTrap>> Etable<S, H, Tr>
 where
 	S: AsRef<RuntimeState> + GasState,
 {

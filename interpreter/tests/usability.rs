@@ -1,7 +1,7 @@
 use evm_interpreter::{
-	Capture, Context, Control, Etable, EtableInterpreter, ExitError, ExitSucceed, Interpreter, Log,
-	Machine, Opcode, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
-	TransactionContext,
+	call_create::CallCreateTrap, Capture, Context, Control, Etable, EtableInterpreter, ExitError,
+	ExitSucceed, Interpreter, Log, Machine, Opcode, RuntimeBackend, RuntimeBaseBackend,
+	RuntimeEnvironment, RuntimeState, TransactionContext,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -167,7 +167,8 @@ impl RuntimeBackend for UnimplementedHandler {
 	}
 }
 
-static RUNTIME_ETABLE: Etable<RuntimeState, UnimplementedHandler, Opcode> = Etable::runtime();
+static RUNTIME_ETABLE: Etable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+	Etable::runtime();
 
 #[test]
 fn etable_runtime() {

@@ -22,11 +22,11 @@ use primitive_types::{H160, H256, U256};
 pub type Machine<'config> = crate::Machine<State<'config>>;
 
 /// Standard Etable opcode handle function.
-pub type Efn<'config, H> = crate::Efn<State<'config>, H, crate::Opcode>;
+pub type Efn<'config, H> = crate::Efn<State<'config>, H, crate::call_create::CallCreateTrap>;
 
 /// Standard Etable.
 pub type Etable<'config, H, F = Efn<'config, H>> =
-	crate::Etable<State<'config>, H, crate::Opcode, F>;
+	crate::Etable<State<'config>, H, crate::call_create::CallCreateTrap, F>;
 
 pub trait GasMutState: GasState {
 	fn record_gas(&mut self, gas: U256) -> Result<(), ExitError>;

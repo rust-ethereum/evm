@@ -6,8 +6,8 @@ mod misc;
 mod system;
 
 use crate::{
-	CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState,
+	call_create::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine, Opcode,
+	RuntimeBackend, RuntimeEnvironment, RuntimeState, TrapConstruct,
 };
 use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::{H256, U256};
@@ -1272,11 +1272,21 @@ pub fn eval_basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::basefee(machine, handle)
 }
 
-pub fn eval_call_create_trap<S, H, Tr: CallCreateTrap>(
+pub fn eval_call_create_trap<S, H, Tr: TrapConstruct<CallCreateTrap>>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
 	opcode: Opcode,
 	_position: usize,
 ) -> Control<Tr> {
-	Control::Trap(Tr::call_create_trap(opcode))
+	let trap = match opcode {
+		Opcode::CREATE => CallCreateTrap::Create,
+		Opcode::CREATE2 => CallCreateTrap::Create2,
+		Opcode::CALL => CallCreateTrap::Call,
+		Opcode::CALLCODE => CallCreateTrap::CallCode,
+		Opcode::DELEGATECALL => CallCreateTrap::DelegateCall,
+		Opcode::STATICCALL => CallCreateTrap::StaticCall,
+		_ => return Control::Exit(Err(ExitException::InvalidOpcode(opcode).into())),
+	};
+
+	Control::Trap(Tr::construct(trap))
 }
