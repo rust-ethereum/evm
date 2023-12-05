@@ -2,11 +2,12 @@
 
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
-	Context, ExitError, ExitException, ExitResult, Machine, Memory, Opcode, RuntimeBackend,
-	RuntimeState, Transfer,
+	Context, ExitError, ExitException, ExitResult, Machine, Memory, RuntimeBackend, RuntimeState,
+	Transfer, TrapConstruct, TrapConsume,
 };
 use alloc::vec::Vec;
 use core::cmp::{max, min};
+use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -75,6 +76,29 @@ pub enum CallScheme {
 	StaticCall,
 }
 
+pub enum CallCreateTrap {
+	Create,
+	Create2,
+	Call,
+	CallCode,
+	DelegateCall,
+	StaticCall,
+}
+
+impl TrapConstruct<CallCreateTrap> for CallCreateTrap {
+	fn construct(v: CallCreateTrap) -> Self {
+		v
+	}
+}
+
+impl TrapConsume<CallCreateTrap> for CallCreateTrap {
+	type Rest = Infallible;
+
+	fn consume(self) -> Result<CallCreateTrap, Infallible> {
+		Ok(self)
+	}
+}
+
 /// Combined call create trap data.
 pub enum CallCreateTrapData {
 	/// A call trap data.
@@ -92,29 +116,28 @@ impl CallCreateTrapData {
 	}
 
 	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
-		opcode: Opcode,
+		opcode: CallCreateTrap,
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
 		match opcode {
-			Opcode::CREATE => Ok(Self::Create(CreateTrapData::new_create_from(machine)?)),
-			Opcode::CREATE2 => Ok(Self::Create(CreateTrapData::new_create2_from(machine)?)),
-			Opcode::CALL => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateTrap::Create => Ok(Self::Create(CreateTrapData::new_create_from(machine)?)),
+			CallCreateTrap::Create2 => Ok(Self::Create(CreateTrapData::new_create2_from(machine)?)),
+			CallCreateTrap::Call => Ok(Self::Call(CallTrapData::new_from(
 				CallScheme::Call,
 				machine,
 			)?)),
-			Opcode::CALLCODE => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateTrap::CallCode => Ok(Self::Call(CallTrapData::new_from(
 				CallScheme::CallCode,
 				machine,
 			)?)),
-			Opcode::DELEGATECALL => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateTrap::DelegateCall => Ok(Self::Call(CallTrapData::new_from(
 				CallScheme::DelegateCall,
 				machine,
 			)?)),
-			Opcode::STATICCALL => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateTrap::StaticCall => Ok(Self::Call(CallTrapData::new_from(
 				CallScheme::StaticCall,
 				machine,
 			)?)),
-			_ => Err(ExitException::InvalidOpcode(opcode).into()),
 		}
 	}
 

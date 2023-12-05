@@ -15,6 +15,7 @@ mod memory;
 mod opcode;
 mod runtime;
 mod stack;
+mod trap;
 pub mod utils;
 mod valids;
 
@@ -24,10 +25,11 @@ pub use crate::interpreter::{EtableInterpreter, Interpreter, StepInterpreter};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::runtime::{
-	CallCreateTrap, Context, GasState, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment,
-	RuntimeState, TransactionContext, Transfer,
+	Context, GasState, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
+	TransactionContext, Transfer,
 };
 pub use crate::stack::Stack;
+pub use crate::trap::{TrapConstruct, TrapConsume};
 pub use crate::valids::Valids;
 
 use alloc::rc::Rc;

@@ -6,11 +6,13 @@ pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
 pub use self::state::InvokerState;
 
 use super::Config;
-use crate::call_create::{CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
+use crate::call_create::{
+	CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData,
+};
 use crate::{
 	Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed, Interpreter,
 	Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment,
-	RuntimeState, TransactionContext, TransactionalBackend, Transfer,
+	RuntimeState, TransactionContext, TransactionalBackend, Transfer, TrapConsume,
 };
 use alloc::rc::Rc;
 use alloc::vec::Vec;
@@ -164,10 +166,10 @@ where
 	S: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<S, H, Tr>,
-	Tr: IntoCallCreateTrap,
+	Tr: TrapConsume<CallCreateTrap>,
 {
 	type Interpreter = R::Interpreter;
-	type Interrupt = Tr::Interrupt;
+	type Interrupt = Tr::Rest;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
 	type TransactValue = (ExitSucceed, Option<H160>);
@@ -407,7 +409,7 @@ where
 			gas - gas / U256::from(64)
 		}
 
-		let opcode = match trap.into_call_create_trap() {
+		let opcode = match trap.consume() {
 			Ok(opcode) => opcode,
 			Err(interrupt) => return Capture::Trap(interrupt),
 		};
