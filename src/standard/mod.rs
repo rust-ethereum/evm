@@ -14,7 +14,7 @@ pub use self::invoker::{
 	EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, TransactArgs,
 };
 
-use crate::{ExitError, GasState, MergeStrategy, RuntimeState};
+use crate::{ExitError, GasMutState, GasState, MergeStrategy, RuntimeState};
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 
@@ -27,10 +27,6 @@ pub type Efn<'config, H> = crate::Efn<State<'config>, H, crate::trap::CallCreate
 /// Standard Etable.
 pub type Etable<'config, H, F = Efn<'config, H>> =
 	crate::Etable<State<'config>, H, crate::trap::CallCreateTrap, F>;
-
-pub trait GasMutState: GasState {
-	fn record_gas(&mut self, gas: U256) -> Result<(), ExitError>;
-}
 
 pub struct State<'config> {
 	pub runtime: RuntimeState,

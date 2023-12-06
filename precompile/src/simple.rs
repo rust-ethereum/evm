@@ -1,6 +1,6 @@
 use crate::{linear_cost, PurePrecompile};
 use core::cmp::min;
-use evm::{standard::GasMutState, ExitException, ExitResult, ExitSucceed};
+use evm::{ExitException, ExitResult, ExitSucceed, GasMutState};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};

@@ -26,8 +26,8 @@ pub use crate::modexp::Modexp;
 pub use crate::simple::{ECRecover, Identity, Ripemd160, Sha256};
 
 use alloc::vec::Vec;
-use evm::standard::{Config, GasMutState, PrecompileSet};
-use evm::{ExitError, ExitException, ExitResult, RuntimeState};
+use evm::standard::{Config, PrecompileSet};
+use evm::{ExitError, ExitException, ExitResult, GasMutState, RuntimeState};
 
 use primitive_types::H160;
 

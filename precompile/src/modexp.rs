@@ -1,7 +1,7 @@
 use crate::PurePrecompile;
 use alloc::{vec, vec::Vec};
 use core::cmp::max;
-use evm::{standard::GasMutState, ExitException, ExitResult, ExitSucceed};
+use evm::{ExitException, ExitResult, ExitSucceed, GasMutState};
 use num::{BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
 
 pub struct Modexp;
