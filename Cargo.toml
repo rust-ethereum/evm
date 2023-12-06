@@ -6,7 +6,7 @@ keywords = ["no_std", "ethereum", "evm"]
 
 [package]
 name = "evm"
-version = "1.0.0-dev"
+version = "1.0.0-alpha.2"
 edition = "2021"
 license = { workspace = true }
 authors = { workspace = true }
@@ -18,7 +18,7 @@ description = "Ethereum Virtual Machine"
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 sha3 = { version = "0.10", default-features = false }
 
-evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
+evm-interpreter = { version = "1.0.0-alpha.2", path = "interpreter", default-features = false }
 
 [features]
 default = ["std"]
