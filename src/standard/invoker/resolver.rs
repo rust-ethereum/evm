@@ -4,7 +4,6 @@ use crate::{
 	RuntimeState,
 };
 use alloc::{rc::Rc, vec::Vec};
-use core::marker::PhantomData;
 use primitive_types::H160;
 
 /// A code resolver.
@@ -64,15 +63,14 @@ impl<S, H> PrecompileSet<S, H> for () {
 
 /// The standard code resolver where the color is an [Etable]. This is usually
 /// what you need.
-pub struct EtableResolver<'config, 'precompile, 'etable, S, Pre, ES> {
+pub struct EtableResolver<'config, 'precompile, 'etable, Pre, ES> {
 	config: &'config Config,
 	etable: &'etable ES,
 	precompiles: &'precompile Pre,
-	_marker: PhantomData<S>,
 }
 
-impl<'config, 'precompile, 'etable, S, Pre, ES>
-	EtableResolver<'config, 'precompile, 'etable, S, Pre, ES>
+impl<'config, 'precompile, 'etable, Pre, ES>
+	EtableResolver<'config, 'precompile, 'etable, Pre, ES>
 {
 	pub fn new(
 		config: &'config Config,
@@ -83,21 +81,20 @@ impl<'config, 'precompile, 'etable, S, Pre, ES>
 			config,
 			precompiles,
 			etable,
-			_marker: PhantomData,
 		}
 	}
 }
 
-impl<'config, 'precompile, 'etable, S, H, Pre, ES> Resolver<H>
-	for EtableResolver<'config, 'precompile, 'etable, S, Pre, ES>
+impl<'config, 'precompile, 'etable, H, Pre, ES> Resolver<H>
+	for EtableResolver<'config, 'precompile, 'etable, Pre, ES>
 where
-	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeBackend,
-	Pre: PrecompileSet<S, H>,
-	ES: EtableSet<State = S, Handle = H>,
+	Pre: PrecompileSet<ES::State, H>,
+	ES: EtableSet<Handle = H>,
 {
-	type State = S;
-	type Interpreter = EtableInterpreter<'etable, S, ES>;
+	type State = ES::State;
+	type Interpreter = EtableInterpreter<'etable, ES>;
 
 	/// Resolve a call (with the target code address).
 	#[allow(clippy::type_complexity)]
@@ -105,9 +102,9 @@ where
 		&self,
 		code_address: H160,
 		input: Vec<u8>,
-		mut state: S,
+		mut state: ES::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError> {
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (ES::State, Vec<u8>))>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
@@ -117,7 +114,7 @@ where
 
 		let code = handler.code(code_address);
 
-		let machine = Machine::<S>::new(
+		let machine = Machine::<ES::State>::new(
 			Rc::new(code),
 			Rc::new(input),
 			self.config.stack_limit,
@@ -135,9 +132,9 @@ where
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		state: S,
+		state: ES::State,
 		_handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError> {
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (ES::State, Vec<u8>))>, ExitError> {
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
