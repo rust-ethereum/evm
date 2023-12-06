@@ -2,8 +2,8 @@
 
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
-	Context, ExitError, ExitException, ExitResult, Machine, Memory, RuntimeBackend, RuntimeState,
-	Transfer,
+	Context, ExitError, ExitException, ExitResult, Interpreter, Machine, Memory, RuntimeBackend,
+	RuntimeState, Transfer,
 };
 use alloc::vec::Vec;
 use core::cmp::{max, min};
@@ -297,52 +297,61 @@ impl CallTrapData {
 		}
 	}
 
-	pub fn feedback<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+	pub fn feedback<
+		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+		H,
+		Tr,
+		I: Interpreter<S, H, Tr>,
+	>(
 		self,
 		reason: ExitResult,
 		retbuf: Vec<u8>,
-		machine: &mut Machine<S>,
+		interpreter: &mut I,
 	) -> Result<(), ExitError> {
 		let target_len = min(self.out_len, U256::from(retbuf.len()));
 		let out_offset = self.out_offset;
 
 		let ret = match reason {
 			Ok(_) => {
-				match machine
-					.memory
-					.copy_large(out_offset, U256::zero(), target_len, &retbuf[..])
-				{
+				match interpreter.machine_mut().memory.copy_large(
+					out_offset,
+					U256::zero(),
+					target_len,
+					&retbuf[..],
+				) {
 					Ok(()) => {
 						let mut value = H256::default();
 						U256::one().to_big_endian(&mut value[..]);
-						machine.stack.push(value)?;
+						interpreter.machine_mut().stack.push(value)?;
 
 						Ok(())
 					}
 					Err(_) => {
-						machine.stack.push(H256::default())?;
+						interpreter.machine_mut().stack.push(H256::default())?;
 
 						Ok(())
 					}
 				}
 			}
 			Err(ExitError::Reverted) => {
-				machine.stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(H256::default())?;
 
-				let _ =
-					machine
-						.memory
-						.copy_large(out_offset, U256::zero(), target_len, &retbuf[..]);
+				let _ = interpreter.machine_mut().memory.copy_large(
+					out_offset,
+					U256::zero(),
+					target_len,
+					&retbuf[..],
+				);
 
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				machine.stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(H256::default())?;
 
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(H256::default())?;
 
 				Err(e.into())
 			}
@@ -350,7 +359,8 @@ impl CallTrapData {
 
 		match ret {
 			Ok(()) => {
-				machine.state.as_mut().retbuf = retbuf;
+				interpreter.machine_mut().state.as_mut().retbuf = retbuf;
+				interpreter.advance();
 
 				Ok(())
 			}
@@ -456,34 +466,40 @@ impl CreateTrapData {
 		})
 	}
 
-	pub fn feedback<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+	pub fn feedback<
+		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+		H,
+		Tr,
+		I: Interpreter<S, H, Tr>,
+	>(
 		self,
 		reason: Result<H160, ExitError>,
 		retbuf: Vec<u8>,
-		machine: &mut Machine<S>,
+		interpreter: &mut I,
 	) -> Result<(), ExitError> {
 		let ret = match reason {
 			Ok(address) => {
-				machine.stack.push(address.into())?;
+				interpreter.machine_mut().stack.push(address.into())?;
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {
-				machine.stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(H256::default())?;
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				machine.stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(H256::default())?;
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(H256::default())?;
 				Err(e.into())
 			}
 		};
 
 		match ret {
 			Ok(()) => {
-				machine.state.as_mut().retbuf = retbuf;
+				interpreter.machine_mut().state.as_mut().retbuf = retbuf;
+				interpreter.advance();
 
 				Ok(())
 			}

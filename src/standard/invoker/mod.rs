@@ -538,8 +538,7 @@ where
 				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, parent.machine_mut())?;
-				parent.advance();
+				trap.feedback(result, retbuf, parent)?;
 
 				Ok(())
 			}
@@ -549,8 +548,7 @@ where
 				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, parent.machine_mut())?;
-				parent.advance();
+				trap.feedback(result, retbuf, parent)?;
 
 				Ok(())
 			}
