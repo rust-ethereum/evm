@@ -23,6 +23,7 @@ enum LastSubstackStatus<Tr> {
 // Drop.
 struct CallStack<'backend, 'invoker, H, I: Invoker<H>> {
 	stack: Vec<Substack<I::Interpreter, I::SubstackInvoke>>,
+	#[allow(clippy::type_complexity)]
 	last: Option<LastSubstack<I::Interpreter, TrapFor<H, I::Interpreter>>>,
 	initial_depth: usize,
 	backend: &'backend mut H,
