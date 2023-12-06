@@ -1,6 +1,6 @@
 use crate::PurePrecompile;
 use alloc::vec::Vec;
-use evm::{standard::GasMutState, ExitError, ExitException, ExitResult, ExitSucceed};
+use evm::{ExitError, ExitException, ExitResult, ExitSucceed, GasMutState};
 use primitive_types::U256;
 
 /// Copy bytes from input to target.
