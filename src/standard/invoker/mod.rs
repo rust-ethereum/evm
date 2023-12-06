@@ -6,7 +6,7 @@ pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
 pub use self::state::InvokerState;
 
 use super::Config;
-use crate::interpreter::{DeconstructFor, StateFor, TrapFor};
+use crate::interpreter::{DeconstructFor, HandleFor, StateFor, TrapFor};
 use crate::trap::{CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
 	interpreter::Interpreter, Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed,
@@ -18,7 +18,6 @@ use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::convert::Infallible;
-use core::marker::PhantomData;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -143,32 +142,27 @@ impl TransactArgs {
 /// * `R`: Code resolver type, also handle precompiles. Usually
 ///   [EtableResolver] but can be customized.
 /// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
-pub struct Invoker<'config, 'resolver, H, R> {
+pub struct Invoker<'config, 'resolver, R> {
 	config: &'config Config,
 	resolver: &'resolver R,
-	_marker: PhantomData<H>,
 }
 
-impl<'config, 'resolver, H, R> Invoker<'config, 'resolver, H, R> {
+impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	/// Create a new standard invoker with the given config and resolver.
 	pub fn new(config: &'config Config, resolver: &'resolver R) -> Self {
-		Self {
-			config,
-			resolver,
-			_marker: PhantomData,
-		}
+		Self { config, resolver }
 	}
 }
 
-impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, H, R>
+impl<'config, 'resolver, R> InvokerT for Invoker<'config, 'resolver, R>
 where
-	StateFor<H, R::Interpreter>: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
-	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<H>,
-	TrapFor<H, R::Interpreter>: TrapConsume<CallCreateTrap>,
+	StateFor<R::Interpreter>: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
+	HandleFor<R::Interpreter>: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
+	R: Resolver,
+	TrapFor<R::Interpreter>: TrapConsume<CallCreateTrap>,
 {
 	type Interpreter = R::Interpreter;
-	type Interrupt = <TrapFor<H, R::Interpreter> as TrapConsume<CallCreateTrap>>::Rest;
+	type Interrupt = <TrapFor<R::Interpreter> as TrapConsume<CallCreateTrap>>::Rest;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
 	type TransactValue = (ExitSucceed, Option<H160>);
@@ -177,11 +171,11 @@ where
 	fn new_transact(
 		&self,
 		args: Self::TransactArgs,
-		handler: &mut H,
+		handler: &mut HandleFor<R::Interpreter>,
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<H, R::Interpreter>)>,
+			InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<R::Interpreter>)>,
 		),
 		ExitError,
 	> {
@@ -261,7 +255,7 @@ where
 						}
 					}
 
-					let state = <StateFor<H, R::Interpreter>>::new_transact_call(
+					let state = <StateFor<R::Interpreter>>::new_transact_call(
 						RuntimeState {
 							context,
 							transaction_context: Rc::new(transaction_context),
@@ -301,7 +295,7 @@ where
 					access_list,
 					..
 				} => {
-					let state = <StateFor<H, R::Interpreter>>::new_transact_create(
+					let state = <StateFor<R::Interpreter>>::new_transact_create(
 						RuntimeState {
 							context,
 							transaction_context: Rc::new(transaction_context),
@@ -341,8 +335,8 @@ where
 		&self,
 		invoke: &Self::TransactInvoke,
 		result: ExitResult,
-		(mut substate, retval): DeconstructFor<H, R::Interpreter>,
-		handler: &mut H,
+		(mut substate, retval): DeconstructFor<R::Interpreter>,
+		handler: &mut HandleFor<R::Interpreter>,
 	) -> Result<Self::TransactValue, ExitError> {
 		let left_gas = substate.effective_gas();
 
@@ -390,15 +384,15 @@ where
 
 	fn enter_substack(
 		&self,
-		trap: TrapFor<H, R::Interpreter>,
-		machine: &mut Self::Interpreter,
-		handler: &mut H,
+		trap: TrapFor<R::Interpreter>,
+		machine: &mut R::Interpreter,
+		handler: &mut HandleFor<R::Interpreter>,
 		depth: usize,
 	) -> Capture<
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<H, R::Interpreter>)>,
+				InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<R::Interpreter>)>,
 			),
 			ExitError,
 		>,
@@ -509,10 +503,10 @@ where
 	fn exit_substack(
 		&self,
 		result: ExitResult,
-		(mut substate, retval): DeconstructFor<H, R::Interpreter>,
+		(mut substate, retval): DeconstructFor<R::Interpreter>,
 		trap_data: Self::SubstackInvoke,
-		parent: &mut Self::Interpreter,
-		handler: &mut H,
+		parent: &mut R::Interpreter,
+		handler: &mut HandleFor<R::Interpreter>,
 	) -> Result<(), ExitError> {
 		let strategy = match &result {
 			Ok(_) => MergeStrategy::Commit,

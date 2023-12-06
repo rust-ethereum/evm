@@ -1,4 +1,4 @@
-use crate::interpreter::{DeconstructFor, EtableInterpreter, Interpreter};
+use crate::interpreter::{DeconstructFor, EtableInterpreter, HandleFor, Interpreter, StateFor};
 use crate::{
 	standard::Config, EtableSet, ExitError, ExitResult, InvokerControl, Machine, RuntimeBackend,
 	RuntimeState,
@@ -13,8 +13,8 @@ use primitive_types::H160;
 /// (with the init code) is turned into a colored machine. The resolver can
 /// construct a machine, pushing the call stack, or directly exit, handling a
 /// precompile.
-pub trait Resolver<H> {
-	type Interpreter: Interpreter<H>;
+pub trait Resolver {
+	type Interpreter: Interpreter;
 
 	/// Resolve a call (with the target code address).
 	#[allow(clippy::type_complexity)]
@@ -22,10 +22,10 @@ pub trait Resolver<H> {
 		&self,
 		code_address: H160,
 		input: Vec<u8>,
-		state: <Self::Interpreter as Interpreter<H>>::State,
-		handler: &mut H,
+		state: StateFor<Self::Interpreter>,
+		handler: &mut HandleFor<Self::Interpreter>,
 	) -> Result<
-		InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<H, Self::Interpreter>)>,
+		InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<Self::Interpreter>)>,
 		ExitError,
 	>;
 
@@ -34,10 +34,10 @@ pub trait Resolver<H> {
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		state: <Self::Interpreter as Interpreter<H>>::State,
-		handler: &mut H,
+		state: StateFor<Self::Interpreter>,
+		handler: &mut HandleFor<Self::Interpreter>,
 	) -> Result<
-		InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<H, Self::Interpreter>)>,
+		InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<Self::Interpreter>)>,
 		ExitError,
 	>;
 }
@@ -93,13 +93,13 @@ impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
 	}
 }
 
-impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES> Resolver<H>
+impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES> Resolver
 	for EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<S, H>,
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	type Interpreter = EtableInterpreter<'etable, S, H, Tr, ES>;
 

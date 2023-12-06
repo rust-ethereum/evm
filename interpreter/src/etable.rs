@@ -5,20 +5,28 @@ use crate::{
 use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
-pub trait EtableSet<S, H, Tr> {
+pub trait EtableSet {
+	type State;
+	type Handle;
+	type Trap;
+
 	fn eval(
 		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
+		machine: &mut Machine<Self::State>,
+		handle: &mut Self::Handle,
 		opcode: Opcode,
 		position: usize,
-	) -> Control<Tr>;
+	) -> Control<Self::Trap>;
 }
 
-impl<S, H, Tr, F> EtableSet<S, H, Tr> for Etable<S, H, Tr, F>
+impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
 	fn eval(
 		&self,
 		machine: &mut Machine<S>,
@@ -30,11 +38,15 @@ where
 	}
 }
 
-impl<S, H, Tr, F1, F2> EtableSet<S, H, Tr> for (Etable<S, H, Tr, F1>, Etable<S, H, Tr, F2>)
+impl<S, H, Tr, F1, F2> EtableSet for (Etable<S, H, Tr, F1>, Etable<S, H, Tr, F2>)
 where
 	F1: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 	F2: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
 {
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
 	fn eval(
 		&self,
 		machine: &mut Machine<S>,

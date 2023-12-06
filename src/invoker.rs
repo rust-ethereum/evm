@@ -1,4 +1,4 @@
-use crate::interpreter::{DeconstructFor, Interpreter, TrapFor};
+use crate::interpreter::{DeconstructFor, HandleFor, Interpreter, TrapFor};
 use crate::{Capture, ExitError, ExitResult};
 
 /// Control for an invoker.
@@ -10,8 +10,8 @@ pub enum InvokerControl<VE, VD> {
 }
 
 /// An invoker, responsible for pushing/poping values in the call stack.
-pub trait Invoker<H> {
-	type Interpreter: Interpreter<H>;
+pub trait Invoker {
+	type Interpreter: Interpreter;
 	/// Possible interrupt type that may be returned by the call stack.
 	type Interrupt;
 
@@ -31,11 +31,11 @@ pub trait Invoker<H> {
 	fn new_transact(
 		&self,
 		args: Self::TransactArgs,
-		handler: &mut H,
+		handler: &mut HandleFor<Self::Interpreter>,
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<H, Self::Interpreter>)>,
+			InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<Self::Interpreter>)>,
 		),
 		ExitError,
 	>;
@@ -45,26 +45,23 @@ pub trait Invoker<H> {
 		&self,
 		invoke: &Self::TransactInvoke,
 		exit: ExitResult,
-		machine: DeconstructFor<H, Self::Interpreter>,
-		handler: &mut H,
+		machine: DeconstructFor<Self::Interpreter>,
+		handler: &mut HandleFor<Self::Interpreter>,
 	) -> Result<Self::TransactValue, ExitError>;
 
 	/// Enter a sub-layer call stack.
 	#[allow(clippy::type_complexity)]
 	fn enter_substack(
 		&self,
-		trap: TrapFor<H, Self::Interpreter>,
+		trap: TrapFor<Self::Interpreter>,
 		machine: &mut Self::Interpreter,
-		handler: &mut H,
+		handler: &mut HandleFor<Self::Interpreter>,
 		depth: usize,
 	) -> Capture<
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<
-					Self::Interpreter,
-					(ExitResult, DeconstructFor<H, Self::Interpreter>),
-				>,
+				InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<Self::Interpreter>)>,
 			),
 			ExitError,
 		>,
@@ -75,9 +72,9 @@ pub trait Invoker<H> {
 	fn exit_substack(
 		&self,
 		result: ExitResult,
-		child: DeconstructFor<H, Self::Interpreter>,
+		child: DeconstructFor<Self::Interpreter>,
 		trap_data: Self::SubstackInvoke,
 		parent: &mut Self::Interpreter,
-		handler: &mut H,
+		handler: &mut HandleFor<Self::Interpreter>,
 	) -> Result<(), ExitError>;
 }

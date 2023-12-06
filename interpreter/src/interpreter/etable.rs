@@ -31,7 +31,7 @@ impl<'etable, S, H, Tr, ES> DerefMut for EtableInterpreter<'etable, S, H, Tr, ES
 
 impl<'etable, S, H, Tr, ES> EtableInterpreter<'etable, S, H, Tr, ES>
 where
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	/// Return a reference of the program counter.
 	pub const fn position(&self) -> usize {
@@ -87,11 +87,12 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> Interpreter<H> for EtableInterpreter<'etable, S, H, Tr, ES>
+impl<'etable, S, H, Tr, ES> Interpreter for EtableInterpreter<'etable, S, H, Tr, ES>
 where
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	type State = S;
+	type Handle = H;
 	type Trap = Tr;
 
 	fn machine(&self) -> &Machine<S> {
@@ -124,9 +125,9 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> StepInterpreter<H> for EtableInterpreter<'etable, S, H, Tr, ES>
+impl<'etable, S, H, Tr, ES> StepInterpreter for EtableInterpreter<'etable, S, H, Tr, ES>
 where
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, Tr>> {

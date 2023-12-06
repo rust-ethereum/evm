@@ -297,14 +297,14 @@ impl CallTrapData {
 		}
 	}
 
-	pub fn feedback<H, I>(
+	pub fn feedback<I>(
 		self,
 		reason: ExitResult,
 		retbuf: Vec<u8>,
 		interpreter: &mut I,
 	) -> Result<(), ExitError>
 	where
-		I: Interpreter<H>,
+		I: Interpreter,
 		I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 	{
 		let target_len = min(self.out_len, U256::from(retbuf.len()));
@@ -465,14 +465,14 @@ impl CreateTrapData {
 		})
 	}
 
-	pub fn feedback<H, I: Interpreter<H>>(
+	pub fn feedback<I>(
 		self,
 		reason: Result<H160, ExitError>,
 		retbuf: Vec<u8>,
 		interpreter: &mut I,
 	) -> Result<(), ExitError>
 	where
-		I: Interpreter<H>,
+		I: Interpreter,
 		I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 	{
 		let ret = match reason {
