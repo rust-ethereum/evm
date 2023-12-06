@@ -6,37 +6,37 @@ use crate::{
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
-pub struct EtableInterpreter<'etable, S, ES> {
+pub struct EtableInterpreter<'etable, ES: EtableSet> {
 	valids: Valids,
 	position: usize,
-	machine: Machine<S>,
+	machine: Machine<ES::State>,
 	etable: &'etable ES,
 }
 
-impl<'etable, S, ES> Deref for EtableInterpreter<'etable, S, ES> {
-	type Target = Machine<S>;
+impl<'etable, ES: EtableSet> Deref for EtableInterpreter<'etable, ES> {
+	type Target = Machine<ES::State>;
 
-	fn deref(&self) -> &Machine<S> {
+	fn deref(&self) -> &Machine<ES::State> {
 		&self.machine
 	}
 }
 
-impl<'etable, S, ES> DerefMut for EtableInterpreter<'etable, S, ES> {
-	fn deref_mut(&mut self) -> &mut Machine<S> {
+impl<'etable, ES: EtableSet> DerefMut for EtableInterpreter<'etable, ES> {
+	fn deref_mut(&mut self) -> &mut Machine<ES::State> {
 		&mut self.machine
 	}
 }
 
-impl<'etable, S, ES> EtableInterpreter<'etable, S, ES>
+impl<'etable, ES> EtableInterpreter<'etable, ES>
 where
-	ES: EtableSet<State = S>,
+	ES: EtableSet,
 {
 	/// Return a reference of the program counter.
 	pub const fn position(&self) -> usize {
 		self.position
 	}
 
-	pub fn new(machine: Machine<S>, etable: &'etable ES) -> Self {
+	pub fn new(machine: Machine<ES::State>, etable: &'etable ES) -> Self {
 		let valids = Valids::new(&machine.code[..]);
 
 		Self {
@@ -47,7 +47,7 @@ where
 		}
 	}
 
-	pub fn deconstruct(self) -> Machine<S> {
+	pub fn deconstruct(self) -> Machine<ES::State> {
 		self.machine
 	}
 
@@ -84,18 +84,18 @@ where
 	}
 }
 
-impl<'etable, S, ES> Interpreter for EtableInterpreter<'etable, S, ES> {
-	type State = S;
+impl<'etable, ES: EtableSet> Interpreter for EtableInterpreter<'etable, ES> {
+	type State = ES::State;
 
-	fn machine(&self) -> &Machine<S> {
+	fn machine(&self) -> &Machine<ES::State> {
 		&self.machine
 	}
 
-	fn machine_mut(&mut self) -> &mut Machine<S> {
+	fn machine_mut(&mut self) -> &mut Machine<ES::State> {
 		&mut self.machine
 	}
 
-	fn deconstruct(self) -> (S, Vec<u8>) {
+	fn deconstruct(self) -> (ES::State, Vec<u8>) {
 		(self.machine.state, self.machine.retval)
 	}
 
@@ -108,9 +108,9 @@ impl<'etable, S, ES> Interpreter for EtableInterpreter<'etable, S, ES> {
 	}
 }
 
-impl<'etable, S, H, Tr, ES> RunInterpreter<H, Tr> for EtableInterpreter<'etable, S, ES>
+impl<'etable, H, Tr, ES> RunInterpreter<H, Tr> for EtableInterpreter<'etable, ES>
 where
-	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
+	ES: EtableSet<Handle = H, Trap = Tr>,
 {
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Tr> {
 		loop {
@@ -122,9 +122,9 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> StepInterpreter<H, Tr> for EtableInterpreter<'etable, S, ES>
+impl<'etable, H, Tr, ES> StepInterpreter<H, Tr> for EtableInterpreter<'etable, ES>
 where
-	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
+	ES: EtableSet<Handle = H, Trap = Tr>,
 {
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, Tr>> {
