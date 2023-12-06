@@ -1,6 +1,7 @@
+use crate::interpreter::{EtableInterpreter, Interpreter};
 use crate::{
-	standard::Config, EtableInterpreter, EtableSet, ExitError, ExitResult, Interpreter,
-	InvokerControl, Machine, RuntimeBackend, RuntimeState,
+	standard::Config, EtableSet, ExitError, ExitResult, InvokerControl, Machine, RuntimeBackend,
+	RuntimeState,
 };
 use alloc::{rc::Rc, vec::Vec};
 use core::marker::PhantomData;
@@ -12,8 +13,9 @@ use primitive_types::H160;
 /// (with the init code) is turned into a colored machine. The resolver can
 /// construct a machine, pushing the call stack, or directly exit, handling a
 /// precompile.
-pub trait Resolver<S, H, Tr> {
-	type Interpreter: Interpreter<S, H, Tr>;
+pub trait Resolver<H> {
+	type State;
+	type Interpreter: Interpreter<State = Self::State>;
 
 	/// Resolve a call (with the target code address).
 	#[allow(clippy::type_complexity)]
@@ -21,18 +23,18 @@ pub trait Resolver<S, H, Tr> {
 		&self,
 		code_address: H160,
 		input: Vec<u8>,
-		state: S,
+		state: Self::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>;
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>, ExitError>;
 
 	/// Resolve a create (with the init code).
 	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		state: S,
+		state: Self::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>;
+	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>, ExitError>;
 }
 
 /// A set of precompiles.
@@ -62,15 +64,15 @@ impl<S, H> PrecompileSet<S, H> for () {
 
 /// The standard code resolver where the color is an [Etable]. This is usually
 /// what you need.
-pub struct EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES> {
+pub struct EtableResolver<'config, 'precompile, 'etable, S, Pre, ES> {
 	config: &'config Config,
 	etable: &'etable ES,
 	precompiles: &'precompile Pre,
-	_marker: PhantomData<(S, H, Tr)>,
+	_marker: PhantomData<S>,
 }
 
-impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
-	EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
+impl<'config, 'precompile, 'etable, S, Pre, ES>
+	EtableResolver<'config, 'precompile, 'etable, S, Pre, ES>
 {
 	pub fn new(
 		config: &'config Config,
@@ -86,15 +88,16 @@ impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
 	}
 }
 
-impl<'config, 'precompile, 'etable, S, H, Pre, Tr, ES> Resolver<S, H, Tr>
-	for EtableResolver<'config, 'precompile, 'etable, S, H, Pre, Tr, ES>
+impl<'config, 'precompile, 'etable, S, H, Pre, ES> Resolver<H>
+	for EtableResolver<'config, 'precompile, 'etable, S, Pre, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<S, H>,
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S, Handle = H>,
 {
-	type Interpreter = EtableInterpreter<'etable, S, H, Tr, ES>;
+	type State = S;
+	type Interpreter = EtableInterpreter<'etable, S, ES>;
 
 	/// Resolve a call (with the target code address).
 	#[allow(clippy::type_complexity)]

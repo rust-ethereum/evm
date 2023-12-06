@@ -1,4 +1,4 @@
-use crate::{Capture, ExitError, ExitResult, Interpreter};
+use crate::{interpreter::Interpreter, Capture, ExitError, ExitResult};
 use alloc::vec::Vec;
 
 /// Control for an invoker.
@@ -10,8 +10,9 @@ pub enum InvokerControl<VE, VD> {
 }
 
 /// An invoker, responsible for pushing/poping values in the call stack.
-pub trait Invoker<S, H, Tr> {
-	type Interpreter: Interpreter<S, H, Tr>;
+pub trait Invoker<H, Tr> {
+	type State;
+	type Interpreter: Interpreter<State = Self::State>;
 	/// Possible interrupt type that may be returned by the call stack.
 	type Interrupt;
 
@@ -35,7 +36,7 @@ pub trait Invoker<S, H, Tr> {
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
+			InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>,
 		),
 		ExitError,
 	>;
@@ -45,7 +46,7 @@ pub trait Invoker<S, H, Tr> {
 		&self,
 		invoke: &Self::TransactInvoke,
 		exit: ExitResult,
-		machine: (S, Vec<u8>),
+		machine: (Self::State, Vec<u8>),
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
 
@@ -61,7 +62,7 @@ pub trait Invoker<S, H, Tr> {
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
+				InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>,
 			),
 			ExitError,
 		>,
@@ -72,7 +73,7 @@ pub trait Invoker<S, H, Tr> {
 	fn exit_substack(
 		&self,
 		result: ExitResult,
-		child: (S, Vec<u8>),
+		child: (Self::State, Vec<u8>),
 		trap_data: Self::SubstackInvoke,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,

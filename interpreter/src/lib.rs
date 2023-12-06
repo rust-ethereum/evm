@@ -6,22 +6,20 @@
 
 extern crate alloc;
 
-pub mod call_create;
 mod error;
 mod etable;
 pub mod eval;
-mod interpreter;
+pub mod interpreter;
 mod memory;
 mod opcode;
 mod runtime;
 mod stack;
-mod trap;
+pub mod trap;
 pub mod utils;
 mod valids;
 
 pub use crate::error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed};
 pub use crate::etable::{Control, Efn, Etable, EtableSet};
-pub use crate::interpreter::{EtableInterpreter, Interpreter, StepInterpreter};
 pub use crate::memory::Memory;
 pub use crate::opcode::Opcode;
 pub use crate::runtime::{

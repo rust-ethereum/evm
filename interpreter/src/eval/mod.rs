@@ -6,7 +6,7 @@ mod misc;
 mod system;
 
 use crate::{
-	call_create::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine, Opcode,
+	trap::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine, Opcode,
 	RuntimeBackend, RuntimeEnvironment, RuntimeState, TrapConstruct,
 };
 use core::ops::{BitAnd, BitOr, BitXor};
