@@ -7,6 +7,62 @@ use serde::{
 use std::collections::BTreeMap;
 use std::fmt;
 
+/// Statistic type to gather tests pass completion status
+#[derive(Default, Clone, Debug, Eq, PartialEq)]
+pub(crate) struct TestCompletionStatus {
+	pub completed: usize,
+	pub skipped: usize,
+}
+
+impl std::ops::AddAssign for TestCompletionStatus {
+	fn add_assign(&mut self, rhs: Self) {
+		self.completed += rhs.completed;
+		self.skipped += rhs.skipped;
+	}
+}
+
+impl TestCompletionStatus {
+	/// Increment `completed` statistic field
+	pub fn inc_completed(&mut self) {
+		self.completed += 1
+	}
+
+	/// Increment `skipped` statistic field
+	pub fn inc_skipped(&mut self) {
+		self.skipped += 1
+	}
+
+	/// Get total passed tests
+	pub fn get_total(&self) -> usize {
+		self.completed + self.skipped
+	}
+
+	/// Print completion status.
+	/// Most useful for single file completion statistic info
+	pub fn print_completion(&self) {
+		println!("COMPLETED: {:?} tests", self.completed);
+		println!("SKIPPED: {:?} tests\n", self.skipped);
+	}
+
+	/// Print tests pass total statistic info for directory
+	pub fn print_total_for_dir(&self, filename: &str) {
+		println!(
+			"TOTAL tests for: {filename}\n\tCOMPLETED: {:?}\n\tSKIPPED: {:?}",
+			self.completed, self.skipped
+		);
+	}
+
+	// Print total statistics info
+	pub fn print_total(&self) {
+		println!(
+			"\nTOTAL: {:?} tests\n\tCOMPLETED: {:?}\n\tSKIPPED: {:?}",
+			self.get_total(),
+			self.completed,
+			self.skipped
+		);
+	}
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct TestMulti {
 	#[serde(rename = "_info")]
