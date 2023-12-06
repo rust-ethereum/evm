@@ -6,7 +6,6 @@
 
 extern crate alloc;
 
-pub mod call_create;
 mod error;
 mod etable;
 pub mod eval;
@@ -15,7 +14,7 @@ mod memory;
 mod opcode;
 mod runtime;
 mod stack;
-mod trap;
+pub mod trap;
 pub mod utils;
 mod valids;
 

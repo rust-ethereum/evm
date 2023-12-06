@@ -6,9 +6,7 @@ pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
 pub use self::state::InvokerState;
 
 use super::Config;
-use crate::call_create::{
-	CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData,
-};
+use crate::trap::{CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
 	Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed, Interpreter,
 	Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment,

@@ -1,5 +1,5 @@
 use crate::{
-	call_create::CallCreateTrap, eval::*, ExitResult, GasState, Machine, Opcode, RuntimeBackend,
+	eval::*, trap::CallCreateTrap, ExitResult, GasState, Machine, Opcode, RuntimeBackend,
 	RuntimeEnvironment, RuntimeState, TrapConstruct,
 };
 use core::marker::PhantomData;

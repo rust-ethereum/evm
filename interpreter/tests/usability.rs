@@ -1,5 +1,5 @@
 use evm_interpreter::{
-	call_create::CallCreateTrap, Capture, Context, Control, Etable, EtableInterpreter, ExitError,
+	trap::CallCreateTrap, Capture, Context, Control, Etable, EtableInterpreter, ExitError,
 	ExitSucceed, Interpreter, Log, Machine, Opcode, RuntimeBackend, RuntimeBaseBackend,
 	RuntimeEnvironment, RuntimeState, TransactionContext,
 };
