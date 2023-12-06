@@ -1,5 +1,5 @@
-use crate::{Capture, ExitError, ExitResult, Interpreter};
-use alloc::vec::Vec;
+use crate::interpreter::{DeconstructFor, Interpreter, TrapFor};
+use crate::{Capture, ExitError, ExitResult};
 
 /// Control for an invoker.
 pub enum InvokerControl<VE, VD> {
@@ -10,8 +10,8 @@ pub enum InvokerControl<VE, VD> {
 }
 
 /// An invoker, responsible for pushing/poping values in the call stack.
-pub trait Invoker<S, H, Tr> {
-	type Interpreter: Interpreter<S, H, Tr>;
+pub trait Invoker<H> {
+	type Interpreter: Interpreter<H>;
 	/// Possible interrupt type that may be returned by the call stack.
 	type Interrupt;
 
@@ -35,7 +35,7 @@ pub trait Invoker<S, H, Tr> {
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
+			InvokerControl<Self::Interpreter, (ExitResult, DeconstructFor<H, Self::Interpreter>)>,
 		),
 		ExitError,
 	>;
@@ -45,7 +45,7 @@ pub trait Invoker<S, H, Tr> {
 		&self,
 		invoke: &Self::TransactInvoke,
 		exit: ExitResult,
-		machine: (S, Vec<u8>),
+		machine: DeconstructFor<H, Self::Interpreter>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
 
@@ -53,7 +53,7 @@ pub trait Invoker<S, H, Tr> {
 	#[allow(clippy::type_complexity)]
 	fn enter_substack(
 		&self,
-		trap: Tr,
+		trap: TrapFor<H, Self::Interpreter>,
 		machine: &mut Self::Interpreter,
 		handler: &mut H,
 		depth: usize,
@@ -61,7 +61,10 @@ pub trait Invoker<S, H, Tr> {
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
+				InvokerControl<
+					Self::Interpreter,
+					(ExitResult, DeconstructFor<H, Self::Interpreter>),
+				>,
 			),
 			ExitError,
 		>,
@@ -72,7 +75,7 @@ pub trait Invoker<S, H, Tr> {
 	fn exit_substack(
 		&self,
 		result: ExitResult,
-		child: (S, Vec<u8>),
+		child: DeconstructFor<H, Self::Interpreter>,
 		trap_data: Self::SubstackInvoke,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,

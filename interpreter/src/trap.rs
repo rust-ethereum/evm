@@ -2,8 +2,8 @@
 
 use crate::utils::{h256_to_u256, u256_to_usize};
 use crate::{
-	Context, ExitError, ExitException, ExitResult, Interpreter, Machine, Memory, RuntimeBackend,
-	RuntimeState, Transfer,
+	interpreter::Interpreter, Context, ExitError, ExitException, ExitResult, Machine, Memory,
+	RuntimeBackend, RuntimeState, Transfer,
 };
 use alloc::vec::Vec;
 use core::cmp::{max, min};
@@ -297,17 +297,16 @@ impl CallTrapData {
 		}
 	}
 
-	pub fn feedback<
-		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-		H,
-		Tr,
-		I: Interpreter<S, H, Tr>,
-	>(
+	pub fn feedback<H, I>(
 		self,
 		reason: ExitResult,
 		retbuf: Vec<u8>,
 		interpreter: &mut I,
-	) -> Result<(), ExitError> {
+	) -> Result<(), ExitError>
+	where
+		I: Interpreter<H>,
+		I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	{
 		let target_len = min(self.out_len, U256::from(retbuf.len()));
 		let out_offset = self.out_offset;
 
@@ -466,17 +465,16 @@ impl CreateTrapData {
 		})
 	}
 
-	pub fn feedback<
-		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-		H,
-		Tr,
-		I: Interpreter<S, H, Tr>,
-	>(
+	pub fn feedback<H, I: Interpreter<H>>(
 		self,
 		reason: Result<H160, ExitError>,
 		retbuf: Vec<u8>,
 		interpreter: &mut I,
-	) -> Result<(), ExitError> {
+	) -> Result<(), ExitError>
+	where
+		I: Interpreter<H>,
+		I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	{
 		let ret = match reason {
 			Ok(address) => {
 				interpreter.machine_mut().stack.push(address.into())?;

@@ -1,6 +1,7 @@
+use crate::interpreter::{Interpreter, StepInterpreter};
 use crate::{
 	Capture, Control, EtableSet, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed,
-	Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
+	Machine, Opcode, Stack, Valids,
 };
 use alloc::vec::Vec;
 use core::marker::PhantomData;
@@ -86,10 +87,13 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> Interpreter<S, H, Tr> for EtableInterpreter<'etable, S, H, Tr, ES>
+impl<'etable, S, H, Tr, ES> Interpreter<H> for EtableInterpreter<'etable, S, H, Tr, ES>
 where
 	ES: EtableSet<S, H, Tr>,
 {
+	type State = S;
+	type Trap = Tr;
+
 	fn machine(&self) -> &Machine<S> {
 		&self.machine
 	}
@@ -120,7 +124,7 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> StepInterpreter<S, H, Tr> for EtableInterpreter<'etable, S, H, Tr, ES>
+impl<'etable, S, H, Tr, ES> StepInterpreter<H> for EtableInterpreter<'etable, S, H, Tr, ES>
 where
 	ES: EtableSet<S, H, Tr>,
 {
