@@ -8,15 +8,15 @@ pub use self::state::InvokerState;
 use super::Config;
 use crate::trap::{CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
 use crate::{
-	Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed, Interpreter,
-	Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend, RuntimeEnvironment,
-	RuntimeState, TransactionContext, TransactionalBackend, Transfer, TrapConsume,
+	interpreter::Interpreter, Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed,
+	GasState, Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend,
+	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend, Transfer,
+	TrapConsume,
 };
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::convert::Infallible;
-use core::marker::PhantomData;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -141,31 +141,26 @@ impl TransactArgs {
 /// * `R`: Code resolver type, also handle precompiles. Usually
 ///   [EtableResolver] but can be customized.
 /// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
-pub struct Invoker<'config, 'resolver, S, H, R, Tr> {
+pub struct Invoker<'config, 'resolver, R> {
 	config: &'config Config,
 	resolver: &'resolver R,
-	_marker: PhantomData<(S, H, Tr)>,
 }
 
-impl<'config, 'resolver, S, H, R, Tr> Invoker<'config, 'resolver, S, H, R, Tr> {
+impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	/// Create a new standard invoker with the given config and resolver.
 	pub fn new(config: &'config Config, resolver: &'resolver R) -> Self {
-		Self {
-			config,
-			resolver,
-			_marker: PhantomData,
-		}
+		Self { config, resolver }
 	}
 }
 
-impl<'config, 'resolver, S, H, R, Tr> InvokerT<S, H, Tr>
-	for Invoker<'config, 'resolver, S, H, R, Tr>
+impl<'config, 'resolver, H, R, Tr> InvokerT<H, Tr> for Invoker<'config, 'resolver, R>
 where
-	S: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
+	R::State: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, H, Tr>,
+	R: Resolver<H>,
 	Tr: TrapConsume<CallCreateTrap>,
 {
+	type State = R::State;
 	type Interpreter = R::Interpreter;
 	type Interrupt = Tr::Rest;
 	type TransactArgs = TransactArgs;
@@ -180,7 +175,7 @@ where
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
+			InvokerControl<Self::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
 		),
 		ExitError,
 	> {
@@ -260,7 +255,7 @@ where
 						}
 					}
 
-					let state = S::new_transact_call(
+					let state = <R::State>::new_transact_call(
 						RuntimeState {
 							context,
 							transaction_context: Rc::new(transaction_context),
@@ -300,7 +295,7 @@ where
 					access_list,
 					..
 				} => {
-					let state = S::new_transact_create(
+					let state = <R::State>::new_transact_create(
 						RuntimeState {
 							context,
 							transaction_context: Rc::new(transaction_context),
@@ -340,7 +335,7 @@ where
 		&self,
 		invoke: &Self::TransactInvoke,
 		result: ExitResult,
-		(mut substate, retval): (S, Vec<u8>),
+		(mut substate, retval): (R::State, Vec<u8>),
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
 		let left_gas = substate.effective_gas();
@@ -397,7 +392,7 @@ where
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, (S, Vec<u8>))>,
+				InvokerControl<Self::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
 			),
 			ExitError,
 		>,
@@ -508,7 +503,7 @@ where
 	fn exit_substack(
 		&self,
 		result: ExitResult,
-		(mut substate, retval): (S, Vec<u8>),
+		(mut substate, retval): (R::State, Vec<u8>),
 		trap_data: Self::SubstackInvoke,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,

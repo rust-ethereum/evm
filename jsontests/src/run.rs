@@ -4,7 +4,7 @@ use crate::types::*;
 use evm::standard::{Config, Etable, EtableResolver, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;
-use evm::{GasState, Interpreter};
+use evm::{interpreter::Interpreter, GasState};
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};

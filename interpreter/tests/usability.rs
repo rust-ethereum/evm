@@ -1,7 +1,8 @@
+use evm_interpreter::interpreter::{EtableInterpreter, RunInterpreter};
 use evm_interpreter::{
-	trap::CallCreateTrap, Capture, Context, Control, Etable, EtableInterpreter, ExitError,
-	ExitSucceed, Interpreter, Log, Machine, Opcode, RuntimeBackend, RuntimeBaseBackend,
-	RuntimeEnvironment, RuntimeState, TransactionContext,
+	trap::CallCreateTrap, Capture, Context, Control, Etable, ExitError, ExitSucceed, Log, Machine,
+	Opcode, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
+	TransactionContext,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;

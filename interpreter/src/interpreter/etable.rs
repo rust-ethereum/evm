@@ -1,20 +1,19 @@
+use crate::interpreter::{Interpreter, RunInterpreter, StepInterpreter};
 use crate::{
 	Capture, Control, EtableSet, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed,
-	Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
+	Machine, Opcode, Stack, Valids,
 };
 use alloc::vec::Vec;
-use core::marker::PhantomData;
 use core::ops::{Deref, DerefMut};
 
-pub struct EtableInterpreter<'etable, S, H, Tr, ES> {
+pub struct EtableInterpreter<'etable, S, ES> {
 	valids: Valids,
 	position: usize,
 	machine: Machine<S>,
 	etable: &'etable ES,
-	_marker: PhantomData<(H, Tr)>,
 }
 
-impl<'etable, S, H, Tr, ES> Deref for EtableInterpreter<'etable, S, H, Tr, ES> {
+impl<'etable, S, ES> Deref for EtableInterpreter<'etable, S, ES> {
 	type Target = Machine<S>;
 
 	fn deref(&self) -> &Machine<S> {
@@ -22,15 +21,15 @@ impl<'etable, S, H, Tr, ES> Deref for EtableInterpreter<'etable, S, H, Tr, ES> {
 	}
 }
 
-impl<'etable, S, H, Tr, ES> DerefMut for EtableInterpreter<'etable, S, H, Tr, ES> {
+impl<'etable, S, ES> DerefMut for EtableInterpreter<'etable, S, ES> {
 	fn deref_mut(&mut self) -> &mut Machine<S> {
 		&mut self.machine
 	}
 }
 
-impl<'etable, S, H, Tr, ES> EtableInterpreter<'etable, S, H, Tr, ES>
+impl<'etable, S, ES> EtableInterpreter<'etable, S, ES>
 where
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S>,
 {
 	/// Return a reference of the program counter.
 	pub const fn position(&self) -> usize {
@@ -45,7 +44,6 @@ where
 			valids,
 			position: 0,
 			etable,
-			_marker: PhantomData,
 		}
 	}
 
@@ -86,10 +84,9 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> Interpreter<S, H, Tr> for EtableInterpreter<'etable, S, H, Tr, ES>
-where
-	ES: EtableSet<S, H, Tr>,
-{
+impl<'etable, S, ES> Interpreter for EtableInterpreter<'etable, S, ES> {
+	type State = S;
+
 	fn machine(&self) -> &Machine<S> {
 		&self.machine
 	}
@@ -102,15 +99,6 @@ where
 		(self.machine.state, self.machine.retval)
 	}
 
-	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Tr> {
-		loop {
-			match self.step(handle) {
-				Ok(()) => (),
-				Err(res) => return res,
-			}
-		}
-	}
-
 	fn advance(&mut self) {
 		if self.position == self.code.len() {
 			return;
@@ -120,9 +108,23 @@ where
 	}
 }
 
-impl<'etable, S, H, Tr, ES> StepInterpreter<S, H, Tr> for EtableInterpreter<'etable, S, H, Tr, ES>
+impl<'etable, S, H, Tr, ES> RunInterpreter<H, Tr> for EtableInterpreter<'etable, S, ES>
 where
-	ES: EtableSet<S, H, Tr>,
+	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
+{
+	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Tr> {
+		loop {
+			match self.step(handle) {
+				Ok(()) => (),
+				Err(res) => return res,
+			}
+		}
+	}
+}
+
+impl<'etable, S, H, Tr, ES> StepInterpreter<H, Tr> for EtableInterpreter<'etable, S, ES>
+where
+	ES: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, Tr>> {

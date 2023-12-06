@@ -8,19 +8,19 @@ use alloc::vec::Vec;
 use primitive_types::{H160, U256};
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn make_enter_call_machine<S, H, R, Tr>(
+pub fn make_enter_call_machine<H, R>(
 	_config: &Config,
 	resolver: &R,
 	code_address: H160,
 	input: Vec<u8>,
 	transfer: Option<Transfer>,
-	state: S,
+	state: R::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>, ExitError>
 where
-	S: AsRef<RuntimeState>,
+	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, H, Tr>,
+	R: Resolver<H>,
 {
 	handler.mark_hot(state.as_ref().context.address, None);
 
@@ -32,19 +32,19 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn make_enter_create_machine<S, H, R, Tr>(
+pub fn make_enter_create_machine<H, R>(
 	config: &Config,
 	resolver: &R,
 	caller: H160,
 	init_code: Vec<u8>,
 	transfer: Transfer,
-	state: S,
+	state: R::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>, ExitError>
 where
-	S: AsRef<RuntimeState>,
+	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, H, Tr>,
+	R: Resolver<H>,
 {
 	if let Some(limit) = config.max_initcode_size {
 		if init_code.len() > limit {
@@ -73,24 +73,24 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn enter_call_substack<S, H, R, Tr>(
+pub fn enter_call_substack<H, R>(
 	config: &Config,
 	resolver: &R,
 	trap_data: CallTrapData,
 	code_address: H160,
-	state: S,
+	state: R::State,
 	handler: &mut H,
 ) -> Result<
 	(
 		SubstackInvoke,
-		InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>,
+		InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
 	),
 	ExitError,
 >
 where
-	S: AsRef<RuntimeState>,
+	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, H, Tr>,
+	R: Resolver<H>,
 {
 	handler.push_substate();
 
@@ -118,28 +118,28 @@ where
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
-pub fn enter_create_substack<S, H, R, Tr>(
+pub fn enter_create_substack<H, R>(
 	config: &Config,
 	resolver: &R,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
-	state: S,
+	state: R::State,
 	handler: &mut H,
 ) -> Result<
 	(
 		SubstackInvoke,
-		InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>,
+		InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
 	),
 	ExitError,
 >
 where
-	S: AsRef<RuntimeState>,
+	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
-	R: Resolver<S, H, Tr>,
+	R: Resolver<H>,
 {
 	handler.push_substate();
 
-	let work = || -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, (ExitResult, (S, Vec<u8>))>), ExitError> {
+	let work = || -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>), ExitError> {
 		let CreateTrapData {
 			scheme,
 			value,
