@@ -42,4 +42,14 @@ jobs:
         submodules: recursive
     - name: Run tests
       run: |
-        cargo test -p jsontests -- --nocapture        
+        cargo run --release --verbose -p jsontests -- \
+        jsontests/res/ethtests/GeneralStateTests/stArgsZeroOneBalance/ \
+        jsontests/res/ethtests/GeneralStateTests/stCodeCopyTest/ \
+        jsontests/res/ethtests/GeneralStateTests/stExample/ \
+        jsontests/res/ethtests/GeneralStateTests/stSelfBalance \
+        jsontests/res/ethtests/GeneralStateTests/stSLoadTest/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmArithmeticTest/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmBitwiseLogicOperation/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmIOandFlowOperations/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmLogTest/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmTests/
