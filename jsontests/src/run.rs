@@ -1,6 +1,6 @@
 use crate::error::{Error, TestError};
 use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer};
-use crate::types::*;
+use crate::types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti};
 use evm::standard::{Config, Etable, EtableResolver, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;
@@ -8,8 +8,93 @@ use evm::{interpreter::Interpreter, GasState};
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::U256;
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::{self, File};
+use std::io::BufReader;
 
-pub fn run_test(_filename: &str, _test_name: &str, test: Test, debug: bool) -> Result<(), Error> {
+const BASIC_FILE_PATH_TO_TRIM: [&str; 2] = [
+	"jsontests/res/ethtests/GeneralStateTests/",
+	"res/ethtests/GeneralStateTests/",
+];
+
+fn get_short_file_name(filename: &str) -> String {
+	let mut short_file_name = String::from(filename);
+	for pattern in BASIC_FILE_PATH_TO_TRIM {
+		short_file_name = short_file_name.replace(pattern, "");
+	}
+	short_file_name.clone().to_string()
+}
+
+/// Run tests for specific json file with debug flag
+fn run_file(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> {
+	let test_multi: BTreeMap<String, TestMulti> =
+		serde_json::from_reader(BufReader::new(File::open(filename)?))?;
+	let mut tests_status = TestCompletionStatus::default();
+
+	for (test_name, test_multi) in test_multi {
+		let tests = test_multi.tests();
+		let short_file_name = get_short_file_name(filename);
+		for test in &tests {
+			if debug {
+				print!(
+					"[{:?}] {} | {}/{} DEBUG: ",
+					test.fork, short_file_name, test_name, test.index
+				);
+			} else {
+				print!(
+					"[{:?}] {} | {}/{}: ",
+					test.fork, short_file_name, test_name, test.index
+				);
+			}
+			match run_test(filename, &test_name, test.clone(), debug) {
+				Ok(()) => {
+					tests_status.inc_completed();
+					println!("ok")
+				}
+				Err(Error::UnsupportedFork) => {
+					tests_status.inc_skipped();
+					println!("skipped")
+				}
+				Err(err) => {
+					println!("ERROR: {:?}", err);
+					return Err(err);
+				}
+			}
+			if debug {
+				println!();
+			}
+		}
+
+		tests_status.print_completion();
+	}
+
+	Ok(tests_status)
+}
+
+/// Run test for single json file or directory
+pub fn run_single(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> {
+	if fs::metadata(filename)?.is_dir() {
+		let mut tests_status = TestCompletionStatus::default();
+
+		for filename in fs::read_dir(filename)? {
+			let filepath = filename?.path();
+			let filename = filepath.to_str().ok_or(Error::NonUtf8Filename)?;
+			println!("RUM for: {filename}");
+			tests_status += run_file(filename, debug)?;
+		}
+		tests_status.print_total_for_dir(filename);
+		Ok(tests_status)
+	} else {
+		run_file(filename, debug)
+	}
+}
+
+/// Run single test
+pub fn run_test(
+	_filename: &str,
+	_test_name: &str,
+	test: TestData,
+	debug: bool,
+) -> Result<(), Error> {
 	let config = match test.fork {
 		Fork::Berlin => Config::berlin(),
 		_ => return Err(Error::UnsupportedFork),

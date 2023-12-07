@@ -9,7 +9,7 @@ use std::fmt;
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
-pub(crate) struct TestCompletionStatus {
+pub struct TestCompletionStatus {
 	pub completed: usize,
 	pub skipped: usize,
 }
@@ -40,14 +40,14 @@ impl TestCompletionStatus {
 	/// Print completion status.
 	/// Most useful for single file completion statistic info
 	pub fn print_completion(&self) {
-		println!("COMPLETED: {:?} tests", self.completed);
-		println!("SKIPPED: {:?} tests\n", self.skipped);
+		println!("COMPLETED: {} tests", self.completed);
+		println!("SKIPPED: {} tests\n", self.skipped);
 	}
 
 	/// Print tests pass total statistic info for directory
 	pub fn print_total_for_dir(&self, filename: &str) {
 		println!(
-			"TOTAL tests for: {filename}\n\tCOMPLETED: {:?}\n\tSKIPPED: {:?}",
+			"TOTAL tests for: {filename}\n\tCOMPLETED: {}\n\tSKIPPED: {}",
 			self.completed, self.skipped
 		);
 	}
@@ -55,7 +55,7 @@ impl TestCompletionStatus {
 	// Print total statistics info
 	pub fn print_total(&self) {
 		println!(
-			"\nTOTAL: {:?} tests\n\tCOMPLETED: {:?}\n\tSKIPPED: {:?}",
+			"\nTOTAL: {} tests\n\tCOMPLETED: {}\n\tSKIPPED: {}",
 			self.get_total(),
 			self.completed,
 			self.skipped
@@ -63,6 +63,8 @@ impl TestCompletionStatus {
 	}
 }
 
+/// `TestMulti` represents raw data from `jsontest` data file.
+/// It contains multiple test data for passing tests.
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 pub struct TestMulti {
 	#[serde(rename = "_info")]
@@ -74,12 +76,15 @@ pub struct TestMulti {
 }
 
 impl TestMulti {
-	pub fn tests(&self) -> Vec<Test> {
+	/// Fill tests data from `TestMulti` data.
+	/// Return array of `TestData`, that represent single test,
+	/// that ready to pass the test flow.
+	pub fn tests(&self) -> Vec<TestData> {
 		let mut tests = Vec::new();
 
 		for (fork, post_states) in &self.post {
 			for (index, post_state) in post_states.iter().enumerate() {
-				tests.push(Test {
+				tests.push(TestData {
 					info: self.info.clone(),
 					env: self.env.clone(),
 					fork: *fork,
@@ -108,8 +113,9 @@ impl TestMulti {
 	}
 }
 
+/// Structure that contains data to run single test
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Test {
+pub struct TestData {
 	pub info: TestInfo,
 	pub env: TestEnv,
 	pub fork: Fork,
@@ -119,6 +125,7 @@ pub struct Test {
 	pub transaction: TestTransaction,
 }
 
+/// `TestInfo` contains information data about test from json file
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestInfo {
@@ -134,6 +141,7 @@ pub struct TestInfo {
 	pub source_hash: String,
 }
 
+/// `TestEnv` represents Ethereum environment data
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestEnv {
@@ -149,6 +157,7 @@ pub struct TestEnv {
 	pub previous_hash: H256,
 }
 
+/// Available Ethereum forks for testing
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize)]
 pub enum Fork {
 	Berlin,
@@ -176,6 +185,7 @@ pub struct TestPostState {
 	pub expect_exception: Option<TestExpectException>,
 }
 
+/// `TestExpectException` expected Ethereum exception
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
 #[allow(non_camel_case_types)]
 pub enum TestExpectException {

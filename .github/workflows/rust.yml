@@ -53,4 +53,3 @@ jobs:
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmIOandFlowOperations/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmLogTest/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmTests/
-
