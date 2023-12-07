@@ -249,8 +249,7 @@ where
 				match invoker.enter_substack(trap, &mut machine, backend, initial_depth + 1) {
 					Capture::Exit(Ok((trap_data, InvokerControl::Enter(sub_machine)))) => {
 						let (sub_result, sub_machine) = if heap_depth
-							.map(|hd| initial_depth + 1 >= hd)
-							.unwrap_or(false)
+							.map_or(false, |hd| initial_depth + 1 >= hd)
 						{
 							match CallStack::new(sub_machine, initial_depth + 1, backend, invoker)
 								.run()
@@ -381,10 +380,9 @@ where
 				invoker,
 				backend,
 			}) => {
-				let (transact_invoke, control) = match invoker.new_transact(args, backend) {
-					Ok((transact_invoke, control)) => (transact_invoke, control),
-					Err(err) => return Err(Capture::Exit(Err(err))),
-				};
+				let (transact_invoke, control) = invoker
+					.new_transact(args, backend)
+					.map_err(|err| Capture::Exit(Err(err)))?;
 
 				match control {
 					InvokerControl::Enter(machine) => {

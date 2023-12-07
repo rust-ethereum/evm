@@ -76,6 +76,7 @@ impl<S> Machine<S> {
 	}
 
 	/// Whether the machine has empty code.
+	#[must_use]
 	pub fn is_empty(&self) -> bool {
 		self.code.is_empty()
 	}

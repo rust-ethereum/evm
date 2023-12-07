@@ -65,6 +65,7 @@ impl CreateScheme {
 		}
 	}
 
+	#[must_use]
 	pub const fn caller(&self) -> H160 {
 		match self {
 			Self::Create2 { caller, .. } => *caller,
@@ -118,6 +119,7 @@ pub enum CallCreateTrapData {
 }
 
 impl CallCreateTrapData {
+	#[must_use]
 	pub const fn target_gas(&self) -> Option<U256> {
 		match self {
 			Self::Call(CallTrapData { gas, .. }) => Some(*gas),
@@ -185,7 +187,7 @@ impl CallTrapData {
 		out_len: &H256,
 	) -> Result<((), Self), ExitError> {
 		let gas = h256_to_u256(*gas);
-		let value = value.map(|v| h256_to_u256(*v)).unwrap_or(U256::zero());
+		let value = value.map_or(U256::zero(), |v| h256_to_u256(*v));
 		let in_offset = h256_to_u256(*in_offset);
 		let in_len = h256_to_u256(*in_len);
 		let out_offset = h256_to_u256(*out_offset);
@@ -366,11 +368,11 @@ impl CallTrapData {
 		}
 	}
 
+	#[must_use]
 	pub fn has_value(&self) -> bool {
 		self.transfer
 			.as_ref()
-			.map(|t| t.value != U256::zero())
-			.unwrap_or(false)
+			.map_or(false, |t| t.value != U256::zero())
 	}
 }
 

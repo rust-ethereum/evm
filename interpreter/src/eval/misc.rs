@@ -131,11 +131,11 @@ pub fn jumpi<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, dest);
 	pop!(state, value);
 
-	if value != H256::zero() {
+	if value == H256::zero() {
+		Control::Continue
+	} else {
 		let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
 		Control::Jump(dest)
-	} else {
-		Control::Continue
 	}
 }
 

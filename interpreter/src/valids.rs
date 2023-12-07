@@ -7,6 +7,7 @@ pub struct Valids(Vec<bool>);
 
 impl Valids {
 	/// Create a new valid mapping from given code bytes.
+	#[must_use]
 	pub fn new(code: &[u8]) -> Self {
 		let mut valids: Vec<bool> = Vec::with_capacity(code.len());
 		valids.resize(code.len(), false);
@@ -30,18 +31,21 @@ impl Valids {
 	/// Get the length of the valid mapping. This is the same as the
 	/// code bytes.
 	#[inline]
+	#[must_use]
 	pub fn len(&self) -> usize {
 		self.0.len()
 	}
 
 	/// Returns true if the valids list is empty
 	#[inline]
+	#[must_use]
 	pub fn is_empty(&self) -> bool {
 		self.len() == 0
 	}
 
 	/// Returns `true` if the position is a valid jump destination. If
 	/// not, returns `false`.
+	#[must_use]
 	pub fn is_valid(&self, position: usize) -> bool {
 		if position >= self.0.len() {
 			return false;
