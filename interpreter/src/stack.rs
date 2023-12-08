@@ -48,6 +48,7 @@ macro_rules! impl_perform_popn_pushn {
 
 impl Stack {
 	/// Create a new stack with given limit.
+	#[must_use]
 	pub const fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
@@ -57,31 +58,35 @@ impl Stack {
 
 	#[inline]
 	/// Stack limit.
+	#[must_use]
 	pub const fn limit(&self) -> usize {
 		self.limit
 	}
 
 	#[inline]
 	/// Stack length.
+	#[must_use]
 	pub fn len(&self) -> usize {
 		self.data.len()
 	}
 
-	#[inline]
 	/// Whether the stack is empty.
+	#[inline]
+	#[must_use]
 	pub fn is_empty(&self) -> bool {
 		self.data.is_empty()
 	}
 
 	#[inline]
 	/// Stack data.
+	#[must_use]
 	pub const fn data(&self) -> &Vec<H256> {
 		&self.data
 	}
 
 	/// Clear the stack.
 	pub fn clear(&mut self) {
-		self.data.clear()
+		self.data.clear();
 	}
 
 	#[inline]

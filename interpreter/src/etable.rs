@@ -119,15 +119,18 @@ where
 }
 
 impl<S, H, Tr> Etable<S, H, Tr> {
+	#[must_use]
 	pub const fn none() -> Self {
 		Self([eval_unknown as _; 256], PhantomData)
 	}
 
+	#[must_use]
 	pub const fn pass() -> Self {
 		Self([eval_pass as _; 256], PhantomData)
 	}
 
 	/// Default core value for Etable.
+	#[must_use]
 	pub const fn core() -> Self {
 		let mut table = [eval_unknown as _; 256];
 
@@ -253,6 +256,7 @@ where
 	S: AsRef<RuntimeState> + GasState,
 {
 	/// Runtime Etable.
+	#[must_use]
 	pub const fn runtime() -> Self {
 		let mut table = Self::core();
 

@@ -237,6 +237,11 @@ where
 			target: address,
 			value,
 		};
+		let runtime_state = RuntimeState {
+			context,
+			transaction_context: Rc::new(transaction_context),
+			retbuf: Vec::new(),
+		};
 
 		let work = || -> Result<(TransactInvoke, _), ExitError> {
 			match args {
@@ -256,11 +261,7 @@ where
 					}
 
 					let state = <R::State>::new_transact_call(
-						RuntimeState {
-							context,
-							transaction_context: Rc::new(transaction_context),
-							retbuf: Vec::new(),
-						},
+						runtime_state,
 						gas_limit,
 						&data,
 						&access_list,
@@ -296,11 +297,7 @@ where
 					..
 				} => {
 					let state = <R::State>::new_transact_create(
-						RuntimeState {
-							context,
-							transaction_context: Rc::new(transaction_context),
-							retbuf: Vec::new(),
-						},
+						runtime_state,
 						gas_limit,
 						&init_code,
 						&access_list,
@@ -322,13 +319,10 @@ where
 			}
 		};
 
-		match work() {
-			Ok(ret) => Ok(ret),
-			Err(err) => {
-				handler.pop_substate(MergeStrategy::Discard);
-				Err(err)
-			}
-		}
+		work().map_err(|err| {
+			handler.pop_substate(MergeStrategy::Discard);
+			err
+		})
 	}
 
 	fn finalize_transact(

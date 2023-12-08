@@ -6,6 +6,7 @@ use core::ops::{Div, Rem};
 use primitive_types::{H256, U256};
 
 /// Convert [U256] into [H256].
+#[must_use]
 pub fn u256_to_h256(v: U256) -> H256 {
 	let mut r = H256::default();
 	v.to_big_endian(&mut r[..]);
@@ -13,6 +14,7 @@ pub fn u256_to_h256(v: U256) -> H256 {
 }
 
 /// Convert [H256] to [U256].
+#[must_use]
 pub fn h256_to_u256(v: H256) -> U256 {
 	U256::from_big_endian(&v[..])
 }
@@ -34,10 +36,10 @@ pub enum Sign {
 }
 
 const SIGN_BIT_MASK: U256 = U256([
-	0xffffffffffffffff,
-	0xffffffffffffffff,
-	0xffffffffffffffff,
-	0x7fffffffffffffff,
+	0xffff_ffff_ffff_ffff,
+	0xffff_ffff_ffff_ffff,
+	0xffff_ffff_ffff_ffff,
+	0x7fff_ffff_ffff_ffff,
 ]);
 
 /// Signed 256-bit integer.
@@ -46,10 +48,12 @@ pub struct I256(pub Sign, pub U256);
 
 impl I256 {
 	/// Zero value of I256.
+	#[must_use]
 	pub const fn zero() -> I256 {
 		I256(Sign::Zero, U256::zero())
 	}
 	/// Minimum value of I256.
+	#[must_use]
 	pub fn min_value() -> I256 {
 		I256(Sign::Minus, (U256::MAX & SIGN_BIT_MASK) + U256::from(1u64))
 	}
