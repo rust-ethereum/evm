@@ -243,95 +243,86 @@ where
 			retbuf: Vec::new(),
 		};
 
-		match args {
-			TransactArgs::Call {
-				caller,
-				address,
-				data,
-				gas_limit,
-				access_list,
-				..
-			} => {
-				for (address, keys) in &access_list {
-					handler.mark_hot(*address, None);
-					for key in keys {
-						handler.mark_hot(*address, Some(*key));
-					}
-				}
-
-				let state = <R::State>::new_transact_call(
-					runtime_state,
-					gas_limit,
-					&data,
-					&access_list,
-					self.config,
-				)
-				.map_err(|err| {
-					handler.pop_substate(MergeStrategy::Discard);
-					err
-				})?;
-
-				let machine = routines::make_enter_call_machine(
-					self.config,
-					self.resolver,
+		let work = || -> Result<(TransactInvoke, _), ExitError> {
+			match args {
+				TransactArgs::Call {
+					caller,
 					address,
 					data,
-					Some(transfer),
-					state,
-					handler,
-				)
-				.map_err(|err| {
-					handler.pop_substate(MergeStrategy::Discard);
-					err
-				})?;
-
-				if self.config.increase_state_access_gas {
-					if self.config.warm_coinbase_address {
-						let coinbase = handler.block_coinbase();
-						handler.mark_hot(coinbase, None);
-					}
-					handler.mark_hot(caller, None);
-					handler.mark_hot(address, None);
-				}
-
-				Ok((invoke, machine))
-			}
-			TransactArgs::Create {
-				caller,
-				init_code,
-				gas_limit,
-				access_list,
-				..
-			} => {
-				let state = <R::State>::new_transact_create(
-					runtime_state,
 					gas_limit,
-					&init_code,
-					&access_list,
-					self.config,
-				)
-				.map_err(|err| {
-					handler.pop_substate(MergeStrategy::Discard);
-					err
-				})?;
+					access_list,
+					..
+				} => {
+					for (address, keys) in &access_list {
+						handler.mark_hot(*address, None);
+						for key in keys {
+							handler.mark_hot(*address, Some(*key));
+						}
+					}
 
-				let machine = routines::make_enter_create_machine(
-					self.config,
-					self.resolver,
+					let state = <R::State>::new_transact_call(
+						runtime_state,
+						gas_limit,
+						&data,
+						&access_list,
+						self.config,
+					)?;
+
+					let machine = routines::make_enter_call_machine(
+						self.config,
+						self.resolver,
+						address,
+						data,
+						Some(transfer),
+						state,
+						handler,
+					)?;
+
+					if self.config.increase_state_access_gas {
+						if self.config.warm_coinbase_address {
+							let coinbase = handler.block_coinbase();
+							handler.mark_hot(coinbase, None);
+						}
+						handler.mark_hot(caller, None);
+						handler.mark_hot(address, None);
+					}
+
+					Ok((invoke, machine))
+				}
+				TransactArgs::Create {
 					caller,
 					init_code,
-					transfer,
-					state,
-					handler,
-				)
-				.map_err(|err| {
-					handler.pop_substate(MergeStrategy::Discard);
-					err
-				})?;
+					gas_limit,
+					access_list,
+					..
+				} => {
+					let state = <R::State>::new_transact_create(
+						runtime_state,
+						gas_limit,
+						&init_code,
+						&access_list,
+						self.config,
+					)?;
 
-				Ok((invoke, machine))
+					let machine = routines::make_enter_create_machine(
+						self.config,
+						self.resolver,
+						caller,
+						init_code,
+						transfer,
+						state,
+						handler,
+					)?;
+
+					Ok((invoke, machine))
+				}
 			}
-		}
+		};
+
+		work().map_err(|err| {
+			handler.pop_substate(MergeStrategy::Discard);
+			err
+		})
 	}
 
 	fn finalize_transact(
