@@ -11,7 +11,8 @@ mod invoker;
 pub use self::config::Config;
 pub use self::gasometer::{eval as eval_gasometer, GasometerState};
 pub use self::invoker::{
-	EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, TransactArgs,
+	routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
+	TransactArgs, TransactInvoke,
 };
 
 use crate::{ExitError, GasMutState, GasState, MergeStrategy, RuntimeState};

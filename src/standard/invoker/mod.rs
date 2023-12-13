@@ -1,5 +1,5 @@
 mod resolver;
-mod routines;
+pub mod routines;
 mod state;
 
 pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
