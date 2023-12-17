@@ -1009,12 +1009,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					.record_deposit(out.len())
 				{
 					Ok(()) => {
-						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 						if let Err(e) = self.record_external_operation(
 							crate::ExternalOperation::Write(U256::from(out.len())),
 						) {
+							self.state.metadata_mut().gasometer.fail();
+							let _ = self.exit_substate(StackExitKind::Failed);
 							return (e.into(), None, Vec::new());
 						}
+						let exit_result = self.exit_substate(StackExitKind::Succeeded);
 						self.state.set_code(address, out);
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
