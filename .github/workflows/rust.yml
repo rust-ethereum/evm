@@ -27,15 +27,11 @@ jobs:
       run: cargo build --no-default-features --verbose
     - name: Build for feature (tracing)
       run: cargo build --features tracing --verbose
-    - name: Run tests
-      run: cargo test --verbose
-  jsontests:
+  tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Run tests
-      run: |
-        cd evm-tests/jsontests
-        cargo test --release
+      run: cargo test --all --verbose

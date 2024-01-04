@@ -1,3 +1,4 @@
-[submodule "evm-tests"]
-	path = evm-tests
-	url = https://github.com/aurora-is-near/evm-tests.git
+[submodule "evm-tests/jsontests/res/ethtests"]
+	path = evm-tests/jsontests/res/ethtests
+	url = https://github.com/ethereum/tests
+	tag = v12.3

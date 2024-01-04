@@ -1,0 +1,26 @@
+[package]
+name = "evm-jsontests"
+version = "0.13.1"
+license = "GPL-3.0"
+authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
+description = "SputnikVM - a Portable Blockchain Virtual Machine"
+repository = "https://github.com/sorpaas/rust-evm"
+keywords = ["no_std", "ethereum"]
+edition = "2018"
+
+[dependencies]
+evm = { path = "../.." }
+ethereum = "0.15.0"
+primitive-types = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+hex = "0.4"
+clap = "2.34"
+ethjson = { path = "../ethjson", features = ["test-helpers"] }
+libsecp256k1 = "0.7"
+ethcore-builtin = { path = "../ethcore-builtin" }
+rlp = "0.5"
+sha3 = "0.10"
+parity-bytes = "0.1"
+env_logger = "0.10"
+lazy_static = "1.4.0"

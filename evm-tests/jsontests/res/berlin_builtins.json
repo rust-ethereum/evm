@@ -1,0 +1,52 @@
+{
+  "0000000000000000000000000000000000000001": { "name": "ecrecover", "pricing": { "linear": { "base": 3000, "word": 0 } } },
+  "0000000000000000000000000000000000000002": { "name": "sha256", "pricing": { "linear": { "base": 60, "word": 12 } } },
+  "0000000000000000000000000000000000000003": { "name": "ripemd160", "pricing": { "linear": { "base": 600, "word": 120 } } },
+  "0000000000000000000000000000000000000004": { "name": "identity", "pricing": { "linear": { "base": 15, "word": 3 } } },
+  "0000000000000000000000000000000000000005": { "name": "modexp", "activate_at": "0x00", "pricing": { "modexp": { "divisor": 3, "is_eip_2565": true } } },
+  "0000000000000000000000000000000000000006": {
+	"name": "alt_bn128_add",
+	"pricing": {
+	  "0": {
+		"price": { "alt_bn128_const_operations": { "price": 500 }}
+	  },
+	  "0": {
+		"info": "EIP 1108 transition",
+		"price": { "alt_bn128_const_operations": { "price": 150 }}
+	  }
+	}
+  },
+  "0000000000000000000000000000000000000007": {
+	"name": "alt_bn128_mul",
+	"pricing": {
+	  "0": {
+		"price": { "alt_bn128_const_operations": { "price": 40000 }}
+	  },
+	  "0": {
+		"info": "EIP 1108 transition",
+		"price": { "alt_bn128_const_operations": { "price": 6000 }}
+	  }
+	}
+  },
+  "0000000000000000000000000000000000000008": {
+	"name": "alt_bn128_pairing",
+	"pricing": {
+	  "0": {
+		"price": { "alt_bn128_pairing": { "base": 100000, "pair": 80000 }}
+	  },
+	  "0": {
+		"info": "EIP 1108 transition",
+		"price": { "alt_bn128_pairing": { "base": 45000, "pair": 34000 }}
+	  }
+	}
+  },
+  "0000000000000000000000000000000000000009": {
+	"name": "blake2_f",
+	"activate_at": "0x00",
+	"pricing": {
+	  "blake2_f": {
+		"gas_per_round": 1
+	  }
+	}
+  }
+}

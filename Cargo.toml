@@ -82,4 +82,5 @@ members = [
 	"gasometer",
 	"runtime",
 	"fuzzer",
+	"evm-tests/jsontests"
 ]
