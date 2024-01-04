@@ -59,9 +59,7 @@ impl Accessed {
 	where
 		I: Iterator<Item = H160>,
 	{
-		for address in addresses {
-			self.accessed_addresses.insert(address);
-		}
+		self.accessed_addresses.extend(addresses);
 	}
 
 	pub fn access_storages<I>(&mut self, storages: I)
@@ -453,12 +451,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return (ExitError::MaxNonce.into(), Vec::new());
 		}
 
+		let address = self.create_address(CreateScheme::Legacy { caller });
+
 		event!(TransactCreate {
 			caller,
 			value,
 			init_code: &init_code,
 			gas_limit,
-			address: self.create_address(CreateScheme::Legacy { caller }),
+			address,
 		});
 
 		if let Some(limit) = self.config.max_initcode_size {
@@ -471,7 +471,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into(), Vec::new());
 		}
-		self.initialize_with_access_list(access_list);
+
+		// Initialize initial addresses for EIP-2929
+		self.initialize_addresses(caller, address, access_list);
 
 		match self.create_inner(
 			caller,
@@ -502,18 +504,22 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
+		let address = self.create_address(CreateScheme::Fixed(address));
+
 		event!(TransactCreate {
 			caller,
 			value,
 			init_code: &init_code,
 			gas_limit,
-			address: self.create_address(CreateScheme::Fixed(address)),
+			address
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into(), Vec::new());
 		}
-		self.initialize_with_access_list(access_list);
+
+		// Initialize initial addresses for EIP-2929
+		self.initialize_addresses(caller, address, access_list);
 
 		match self.create_inner(
 			caller,
@@ -551,23 +557,26 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
+		let address = self.create_address(CreateScheme::Create2 {
+			caller,
+			code_hash,
+			salt,
+		});
 		event!(TransactCreate2 {
 			caller,
 			value,
 			init_code: &init_code,
 			salt,
 			gas_limit,
-			address: self.create_address(CreateScheme::Create2 {
-				caller,
-				code_hash,
-				salt,
-			}),
+			address,
 		});
 
 		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
 			return emit_exit!(e.into(), Vec::new());
 		}
-		self.initialize_with_access_list(access_list);
+
+		// Initialize initial addresses for EIP-2929
+		self.initialize_addresses(caller, address, access_list);
 
 		match self.create_inner(
 			caller,
@@ -626,20 +635,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		// Initialize initial addresses for EIP-2929
-		if self.config.increase_state_access_gas {
-			if self.config.warm_coinbase_address {
-				// Warm coinbase address for EIP-3651
-				let addresses = core::iter::once(caller)
-					.chain(core::iter::once(address))
-					.chain(core::iter::once(self.block_coinbase()));
-				self.state.metadata_mut().access_addresses(addresses);
-			} else {
-				let addresses = core::iter::once(caller).chain(core::iter::once(address));
-				self.state.metadata_mut().access_addresses(addresses);
-			}
-
-			self.initialize_with_access_list(access_list);
-		}
+		self.initialize_addresses(caller, address, access_list);
 
 		if let Err(e) = self.state.inc_nonce(caller) {
 			return (e.into(), Vec::new());
@@ -695,7 +691,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.basic(address).nonce
 	}
 
-	/// Get the create address from given scheme.
+	/// Get the created address from given scheme.
 	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
 		match scheme {
 			CreateScheme::Create2 {
@@ -717,7 +713,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				stream.append(&nonce);
 				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
 			}
-			CreateScheme::Fixed(naddress) => naddress,
+			CreateScheme::Fixed(address) => address,
 		}
 	}
 
@@ -729,6 +725,29 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			.into_iter()
 			.flat_map(|(address, keys)| keys.into_iter().map(move |key| (address, key)));
 		self.state.metadata_mut().access_storages(storage_keys);
+	}
+
+	fn initialize_addresses(
+		&mut self,
+		caller: H160,
+		address: H160,
+		access_list: Vec<(H160, Vec<H256>)>,
+	) {
+		if self.config.increase_state_access_gas {
+			if self.config.warm_coinbase_address {
+				// Warm coinbase address for EIP-3651
+				let coinbase = self.block_coinbase();
+				self.state
+					.metadata_mut()
+					.access_addresses([caller, address, coinbase].iter().copied());
+			} else {
+				self.state
+					.metadata_mut()
+					.access_addresses([caller, address].iter().copied());
+			};
+
+			self.initialize_with_access_list(access_list);
+		}
 	}
 
 	fn create_inner(
