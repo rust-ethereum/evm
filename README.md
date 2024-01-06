@@ -9,13 +9,13 @@ interpreter that can be easily customized.
 ## Status
 
 The Rust EVM project has a long history dating back to the initial
-implementation in 2017 (when it was called SputnikVM). It has went through
-multiple rewrites over the years to accomodate for different requirements, when
-we successfully tested one integrating Geth to sync the mainnet.
+implementation in 2017 (when it was called SputnikVM). It has gone through
+multiple rewrites over the years to accomodate the different requirements
+needed to maintain synchronization with mainnet geth.
 
 The current rewrite is used in production for the Frontier project (the
 Ethereum-compatibility layer for Polkadot). However, we have not yet fully
-tested it against Ethereum mainnet. If you have such requirements, PR for fixes
+tested it against Ethereum mainnet. If you have such requirements, PRs for fixes
 are welcomed.
 
 ## Features
@@ -35,6 +35,14 @@ Rust EVM requires at least `rustc 1.75`.
 ## Documentation
 
 * [Latest release documentation](https://docs.rs/evm)
+
+## Tests
+
+To run tests you'll need to pull in the jsontests submodule.
+
+```bash
+git submodule update --init --recursive 
+```
 
 ## License
 
