@@ -11,6 +11,9 @@
 //! pushing/poping layers are dealt by extern functions), layers are handled
 //! internally inside a backend.
 
+mod overlayed;
+
+pub use self::overlayed::OverlayedBackend;
 pub use evm_interpreter::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
 
 /// Backend with layers that can transactionally be committed or discarded.
