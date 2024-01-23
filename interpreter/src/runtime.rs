@@ -75,6 +75,7 @@ pub struct Log {
 	pub data: Vec<u8>,
 }
 
+#[auto_impl::auto_impl(&, Box)]
 pub trait RuntimeEnvironment {
 	/// Get environmental block hash.
 	fn block_hash(&self, number: U256) -> H256;
@@ -96,6 +97,7 @@ pub trait RuntimeEnvironment {
 	fn chain_id(&self) -> U256;
 }
 
+#[auto_impl::auto_impl(&, Box)]
 pub trait RuntimeBaseBackend {
 	/// Get balance of address.
 	fn balance(&self, address: H160) -> U256;
