@@ -13,7 +13,7 @@
 
 mod overlayed;
 
-pub use self::overlayed::OverlayedBackend;
+pub use self::overlayed::{OverlayedBackend, OverlayedChangeSet};
 pub use evm_interpreter::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
 
 /// Backend with layers that can transactionally be committed or discarded.

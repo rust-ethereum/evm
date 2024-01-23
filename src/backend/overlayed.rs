@@ -1,10 +1,25 @@
 use crate::{
 	ExitError, ExitException, Log, MergeStrategy, RuntimeBackend, RuntimeBaseBackend,
-	TransactionalBackend,
+	RuntimeEnvironment, TransactionalBackend,
 };
-use alloc::collections::{BTreeMap, BTreeSet};
+use alloc::{
+	boxed::Box,
+	collections::{BTreeMap, BTreeSet},
+	vec::Vec,
+};
 use core::mem;
 use primitive_types::{H160, H256, U256};
+
+#[derive(Clone, Debug)]
+pub struct OverlayedChangeSet {
+	pub logs: Vec<Log>,
+	pub balances: BTreeMap<H160, U256>,
+	pub codes: BTreeMap<H160, Vec<u8>>,
+	pub nonces: BTreeMap<H160, U256>,
+	pub storage_resets: BTreeSet<H160>,
+	pub storages: BTreeMap<(H160, H256), H256>,
+	pub deletes: BTreeSet<H160>,
+}
 
 pub struct OverlayedBackend<B> {
 	backend: B,
@@ -13,12 +28,65 @@ pub struct OverlayedBackend<B> {
 }
 
 impl<B> OverlayedBackend<B> {
-	pub fn new(backend: B) -> Self {
+	pub fn new(backend: B, accessed: BTreeSet<(H160, Option<H256>)>) -> Self {
 		Self {
 			backend,
 			substate: Box::new(Substate::new()),
-			accessed: BTreeSet::new(),
+			accessed,
 		}
+	}
+
+	pub fn deconstruct(self) -> (B, OverlayedChangeSet) {
+		(
+			self.backend,
+			OverlayedChangeSet {
+				logs: self.substate.logs,
+				balances: self.substate.balances,
+				codes: self.substate.codes,
+				nonces: self.substate.nonces,
+				storage_resets: self.substate.storage_resets,
+				storages: self.substate.storages,
+				deletes: self.substate.deletes,
+			},
+		)
+	}
+}
+
+impl<B: RuntimeEnvironment> RuntimeEnvironment for OverlayedBackend<B> {
+	fn block_hash(&self, number: U256) -> H256 {
+		self.backend.block_hash(number)
+	}
+
+	fn block_number(&self) -> U256 {
+		self.backend.block_number()
+	}
+
+	fn block_coinbase(&self) -> H160 {
+		self.backend.block_coinbase()
+	}
+
+	fn block_timestamp(&self) -> U256 {
+		self.backend.block_timestamp()
+	}
+
+	fn block_difficulty(&self) -> U256 {
+		self.backend.block_difficulty()
+	}
+
+	fn block_randomness(&self) -> Option<H256> {
+		self.backend.block_randomness()
+	}
+
+	fn block_gas_limit(&self) -> U256 {
+		self.backend.block_gas_limit()
+	}
+
+	fn block_base_fee_per_gas(&self) -> U256 {
+		self.backend.block_base_fee_per_gas()
+	}
+
+	fn chain_id(&self) -> U256 {
+		self.backend.chain_id()
 	}
 }
 
@@ -109,6 +177,10 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 	}
 
 	fn deposit(&mut self, target: H160, value: U256) {
+		if value == U256::zero() {
+			return;
+		}
+
 		let current_balance = self.balance(target);
 		self.substate
 			.balances
@@ -116,6 +188,10 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 	}
 
 	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError> {
+		if value == U256::zero() {
+			return Ok(());
+		}
+
 		let current_balance = self.balance(source);
 		if current_balance < value {
 			return Err(ExitException::OutOfFund.into());

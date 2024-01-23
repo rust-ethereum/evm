@@ -66,7 +66,6 @@ impl rlp::Decodable for TrieAccount {
 
 pub fn state_root(backend: &InMemoryBackend) -> H256 {
 	let tree = backend
-		.current_layer()
 		.state
 		.iter()
 		.map(|(address, account)| {

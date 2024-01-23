@@ -1,6 +1,7 @@
 use crate::error::{Error, TestError};
-use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, InMemoryLayer};
+use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment};
 use crate::types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti};
+use evm::backend::OverlayedBackend;
 use evm::standard::{Config, Etable, EtableResolver, Invoker, TransactArgs};
 use evm::utils::u256_to_h256;
 use evm::Capture;
@@ -136,7 +137,6 @@ pub fn run_test(
 					balance: account.balance,
 					code: account.code.0,
 					nonce: account.nonce,
-					original_storage: storage.clone(),
 					storage,
 				},
 			)
@@ -164,26 +164,27 @@ pub fn run_test(
 			.collect(),
 	};
 
-	let mut run_backend = InMemoryBackend {
-		environment: env,
-		layers: vec![InMemoryLayer {
-			state,
-			logs: Vec::new(),
-			suicides: Vec::new(),
-			hots: {
-				let mut hots = BTreeSet::new();
-				for i in 1..10 {
-					hots.insert((u256_to_h256(U256::from(i)).into(), None));
-				}
-				hots
-			},
-		}],
+	let initial_accessed = {
+		let mut hots = BTreeSet::new();
+		for i in 1..10 {
+			hots.insert((u256_to_h256(U256::from(i)).into(), None));
+		}
+		hots
 	};
-	let mut step_backend = run_backend.clone();
+
+	let base_backend = InMemoryBackend {
+		environment: env,
+		state,
+	};
+
+	let mut run_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone());
+	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone());
 
 	// Run
 	let run_result = evm::transact(args.clone(), Some(4), &mut run_backend, &invoker);
-	run_backend.layers[0].clear_pending();
+	let run_changeset = run_backend.deconstruct().1;
+	let mut run_backend = base_backend.clone();
+	run_backend.apply_overlayed(&run_changeset);
 
 	// Step
 	if debug {
@@ -204,7 +205,9 @@ pub fn run_test(
 				}
 			},
 		);
-		step_backend.layers[0].clear_pending();
+		let step_changeset = step_backend.deconstruct().1;
+		let mut step_backend = base_backend.clone();
+		step_backend.apply_overlayed(&step_changeset);
 	}
 
 	let state_root = crate::hash::state_root(&run_backend);
@@ -219,7 +222,7 @@ pub fn run_test(
 
 	if state_root != test.post.hash {
 		if debug {
-			for (address, account) in &run_backend.layers[0].state {
+			for (address, account) in &run_backend.state {
 				println!(
 					"address: {:?}, balance: {}, nonce: {}, code: 0x{}, storage: {:?}",
 					address,

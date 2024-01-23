@@ -15,6 +15,7 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 sha3 = { version = "0.10", default-features = false }
+auto_impl = "1.1"
 
 [dev-dependencies]
 hex = "0.4"
