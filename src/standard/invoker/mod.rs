@@ -44,6 +44,24 @@ pub enum SubstackInvoke {
 	Create { trap: CreateTrapData, address: H160 },
 }
 
+/// Return value of a transaction.
+pub enum TransactValue {
+	Call {
+		/// The exit result. If we return a value, then it will be an
+		/// `ExitSucceed`.
+		succeed: ExitSucceed,
+		/// The return value, if any.
+		retval: Vec<u8>,
+	},
+	Create {
+		/// The exit result. If we return a value, then it will be an
+		/// `ExitSucceed`.
+		succeed: ExitSucceed,
+		/// The contract address created.
+		address: H160,
+	},
+}
+
 /// The invoke used in a top-layer transaction stack.
 pub struct TransactInvoke {
 	pub create_address: Option<H160>,
@@ -165,7 +183,7 @@ where
 	type Interrupt = Tr::Rest;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
-	type TransactValue = (ExitSucceed, Option<H160>);
+	type TransactValue = TransactValue;
 	type SubstackInvoke = SubstackInvoke;
 
 	fn new_transact(
@@ -335,21 +353,32 @@ where
 		let left_gas = substate.effective_gas();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
-			if result.is_ok() {
-				if let Some(address) = invoke.create_address {
-					let retbuf = retval;
+			match result {
+				Ok(result) => {
+					if let Some(address) = invoke.create_address {
+						let retbuf = retval;
 
-					routines::deploy_create_code(
-						self.config,
-						address,
-						retbuf,
-						&mut substate,
-						handler,
-					)?;
+						routines::deploy_create_code(
+							self.config,
+							address,
+							retbuf,
+							&mut substate,
+							handler,
+						)?;
+
+						Ok(TransactValue::Create {
+							succeed: result,
+							address,
+						})
+					} else {
+						Ok(TransactValue::Call {
+							succeed: result,
+							retval,
+						})
+					}
 				}
+				Err(result) => Err(result),
 			}
-
-			result.map(|s| (s, invoke.create_address))
 		};
 
 		let result = work();
