@@ -12,7 +12,7 @@ pub use self::config::Config;
 pub use self::gasometer::{eval as eval_gasometer, GasometerState};
 pub use self::invoker::{
 	routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
-	TransactArgs, TransactInvoke,
+	TransactArgs, TransactInvoke, TransactValue,
 };
 
 use crate::{ExitError, GasMutState, GasState, MergeStrategy, RuntimeState};
