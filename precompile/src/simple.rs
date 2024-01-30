@@ -39,8 +39,10 @@ impl<G: GasMutState> PurePrecompile<G> for ECRecover {
 
 		let pubkey = try_some!(VerifyingKey::recover_from_prehash(&msg[..], &sig, recid)
 			.map_err(|_| ExitException::Other("recover key failed".into())));
-		let mut address =
-			H256::from_slice(Keccak256::digest(&pubkey.to_sec1_bytes()[..]).as_slice());
+		let mut address = H256::from_slice(
+			Keccak256::digest(&pubkey.to_encoded_point(/* compress = */ false).as_bytes()[1..])
+				.as_slice(),
+		);
 		address.0[0..12].copy_from_slice(&[0u8; 12]);
 
 		(ExitSucceed::Returned.into(), address.0.to_vec())
