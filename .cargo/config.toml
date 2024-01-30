@@ -1,0 +1,4 @@
+[target.'cfg(all())']
+rustflags = [
+"-Aclippy::blocks_in_conditions",
+]
