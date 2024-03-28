@@ -24,6 +24,7 @@ pub use crate::valids::Valids;
 
 use crate::eval::{eval, Control};
 use alloc::rc::Rc;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use core::ops::Range;
 use primitive_types::{H160, U256};

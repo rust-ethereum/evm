@@ -1,5 +1,6 @@
 use super::{Apply, ApplyBackend, Backend, Basic, Log};
 use alloc::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 

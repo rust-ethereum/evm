@@ -1,11 +1,9 @@
 use crate::backend::{Apply, Backend, Basic, Log};
 use crate::executor::stack::executor::{Accessed, StackState, StackSubstateMetadata};
 use crate::{ExitError, Transfer};
-use alloc::{
-	boxed::Box,
-	collections::{BTreeMap, BTreeSet},
-	vec::Vec,
-};
+use alloc::collections::{BTreeMap, BTreeSet};
+#[cfg(not(feature = "std"))]
+use alloc::{boxed::Box, vec::Vec};
 use core::mem;
 use primitive_types::{H160, H256, U256};
 

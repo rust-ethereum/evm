@@ -37,6 +37,7 @@ mod costs;
 mod memory;
 mod utils;
 
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use core::cmp::max;
 use evm_core::{ExitError, Opcode, Stack};

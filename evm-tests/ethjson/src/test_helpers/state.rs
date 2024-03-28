@@ -178,7 +178,6 @@ pub struct PostStateResult {
 #[cfg(test)]
 mod tests {
 	use super::{MultiTransaction, State};
-	use serde_json;
 
 	#[test]
 	fn multi_transaction_deserialization() {

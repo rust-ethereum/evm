@@ -1,5 +1,7 @@
 use crate::{Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Transfer};
-use alloc::{collections::BTreeMap, vec::Vec};
+use alloc::collections::BTreeMap;
+#[cfg(not(feature = "std"))]
+use alloc::vec::Vec;
 use primitive_types::{H160, H256};
 
 /// A precompile result.

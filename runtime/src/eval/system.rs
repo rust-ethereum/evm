@@ -2,6 +2,7 @@ use super::Control;
 use crate::{
 	CallScheme, Capture, Context, CreateScheme, ExitError, ExitSucceed, Handler, Runtime, Transfer,
 };
+#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
