@@ -17,6 +17,8 @@ jobs:
       run: cargo fmt --all -- --check
     - name: Clippy
       run: cargo clippy --workspace --all-targets -- -D clippy::all -D clippy::nursery
+    - name: Clippy
+      run: cargo clippy --no-default-features -- -D clippy::all -D clippy::nursery
   build:
     runs-on: ubuntu-latest
     steps:
