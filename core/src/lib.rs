@@ -4,7 +4,17 @@
 #![forbid(unsafe_code, unused_variables, unused_imports)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
 extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub mod prelude {
+	pub use alloc::{borrow::Cow, rc::Rc, vec, vec::Vec};
+}
+#[cfg(feature = "std")]
+pub mod prelude {
+	pub use std::{borrow::Cow, rc::Rc, vec::Vec};
+}
 
 mod error;
 mod eval;
@@ -23,8 +33,7 @@ pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
 use crate::eval::{eval, Control};
-use alloc::rc::Rc;
-use alloc::vec::Vec;
+use crate::prelude::*;
 use core::ops::Range;
 use primitive_types::{H160, U256};
 
@@ -127,7 +136,7 @@ impl Machine {
 	#[must_use]
 	pub fn return_value(&self) -> Vec<u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
-			alloc::vec![0; (self.return_range.end - self.return_range.start).as_usize()]
+			vec![0; (self.return_range.end - self.return_range.start).as_usize()]
 		} else if self.return_range.end > U256::from(usize::MAX) {
 			let mut ret = self.memory.get(
 				self.return_range.start.as_usize(),

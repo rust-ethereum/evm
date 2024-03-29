@@ -1,12 +1,13 @@
 //! # EVM backends
 //!
 //! Backends store state information of the VM, and exposes it to runtime.
+use crate::prelude::*;
+use primitive_types::{H160, H256, U256};
+
+pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
 
 mod memory;
 
-pub use self::memory::{MemoryAccount, MemoryBackend, MemoryVicinity};
-use alloc::vec::Vec;
-use primitive_types::{H160, H256, U256};
 /// Basic account information.
 #[derive(Clone, Eq, PartialEq, Debug, Default)]
 #[cfg_attr(

@@ -118,7 +118,6 @@ mod tests {
 	use std::str::FromStr;
 
 	use ethereum_types::{H160, U256};
-	use serde_json;
 
 	use super::{Address, StepDuration, Uint};
 	use crate::spec::{authority_round::AuthorityRound, validator_set::ValidatorSet};

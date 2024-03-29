@@ -2,8 +2,8 @@
 mod macros;
 mod system;
 
+use crate::prelude::*;
 use crate::{CallScheme, ExitReason, Handler, Opcode, Runtime};
-use alloc::vec::Vec;
 use core::cmp::min;
 use primitive_types::{H160, H256, U256};
 

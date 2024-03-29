@@ -1,5 +1,5 @@
+use crate::prelude::*;
 use crate::Opcode;
-use alloc::borrow::Cow;
 
 /// Trap which indicates that an `ExternalOpcode` has to be handled.
 pub type Trap = Opcode;
