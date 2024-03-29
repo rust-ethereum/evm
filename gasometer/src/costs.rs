@@ -197,6 +197,10 @@ pub const fn sload_cost(is_cold: bool, config: &Config) -> u64 {
 	}
 }
 
+pub const fn storage_read_warm(config: &Config) -> u64 {
+	config.gas_storage_read_warm
+}
+
 #[allow(clippy::collapsible_else_if)]
 pub fn sstore_cost(
 	original: H256,

@@ -554,13 +554,15 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::BLOBHASH if config.has_shard_blob_transactions => GasCost::VeryLow,
 		Opcode::BLOBHASH => GasCost::Invalid(opcode),
 
-		Opcode::TLOAD if config.has_transient_storage => todo!(),
+		Opcode::TLOAD if config.has_transient_storage => GasCost::WarmStorageRead,
 		Opcode::TLOAD => GasCost::Invalid(opcode),
 
-		Opcode::TSTORE if config.has_transient_storage => todo!(),
+		Opcode::TSTORE if config.has_transient_storage => GasCost::WarmStorageRead,
 		Opcode::TSTORE => GasCost::Invalid(opcode),
 
-		Opcode::MCOPY if config.has_mcopy => todo!(),
+		Opcode::MCOPY if config.has_mcopy => GasCost::VeryLowCopy {
+			len: stack.peek(2)?,
+		},
 		Opcode::MCOPY => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
@@ -921,6 +923,7 @@ impl<'config> Inner<'config> {
 				self.config.gas_ext_code_hash,
 				self.config,
 			),
+			GasCost::WarmStorageRead => costs::storage_read_warm(self.config),
 		})
 	}
 
@@ -1077,6 +1080,7 @@ pub enum GasCost {
 		/// True if target has not been previously accessed in this transaction
 		target_is_cold: bool,
 	},
+	WarmStorageRead,
 }
 
 /// Storage opcode will access. Used for tracking accessed storage (EIP-2929).
