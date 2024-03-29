@@ -518,7 +518,7 @@ pub fn static_opcode_cost(opcode: Opcode) -> Option<u32> {
 }
 
 /// Calculate the opcode cost.
-#[allow(clippy::nonminimal_bool)]
+#[allow(clippy::nonminimal_bool, clippy::cognitive_complexity)]
 pub fn dynamic_opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Opcode,
@@ -547,6 +547,21 @@ pub fn dynamic_opcode_cost<H: Handler>(
 
 		Opcode::BASEFEE if config.has_base_fee => GasCost::Base,
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
+
+		Opcode::BLOBBASEFEE if config.has_blob_base_fee => GasCost::Base,
+		Opcode::BLOBBASEFEE => GasCost::Invalid(opcode),
+
+		Opcode::BLOBHASH if config.has_shard_blob_transactions => GasCost::VeryLow,
+		Opcode::BLOBHASH => GasCost::Invalid(opcode),
+
+		Opcode::TLOAD if config.has_transient_storage => todo!(),
+		Opcode::TLOAD => GasCost::Invalid(opcode),
+
+		Opcode::TSTORE if config.has_transient_storage => todo!(),
+		Opcode::TSTORE => GasCost::Invalid(opcode),
+
+		Opcode::MCOPY if config.has_mcopy => todo!(),
+		Opcode::MCOPY => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
 			let target = stack.peek_h256(0)?.into();
