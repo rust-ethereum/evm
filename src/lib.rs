@@ -4,7 +4,26 @@
 #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
 extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub mod prelude {
+	pub use alloc::{
+		boxed::Box,
+		collections::{BTreeMap, BTreeSet},
+		rc::Rc,
+		vec::Vec,
+	};
+}
+#[cfg(feature = "std")]
+pub mod prelude {
+	pub use std::{
+		collections::{BTreeMap, BTreeSet},
+		rc::Rc,
+		vec::Vec,
+	};
+}
 
 pub use evm_core::*;
 pub use evm_gasometer as gasometer;

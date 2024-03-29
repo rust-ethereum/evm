@@ -1,5 +1,5 @@
+use crate::prelude::*;
 use crate::{ExitError, ExitFatal};
-use alloc::vec::Vec;
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
 use primitive_types::{H256, U256};

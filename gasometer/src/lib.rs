@@ -4,7 +4,17 @@
 #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
 extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub mod prelude {
+	pub use alloc::vec::Vec;
+}
+#[cfg(feature = "std")]
+pub mod prelude {
+	pub use std::vec::Vec;
+}
 
 #[cfg(feature = "tracing")]
 pub mod tracing;
@@ -37,7 +47,7 @@ mod costs;
 mod memory;
 mod utils;
 
-use alloc::vec::Vec;
+use crate::prelude::*;
 use core::cmp::max;
 use evm_core::{ExitError, Opcode, Stack};
 use evm_runtime::{Config, Handler};

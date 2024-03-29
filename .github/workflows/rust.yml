@@ -12,28 +12,28 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Rustfmt
-      run: cargo fmt --all -- --check
-    - name: Clippy
-      run: cargo clippy --workspace --all-targets -- -D clippy::all -D clippy::nursery
-    - name: Clippy
-      run: cargo clippy --no-default-features -- -D clippy::all -D clippy::nursery
+      - uses: actions/checkout@v4
+      - name: Rustfmt
+        run: cargo fmt --all -- --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D clippy::all -D clippy::nursery
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets --no-default-features -- -D clippy::all -D clippy::nursery
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose
-    - name: Build NoStd
-      run: cargo build --no-default-features --verbose
-    - name: Build for feature (tracing)
-      run: cargo build --features tracing --verbose
+      - uses: actions/checkout@v4
+      - name: Build
+        run: cargo build --verbose
+      - name: Build NoStd
+        run: cargo build --no-default-features --verbose
+      - name: Build for feature (tracing)
+        run: cargo build --features tracing --verbose
   tests:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-      with:
-        submodules: recursive
-    - name: Run tests
-      run: cargo test --all --verbose
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Run tests
+        run: cargo test --all --verbose
