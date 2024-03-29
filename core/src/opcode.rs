@@ -95,6 +95,13 @@ impl Opcode {
 	/// `JUMPDEST`
 	pub const JUMPDEST: Opcode = Opcode(0x5b);
 
+	/// `TLOAD` - EIP-1153
+	pub const TLOAD: Opcode = Opcode(0x5c);
+	/// `TSTORE` - EIP-1153
+	pub const TSTORE: Opcode = Opcode(0x5d);
+	/// `MCOPY` - EIP-5656
+	pub const MCOPY: Opcode = Opcode(0x5e);
+
 	/// `PUSHn`
 	pub const PUSH0: Opcode = Opcode(0x5f);
 	pub const PUSH1: Opcode = Opcode(0x60);
@@ -191,6 +198,10 @@ impl Opcode {
 	pub const SELFBALANCE: Opcode = Opcode(0x47);
 	/// `BASEFEE`
 	pub const BASEFEE: Opcode = Opcode(0x48);
+	/// `BLOBHASH` - EIP-4844
+	pub const BLOBHASH: Opcode = Opcode(0x49);
+	/// `BLOBBASEFEE` - EIP-7516
+	pub const BLOBBASEFEE: Opcode = Opcode(0x4a);
 	/// `ORIGIN`
 	pub const ORIGIN: Opcode = Opcode(0x32);
 	/// `CALLER`
