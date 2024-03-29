@@ -9,9 +9,7 @@ use crate::{
 	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime,
 	Transfer,
 };
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-use alloc::{collections::BTreeSet, rc::Rc};
+use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
 use core::{cmp::min, convert::Infallible};
 use evm_core::{ExitFatal, InterpreterHandler, Machine, Trap};
 use evm_runtime::Resolve;

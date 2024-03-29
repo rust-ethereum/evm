@@ -3,7 +3,6 @@ mod macros;
 mod system;
 
 use crate::{CallScheme, ExitReason, Handler, Opcode, Runtime};
-#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use core::cmp::min;
 use primitive_types::{H160, H256, U256};

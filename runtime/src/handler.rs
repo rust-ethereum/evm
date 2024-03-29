@@ -1,5 +1,4 @@
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode};
-#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
 

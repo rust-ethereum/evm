@@ -1,5 +1,4 @@
 use crate::{ExitError, ExitFatal};
-#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use core::cmp::min;
 use core::ops::{BitAnd, Not};

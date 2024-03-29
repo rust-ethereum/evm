@@ -1,5 +1,4 @@
 use crate::ExitError;
-#[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 
