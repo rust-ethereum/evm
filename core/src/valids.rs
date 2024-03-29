@@ -1,6 +1,5 @@
+use crate::prelude::*;
 use crate::Opcode;
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
 
 /// Mapping of valid jump destination from code.
 #[derive(Clone, Debug, Eq, PartialEq)]

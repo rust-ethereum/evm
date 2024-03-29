@@ -4,7 +4,17 @@
 #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(not(feature = "std"))]
 extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub mod prelude {
+	pub use alloc::{rc::Rc, vec::Vec};
+}
+#[cfg(feature = "std")]
+pub mod prelude {
+	pub use std::{rc::Rc, vec::Vec};
+}
 
 #[cfg(feature = "tracing")]
 pub mod tracing;
@@ -33,9 +43,7 @@ pub use crate::context::{CallScheme, Context, CreateScheme};
 pub use crate::handler::{Handler, Transfer};
 pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 
-use alloc::rc::Rc;
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
+use prelude::*;
 use primitive_types::H160;
 
 macro_rules! step {

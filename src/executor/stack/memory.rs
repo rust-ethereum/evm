@@ -1,9 +1,7 @@
 use crate::backend::{Apply, Backend, Basic, Log};
 use crate::executor::stack::executor::{Accessed, StackState, StackSubstateMetadata};
+use crate::prelude::*;
 use crate::{ExitError, Transfer};
-use alloc::collections::{BTreeMap, BTreeSet};
-#[cfg(not(feature = "std"))]
-use alloc::{boxed::Box, vec::Vec};
 use core::mem;
 use primitive_types::{H160, H256, U256};
 
@@ -28,7 +26,7 @@ impl<'config> MemoryStackSubstate<'config> {
 	pub const fn new(metadata: StackSubstateMetadata<'config>) -> Self {
 		Self {
 			metadata,
-			parent: None,
+			parent: None::<Box<_>>,
 			logs: Vec::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
@@ -289,7 +287,7 @@ impl<'config> MemoryStackSubstate<'config> {
 				})
 				.unwrap_or_else(|| MemoryStackAccount {
 					basic: backend.basic(address),
-					code: None,
+					code: None::<Vec<_>>,
 					reset: false,
 				});
 			self.accounts.insert(address, account);
