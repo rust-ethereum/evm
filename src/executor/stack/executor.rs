@@ -196,6 +196,7 @@ pub trait StackState<'config>: Backend {
 
 	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
+	fn created(&self, address: H160) -> bool;
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
@@ -204,6 +205,7 @@ pub trait StackState<'config>: Backend {
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
+	fn set_created(&mut self, address: H160);
 	fn set_code(&mut self, address: H160, code: Vec<u8>);
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
@@ -855,6 +857,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
 			}
 		}
+		// It needed for CANCUN hard fork EIP-6780 we should mark account as created
+		// to handle SELFDESTRUCT in the same transaction
+		self.created(address);
 
 		if self.config.create_increase_nonce {
 			if let Err(e) = self.state.inc_nonce(address) {
@@ -1314,6 +1319,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn deleted(&self, address: H160) -> bool {
 		self.state.deleted(address)
 	}
+	fn created(&self, address: H160) -> bool {
+		self.state.created(address)
+	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
 		self.state.set_storage(address, index, value);
@@ -1325,7 +1333,18 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		Ok(())
 	}
 
+	/// Mark account as deleted
+	/// - SELFDESTRUCT - CANCUN hard fork: EIP-6780
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
+		let is_created = self.created(address);
+		// SELFDESTRUCT - CANCUN hard fork: EIP-6780 - selfdestruct only if contract is created in the same tx
+		if self.config.has_restricted_selfdestruct && !is_created && address == target {
+			// State is not changed:
+			// * if we are after Cancun upgrade specify the target is
+			// same as selfdestructed account. The balance stays unchanged.
+			return Ok(());
+		}
+
 		let balance = self.balance(address);
 
 		event!(Suicide {
@@ -1340,7 +1359,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			value: balance,
 		})?;
 		self.state.reset_balance(address);
-		self.state.set_deleted(address);
+		// For CANCUN hard fork SELFDESTRUCT (EIP-6780) state is not changed
+		// or if SELFDESTRUCT in the same TX - account should selfdestruct
+		if !self.config.has_restricted_selfdestruct || self.created(address) {
+			self.state.set_deleted(address);
+		}
 
 		Ok(())
 	}

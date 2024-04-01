@@ -273,6 +273,8 @@ pub struct Config {
 	pub has_transient_storage: bool,
 	/// Has MCOPY - Memory copying instruction. See [EIP-5656](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-5656.md)
 	pub has_mcopy: bool,
+	/// SELFDESTRUCT restriction: EIP-6780
+	pub has_restricted_selfdestruct: bool,
 }
 
 impl Config {
@@ -331,6 +333,7 @@ impl Config {
 			has_shard_blob_transactions: false,
 			has_transient_storage: false,
 			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -389,6 +392,7 @@ impl Config {
 			has_shard_blob_transactions: false,
 			has_transient_storage: false,
 			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -432,6 +436,7 @@ impl Config {
 			has_shard_blob_transactions,
 			has_transient_storage,
 			has_mcopy,
+			has_restricted_selfdestruct,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -499,6 +504,7 @@ impl Config {
 			has_shard_blob_transactions,
 			has_transient_storage,
 			has_mcopy,
+			has_restricted_selfdestruct,
 		}
 	}
 }
@@ -519,6 +525,7 @@ struct DerivedConfigInputs {
 	has_shard_blob_transactions: bool,
 	has_transient_storage: bool,
 	has_mcopy: bool,
+	has_restricted_selfdestruct: bool,
 }
 
 impl DerivedConfigInputs {
@@ -537,6 +544,7 @@ impl DerivedConfigInputs {
 			has_shard_blob_transactions: false,
 			has_transient_storage: false,
 			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -555,6 +563,7 @@ impl DerivedConfigInputs {
 			has_shard_blob_transactions: false,
 			has_transient_storage: false,
 			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -573,6 +582,7 @@ impl DerivedConfigInputs {
 			has_shard_blob_transactions: false,
 			has_transient_storage: false,
 			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -592,6 +602,7 @@ impl DerivedConfigInputs {
 			has_shard_blob_transactions: false,
 			has_transient_storage: false,
 			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -611,6 +622,7 @@ impl DerivedConfigInputs {
 			has_shard_blob_transactions: true,
 			has_transient_storage: true,
 			has_mcopy: true,
+			has_restricted_selfdestruct: true,
 		}
 	}
 }

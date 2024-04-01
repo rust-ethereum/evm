@@ -93,6 +93,16 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
+pub fn blob_base_fee<H: Handler>(_runtime: &mut Runtime, _handler: &H) -> Control<H> {
+	// CANCUN
+	todo!()
+}
+
+pub fn blob_hash<H: Handler>(_runtime: &mut Runtime, _handler: &H) -> Control<H> {
+	// CANCUN
+	todo!()
+}
+
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop_h256!(runtime, address);
 	push_u256!(runtime, handler.code_size(address.into()));
@@ -256,6 +266,21 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 	}
 }
 
+pub fn tload<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
+	// CANCUN
+	todo!()
+}
+
+pub fn tstore<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
+	// CANCUN
+	todo!()
+}
+
+pub fn mcopy<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
+	// CANCUN
+	todo!()
+}
+
 pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.gas_left());
 
@@ -295,7 +320,18 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	}
 }
 
-pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+/// Performances SELFDESTRUCT action.
+/// Transfers balance from address to target. Check if target exist/is_cold
+///
+/// Note: balance will be lost if address and target are the same BUT when
+/// current spec enables Cancun, this happens only when the account associated to address
+/// is created in the same tx
+///
+/// references:
+///  * <https://github.com/ethereum/go-ethereum/blob/141cd425310b503c5678e674a8c3872cf46b7086/core/vm/instructions.go#L832-L833>
+///  * <https://github.com/ethereum/go-ethereum/blob/141cd425310b503c5678e674a8c3872cf46b7086/core/state/statedb.go#L449>
+///  * <https://eips.ethereum.org/EIPS/eip-6780>
+pub fn selfdestruct<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop_h256!(runtime, target);
 
 	match handler.mark_delete(runtime.context.address, target.into()) {
