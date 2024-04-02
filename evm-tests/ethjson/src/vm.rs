@@ -125,6 +125,9 @@ pub struct Env {
 	#[serde(rename = "currentRandom")]
 	#[serde(default)]
 	pub random: Option<Uint>,
+	/// EIP-7516: Blob base fee
+	#[serde(default)]
+	pub blob_base_fee: Option<u128>,
 }
 
 #[cfg(test)]
@@ -199,6 +202,7 @@ mod tests {
 				timestamp: Uint(1.into()),
 				block_base_fee_per_gas: Uint(0.into()),
 				random: Some(Uint(1.into())),
+				blob_base_fee: None,
 			}
 		);
 		assert_eq!(

@@ -29,12 +29,18 @@ pub struct MemoryVicinity {
 	/// Environmental block gas limit.
 	pub block_gas_limit: U256,
 	/// Environmental base fee per gas.
+	///
 	pub block_base_fee_per_gas: U256,
 	/// Environmental randomness.
 	///
 	/// In Ethereum, this is the randomness beacon provided by the beacon
 	/// chain and is only enabled post Merge.
 	pub block_randomness: Option<H256>,
+	/// Environmental blob base fee per gas.
+	/// CANCUN hard fork
+	/// [EIP-4844]: Shard Blob Transactions
+	/// [EIP-7516]: BLOBBASEFEE instruction
+	pub blob_base_fee: Option<u128>,
 }
 
 /// Account information of a memory backend.
@@ -158,6 +164,9 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
 		Some(self.storage(address, index))
+	}
+	fn blob_base_fee(&self) -> Option<u128> {
+		self.vicinity.blob_base_fee
 	}
 }
 

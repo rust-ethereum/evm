@@ -97,6 +97,7 @@ impl Test {
 			chain_id: U256::one(),
 			block_base_fee_per_gas,
 			block_randomness,
+			blob_base_fee: self.0.env.blob_base_fee,
 		})
 	}
 }

@@ -1463,6 +1463,19 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError> {
 		self.state.record_external_operation(op)
 	}
+
+	/// Returns `None` if `Cancun` hard fork is not enabled
+	/// via `has_blob_base_fee` config.
+	///
+	/// [EIP-4844]: Shard Blob Transactions
+	/// [EIP-7516]: BLOBBASEFEE instruction
+	fn blob_base_fee(&self) -> Option<u128> {
+		if self.config.has_blob_base_fee {
+			self.state.blob_base_fee()
+		} else {
+			None
+		}
+	}
 }
 
 struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {

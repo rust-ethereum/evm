@@ -14,7 +14,7 @@ pub struct Transfer {
 }
 
 /// EVM context handler.
-#[auto_impl::auto_impl(&mut, Box)]
+#[auto_impl::auto_impl(& mut, Box)]
 pub trait Handler {
 	/// Type of `CREATE` interrupt.
 	type CreateInterrupt;
@@ -117,4 +117,10 @@ pub trait Handler {
 
 	/// Records some associated `ExternalOperation`.
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError>;
+
+	/// Returns `None` if `Cancun` is not enabled.
+	/// CANCUN hard fork.
+	/// [EIP-4844]: Shard Blob Transactions
+	/// [EIP-7516]: BLOBBASEFEE instruction
+	fn blob_base_fee(&self) -> Option<u128>;
 }
