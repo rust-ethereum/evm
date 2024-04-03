@@ -3,18 +3,15 @@ use crate::prelude::*;
 use crate::{
 	CallScheme, Capture, Context, CreateScheme, ExitError, ExitSucceed, Handler, Runtime, Transfer,
 };
+use core::cmp::max;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	pop_u256!(runtime, from);
+	pop_usize!(runtime, from);
 	pop_usize!(runtime, len);
 
-	let from = if len == 0 {
-		usize::MAX
-	} else {
-		from.as_usize()
-	};
+	let from = if len == 0 { usize::MAX } else { from };
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
 	let data = if len == 0 {
@@ -119,15 +116,13 @@ pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 
 pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop_h256!(runtime, address);
-	pop_u256!(runtime, memory_offset);
+	pop_usize!(runtime, memory_offset);
 	pop_u256!(runtime, code_offset);
 	pop_usize!(runtime, len);
 
 	if len == 0 {
 		return Control::Continue;
 	}
-
-	let memory_offset = memory_offset.as_usize();
 
 	try_or_fail!(runtime
 		.machine
@@ -276,9 +271,24 @@ pub fn tstore<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H
 	todo!()
 }
 
-pub fn mcopy<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
-	// CANCUN
-	todo!()
+/// EIP-5656: MCOPY - Memory copying instruction
+pub fn mcopy<H: Handler>(runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
+	pop_usize!(runtime, dst, src, len);
+	if len == 0 {
+		return Control::Continue;
+	}
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(max(src, dst), len));
+
+	// copy memory
+	match runtime.machine.memory_mut().copy(src, dst, len) {
+		Ok(()) => (),
+		Err(e) => return Control::Exit(e.into()),
+	};
+
+	Control::Continue
 }
 
 pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
@@ -346,14 +356,10 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	runtime.return_data_buffer = Vec::new();
 
 	pop_u256!(runtime, value);
-	pop_u256!(runtime, code_offset);
+	pop_usize!(runtime, code_offset);
 	pop_usize!(runtime, len);
 
-	let code_offset = if len == 0 {
-		usize::MAX
-	} else {
-		code_offset.as_usize()
-	};
+	let code_offset = if len == 0 { usize::MAX } else { code_offset };
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(code_offset, len));
 	let code = if len == 0 {
@@ -406,21 +412,13 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		CallScheme::DelegateCall | CallScheme::StaticCall => U256::zero(),
 	};
 
-	pop_u256!(runtime, in_offset);
+	pop_usize!(runtime, in_offset);
 	pop_usize!(runtime, in_len);
-	pop_u256!(runtime, out_offset);
+	pop_usize!(runtime, out_offset);
 	pop_usize!(runtime, out_len);
 
-	let in_offset = if in_len == 0 {
-		usize::MAX
-	} else {
-		in_offset.as_usize()
-	};
-	let out_offset = if out_len == 0 {
-		usize::MAX
-	} else {
-		out_offset.as_usize()
-	};
+	let in_offset = if in_len == 0 { usize::MAX } else { in_offset };
+	let out_offset = if out_len == 0 { usize::MAX } else { out_offset };
 
 	try_or_fail!(runtime
 		.machine

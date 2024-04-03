@@ -152,6 +152,31 @@ impl Memory {
 		Ok(())
 	}
 
+	/// Copy memory region form `src` to `dst` with length.
+	/// `copy_within` used `memmove` to avoid DoS attacks.
+	pub fn copy(
+		&mut self,
+		src_offset: usize,
+		dst_offset: usize,
+		length: usize,
+	) -> Result<(), ExitFatal> {
+		if src_offset
+			.checked_add(length)
+			.map_or(true, |pos| pos > self.data.len())
+		{
+			return Err(ExitFatal::NotSupported);
+		}
+		if dst_offset
+			.checked_add(length)
+			.map_or(true, |pos| pos > self.data.len())
+		{
+			return Err(ExitFatal::NotSupported);
+		}
+		self.data
+			.copy_within(src_offset..src_offset + length, dst_offset);
+		Ok(())
+	}
+
 	/// Copy `data` into the memory, of given `len`.
 	pub fn copy_large(
 		&mut self,
