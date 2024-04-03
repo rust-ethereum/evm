@@ -160,18 +160,18 @@ impl Memory {
 		dst_offset: usize,
 		length: usize,
 	) -> Result<(), ExitFatal> {
-		if src_offset
-			.checked_add(length)
-			.map_or(true, |pos| pos > self.data.len())
-		{
+		// Get maximum offset
+		let offset = core::cmp::max(src_offset, dst_offset);
+		let offset_length = offset.checked_add(length).ok_or(ExitFatal::NotSupported)?;
+		if offset_length > self.limit {
 			return Err(ExitFatal::NotSupported);
 		}
-		if dst_offset
-			.checked_add(length)
-			.map_or(true, |pos| pos > self.data.len())
-		{
-			return Err(ExitFatal::NotSupported);
+
+		// Resize data memory
+		if self.data.len() < offset_length {
+			self.data.resize(offset_length, 0);
 		}
+
 		self.data
 			.copy_within(src_offset..src_offset + length, dst_offset);
 		Ok(())
