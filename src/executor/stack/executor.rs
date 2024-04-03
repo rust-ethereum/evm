@@ -1471,7 +1471,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	/// [EIP-7516]: BLOBBASEFEE instruction
 	fn blob_base_fee(&self) -> Option<u128> {
 		if self.config.has_blob_base_fee {
-			self.state.blob_base_fee()
+			self.state.blob_gasprice()
 		} else {
 			None
 		}

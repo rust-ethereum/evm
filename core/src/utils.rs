@@ -2,8 +2,78 @@ use core::cmp::Ordering;
 use core::ops::{Div, Rem};
 use primitive_types::U256;
 
+/// EIP-4844 constants
+/// Gas consumption of a single data blob (== blob byte size).
+pub const GAS_PER_BLOB: u64 = 1 << 17;
+/// Target number of the blob per block.
+pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
+/// Max number of blobs per block
+pub const MAX_BLOB_NUMBER_PER_BLOCK: u64 = 2 * TARGET_BLOB_NUMBER_PER_BLOCK;
+/// Maximum consumable blob gas for data blobs per block.
+pub const MAX_BLOB_GAS_PER_BLOCK: u64 = MAX_BLOB_NUMBER_PER_BLOCK * GAS_PER_BLOB;
+/// Target consumable blob gas for data blobs per block (for 1559-like pricing).
+pub const TARGET_BLOB_GAS_PER_BLOCK: u64 = TARGET_BLOB_NUMBER_PER_BLOCK * GAS_PER_BLOB;
+/// Minimum gas price for data blobs.
+pub const MIN_BLOB_GASPRICE: u64 = 1;
+/// Controls the maximum rate of change for blob gas price.
+pub const BLOB_GASPRICE_UPDATE_FRACTION: u64 = 3338477;
+/// First version of the blob.
+pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
+
+/// Calculates the `excess_blob_gas` from the parent header's `blob_gas_used` and `excess_blob_gas`.
+///
+/// See also [the EIP-4844 helpers]<https://eips.ethereum.org/EIPS/eip-4844#helpers>
+/// (`calc_excess_blob_gas`).
+#[inline]
+pub const fn calc_excess_blob_gas(parent_excess_blob_gas: u64, parent_blob_gas_used: u64) -> u64 {
+	(parent_excess_blob_gas + parent_blob_gas_used).saturating_sub(TARGET_BLOB_GAS_PER_BLOCK)
+}
+
+/// Approximates `factor * e ** (numerator / denominator)` using Taylor expansion.
+///
+/// This is used to calculate the blob price.
+///
+/// See also [the EIP-4844 helpers](https://eips.ethereum.org/EIPS/eip-4844#helpers)
+/// (`fake_exponential`).
+///
+/// # Panics
+///
+/// This function panics if `denominator` is zero.
+#[inline]
+pub fn fake_exponential(factor: u64, numerator: u64, denominator: u64) -> u128 {
+	assert_ne!(denominator, 0, "attempt to divide by zero");
+	let factor = factor as u128;
+	let numerator = numerator as u128;
+	let denominator = denominator as u128;
+
+	let mut i = 1;
+	let mut output = 0;
+	let mut numerator_accum = factor * denominator;
+	while numerator_accum > 0 {
+		output += numerator_accum;
+
+		// Denominator is asserted as not zero at the start of the function.
+		numerator_accum = (numerator_accum * numerator) / (denominator * i);
+		i += 1;
+	}
+	output / denominator
+}
+
+/// Calculates the blob gas price from the header's excess blob gas field.
+///
+/// See also [the EIP-4844 helpers](https://eips.ethereum.org/EIPS/eip-4844#helpers)
+/// (`get_blob_gasprice`).
+#[inline]
+pub fn calc_blob_gasprice(excess_blob_gas: u64) -> u128 {
+	fake_exponential(
+		MIN_BLOB_GASPRICE,
+		excess_blob_gas,
+		BLOB_GASPRICE_UPDATE_FRACTION,
+	)
+}
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub enum Sign {
+pub(crate) enum Sign {
 	Plus,
 	Minus,
 	Zero,
@@ -17,7 +87,7 @@ const SIGN_BIT_MASK: U256 = U256([
 ]);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub struct I256(pub Sign, pub U256);
+pub(crate) struct I256(pub Sign, pub U256);
 
 impl I256 {
 	/// Zero value of I256.

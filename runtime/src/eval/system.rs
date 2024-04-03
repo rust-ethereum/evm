@@ -86,8 +86,6 @@ pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 }
 
 pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
-	// let mut ret = H256::default();
-	// handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
 	push_u256!(runtime, handler.block_base_fee_per_gas());
 	Control::Continue
 }
@@ -95,9 +93,8 @@ pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 /// CANCUN hard fork
 /// EIP-7516: BLOBBASEFEE opcode
 pub fn blob_base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
-	let x = handler.blob_base_fee().unwrap_or_default();
-	let ret = U256::from(x);
-	push_u256!(runtime, ret);
+	let blob_base_fee = U256::from(handler.blob_base_fee().unwrap_or_default());
+	push_u256!(runtime, blob_base_fee);
 	Control::Continue
 }
 

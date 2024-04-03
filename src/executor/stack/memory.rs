@@ -485,8 +485,8 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 
 		self.backend.original_storage(address, key)
 	}
-	fn blob_base_fee(&self) -> Option<u128> {
-		self.backend.blob_base_fee()
+	fn blob_gasprice(&self) -> Option<u128> {
+		self.backend.blob_gasprice()
 	}
 }
 

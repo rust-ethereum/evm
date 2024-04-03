@@ -84,9 +84,12 @@ pub trait Backend {
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
+	/// CANCUN hard fork
 	/// [EIP-4844]: Shard Blob Transactions
 	/// [EIP-7516]: BLOBBASEFEE instruction
-	fn blob_base_fee(&self) -> Option<u128>;
+	/// NOTE: `blob_gasprice` should precalculated via [evm_core::utils::calc_blob_gasprice]
+	/// with `excess_blob_gas` parameter in [Backend] as described in EIP-4844.
+	fn blob_gasprice(&self) -> Option<u128>;
 }
 
 /// EVM backend that can apply changes.

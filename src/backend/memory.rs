@@ -165,7 +165,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
 		Some(self.storage(address, index))
 	}
-	fn blob_base_fee(&self) -> Option<u128> {
+	fn blob_gasprice(&self) -> Option<u128> {
 		self.vicinity.blob_base_fee
 	}
 }
