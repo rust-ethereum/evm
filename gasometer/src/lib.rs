@@ -11,6 +11,7 @@ extern crate alloc;
 pub mod prelude {
 	pub use alloc::vec::Vec;
 }
+
 #[cfg(feature = "std")]
 pub mod prelude {
 	pub use std::vec::Vec;
@@ -566,7 +567,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::TLOAD if config.has_transient_storage => GasCost::WarmStorageRead,
 		Opcode::TLOAD => GasCost::Invalid(opcode),
 
-		Opcode::TSTORE if config.has_transient_storage => GasCost::WarmStorageRead,
+		Opcode::TSTORE if !is_static && config.has_transient_storage => GasCost::WarmStorageRead,
 		Opcode::TSTORE => GasCost::Invalid(opcode),
 
 		Opcode::MCOPY if config.has_mcopy => GasCost::VeryLowCopy {

@@ -295,14 +295,41 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 	}
 }
 
-pub fn tload<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
-	// CANCUN
-	todo!()
+/// EIP-1153: Transient storage opcodes
+/// Load value from transient storage
+pub fn tload<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+	// Peek index from the top of the stack
+	let index = match runtime.machine.stack().peek(0) {
+		Ok(value) => {
+			let mut h = H256::default();
+			value.to_big_endian(&mut h[..]);
+			h
+		}
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Load value from transient storage
+	let value = match handler.tload(runtime.context.address, index) {
+		Ok(value) => value,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Set top stack index with `transient` value result
+	match runtime.machine.stack_mut().set(0, value) {
+		Ok(()) => (),
+		Err(e) => return Control::Exit(e.into()),
+	}
+
+	Control::Continue
 }
 
-pub fn tstore<H: Handler>(_runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
-	// CANCUN
-	todo!()
+/// EIP-1153: Transient storage
+/// Store value to transient storage
+pub fn tstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+	pop_h256!(runtime, index);
+	pop_u256!(runtime, value);
+	match handler.tstore(runtime.context.address, index, value) {
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
 }
 
 /// CANCUN hard fork

@@ -19,6 +19,7 @@ pub struct MemoryStackSubstate<'config> {
 	logs: Vec<Log>,
 	accounts: BTreeMap<H160, MemoryStackAccount>,
 	storages: BTreeMap<(H160, H256), H256>,
+	tstorages: BTreeMap<(H160, H256), U256>,
 	deletes: BTreeSet<H160>,
 	creates: BTreeSet<H160>,
 }
@@ -31,6 +32,7 @@ impl<'config> MemoryStackSubstate<'config> {
 			logs: Vec::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
+			tstorages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
 			creates: BTreeSet::new(),
 		}
@@ -117,6 +119,7 @@ impl<'config> MemoryStackSubstate<'config> {
 			logs: Vec::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
+			tstorages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
 			creates: BTreeSet::new(),
 		};
@@ -412,6 +415,17 @@ impl<'config> MemoryStackSubstate<'config> {
 	pub fn touch<B: Backend>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend);
 	}
+
+	pub fn get_tstorage(&mut self, address: H160, key: H256) -> Result<U256, ExitError> {
+		self.tstorages
+			.get(&(address, key))
+			.cloned()
+			.ok_or(ExitError::InvalidRange)
+	}
+
+	pub fn set_tstorage(&mut self, address: H160, key: H256, value: U256) {
+		self.tstorages.insert((address, key), value);
+	}
 }
 
 #[derive(Clone, Debug)]
@@ -582,6 +596,15 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 
 	fn touch(&mut self, address: H160) {
 		self.substate.touch(address, self.backend)
+	}
+
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError> {
+		self.substate.get_tstorage(address, index)
+	}
+
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError> {
+		self.substate.set_tstorage(address, index, value);
+		Ok(())
 	}
 }
 

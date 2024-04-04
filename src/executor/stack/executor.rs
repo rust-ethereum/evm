@@ -184,7 +184,7 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
-#[auto_impl::auto_impl(&mut, Box)]
+#[auto_impl::auto_impl(& mut, Box)]
 pub trait StackState<'config>: Backend {
 	fn metadata(&self) -> &StackSubstateMetadata<'config>;
 	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
@@ -253,6 +253,13 @@ pub trait StackState<'config>: Backend {
 	}
 
 	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
+
+	/// Set tstorage value of address at index.
+	/// EIP-1153: Transient storage
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError>;
+	/// Get tstorage value of address at index.
+	/// EIP-1153: Transient storage
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError>;
 }
 
 /// Stack-based executor.
@@ -1203,6 +1210,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Interprete
 }
 
 pub struct StackExecutorCallInterrupt<'borrow>(TaggedRuntime<'borrow>);
+
 pub struct StackExecutorCreateInterrupt<'borrow>(TaggedRuntime<'borrow>);
 
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
@@ -1482,6 +1490,22 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			self.state.get_blob_hash(index)
 		} else {
 			Err(ExitError::InvalidCode(Opcode::BLOBHASH))
+		}
+	}
+
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError> {
+		if self.config.has_transient_storage {
+			self.state.tstore(address, index, value)
+		} else {
+			Err(ExitError::InvalidCode(Opcode::TSTORE))
+		}
+	}
+
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError> {
+		if self.config.has_transient_storage {
+			self.state.tload(address, index)
+		} else {
+			Err(ExitError::InvalidCode(Opcode::TLOAD))
 		}
 	}
 }

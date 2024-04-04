@@ -126,4 +126,10 @@ pub trait Handler {
 	/// Get `blob_hash` from `blob_versioned_hashes` by index
 	/// [EIP-4844]: BLOBHASH - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
 	fn get_blob_hash(&self, index: usize) -> Result<U256, ExitError>;
+	/// Set tstorage value of address at index.
+	/// [EIP-1153]: Transient storage
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError>;
+	/// Get tstorage value of address at index.
+	/// [EIP-1153]: Transient storage
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError>;
 }
