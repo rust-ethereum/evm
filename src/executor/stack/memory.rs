@@ -488,6 +488,9 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	fn blob_gasprice(&self) -> Option<u128> {
 		self.backend.blob_gasprice()
 	}
+	fn get_blob_hash(&self, index: usize) -> Result<U256, ExitError> {
+		self.backend.get_blob_hash(index)
+	}
 }
 
 impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'backend, 'config, B> {

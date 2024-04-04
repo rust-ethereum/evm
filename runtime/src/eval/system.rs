@@ -100,9 +100,35 @@ pub fn blob_base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<
 	Control::Continue
 }
 
-pub fn blob_hash<H: Handler>(_runtime: &mut Runtime, _handler: &H) -> Control<H> {
-	// CANCUN
-	todo!()
+/// CANCUN hard fork
+/// EIP-4844: Shard Blob Transactions
+/// Logic related to operating with BLOBHASH opcode described:
+/// - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
+pub fn blob_hash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	// Peek index from the top of the stack
+	let raw_index = match runtime.machine.stack().peek(0) {
+		Ok(value) => value,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Safely cast to usize
+	let index = if raw_index > usize::MAX.into() {
+		usize::MAX
+	} else {
+		raw_index.as_usize()
+	};
+	// Get blob_hash from `tx.blob_versioned_hashes[index]`
+	// as described:
+	// - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
+	let blob_hash = match handler.get_blob_hash(index) {
+		Ok(value) => value,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Set top stack index with `blob_hash` value
+	match runtime.machine.stack_mut().set(0, blob_hash) {
+		Ok(()) => (),
+		Err(e) => return Control::Exit(e.into()),
+	}
+	Control::Continue
 }
 
 pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {

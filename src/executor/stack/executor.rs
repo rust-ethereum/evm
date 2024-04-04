@@ -1476,6 +1476,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			None
 		}
 	}
+
+	fn get_blob_hash(&self, index: usize) -> Result<U256, ExitError> {
+		if self.config.has_shard_blob_transactions {
+			self.state.get_blob_hash(index)
+		} else {
+			Err(ExitError::InvalidCode(Opcode::BLOBHASH))
+		}
+	}
 }
 
 struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {

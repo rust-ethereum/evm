@@ -1,5 +1,6 @@
 use super::{Apply, ApplyBackend, Backend, Basic, Log};
 use crate::prelude::*;
+use evm_core::ExitError;
 use primitive_types::{H160, H256, U256};
 
 /// Vicinity value of a memory backend.
@@ -167,6 +168,9 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	}
 	fn blob_gasprice(&self) -> Option<u128> {
 		self.vicinity.blob_base_fee
+	}
+	fn get_blob_hash(&self, _index: usize) -> Result<U256, ExitError> {
+		unreachable!()
 	}
 }
 
