@@ -160,6 +160,11 @@ impl Memory {
 		dst_offset: usize,
 		length: usize,
 	) -> Result<(), ExitFatal> {
+		// If length is zero - do nothing
+		if length == 0 {
+			return Ok(());
+		}
+
 		// Get maximum offset
 		let offset = core::cmp::max(src_offset, dst_offset);
 		let offset_length = offset.checked_add(length).ok_or(ExitFatal::NotSupported)?;

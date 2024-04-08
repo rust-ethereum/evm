@@ -73,7 +73,7 @@ pub fn calc_blob_gasprice(excess_blob_gas: u64) -> u128 {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub(crate) enum Sign {
+pub enum Sign {
 	Plus,
 	Minus,
 	Zero,
@@ -87,7 +87,7 @@ const SIGN_BIT_MASK: U256 = U256([
 ]);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
-pub(crate) struct I256(pub Sign, pub U256);
+pub struct I256(pub Sign, pub U256);
 
 impl I256 {
 	/// Zero value of I256.
