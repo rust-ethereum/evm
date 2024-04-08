@@ -47,10 +47,12 @@ const SKIPPED_CASES: &[&str] = &[
 	// run, whereas this test runner parses everything up-front before
 	// running the test.
 	"stTransactionTest/ValueOverflow",
+	"stTransactionTest/ValueOverflowParis",
 	// The below test cases are failing in geth too and as such are
 	// skipped here until they are fixed there (otherwise we don't know
 	// what the expected value should be for each test output).
 	"stTransactionTest/HighGasPrice",
+	"stTransactionTest/HighGasPriceParis",
 	"stCreateTest/CreateTransactionHighNonce",
 ];
 

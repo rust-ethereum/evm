@@ -46,9 +46,11 @@ pub enum ForkSpec {
 	London,
 	/// Paris - The Merge (#15,537,394, 2022-09-15)
 	Merge,
+	/// Paris - The Merge (#15,537,394, 2022-09-15)
+	Paris,
 	/// Shanghai (#17,034,870, 2023-04-12)
 	Shanghai,
-	/// Cancun
+	/// Cancun (2024-03-13)
 	Cancun,
 
 	/// Byzantium transition test-net

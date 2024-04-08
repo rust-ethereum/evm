@@ -235,7 +235,7 @@ fn test_run(name: &str, test: Test) {
 			ethjson::spec::ForkSpec::London => (Config::london(), true),
 			ethjson::spec::ForkSpec::Merge => (Config::merge(), true),
 			ethjson::spec::ForkSpec::Shanghai => (Config::shanghai(), true),
-			ethjson::spec::ForkSpec::Cancun => (Config::shanghai(), true),
+			// ethjson::spec::ForkSpec::Cancun => (Config::cancun(), true),
 			spec => {
 				println!("Skip spec {spec:?}");
 				continue;
@@ -252,7 +252,9 @@ fn test_run(name: &str, test: Test) {
 		}
 		let vicinity = vicinity.unwrap();
 		let caller = test.unwrap_caller();
-		let caller_balance = original_state.get(&caller).unwrap().balance;
+		let caller_balance = original_state
+			.get(&caller)
+			.map_or_else(U256::zero, |acc| acc.balance);
 
 		for (i, state) in states.iter().enumerate() {
 			print!("Running {}:{:?}:{} ... ", name, spec, i);
