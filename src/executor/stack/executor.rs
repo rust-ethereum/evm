@@ -866,7 +866,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 		// It needed for CANCUN hard fork EIP-6780 we should mark account as created
 		// to handle SELFDESTRUCT in the same transaction
-		self.created(address);
+		self.set_created(address);
 
 		if self.config.create_increase_nonce {
 			if let Err(e) = self.state.inc_nonce(address) {
@@ -1124,6 +1124,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 	}
+
+	/// Sed address created.
+	fn set_created(&mut self, address: H160) {
+		self.state.set_created(address)
+	}
+
+	/// Check whether an address has already been created.
+	fn created(&self, address: H160) -> bool {
+		self.state.created(address)
+	}
 }
 
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> InterpreterHandler
@@ -1326,9 +1336,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 	fn deleted(&self, address: H160) -> bool {
 		self.state.deleted(address)
-	}
-	fn created(&self, address: H160) -> bool {
-		self.state.created(address)
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {

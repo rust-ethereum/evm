@@ -67,8 +67,6 @@ pub trait Handler {
 	fn exists(&self, address: H160) -> bool;
 	/// Check whether an address has already been deleted.
 	fn deleted(&self, address: H160) -> bool;
-	/// Check whether an address has already been created.
-	fn created(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed
 	/// (or set in `accessed_addresses` / `accessed_storage_keys` via an access list
 	/// transaction).

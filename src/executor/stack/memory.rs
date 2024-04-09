@@ -416,11 +416,18 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(address, backend);
 	}
 
-	pub fn get_tstorage(&mut self, address: H160, key: H256) -> Result<U256, ExitError> {
-		self.tstorages
-			.get(&(address, key))
-			.cloned()
-			.ok_or(ExitError::InvalidRange)
+	pub fn get_tstorage(&mut self, address: H160, key: H256) -> U256 {
+		self.known_tstorage(address, key).unwrap_or_default()
+	}
+
+	pub fn known_tstorage(&self, address: H160, key: H256) -> Option<U256> {
+		if let Some(value) = self.tstorages.get(&(address, key)) {
+			return Some(*value);
+		}
+		if let Some(parent) = self.parent.as_ref() {
+			return parent.known_tstorage(address, key);
+		}
+		None
 	}
 
 	pub fn set_tstorage(&mut self, address: H160, key: H256, value: U256) {
@@ -599,7 +606,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 	}
 
 	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError> {
-		self.substate.get_tstorage(address, index)
+		Ok(self.substate.get_tstorage(address, index))
 	}
 
 	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError> {

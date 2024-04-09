@@ -124,9 +124,8 @@ pub fn blob_hash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 		Err(e) => return Control::Exit(e.into()),
 	};
 	// Set top stack index with `blob_hash` value
-	match runtime.machine.stack_mut().set(0, blob_hash) {
-		Ok(()) => (),
-		Err(e) => return Control::Exit(e.into()),
+	if let Err(e) = runtime.machine.stack_mut().set(0, blob_hash) {
+		return Control::Exit(e.into());
 	}
 	Control::Continue
 }
