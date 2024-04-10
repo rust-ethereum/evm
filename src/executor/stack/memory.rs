@@ -153,6 +153,7 @@ impl<'config> MemoryStackSubstate<'config> {
 
 		self.accounts.append(&mut exited.accounts);
 		self.storages.append(&mut exited.storages);
+		self.tstorages.append(&mut exited.tstorages);
 		self.deletes.append(&mut exited.deletes);
 
 		Ok(())
