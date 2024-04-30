@@ -381,6 +381,15 @@ pub fn eval_jumpdest<S, H, Tr>(
 	Control::Continue
 }
 
+pub fn eval_mcopy<S, H, Tr>(
+	machine: &mut Machine<S>,
+	_handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::misc::mcopy(machine)
+}
+
 pub fn eval_push0<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,

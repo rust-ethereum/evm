@@ -453,7 +453,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		}),
 
-		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
+		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY | Opcode::MCOPY => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		}),

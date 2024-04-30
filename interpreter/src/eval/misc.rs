@@ -1,7 +1,7 @@
 use super::Control;
 use crate::utils::u256_to_h256;
 use crate::{ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
-use core::cmp::min;
+use core::cmp::{max,min};
 use primitive_types::{H256, U256};
 
 #[inline]
@@ -91,6 +91,19 @@ pub fn mload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let index = as_usize_or_fail!(index);
 	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
 	push!(state, value);
+	Control::Continue
+}
+
+/// Support for EIP-5656: MCOPY instruction.
+#[inline]
+pub fn mcopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
+	pop_u256!(state, dst, src, len);
+	try_or_fail!(state.memory.resize_offset(max(dst,src), len));
+
+	let dst = as_usize_or_fail!(dst);
+	let src = as_usize_or_fail!(src);
+	let len = as_usize_or_fail!(len);
+	state.memory.copy(dst, src, len);
 	Control::Continue
 }
 

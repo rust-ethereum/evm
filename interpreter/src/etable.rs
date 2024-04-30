@@ -174,6 +174,7 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 		table[Opcode::PC.as_usize()] = eval_pc as _;
 		table[Opcode::MSIZE.as_usize()] = eval_msize as _;
 		table[Opcode::JUMPDEST.as_usize()] = eval_jumpdest as _;
+		table[Opcode::MCOPY.as_usize()] = eval_mcopy as _;
 
 		table[Opcode::PUSH0.as_usize()] = eval_push0 as _;
 		table[Opcode::PUSH1.as_usize()] = eval_push1 as _;
