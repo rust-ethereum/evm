@@ -108,6 +108,9 @@ impl RuntimeBaseBackend for UnimplementedHandler {
 	fn storage(&self, _address: H160, _index: H256) -> H256 {
 		unimplemented!()
 	}
+	fn transient_storage(&self, _address: H160, _index: H256) -> H256 {
+		unimplemented!()
+	}
 
 	fn exists(&self, _address: H160) -> bool {
 		unimplemented!()
