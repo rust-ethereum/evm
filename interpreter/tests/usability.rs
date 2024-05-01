@@ -137,6 +137,14 @@ impl RuntimeBackend for UnimplementedHandler {
 	fn set_storage(&mut self, _address: H160, _index: H256, _value: H256) -> Result<(), ExitError> {
 		unimplemented!()
 	}
+	fn set_transient_storage(
+		&mut self,
+		_address: H160,
+		_index: H256,
+		_value: H256,
+	) -> Result<(), ExitError> {
+		unimplemented!()
+	}
 	fn log(&mut self, _log: Log) -> Result<(), ExitError> {
 		unimplemented!()
 	}

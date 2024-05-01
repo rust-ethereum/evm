@@ -113,6 +113,8 @@ pub trait RuntimeBaseBackend {
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
+	/// Get transient storage value of address at index.
+	fn transient_storage(&self, address: H160, index: H256) -> H256;
 
 	/// Check whether an address exists.
 	fn exists(&self, address: H160) -> bool;
@@ -138,6 +140,13 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	fn mark_hot(&mut self, address: H160, index: Option<H256>);
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
+	/// Set transient storage value of address at index, transient storage gets discarded after every transaction. (see EIP-1153)
+	fn set_transient_storage(
+		&mut self,
+		address: H160,
+		index: H256,
+		value: H256,
+	) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, log: Log) -> Result<(), ExitError>;
 	/// Mark an address to be deleted.

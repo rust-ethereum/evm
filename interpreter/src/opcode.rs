@@ -225,6 +225,10 @@ impl Opcode {
 	pub const SSTORE: Opcode = Opcode(0x55);
 	/// `GAS`
 	pub const GAS: Opcode = Opcode(0x5a);
+	/// `TLOAD`
+	pub const TLOAD: Opcode = Opcode(0x5c);
+	/// `TSTORE`
+	pub const TSTORE: Opcode = Opcode(0x5d);
 	/// `LOGn`
 	pub const LOG0: Opcode = Opcode(0xa0);
 	pub const LOG1: Opcode = Opcode(0xa1);

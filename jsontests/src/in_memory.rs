@@ -21,6 +21,7 @@ pub struct InMemoryAccount {
 	pub code: Vec<u8>,
 	pub nonce: U256,
 	pub storage: BTreeMap<H256, H256>,
+	pub transient_storage: BTreeMap<H256, H256>,
 }
 
 #[derive(Clone, Debug)]
@@ -59,6 +60,16 @@ impl InMemoryBackend {
 				account.storage.remove(&key);
 			} else {
 				account.storage.insert(key, value);
+			}
+		}
+
+		for ((address, key), value) in changeset.transient_storage.clone() {
+			let account = self.state.entry(address).or_default();
+
+			if value == H256::default() {
+				account.transient_storage.remove(&key);
+			} else {
+				account.transient_storage.insert(key, value);
 			}
 		}
 
@@ -137,6 +148,17 @@ impl RuntimeBaseBackend for InMemoryBackend {
 			.cloned()
 			.unwrap_or(Default::default())
 			.storage
+			.get(&index)
+			.cloned()
+			.unwrap_or(H256::default())
+	}
+
+	fn transient_storage(&self, address: H160, index: H256) -> H256 {
+		self.state
+			.get(&address)
+			.cloned()
+			.unwrap_or(Default::default())
+			.transient_storage
 			.get(&index)
 			.cloned()
 			.unwrap_or(H256::default())

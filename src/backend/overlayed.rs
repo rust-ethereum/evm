@@ -18,6 +18,7 @@ pub struct OverlayedChangeSet {
 	pub nonces: BTreeMap<H160, U256>,
 	pub storage_resets: BTreeSet<H160>,
 	pub storages: BTreeMap<(H160, H256), H256>,
+	pub transient_storage: BTreeMap<(H160, H256), H256>,
 	pub deletes: BTreeSet<H160>,
 }
 
@@ -46,6 +47,7 @@ impl<B> OverlayedBackend<B> {
 				nonces: self.substate.nonces,
 				storage_resets: self.substate.storage_resets,
 				storages: self.substate.storages,
+				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
 			},
 		)
@@ -115,6 +117,14 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<B> {
 		}
 	}
 
+	fn transient_storage(&self, address: H160, index: H256) -> H256 {
+		if let Some(value) = self.substate.known_transient_storage(address, index) {
+			value
+		} else {
+			self.backend.transient_storage(address, index)
+		}
+	}
+
 	fn exists(&self, address: H160) -> bool {
 		if let Some(exists) = self.substate.known_exists(address) {
 			exists
@@ -151,6 +161,18 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
 		self.substate.storages.insert((address, index), value);
+		Ok(())
+	}
+
+	fn set_transient_storage(
+		&mut self,
+		address: H160,
+		index: H256,
+		value: H256,
+	) -> Result<(), ExitError> {
+		self.substate
+			.transient_storage
+			.insert((address, index), value);
 		Ok(())
 	}
 
@@ -240,6 +262,11 @@ impl<B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<B> {
 				for ((address, key), value) in child.storages {
 					self.substate.storages.insert((address, key), value);
 				}
+				for ((address, key), value) in child.transient_storage {
+					self.substate
+						.transient_storage
+						.insert((address, key), value);
+				}
 				for address in child.deletes {
 					self.substate.deletes.insert(address);
 				}
@@ -257,6 +284,7 @@ struct Substate {
 	nonces: BTreeMap<H160, U256>,
 	storage_resets: BTreeSet<H160>,
 	storages: BTreeMap<(H160, H256), H256>,
+	transient_storage: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
 }
 
@@ -270,6 +298,7 @@ impl Substate {
 			nonces: Default::default(),
 			storage_resets: Default::default(),
 			storages: Default::default(),
+			transient_storage: Default::default(),
 			deletes: Default::default(),
 		}
 	}
@@ -311,6 +340,16 @@ impl Substate {
 			Some(H256::default())
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_storage(address, key)
+		} else {
+			None
+		}
+	}
+
+	pub fn known_transient_storage(&self, address: H160, key: H256) -> Option<H256> {
+		if let Some(value) = self.transient_storage.get(&(address, key)) {
+			Some(*value)
+		} else if let Some(parent) = self.parent.as_ref() {
+			parent.known_transient_storage(address, key)
 		} else {
 			None
 		}
