@@ -100,6 +100,10 @@ pub fn mcopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, dst, src, len);
 	try_or_fail!(state.memory.resize_offset(max(dst,src), len));
 
+	if len.is_zero() {
+		return Control::Continue;
+	}
+
 	let dst = as_usize_or_fail!(dst);
 	let src = as_usize_or_fail!(src);
 	let len = as_usize_or_fail!(len);
