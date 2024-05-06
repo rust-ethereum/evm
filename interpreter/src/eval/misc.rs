@@ -1,7 +1,7 @@
 use super::Control;
 use crate::utils::u256_to_h256;
 use crate::{ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
-use core::cmp::{max,min};
+use core::cmp::{max, min};
 use primitive_types::{H256, U256};
 
 #[inline]
@@ -98,7 +98,7 @@ pub fn mload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 #[inline]
 pub fn mcopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, dst, src, len);
-	try_or_fail!(state.memory.resize_offset(max(dst,src), len));
+	try_or_fail!(state.memory.resize_offset(max(dst, src), len));
 
 	if len.is_zero() {
 		return Control::Continue;

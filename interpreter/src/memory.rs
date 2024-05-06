@@ -2,7 +2,10 @@ use crate::{ExitException, ExitFatal};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::{BitAnd, Not, Range};
-use core::{cmp::{max, min}, mem};
+use core::{
+	cmp::{max, min},
+	mem,
+};
 use primitive_types::U256;
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
@@ -220,8 +223,8 @@ impl Memory {
 	}
 
 	/// Copies part of the memory inside another part of itself.
-	pub fn copy(&mut self, dst: usize, src: usize, len: usize ){
-		let resize_offset = max(dst,src);
+	pub fn copy(&mut self, dst: usize, src: usize, len: usize) {
+		let resize_offset = max(dst, src);
 		if self.data.len() < resize_offset + len {
 			self.data.resize(resize_offset + len, 0);
 		}
@@ -238,7 +241,7 @@ fn next_multiple_of_32(x: U256) -> Option<U256> {
 
 #[cfg(test)]
 mod tests {
-	use super::{next_multiple_of_32, U256, Memory};
+	use super::{next_multiple_of_32, Memory, U256};
 
 	#[test]
 	fn test_next_multiple_of_32() {
@@ -273,44 +276,47 @@ mod tests {
 	}
 
 	#[test]
-	fn test_memory_copy_works(){
+	fn test_memory_copy_works() {
 		// Create a new instance of memory
 		let mut memory = Memory::new(100usize);
 
 		// Set the [0,0,0,1,2,3,4] array as memory data.
 		//
-		// We insert the [1,2,3,4] array on index 3, 
+		// We insert the [1,2,3,4] array on index 3,
 		// that's why we have the zero padding at the beginning.
-		memory.set(3usize, &[1u8,2u8,3u8,4u8], None).unwrap();
-		assert_eq!(memory.data(), &[0u8,0u8,0u8,1u8,2u8,3u8,4u8].to_vec());
+		memory.set(3usize, &[1u8, 2u8, 3u8, 4u8], None).unwrap();
+		assert_eq!(memory.data(), &[0u8, 0u8, 0u8, 1u8, 2u8, 3u8, 4u8].to_vec());
 
 		// Copy 1 byte into index 0.
 		// As the length is 1, we only copy the byte present on index 3.
 		memory.copy(0usize, 3usize, 1usize);
 
 		// Now the new memory data results in [1,0,0,1,2,3,4]
-		assert_eq!(memory.data(), &[1u8,0u8,0u8,1u8,2u8,3u8,4u8].to_vec());
+		assert_eq!(memory.data(), &[1u8, 0u8, 0u8, 1u8, 2u8, 3u8, 4u8].to_vec());
 	}
 
 	#[test]
-	fn test_memory_copy_resize(){
+	fn test_memory_copy_resize() {
 		// Create a new instance of memory
 		let mut memory = Memory::new(100usize);
 
 		// Set the [0,0,0,1,2,3,4] array as memory data.
 		//
-		// We insert the [1,2,3,4] array on index 3, 
+		// We insert the [1,2,3,4] array on index 3,
 		// that's why we have the zero padding at the beginning.
-		memory.set(3usize, &[1u8,2u8,3u8,4u8], None).unwrap();
-		assert_eq!(memory.data(), &[0u8,0u8,0u8,1u8,2u8,3u8,4u8].to_vec());
+		memory.set(3usize, &[1u8, 2u8, 3u8, 4u8], None).unwrap();
+		assert_eq!(memory.data(), &[0u8, 0u8, 0u8, 1u8, 2u8, 3u8, 4u8].to_vec());
 
 		// Copy 2 bytes into index 3.
-		// As the length is 2, we copy the bytes present on indexes 6 and 7, 
+		// As the length is 2, we copy the bytes present on indexes 6 and 7,
 		// which are [4,0].
 		memory.copy(3usize, 6usize, 2usize);
 
 		// Now the new memory data results in [0, 0, 0, 4, 0, 3, 4, 0].
 		// An extra element is added due to rezising.
-		assert_eq!(memory.data(), &[0u8,0u8,0u8,4u8,0u8,3u8,4u8,0u8].to_vec());
+		assert_eq!(
+			memory.data(),
+			&[0u8, 0u8, 0u8, 4u8, 0u8, 3u8, 4u8, 0u8].to_vec()
+		);
 	}
 }
