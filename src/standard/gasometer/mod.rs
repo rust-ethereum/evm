@@ -278,7 +278,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 	stack: &Stack,
 	is_static: bool,
 	config: &Config,
-	handler: &H,
+	handler: &mut H,
 ) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
 	let gas_cost = match opcode {
 		Opcode::RETURN => GasCost::Zero,
@@ -302,40 +302,59 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::EXTCODESIZE => {
 			let target = stack.peek(0)?.into();
-			GasCost::ExtCodeSize {
-				target_is_cold: handler.is_cold(target, None),
-			}
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
+			GasCost::ExtCodeSize { target_is_cold }
 		}
 		Opcode::BALANCE => {
 			let target = stack.peek(0)?.into();
-			GasCost::Balance {
-				target_is_cold: handler.is_cold(target, None),
-			}
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
+			GasCost::Balance { target_is_cold }
 		}
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.has_ext_code_hash => {
 			let target = stack.peek(0)?.into();
-			GasCost::ExtCodeHash {
-				target_is_cold: handler.is_cold(target, None),
-			}
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
+			GasCost::ExtCodeHash { target_is_cold }
 		}
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
 
 		Opcode::CALLCODE => {
 			let target = stack.peek(1)?.into();
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
 			GasCost::CallCode {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
 		}
 		Opcode::STATICCALL => {
 			let target = stack.peek(1)?.into();
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
 			GasCost::StaticCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
 		}
@@ -344,8 +363,13 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		},
 		Opcode::EXTCODECOPY => {
 			let target = stack.peek(0)?.into();
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
 			GasCost::ExtCodeCopy {
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold,
 				len: U256::from_big_endian(&stack.peek(3)?[..]),
 			}
 		}
@@ -357,16 +381,24 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		},
 		Opcode::SLOAD => {
 			let index = stack.peek(0)?;
-			GasCost::SLoad {
-				target_is_cold: handler.is_cold(address, Some(index)),
-			}
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(address, Some(index));
+			handler.mark_hot(address, Some(index));
+
+			GasCost::SLoad { target_is_cold }
 		}
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
 			GasCost::DelegateCall {
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
 		}
@@ -382,11 +414,15 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			let index = stack.peek(0)?;
 			let value = stack.peek(1)?;
 
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(address, Some(index));
+			handler.mark_hot(address, Some(index));
+
 			GasCost::SStore {
 				original: handler.original_storage(address, index),
 				current: handler.storage(address, index),
 				new: value,
-				target_is_cold: handler.is_cold(address, Some(index)),
+				target_is_cold,
 			}
 		}
 		Opcode::LOG0 if !is_static => GasCost::Log {
@@ -415,9 +451,14 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		},
 		Opcode::SUICIDE if !is_static => {
 			let target = stack.peek(0)?.into();
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
 			GasCost::Suicide {
 				value: handler.balance(address),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold,
 				target_exists: { handler.exists(target) },
 				already_removed: handler.deleted(address),
 			}
@@ -427,10 +468,15 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
 		{
 			let target = stack.peek(1)?.into();
+
+			// https://eips.ethereum.org/EIPS/eip-2929
+			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, None);
+
 			GasCost::Call {
 				value: U256::from_big_endian(&stack.peek(2)?[..]),
 				gas: U256::from_big_endian(&stack.peek(0)?[..]),
-				target_is_cold: handler.is_cold(target, None),
+				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
 		}
@@ -696,7 +742,6 @@ impl GasCost {
 				new,
 				target_is_cold,
 			} => costs::sstore_cost(original, current, new, gas, target_is_cold, config)?,
-
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
