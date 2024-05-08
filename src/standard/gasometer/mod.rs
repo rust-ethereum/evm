@@ -278,7 +278,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 	stack: &Stack,
 	is_static: bool,
 	config: &Config,
-	handler: &mut H,
+	handler: &H,
 ) -> Result<(GasCost, Option<MemoryCost>), ExitError> {
 	let gas_cost = match opcode {
 		Opcode::RETURN => GasCost::Zero,
