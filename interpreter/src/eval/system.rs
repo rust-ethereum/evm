@@ -337,16 +337,27 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 
 	match machine.stack.perform_pop1_push0(|target| {
 		let balance = handler.balance(address);
+		let target = (*target).into();
 
-		handler.transfer(Transfer {
-			source: address,
-			target: (*target).into(),
-			value: balance,
-		})?;
+		// Cancun EIP-6780 only allow contract deletion within the same transaction that created it
+		if handler.created(address) {
+			handler.transfer(Transfer {
+				source: address,
+				target,
+				value: balance,
+			})?;
 
-		handler.mark_delete(address);
-		handler.reset_balance(address);
-
+			handler.mark_delete(address);
+			handler.reset_balance(address);
+		} else {
+			if address != target {
+				handler.transfer(Transfer {
+					source: address,
+					target,
+					value: balance,
+				})?;
+			}
+		}
 		Ok(((), ()))
 	}) {
 		Ok(()) => Control::Exit(ExitSucceed::Suicided.into()),

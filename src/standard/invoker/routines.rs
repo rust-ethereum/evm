@@ -68,6 +68,7 @@ where
 	}
 
 	handler.reset_storage(state.as_ref().context.address);
+	handler.mark_create(state.as_ref().context.address);
 
 	resolver.resolve_create(init_code, state, handler)
 }

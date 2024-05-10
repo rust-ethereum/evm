@@ -137,6 +137,10 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 		self.backend.storage(address, index)
 	}
 
+	fn created(&self, address: H160) -> bool {
+		self.substate.created(address)
+	}
+
 	fn deleted(&self, address: H160) -> bool {
 		self.substate.deleted(address)
 	}
@@ -161,6 +165,10 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 
 	fn mark_delete(&mut self, address: H160) {
 		self.substate.deletes.insert(address);
+	}
+
+	fn mark_create(&mut self, address: H160) {
+		self.substate.creates.insert(address);
 	}
 
 	fn reset_storage(&mut self, address: H160) {
@@ -243,6 +251,9 @@ impl<B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<B> {
 				for address in child.deletes {
 					self.substate.deletes.insert(address);
 				}
+				for address in child.creates {
+					self.substate.creates.insert(address);
+				}
 			}
 			MergeStrategy::Revert | MergeStrategy::Discard => {}
 		}
@@ -258,6 +269,7 @@ struct Substate {
 	storage_resets: BTreeSet<H160>,
 	storages: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
+	creates: BTreeSet<H160>,
 }
 
 impl Substate {
@@ -271,6 +283,7 @@ impl Substate {
 			storage_resets: Default::default(),
 			storages: Default::default(),
 			deletes: Default::default(),
+			creates: Default::default(),
 		}
 	}
 
@@ -334,6 +347,16 @@ impl Substate {
 			true
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.deleted(address)
+		} else {
+			false
+		}
+	}
+
+	pub fn created(&self, address: H160) -> bool {
+		if self.creates.contains(&address) {
+			true
+		} else if let Some(parent) = self.parent.as_ref() {
+			parent.created(address)
 		} else {
 			false
 		}
