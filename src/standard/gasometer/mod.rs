@@ -361,7 +361,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
-		Opcode::TLOAD => GasCost::TLoad,
+		Opcode::TLOAD if config.eip_1153_enabled => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
@@ -389,7 +389,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
-		Opcode::TSTORE if !is_static => GasCost::TStore,
+		Opcode::TSTORE if !is_static && config.eip_1153_enabled => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
