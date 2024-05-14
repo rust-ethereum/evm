@@ -349,7 +349,10 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				len: U256::from_big_endian(&stack.peek(3)?[..]),
 			}
 		}
-		Opcode::CALLDATACOPY | Opcode::CODECOPY | Opcode::MCOPY => GasCost::VeryLowCopy {
+		Opcode::MCOPY if config.eip_5656_enabled => GasCost::VeryLowCopy {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
+		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
 		Opcode::EXP => GasCost::Exp {
