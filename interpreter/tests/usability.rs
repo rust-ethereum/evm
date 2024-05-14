@@ -1,3 +1,4 @@
+use evm_interpreter::fork::Fork;
 use evm_interpreter::interpreter::{EtableInterpreter, RunInterpreter};
 use evm_interpreter::{
 	trap::CallCreateTrap, Capture, Context, Control, Etable, ExitError, ExitSucceed, Log, Machine,
@@ -126,6 +127,11 @@ impl RuntimeBackend for UnimplementedHandler {
 	fn deleted(&self, _address: H160) -> bool {
 		unimplemented!()
 	}
+
+	fn created(&self, _address: H160) -> bool {
+		unimplemented!()
+	}
+
 	fn is_cold(&self, _address: H160, _index: Option<H256>) -> bool {
 		unimplemented!()
 	}
@@ -141,6 +147,10 @@ impl RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 	fn mark_delete(&mut self, _address: H160) {
+		unimplemented!()
+	}
+
+	fn mark_create(&mut self, _address: H160) {
 		unimplemented!()
 	}
 
@@ -194,6 +204,7 @@ fn etable_runtime() {
 			}
 			.into(),
 			retbuf: Vec::new(),
+			fork: Fork::FRONTIER
 		},
 	);
 	let mut vm = EtableInterpreter::new(machine, &RUNTIME_ETABLE);
