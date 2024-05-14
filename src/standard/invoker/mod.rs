@@ -259,6 +259,7 @@ where
 			context,
 			transaction_context: Rc::new(transaction_context),
 			retbuf: Vec::new(),
+			fork: self.config.fork,
 		};
 
 		let work = || -> Result<(TransactInvoke, _), ExitError> {
@@ -468,6 +469,7 @@ where
 						context: call_trap_data.context.clone(),
 						transaction_context,
 						retbuf: Vec::new(),
+						fork: self.config.fork,
 					},
 					gas_limit,
 					is_static,
@@ -502,6 +504,7 @@ where
 						},
 						transaction_context,
 						retbuf: Vec::new(),
+						fork: self.config.fork,
 					},
 					gas_limit,
 					is_static,

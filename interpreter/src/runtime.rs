@@ -1,4 +1,4 @@
-use crate::ExitError;
+use crate::{fork::Fork, ExitError};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use primitive_types::{H160, H256, U256};
@@ -17,6 +17,8 @@ pub struct RuntimeState {
 	pub transaction_context: Rc<TransactionContext>,
 	/// Return data buffer.
 	pub retbuf: Vec<u8>,
+	/// EVM Fork.
+	pub fork: Fork,
 }
 
 impl AsRef<Self> for RuntimeState {

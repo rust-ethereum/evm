@@ -337,6 +337,31 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 
 	match machine.stack.perform_pop1_push0(|target| {
 		let balance = handler.balance(address);
+
+		handler.transfer(Transfer {
+			source: address,
+			target: (*target).into(),
+			value: balance,
+		})?;
+
+		handler.mark_delete(address);
+		handler.reset_balance(address);
+
+		Ok(((), ()))
+	}) {
+		Ok(()) => Control::Exit(ExitSucceed::Suicided.into()),
+		Err(e) => Control::Exit(Err(e)),
+	}
+}
+
+pub fn suicide_eip_6780<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	let address = machine.state.as_ref().context.address;
+
+	match machine.stack.perform_pop1_push0(|target| {
+		let balance = handler.balance(address);
 		let target = (*target).into();
 
 		// Cancun EIP-6780 only allow contract deletion within the same transaction that created it

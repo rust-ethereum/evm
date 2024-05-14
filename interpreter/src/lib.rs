@@ -9,6 +9,7 @@ extern crate alloc;
 mod error;
 mod etable;
 pub mod eval;
+pub mod fork;
 pub mod interpreter;
 mod memory;
 mod opcode;

@@ -6,8 +6,8 @@ mod misc;
 mod system;
 
 use crate::{
-	trap::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine, Opcode,
-	RuntimeBackend, RuntimeEnvironment, RuntimeState, TrapConstruct,
+	fork::Fork, trap::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine,
+	Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState, TrapConstruct,
 };
 use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::{H256, U256};
@@ -1251,7 +1251,11 @@ pub fn eval_suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	_opcode: Opcode,
 	_position: usize,
 ) -> Control<Tr> {
-	self::system::suicide(machine, handle)
+	if machine.state.as_ref().fork >= Fork::CANCUN {
+		self::system::suicide_eip_6780(machine, handle)
+	} else {
+		self::system::suicide(machine, handle)
+	}
 }
 
 pub fn eval_chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(

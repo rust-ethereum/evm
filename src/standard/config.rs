@@ -1,3 +1,5 @@
+use evm_interpreter::fork::{Fork, Fork::*};
+
 /// Runtime configuration.
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -97,6 +99,7 @@ pub struct Config {
 	pub has_base_fee: bool,
 	/// Has PUSH0 opcode. See [EIP-3855](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3855.md)
 	pub has_push0: bool,
+	pub fork: Fork,
 }
 
 impl Config {
@@ -150,6 +153,7 @@ impl Config {
 			has_ext_code_hash: false,
 			has_base_fee: false,
 			has_push0: false,
+			fork: FRONTIER,
 		}
 	}
 
@@ -203,6 +207,7 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee: false,
 			has_push0: false,
+			fork: ISTANBUL,
 		}
 	}
 
@@ -237,6 +242,7 @@ impl Config {
 			disallow_executable_format,
 			warm_coinbase_address,
 			max_initcode_size,
+			fork,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -299,6 +305,7 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee,
 			has_push0,
+			fork,
 		}
 	}
 }
@@ -315,6 +322,7 @@ struct DerivedConfigInputs {
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
+	fork: Fork,
 }
 
 impl DerivedConfigInputs {
@@ -329,6 +337,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			fork: BERLIN,
 		}
 	}
 
@@ -343,6 +352,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			fork: LONDON,
 		}
 	}
 
@@ -357,6 +367,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			fork: MERGE,
 		}
 	}
 
@@ -372,6 +383,7 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
+			fork: SHANGHAI,
 		}
 	}
 }
