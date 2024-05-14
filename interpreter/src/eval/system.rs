@@ -374,14 +374,12 @@ pub fn suicide_eip_6780<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeB
 
 			handler.mark_delete(address);
 			handler.reset_balance(address);
-		} else {
-			if address != target {
-				handler.transfer(Transfer {
-					source: address,
-					target,
-					value: balance,
-				})?;
-			}
+		} else if address != target {
+			handler.transfer(Transfer {
+				source: address,
+				target,
+				value: balance,
+			})?;
 		}
 		Ok(((), ()))
 	}) {
