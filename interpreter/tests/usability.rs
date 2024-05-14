@@ -204,7 +204,7 @@ fn etable_runtime() {
 			}
 			.into(),
 			retbuf: Vec::new(),
-			fork: Fork::FRONTIER
+			fork: Fork::FRONTIER,
 		},
 	);
 	let mut vm = EtableInterpreter::new(machine, &RUNTIME_ETABLE);
