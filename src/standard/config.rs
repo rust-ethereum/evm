@@ -231,6 +231,10 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
 	}
 
+	pub const fn cancun() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::cancun())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -384,6 +388,21 @@ impl DerivedConfigInputs {
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
 			fork: SHANGHAI,
+		}
+	}
+	const fn cancun() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			// 2 * (MAX_CODE_SIZE = `24576`) = (0xC000 = 49152) as per EIP-3860
+			max_initcode_size: Some(0xC000),
+			fork: CANCUN,
 		}
 	}
 }
