@@ -33,10 +33,10 @@ pub type ExitResult = Result<ExitSucceed, ExitError>;
 /// Exit reason.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
-	feature = "with-codec",
+	feature = "scale",
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitError {
 	/// Machine returns a normal EVM error.
 	Exception(ExitException),
@@ -74,10 +74,10 @@ impl std::fmt::Display for ExitError {
 /// Exit succeed reason.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
-	feature = "with-codec",
+	feature = "scale",
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitSucceed {
 	/// Machine encountered an explicit stop.
 	Stopped,
@@ -96,67 +96,67 @@ impl From<ExitSucceed> for ExitResult {
 /// Exit error reason.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
-	feature = "with-codec",
+	feature = "scale",
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitException {
 	/// Trying to pop from an empty stack.
-	#[cfg_attr(feature = "with-codec", codec(index = 0))]
+	#[cfg_attr(feature = "scale", codec(index = 0))]
 	StackUnderflow,
 	/// Trying to push into a stack over stack limit.
-	#[cfg_attr(feature = "with-codec", codec(index = 1))]
+	#[cfg_attr(feature = "scale", codec(index = 1))]
 	StackOverflow,
 	/// Jump destination is invalid.
-	#[cfg_attr(feature = "with-codec", codec(index = 2))]
+	#[cfg_attr(feature = "scale", codec(index = 2))]
 	InvalidJump,
 	/// An opcode accesses memory region, but the region is invalid.
-	#[cfg_attr(feature = "with-codec", codec(index = 3))]
+	#[cfg_attr(feature = "scale", codec(index = 3))]
 	InvalidRange,
 	/// Encountered the designated invalid opcode.
-	#[cfg_attr(feature = "with-codec", codec(index = 4))]
+	#[cfg_attr(feature = "scale", codec(index = 4))]
 	DesignatedInvalid,
 	/// Call stack is too deep (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 5))]
+	#[cfg_attr(feature = "scale", codec(index = 5))]
 	CallTooDeep,
 	/// Create opcode encountered collision (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 6))]
+	#[cfg_attr(feature = "scale", codec(index = 6))]
 	CreateCollision,
 	/// Create init code exceeds limit (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 7))]
+	#[cfg_attr(feature = "scale", codec(index = 7))]
 	CreateContractLimit,
 
 	/// Invalid opcode during execution or starting byte is 0xef ([EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md)).
-	#[cfg_attr(feature = "with-codec", codec(index = 15))]
+	#[cfg_attr(feature = "scale", codec(index = 15))]
 	InvalidOpcode(Opcode),
 
 	/// An opcode accesses external information, but the request is off offset
 	/// limit (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 8))]
+	#[cfg_attr(feature = "scale", codec(index = 8))]
 	OutOfOffset,
 	/// Execution runs out of gas (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 9))]
+	#[cfg_attr(feature = "scale", codec(index = 9))]
 	OutOfGas,
 	/// Not enough fund to start the execution (runtime).
-	#[cfg_attr(feature = "with-codec", codec(index = 10))]
+	#[cfg_attr(feature = "scale", codec(index = 10))]
 	OutOfFund,
 
 	/// PC underflowed (unused).
 	#[allow(clippy::upper_case_acronyms)]
-	#[cfg_attr(feature = "with-codec", codec(index = 11))]
+	#[cfg_attr(feature = "scale", codec(index = 11))]
 	PCUnderflow,
 
 	/// Attempt to create an empty account (runtime, unused).
-	#[cfg_attr(feature = "with-codec", codec(index = 12))]
+	#[cfg_attr(feature = "scale", codec(index = 12))]
 	CreateEmpty,
 
 	/// Nonce reached maximum value of 2^64-1
 	/// https://eips.ethereum.org/EIPS/eip-2681
-	#[cfg_attr(feature = "with-codec", codec(index = 14))]
+	#[cfg_attr(feature = "scale", codec(index = 14))]
 	MaxNonce,
 
 	/// Other normal errors.
-	#[cfg_attr(feature = "with-codec", codec(index = 13))]
+	#[cfg_attr(feature = "scale", codec(index = 13))]
 	Other(Cow<'static, str>),
 }
 
@@ -175,10 +175,10 @@ impl From<ExitException> for ExitError {
 /// Exit fatal reason.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(
-	feature = "with-codec",
+	feature = "scale",
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExitFatal {
 	/// The operation is not supported.
 	NotSupported,
