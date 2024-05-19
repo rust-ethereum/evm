@@ -1,10 +1,10 @@
 /// Opcode enum. One-to-one corresponding to an `u8` value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
-	feature = "with-codec",
+	feature = "scale",
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Opcode(pub u8);
 
 // Core opcodes.

@@ -1,7 +1,8 @@
 [package]
 name = "evm-interpreter"
 version = "1.0.0-dev"
-edition = "2021"
+edition = { workspace = true }
+rust-version = { workspace = true }
 license = { workspace = true }
 authors = { workspace = true }
 repository = { workspace = true }
@@ -9,8 +10,8 @@ keywords = { workspace = true }
 description = "The interpreter part of Ethereum Virtual Machine"
 
 [dependencies]
-auto_impl = "1.1"
-paste = "1.0.15"
+auto_impl = "1.2"
+paste = "1.0"
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 rlp = { version = "0.5", default-features = false }
 scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
@@ -26,17 +27,17 @@ default = ["std"]
 std = [
 	"primitive-types/std",
 	"rlp/std",
-	"serde/std",
 	"scale-codec/std",
 	"scale-info/std",
+	"serde/std",
 	"sha3/std",
 ]
-with-codec = [
+scale = [
 	"scale-codec",
 	"scale-info",
 	"primitive-types/impl-codec",
 ]
-with-serde = [
-	"serde",
+serde = [
+	"dep:serde",
 	"primitive-types/impl-serde",
 ]
