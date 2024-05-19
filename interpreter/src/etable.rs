@@ -146,6 +146,7 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 		table[Opcode::MULMOD.as_usize()] = eval_mulmod as _;
 		table[Opcode::EXP.as_usize()] = eval_exp as _;
 		table[Opcode::SIGNEXTEND.as_usize()] = eval_signextend as _;
+
 		table[Opcode::LT.as_usize()] = eval_lt as _;
 		table[Opcode::GT.as_usize()] = eval_gt as _;
 		table[Opcode::SLT.as_usize()] = eval_slt as _;
@@ -157,22 +158,27 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 		table[Opcode::XOR.as_usize()] = eval_xor as _;
 		table[Opcode::NOT.as_usize()] = eval_not as _;
 		table[Opcode::BYTE.as_usize()] = eval_byte as _;
+
 		table[Opcode::SHL.as_usize()] = eval_shl as _;
 		table[Opcode::SHR.as_usize()] = eval_shr as _;
 		table[Opcode::SAR.as_usize()] = eval_sar as _;
-		table[Opcode::CODESIZE.as_usize()] = eval_codesize as _;
-		table[Opcode::CODECOPY.as_usize()] = eval_codecopy as _;
+
 		table[Opcode::CALLDATALOAD.as_usize()] = eval_calldataload as _;
 		table[Opcode::CALLDATASIZE.as_usize()] = eval_calldatasize as _;
 		table[Opcode::CALLDATACOPY.as_usize()] = eval_calldatacopy as _;
+		table[Opcode::CODESIZE.as_usize()] = eval_codesize as _;
+		table[Opcode::CODECOPY.as_usize()] = eval_codecopy as _;
+
 		table[Opcode::POP.as_usize()] = eval_pop as _;
 		table[Opcode::MLOAD.as_usize()] = eval_mload as _;
 		table[Opcode::MSTORE.as_usize()] = eval_mstore as _;
 		table[Opcode::MSTORE8.as_usize()] = eval_mstore8 as _;
+
 		table[Opcode::JUMP.as_usize()] = eval_jump as _;
 		table[Opcode::JUMPI.as_usize()] = eval_jumpi as _;
 		table[Opcode::PC.as_usize()] = eval_pc as _;
 		table[Opcode::MSIZE.as_usize()] = eval_msize as _;
+
 		table[Opcode::JUMPDEST.as_usize()] = eval_jumpdest as _;
 
 		table[Opcode::PUSH0.as_usize()] = eval_push0 as _;
@@ -244,7 +250,9 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 		table[Opcode::SWAP16.as_usize()] = eval_swap16 as _;
 
 		table[Opcode::RETURN.as_usize()] = eval_return as _;
+
 		table[Opcode::REVERT.as_usize()] = eval_revert as _;
+
 		table[Opcode::INVALID.as_usize()] = eval_invalid as _;
 
 		Self(table, PhantomData)
@@ -261,42 +269,51 @@ where
 		let mut table = Self::core();
 
 		table.0[Opcode::SHA3.as_usize()] = eval_sha3 as _;
+
 		table.0[Opcode::ADDRESS.as_usize()] = eval_address as _;
 		table.0[Opcode::BALANCE.as_usize()] = eval_balance as _;
-		table.0[Opcode::SELFBALANCE.as_usize()] = eval_selfbalance as _;
 		table.0[Opcode::ORIGIN.as_usize()] = eval_origin as _;
 		table.0[Opcode::CALLER.as_usize()] = eval_caller as _;
 		table.0[Opcode::CALLVALUE.as_usize()] = eval_callvalue as _;
+
 		table.0[Opcode::GASPRICE.as_usize()] = eval_gasprice as _;
 		table.0[Opcode::EXTCODESIZE.as_usize()] = eval_extcodesize as _;
-		table.0[Opcode::EXTCODEHASH.as_usize()] = eval_extcodehash as _;
 		table.0[Opcode::EXTCODECOPY.as_usize()] = eval_extcodecopy as _;
 		table.0[Opcode::RETURNDATASIZE.as_usize()] = eval_returndatasize as _;
 		table.0[Opcode::RETURNDATACOPY.as_usize()] = eval_returndatacopy as _;
+		table.0[Opcode::EXTCODEHASH.as_usize()] = eval_extcodehash as _;
+
 		table.0[Opcode::BLOCKHASH.as_usize()] = eval_blockhash as _;
 		table.0[Opcode::COINBASE.as_usize()] = eval_coinbase as _;
 		table.0[Opcode::TIMESTAMP.as_usize()] = eval_timestamp as _;
 		table.0[Opcode::NUMBER.as_usize()] = eval_number as _;
 		table.0[Opcode::DIFFICULTY.as_usize()] = eval_difficulty as _;
 		table.0[Opcode::GASLIMIT.as_usize()] = eval_gaslimit as _;
+		table.0[Opcode::CHAINID.as_usize()] = eval_chainid as _;
+		table.0[Opcode::SELFBALANCE.as_usize()] = eval_selfbalance as _;
+		table.0[Opcode::BASEFEE.as_usize()] = eval_basefee as _;
+
 		table.0[Opcode::SLOAD.as_usize()] = eval_sload as _;
 		table.0[Opcode::SSTORE.as_usize()] = eval_sstore as _;
+
 		table.0[Opcode::GAS.as_usize()] = eval_gas as _;
+
 		table.0[Opcode::LOG0.as_usize()] = eval_log0 as _;
 		table.0[Opcode::LOG1.as_usize()] = eval_log1 as _;
 		table.0[Opcode::LOG2.as_usize()] = eval_log2 as _;
 		table.0[Opcode::LOG3.as_usize()] = eval_log3 as _;
 		table.0[Opcode::LOG4.as_usize()] = eval_log4 as _;
-		table.0[Opcode::SUICIDE.as_usize()] = eval_suicide as _;
-		table.0[Opcode::CHAINID.as_usize()] = eval_chainid as _;
-		table.0[Opcode::BASEFEE.as_usize()] = eval_basefee as _;
 
 		table.0[Opcode::CREATE.as_usize()] = eval_call_create_trap as _;
-		table.0[Opcode::CREATE2.as_usize()] = eval_call_create_trap as _;
 		table.0[Opcode::CALL.as_usize()] = eval_call_create_trap as _;
 		table.0[Opcode::CALLCODE.as_usize()] = eval_call_create_trap as _;
+
 		table.0[Opcode::DELEGATECALL.as_usize()] = eval_call_create_trap as _;
+		table.0[Opcode::CREATE2.as_usize()] = eval_call_create_trap as _;
+
 		table.0[Opcode::STATICCALL.as_usize()] = eval_call_create_trap as _;
+
+		table.0[Opcode::SUICIDE.as_usize()] = eval_suicide as _;
 
 		table
 	}
