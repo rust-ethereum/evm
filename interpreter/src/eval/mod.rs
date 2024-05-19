@@ -669,50 +669,22 @@ pub fn eval_gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	self::system::gas(machine, handle)
 }
 
-pub fn eval_log0<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
-	machine: &mut Machine<S>,
-	handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Tr> {
-	self::system::log(machine, 0, handle)
+macro_rules! eval_log {
+    ($($num:expr),*) => {
+		$(paste::paste! {
+			pub fn [<eval_log $num>]<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+				machine: &mut Machine<S>,
+				handle: &mut H,
+				_opcode: Opcode,
+				_position: usize,
+			) -> Control<Tr> {
+				self::system::log(machine, $num, handle)
+			}
+		})*
+	};
 }
 
-pub fn eval_log1<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
-	machine: &mut Machine<S>,
-	handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Tr> {
-	self::system::log(machine, 1, handle)
-}
-
-pub fn eval_log2<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
-	machine: &mut Machine<S>,
-	handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Tr> {
-	self::system::log(machine, 2, handle)
-}
-
-pub fn eval_log3<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
-	machine: &mut Machine<S>,
-	handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Tr> {
-	self::system::log(machine, 3, handle)
-}
-
-pub fn eval_log4<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
-	machine: &mut Machine<S>,
-	handle: &mut H,
-	_opcode: Opcode,
-	_position: usize,
-) -> Control<Tr> {
-	self::system::log(machine, 4, handle)
-}
+eval_log! { 0, 1, 2, 3, 4 }
 
 pub fn eval_suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
