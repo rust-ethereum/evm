@@ -54,20 +54,16 @@ impl From<ExitError> for ExitResult {
 }
 
 #[cfg(feature = "std")]
-impl std::error::Error for ExitError {
-	fn description(&self) -> &str {
-		match self {
-			Self::Exception(_) => "EVM exit exception",
-			Self::Reverted => "EVM internal revert",
-			Self::Fatal(_) => "EVM fatal error",
-		}
-	}
-}
+impl std::error::Error for ExitError {}
 
 #[cfg(feature = "std")]
 impl std::fmt::Display for ExitError {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "{self:?}")
+		match self {
+			Self::Exception(_) => f.write_str("EVM exit exception"),
+			Self::Reverted => f.write_str("EVM internal revert"),
+			Self::Fatal(_) => f.write_str("EVM fatal error"),
+		}
 	}
 }
 
