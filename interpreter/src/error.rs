@@ -1,5 +1,6 @@
 use crate::Opcode;
 use alloc::borrow::Cow;
+use core::fmt;
 
 /// Capture represents the result of execution.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -56,9 +57,8 @@ impl From<ExitError> for ExitResult {
 #[cfg(feature = "std")]
 impl std::error::Error for ExitError {}
 
-#[cfg(feature = "std")]
-impl std::fmt::Display for ExitError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for ExitError {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			Self::Exception(_) => f.write_str("EVM exit exception"),
 			Self::Reverted => f.write_str("EVM internal revert"),
