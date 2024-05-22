@@ -61,6 +61,8 @@ pub struct MemoryAccount {
 pub struct MemoryBackend<'vicinity> {
 	vicinity: &'vicinity MemoryVicinity,
 	state: BTreeMap<H160, MemoryAccount>,
+	/// Account transient storage (discarded after every transaction. (see EIP-1153))
+	transient_storage: BTreeMap<(H160, H256), H256>,
 	logs: Vec<Log>,
 }
 
@@ -70,6 +72,7 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 		Self {
 			vicinity,
 			state,
+			transient_storage: Default::default(),
 			logs: Vec::new(),
 		}
 	}
@@ -154,6 +157,13 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 		self.state
 			.get(&address)
 			.map(|v| v.storage.get(&index).cloned().unwrap_or_default())
+			.unwrap_or_default()
+	}
+
+	fn transient_storage(&self, address: H160, index: H256) -> H256 {
+		self.transient_storage
+			.get(&(address, index))
+			.copied()
 			.unwrap_or_default()
 	}
 

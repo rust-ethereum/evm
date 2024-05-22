@@ -201,14 +201,17 @@ pub trait StackState<'config>: Backend {
 
 	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
+	fn created(&self, address: H160) -> bool;
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
+	fn set_transient_storage(&mut self, address: H160, key: H256, value: H256);
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
+	fn set_created(&mut self, address: H160);
 	fn set_code(&mut self, address: H160, code: Vec<u8>);
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
@@ -738,6 +741,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return Capture::Exit((e.into(), None, Vec::new()));
 		}
 
+		self.state.set_created(address);
+
 		let after_gas = if take_l64 && self.config.call_l64_after_gas {
 			if self.config.estimate {
 				let initial_after_gas = self.state.metadata().gasometer.gas();
@@ -1114,6 +1119,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		self.state.storage(address, index)
 	}
 
+	fn transient_storage(&self, address: H160, index: H256) -> H256 {
+		self.state.transient_storage(address, index)
+	}
+
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
 		self.state
 			.original_storage(address, index)
@@ -1201,6 +1210,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		Ok(())
 	}
 
+	fn set_transient_storage(
+		&mut self,
+		address: H160,
+		index: H256,
+		value: H256,
+	) -> Result<(), ExitError> {
+		self.state.set_transient_storage(address, index, value);
+		Ok(())
+	}
+
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {
 		self.state.log(address, topics, data);
 		Ok(())
@@ -1215,13 +1234,23 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			balance,
 		});
 
-		self.state.transfer(Transfer {
-			source: address,
-			target,
-			value: balance,
-		})?;
-		self.state.reset_balance(address);
-		self.state.set_deleted(address);
+		if self.config.has_eip_6780 && !self.state.created(address) {
+			if address != target {
+				self.state.transfer(Transfer {
+					source: address,
+					target,
+					value: balance,
+				})?;
+			}
+		} else {
+			self.state.transfer(Transfer {
+				source: address,
+				target,
+				value: balance,
+			})?;
+			self.state.reset_balance(address);
+			self.state.set_deleted(address);
+		}
 
 		Ok(())
 	}

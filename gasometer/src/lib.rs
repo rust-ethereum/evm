@@ -586,7 +586,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				len: U256::from_big_endian(&stack.peek(3)?[..]),
 			}
 		}
-		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
+		Opcode::CALLDATACOPY | Opcode::CODECOPY | Opcode::MCOPY => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
 		Opcode::EXP => GasCost::Exp {
@@ -599,6 +599,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_is_cold: handler.is_cold(address, Some(index))?,
 			}
 		}
+		Opcode::TLOAD => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
@@ -632,6 +633,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_is_cold: handler.is_cold(address, Some(index))?,
 			}
 		}
+		Opcode::TSTORE if !is_static => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
@@ -703,6 +705,16 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		}),
+
+		Opcode::MCOPY => {
+			let top0 = U256::from_big_endian(&stack.peek(0)?[..]);
+			let top1 = U256::from_big_endian(&stack.peek(1)?[..]);
+			let offset = top0.max(top1);
+			Some(MemoryCost {
+				offset,
+				len: U256::from_big_endian(&stack.peek(2)?[..]),
+			})
+		}
 
 		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
@@ -866,6 +878,9 @@ impl<'config> Inner<'config> {
 				new,
 				target_is_cold,
 			} => costs::sstore_cost(original, current, new, gas, target_is_cold, self.config)?,
+
+			GasCost::TLoad => costs::tload_cost(self.config)?,
+			GasCost::TStore => costs::tstore_cost(self.config)?,
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
@@ -1053,6 +1068,10 @@ pub enum GasCost {
 		/// True if target has not been previously accessed in this transaction
 		target_is_cold: bool,
 	},
+	/// Gas cost for `TLOAD`.
+	TLoad,
+	/// Gas cost for `TSTORE`.
+	TStore,
 }
 
 /// Storage opcode will access. Used for tracking accessed storage (EIP-2929).
