@@ -45,6 +45,8 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::SLOAD => system::sload(state, handler),
 		Opcode::SSTORE => system::sstore(state, handler),
 		Opcode::GAS => system::gas(state, handler),
+		Opcode::TLOAD => system::tload(state, handler),
+		Opcode::TSTORE => system::tstore(state, handler),
 		Opcode::LOG0 => system::log(state, 0, handler),
 		Opcode::LOG1 => system::log(state, 1, handler),
 		Opcode::LOG2 => system::log(state, 2, handler),
