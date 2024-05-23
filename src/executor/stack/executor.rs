@@ -327,7 +327,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			kind: RuntimeKind::Execute,
 			inner: MaybeBorrowed::Borrowed(runtime),
 		});
-		let (reason, _, _) = self.execute_with_call_stack(&mut call_stack);
+		let (reason, _, _) = self.execute_with_call_stack(&mut call_stack, None);
 		reason
 	}
 
@@ -335,6 +335,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	fn execute_with_call_stack(
 		&mut self,
 		call_stack: &mut Vec<TaggedRuntime<'_>>,
+		caller: Option<H160>,
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
 		// This `interrupt_runtime` is used to pass the runtime obtained from the
 		// `Capture::Trap` branch in the match below back to the top of the call stack.
@@ -378,6 +379,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 						created_address,
 						reason,
 						runtime.inner.machine().return_value(),
+						caller,
 					);
 					(reason, maybe_address, return_data)
 				}
@@ -486,7 +488,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
-				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs, None);
 				emit_exit!(s, v)
 			}
 		}
@@ -544,7 +546,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
-				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs, None);
 				emit_exit!(s, v)
 			}
 		}
@@ -675,7 +677,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
-				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs, Some(caller));
 				emit_exit!(s, v)
 			}
 		}
@@ -1028,6 +1030,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		created_address: H160,
 		reason: ExitReason,
 		return_data: Vec<u8>,
+		caller: Option<H160>
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
 		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
@@ -1526,7 +1529,7 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
 				let mut call_stack = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				call_stack.push(rt.0);
 				let (reason, _, return_data) =
-					self.executor.execute_with_call_stack(&mut call_stack);
+					self.executor.execute_with_call_stack(&mut call_stack, None);
 				emit_exit!(reason, return_data)
 			}
 		}
