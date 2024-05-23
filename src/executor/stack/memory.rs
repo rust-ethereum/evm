@@ -594,8 +594,9 @@ impl<'config, B: Backend> StackState<'config> for MemoryStackState<'_, 'config, 
 		self.substate.set_created(address)
 	}
 
-	fn set_code(&mut self, address: H160, code: Vec<u8>) {
+	fn set_code(&mut self, address: H160, code: Vec<u8>, _caller: Option<H160>) -> Result<(), ExitError> {
 		self.substate.set_code(address, code, self.backend);
+		Ok(())
 	}
 
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {

@@ -212,7 +212,7 @@ pub trait StackState<'config>: Backend {
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
 	fn set_created(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>);
+	fn set_code(&mut self, address: H160, code: Vec<u8>, caller: Option<H160>) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -1073,10 +1073,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 							return (e.into(), None, Vec::new());
 						}
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
+						let set_code_result = self.state.set_code(address, out, caller);
+						if let Err(e) = set_code_result {
+							return (e.into(), None, Vec::new());
+						}
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
 						}
-						self.state.set_code(address, out);
 						(ExitReason::Succeed(s), Some(address), Vec::new())
 					}
 					Err(e) => {
