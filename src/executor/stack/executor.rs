@@ -573,6 +573,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 		});
 
+		// The nonce must be incremented before any gas record,
+		// otherwise we might OOG without incrementing the nonce!
+		if let Err(e) = self.state.inc_nonce(caller) {
+			return (e.into(), Vec::new());
+		}
+
 		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer.record_transaction(transaction_cost) {
@@ -596,9 +602,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			self.initialize_with_access_list(access_list);
 		}
 		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
-			return (e.into(), Vec::new());
-		}
-		if let Err(e) = self.state.inc_nonce(caller) {
 			return (e.into(), Vec::new());
 		}
 
