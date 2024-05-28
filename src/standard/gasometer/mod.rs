@@ -2,14 +2,19 @@ mod consts;
 mod costs;
 mod utils;
 
-use crate::standard::Config;
-use crate::{
-	Control, ExitError, ExitException, Machine, MergeStrategy, Opcode, RuntimeBackend,
-	RuntimeState, Stack,
-};
 use alloc::vec::Vec;
 use core::cmp::{max, min};
+
+use evm_interpreter::{
+	error::{ExitError, ExitException},
+	etable::Control,
+	machine::{Machine, Stack},
+	opcode::Opcode,
+	runtime::{RuntimeBackend, RuntimeState},
+};
 use primitive_types::{H160, H256, U256};
+
+use crate::{standard::Config, MergeStrategy};
 
 pub struct GasometerState<'config> {
 	gas_limit: u64,

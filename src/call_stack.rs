@@ -1,7 +1,12 @@
-use crate::interpreter::{Interpreter, RunInterpreter, StepInterpreter};
-use crate::{Capture, ExitError, ExitFatal, ExitResult, Invoker, InvokerControl};
 use alloc::vec::Vec;
 use core::convert::Infallible;
+
+use evm_interpreter::{
+	error::{Capture, ExitError, ExitFatal, ExitResult},
+	Interpreter, RunInterpreter, StepInterpreter,
+};
+
+use crate::invoker::{Invoker, InvokerControl};
 
 struct Substack<M, TrD> {
 	invoke: TrD,

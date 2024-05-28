@@ -1,11 +1,11 @@
+use std::{collections::BTreeMap, fmt};
+
 use hex::FromHex;
 use primitive_types::{H160, H256, U256};
 use serde::{
 	de::{Error, Visitor},
 	Deserialize, Deserializer,
 };
-use std::collections::BTreeMap;
-use std::fmt;
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]

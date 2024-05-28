@@ -1,14 +1,17 @@
-use crate::{
-	ExitError, ExitException, Log, MergeStrategy, RuntimeBackend, RuntimeBaseBackend,
-	RuntimeEnvironment, TransactionalBackend,
-};
 use alloc::{
 	boxed::Box,
 	collections::{BTreeMap, BTreeSet},
 	vec::Vec,
 };
 use core::mem;
+
+use evm_interpreter::{
+	error::{ExitError, ExitException},
+	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment},
+};
 use primitive_types::{H160, H256, U256};
+
+use crate::{backend::TransactionalBackend, MergeStrategy};
 
 #[derive(Clone, Debug)]
 pub struct OverlayedChangeSet {

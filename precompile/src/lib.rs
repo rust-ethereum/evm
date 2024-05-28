@@ -20,16 +20,24 @@ mod bn128;
 mod modexp;
 mod simple;
 
-pub use crate::blake2::Blake2F;
-pub use crate::bn128::{Bn128Add, Bn128Mul, Bn128Pairing};
-pub use crate::modexp::Modexp;
-pub use crate::simple::{ECRecover, Identity, Ripemd160, Sha256};
-
 use alloc::vec::Vec;
-use evm::standard::{Config, PrecompileSet};
-use evm::{ExitError, ExitException, ExitResult, GasMutState, RuntimeState};
 
+use evm::{
+	interpreter::{
+		error::{ExitError, ExitException, ExitResult},
+		runtime::RuntimeState,
+	},
+	standard::{Config, PrecompileSet},
+	GasMutState,
+};
 use primitive_types::H160;
+
+pub use crate::{
+	blake2::Blake2F,
+	bn128::{Bn128Add, Bn128Mul, Bn128Pairing},
+	modexp::Modexp,
+	simple::{ECRecover, Identity, Ripemd160, Sha256},
+};
 
 pub trait PurePrecompile<G> {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);

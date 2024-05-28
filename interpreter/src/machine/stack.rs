@@ -1,6 +1,8 @@
-use crate::{ExitError, ExitException};
 use alloc::vec::Vec;
+
 use primitive_types::H256;
+
+use crate::error::{ExitError, ExitException};
 
 /// EVM stack.
 #[derive(Clone, Debug)]
@@ -56,15 +58,15 @@ impl Stack {
 		}
 	}
 
-	#[inline]
 	/// Stack limit.
+	#[inline]
 	#[must_use]
 	pub const fn limit(&self) -> usize {
 		self.limit
 	}
 
-	#[inline]
 	/// Stack length.
+	#[inline]
 	#[must_use]
 	pub fn len(&self) -> usize {
 		self.data.len()
@@ -77,8 +79,8 @@ impl Stack {
 		self.data.is_empty()
 	}
 
-	#[inline]
 	/// Stack data.
+	#[inline]
 	#[must_use]
 	pub const fn data(&self) -> &Vec<H256> {
 		&self.data
@@ -89,16 +91,17 @@ impl Stack {
 		self.data.clear();
 	}
 
+	/// Pop a value from the stack.
+	/// If the stack is already empty, returns the `StackUnderflow` error.
 	#[inline]
-	/// Pop a value from the stack. If the stack is already empty, returns the
-	/// `StackUnderflow` error.
 	pub fn pop(&mut self) -> Result<H256, ExitException> {
 		self.data.pop().ok_or(ExitException::StackUnderflow)
 	}
 
+	/// Push a new value into the stack.
+	/// If it exceeds the stack limit, returns `StackOverflow` error and
+	/// leaves the stack unchanged.
 	#[inline]
-	/// Push a new value into the stack. If it will exceed the stack limit,
-	/// returns `StackOverflow` error and leaves the stack unchanged.
 	pub fn push(&mut self, value: H256) -> Result<(), ExitException> {
 		if self.data.len() + 1 > self.limit {
 			return Err(ExitException::StackOverflow);
@@ -135,10 +138,10 @@ impl Stack {
 		}
 	}
 
-	#[inline]
 	/// Peek a value at given index for the stack, where the top of
 	/// the stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
+	#[inline]
 	pub fn peek(&self, no_from_top: usize) -> Result<H256, ExitException> {
 		if self.data.len() > no_from_top {
 			Ok(self.data[self.data.len() - no_from_top - 1])
@@ -147,10 +150,10 @@ impl Stack {
 		}
 	}
 
-	#[inline]
 	/// Set a value at given index for the stack, where the top of the
 	/// stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
+	#[inline]
 	pub fn set(&mut self, no_from_top: usize, val: H256) -> Result<(), ExitException> {
 		if self.data.len() > no_from_top {
 			let len = self.data.len();

@@ -1,9 +1,15 @@
-use crate::{
-	eval::*, trap::CallCreateTrap, ExitResult, GasState, Machine, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, TrapConstruct,
+use core::{
+	marker::PhantomData,
+	ops::{Deref, DerefMut},
 };
-use core::marker::PhantomData;
-use core::ops::{Deref, DerefMut};
+
+use crate::{
+	error::{CallCreateTrap, ExitResult, TrapConstruct},
+	eval::*,
+	machine::Machine,
+	opcode::Opcode,
+	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+};
 
 pub trait EtableSet {
 	type State;
