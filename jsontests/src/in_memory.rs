@@ -1,6 +1,10 @@
-use evm::{backend::OverlayedChangeSet, RuntimeBaseBackend, RuntimeEnvironment};
-use primitive_types::{H160, H256, U256};
 use std::collections::BTreeMap;
+
+use evm::{
+	backend::OverlayedChangeSet,
+	interpreter::runtime::{RuntimeBaseBackend, RuntimeEnvironment},
+};
+use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
 pub struct InMemoryEnvironment {

@@ -1,8 +1,8 @@
-use super::consts::*;
-use super::utils::log2floor;
-use crate::standard::Config;
-use evm_interpreter::ExitException;
+use evm_interpreter::error::ExitException;
 use primitive_types::{H256, U256};
+
+use super::{consts::*, utils::log2floor};
+use crate::standard::Config;
 
 pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitException> {
 	if config.err_on_call_with_more_gas && U256::from(after_gas) < gas {

@@ -1,6 +1,11 @@
-use evm_interpreter::interpreter::{EtableInterpreter, RunInterpreter};
-use evm_interpreter::{Capture, Etable, ExitSucceed, Machine};
 use std::rc::Rc;
+
+use evm_interpreter::{
+	error::{Capture, ExitSucceed},
+	etable::Etable,
+	machine::Machine,
+	EtableInterpreter, RunInterpreter,
+};
 
 static ETABLE: Etable<(), (), ()> = Etable::core();
 

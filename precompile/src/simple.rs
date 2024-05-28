@@ -1,9 +1,14 @@
-use crate::{linear_cost, PurePrecompile};
 use core::cmp::min;
-use evm::{ExitException, ExitResult, ExitSucceed, GasMutState};
+
+use evm::{
+	interpreter::error::{ExitException, ExitResult, ExitSucceed},
+	GasMutState,
+};
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
+
+use crate::{linear_cost, PurePrecompile};
 
 pub struct ECRecover;
 

@@ -1,6 +1,12 @@
-use crate::{standard::Config, ExitError, GasState, MergeStrategy, RuntimeState};
 use alloc::vec::Vec;
+
+use evm_interpreter::{
+	error::ExitError,
+	runtime::{GasState, RuntimeState},
+};
 use primitive_types::{H160, H256, U256};
+
+use crate::{standard::Config, MergeStrategy};
 
 pub trait InvokerState<'config>: GasState + Sized {
 	fn new_transact_call(

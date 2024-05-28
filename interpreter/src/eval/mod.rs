@@ -5,12 +5,17 @@ mod bitwise;
 mod misc;
 mod system;
 
-use crate::{
-	trap::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine, Opcode,
-	RuntimeBackend, RuntimeEnvironment, RuntimeState, TrapConstruct,
-};
 use core::ops::{BitAnd, BitOr, BitXor};
+
 use primitive_types::{H256, U256};
+
+use crate::{
+	error::{CallCreateTrap, ExitException, ExitSucceed, TrapConstruct},
+	etable::Control,
+	machine::Machine,
+	opcode::Opcode,
+	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+};
 
 pub fn eval_pass<S, H, Tr>(
 	_machine: &mut Machine<S>,
