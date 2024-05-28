@@ -1,18 +1,63 @@
 use crate::utils::*;
-use ethjson::spec::ForkSpec;
+use ethjson::hash::Address;
+use ethjson::spec::builtin::{AltBn128ConstOperations, AltBn128Pairing, PricingAt};
+use ethjson::spec::{ForkSpec, Pricing};
+use ethjson::uint::Uint;
 use evm::backend::{ApplyBackend, MemoryAccount, MemoryBackend, MemoryVicinity};
 use evm::executor::stack::{
 	MemoryStackState, PrecompileFailure, PrecompileFn, PrecompileOutput, StackExecutor,
 	StackSubstateMetadata,
 };
-use evm::{Config, Context, ExitError, ExitSucceed};
+use evm::{Config, Context, ExitError, ExitReason, ExitSucceed};
 use lazy_static::lazy_static;
 use libsecp256k1::SecretKey;
 use primitive_types::{H160, H256, U256};
 use serde::Deserialize;
 use sha3::{Digest, Keccak256};
 use std::collections::BTreeMap;
-use std::convert::TryInto;
+use std::str::FromStr;
+
+#[derive(Default, Debug, Clone)]
+pub struct VerboseOutput {
+	pub verbose: bool,
+	pub verbose_failed: bool,
+	pub very_verbose: bool,
+	pub print_state: bool,
+}
+
+#[derive(Clone, Debug)]
+pub struct FailedTestDetails {
+	pub name: String,
+	pub spec: ForkSpec,
+	pub index: usize,
+	pub expected_hash: H256,
+	pub actual_hash: H256,
+	pub state: BTreeMap<H160, MemoryAccount>,
+}
+
+#[derive(Clone, Debug)]
+pub struct TestExecutionResult {
+	pub total: u64,
+	pub failed: u64,
+	pub failed_tests: Vec<FailedTestDetails>,
+}
+
+impl TestExecutionResult {
+	#[allow(clippy::new_without_default)]
+	pub const fn new() -> Self {
+		Self {
+			total: 0,
+			failed: 0,
+			failed_tests: Vec::new(),
+		}
+	}
+
+	pub fn merge(&mut self, src: Self) {
+		self.failed_tests.extend(src.failed_tests);
+		self.total += src.total;
+		self.failed += src.failed;
+	}
+}
 
 #[derive(Deserialize, Debug)]
 pub struct Test(ethjson::test_helpers::state::State);
@@ -112,6 +157,10 @@ lazy_static! {
 		JsonPrecompile::builtins("./res/berlin_builtins.json");
 }
 
+lazy_static! {
+	static ref CANCUN_BUILTINS: BTreeMap<H160, ethcore_builtin::Builtin> = cancun_builtins();
+}
+
 macro_rules! precompile_entry {
 	($map:expr, $builtins:expr, $index:expr) => {
 		let x: PrecompileFn =
@@ -158,15 +207,30 @@ impl JsonPrecompile {
 			ForkSpec::London => Self::precompile(&ForkSpec::Berlin),
 			// precompiles for Merge and Berlin are the same
 			ForkSpec::Merge => Self::precompile(&ForkSpec::Berlin),
+			// precompiles for Paris and Berlin are the same
+			ForkSpec::Paris => Self::precompile(&ForkSpec::Berlin),
 			// precompiles for Shanghai and Berlin are the same
 			ForkSpec::Shanghai => Self::precompile(&ForkSpec::Berlin),
-			ForkSpec::Cancun => Self::precompile(&ForkSpec::Berlin),
+			ForkSpec::Cancun => {
+				let mut map = BTreeMap::new();
+				precompile_entry!(map, CANCUN_BUILTINS, 1);
+				precompile_entry!(map, CANCUN_BUILTINS, 2);
+				precompile_entry!(map, CANCUN_BUILTINS, 3);
+				precompile_entry!(map, CANCUN_BUILTINS, 4);
+				precompile_entry!(map, CANCUN_BUILTINS, 5);
+				precompile_entry!(map, CANCUN_BUILTINS, 6);
+				precompile_entry!(map, CANCUN_BUILTINS, 7);
+				precompile_entry!(map, CANCUN_BUILTINS, 8);
+				precompile_entry!(map, CANCUN_BUILTINS, 9);
+				precompile_entry!(map, CANCUN_BUILTINS, 0xA);
+				Some(map)
+			}
 			_ => None,
 		}
 	}
 
 	fn builtins(spec_path: &str) -> BTreeMap<H160, ethcore_builtin::Builtin> {
-		let reader = std::fs::File::open(spec_path).unwrap();
+		let reader = std::fs::File::open(spec_path).expect(spec_path);
 		let builtins: BTreeMap<ethjson::hash::Address, ethjson::spec::builtin::BuiltinCompat> =
 			serde_json::from_reader(reader).unwrap();
 		builtins
@@ -211,7 +275,142 @@ impl JsonPrecompile {
 	}
 }
 
-pub fn test(name: &str, test: Test) {
+fn cancun_builtins() -> BTreeMap<H160, ethcore_builtin::Builtin> {
+	use ethjson::spec::builtin::{BuiltinCompat, Linear, Modexp, PricingCompat};
+
+	let builtins: BTreeMap<Address, BuiltinCompat> = BTreeMap::from([
+		(
+			Address(H160::from_low_u64_be(1)),
+			BuiltinCompat {
+				name: "ecrecover".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 3000,
+					word: 0,
+				})),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(2)),
+			BuiltinCompat {
+				name: "sha256".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear { base: 60, word: 12 })),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(3)),
+			BuiltinCompat {
+				name: "ripemd160".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 600,
+					word: 120,
+				})),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(4)),
+			BuiltinCompat {
+				name: "identity".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear { base: 15, word: 3 })),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(5)),
+			BuiltinCompat {
+				name: "modexp".to_string(),
+				pricing: PricingCompat::Single(Pricing::Modexp(Modexp {
+					divisor: 3,
+					is_eip_2565: true,
+				})),
+				activate_at: Some(Uint(U256::zero())),
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(6)),
+			BuiltinCompat {
+				name: "alt_bn128_add".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+							price: 150,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(7)),
+			BuiltinCompat {
+				name: "alt_bn128_mul".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+							price: 6000,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(8)),
+			BuiltinCompat {
+				name: "alt_bn128_pairing".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128Pairing(AltBn128Pairing {
+							base: 45000,
+							pair: 34000,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(9)),
+			BuiltinCompat {
+				name: "blake2_f".to_string(),
+				pricing: PricingCompat::Single(Pricing::Blake2F { gas_per_round: 1 }),
+				activate_at: Some(Uint(U256::zero())),
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(0xA)),
+			BuiltinCompat {
+				name: "kzg".to_string(),
+				pricing: PricingCompat::Empty,
+				activate_at: None,
+			},
+		),
+	]);
+	builtins
+		.into_iter()
+		.map(|(address, builtin)| {
+			(
+				address.into(),
+				ethjson::spec::Builtin::from(builtin).try_into().unwrap(),
+			)
+		})
+		.collect()
+}
+
+pub fn test(
+	verbose_output: VerboseOutput,
+	name: &str,
+	test: Test,
+	specific_spec: Option<ForkSpec>,
+) -> TestExecutionResult {
 	use std::thread;
 
 	const STACK_SIZE: usize = 16 * 1024 * 1024;
@@ -220,22 +419,52 @@ pub fn test(name: &str, test: Test) {
 	// Spawn thread with explicit stack size
 	let child = thread::Builder::new()
 		.stack_size(STACK_SIZE)
-		.spawn(move || test_run(&name, test))
+		.spawn(move || test_run(&verbose_output, &name, test, specific_spec))
 		.unwrap();
 
 	// Wait for thread to join
-	child.join().unwrap();
+	child.join().unwrap()
 }
 
-fn test_run(name: &str, test: Test) {
+/// Check Exit Reason of EVM execution
+fn check_create_exit_reason(reason: &ExitReason, expect_exception: &Option<String>) -> bool {
+	if let Some(exception) = expect_exception.as_deref() {
+		if matches!(reason, ExitReason::Error(ExitError::CreateContractLimit)) {
+			let check_result = exception == "TR_InitCodeLimitExceeded"
+				|| exception == "TransactionException.INITCODE_SIZE_EXCEEDED";
+			assert!(
+				check_result,
+				"message: {exception}\nbut expected init code limit exceeded"
+			);
+			return true;
+		}
+	}
+	false
+}
+
+#[allow(clippy::cognitive_complexity)]
+fn test_run(
+	verbose_output: &VerboseOutput,
+	name: &str,
+	test: Test,
+	specific_spec: Option<ForkSpec>,
+) -> TestExecutionResult {
+	let mut tests_result = TestExecutionResult::new();
 	for (spec, states) in &test.0.post_states {
+		// Run tests for specific SPEC (Hard fork)
+		if let Some(s) = specific_spec.as_ref() {
+			if s != spec {
+				continue;
+			}
+		}
 		let (gasometer_config, delete_empty) = match spec {
-			ethjson::spec::ForkSpec::Istanbul => (Config::istanbul(), true),
-			ethjson::spec::ForkSpec::Berlin => (Config::berlin(), true),
-			ethjson::spec::ForkSpec::London => (Config::london(), true),
-			ethjson::spec::ForkSpec::Merge => (Config::merge(), true),
-			ethjson::spec::ForkSpec::Shanghai => (Config::shanghai(), true),
-			// ethjson::spec::ForkSpec::Cancun => (Config::cancun(), true),
+			ForkSpec::Istanbul => (Config::istanbul(), true),
+			ForkSpec::Berlin => (Config::berlin(), true),
+			ForkSpec::London => (Config::london(), true),
+			ForkSpec::Merge => (Config::merge(), true),
+			ForkSpec::Paris => (Config::merge(), true),
+			ForkSpec::Shanghai => (Config::shanghai(), true),
+			ForkSpec::Cancun => (Config::cancun(), true),
 			spec => {
 				println!("Skip spec {spec:?}");
 				continue;
@@ -245,9 +474,21 @@ fn test_run(name: &str, test: Test) {
 		let original_state = test.unwrap_to_pre_state();
 		let vicinity = test.unwrap_to_vicinity(spec);
 		if vicinity.is_none() {
+			let h = states.first().unwrap().hash.0;
 			// if vicinity could not be computed then the transaction was invalid so we simply
 			// check the original state and move on
-			assert_valid_hash(&states.first().unwrap().hash.0, &original_state);
+			let (is_valid_hash, actual_hash) = assert_valid_hash(&h, &original_state);
+			if !is_valid_hash {
+				tests_result.failed_tests.push(FailedTestDetails {
+					expected_hash: h,
+					actual_hash,
+					index: 0,
+					name: String::from_str(name).unwrap(),
+					spec: spec.clone(),
+					state: original_state,
+				});
+				tests_result.failed += 1;
+			}
 			continue;
 		}
 		let vicinity = vicinity.unwrap();
@@ -255,11 +496,12 @@ fn test_run(name: &str, test: Test) {
 		let caller_balance = original_state
 			.get(&caller)
 			.map_or_else(U256::zero, |acc| acc.balance);
+		// EIP-3607
+		let caller_code = original_state
+			.get(&caller)
+			.map_or_else(Vec::new, |acc| acc.code.clone());
 
 		for (i, state) in states.iter().enumerate() {
-			print!("Running {}:{:?}:{} ... ", name, spec, i);
-			flush();
-
 			let transaction = test.0.transaction.select(&state.indexes);
 			let mut backend = MemoryBackend::new(&vicinity, original_state.clone());
 
@@ -280,6 +522,8 @@ fn test_run(name: &str, test: Test) {
 			if expect_tx_type_not_supported {
 				continue;
 			}
+
+			tests_result.total += 1;
 
 			// Only execute valid transactions
 			if let Ok(transaction) = crate::utils::transaction::validate(
@@ -309,26 +553,44 @@ fn test_run(name: &str, test: Test) {
 					.map(|(address, keys)| (address.0, keys.into_iter().map(|k| k.0).collect()))
 					.collect();
 
-				match transaction.to {
-					ethjson::maybe::MaybeEmpty::Some(to) => {
-						let value = transaction.value.into();
+				// EIP-3607: Reject transactions from senders with deployed code
+				if caller_code.is_empty() {
+					match transaction.to {
+						ethjson::maybe::MaybeEmpty::Some(to) => {
+							let value = transaction.value.into();
 
-						let _reason = executor.transact_call(
-							caller,
-							to.into(),
-							value,
-							data,
-							gas_limit,
-							access_list,
-						);
-					}
-					ethjson::maybe::MaybeEmpty::None => {
-						let code = data;
-						let value = transaction.value.into();
+							let _reason = executor.transact_call(
+								caller,
+								to.into(),
+								value,
+								data,
+								gas_limit,
+								access_list,
+							);
+						}
+						ethjson::maybe::MaybeEmpty::None => {
+							let code = data;
+							let value = transaction.value.into();
 
-						let _reason =
-							executor.transact_create(caller, value, code, gas_limit, access_list);
+							let reason = executor.transact_create(
+								caller,
+								value,
+								code,
+								gas_limit,
+								access_list,
+							);
+							if check_create_exit_reason(&reason.0, &state.expect_exception) {
+								continue;
+							}
+						}
 					}
+				}
+
+				if verbose_output.print_state {
+					println!(
+						"gas_limit: {gas_limit}\nused_gas: {:?}",
+						executor.used_gas()
+					);
 				}
 
 				let actual_fee = executor.fee(vicinity.gas_price);
@@ -354,12 +616,57 @@ fn test_run(name: &str, test: Test) {
 
 				backend.apply(values, logs, delete_empty);
 			}
+			let (is_valid_hash, actual_hash) = assert_valid_hash(&state.hash.0, backend.state());
+			if !is_valid_hash {
+				let failed_res = FailedTestDetails {
+					expected_hash: state.hash.0,
+					actual_hash,
+					index: i,
+					name: String::from_str(name).unwrap(),
+					spec: spec.clone(),
+					state: backend.state().clone(),
+				};
+				tests_result.failed_tests.push(failed_res);
+				tests_result.failed += 1;
 
-			assert_valid_hash(&state.hash.0, backend.state());
+				println!(" [{:?}]  {}:{} ... failed\t<----", spec, name, i);
+				if verbose_output.print_state {
+					// Print detailed state data
+					println!(
+						"expected_hash:\t{:?}\nactual_hash:\t{actual_hash:?}",
+						state.hash.0,
+					);
+					for (addr, acc) in backend.state().clone() {
+						// Decode balance
+						let mut write_buf = [0u8; 32];
+						acc.balance.to_big_endian(&mut write_buf[..]);
+						// Convert to balance to Hex format
+						// let balance = if acc.balance > U256::from(u128::MAX) {
+						// 	hex::encode(write_buf)
+						// } else {
+						// 	format!("{:x?}", acc.balance.as_u128())
+						// };
+						let balance = acc.balance.to_string();
 
-			println!("passed");
+						println!(
+                            "{:?}: {{\n    balance: {}\n    code: {:?}\n    nonce: {}\n    storage: {:#?}\n}}",
+                            addr,
+                            balance,
+                            hex::encode(acc.code),
+                            acc.nonce,
+                            acc.storage
+                        );
+					}
+					if let Some(e) = state.expect_exception.as_ref() {
+						println!("-> expect_exception: {e}");
+					}
+				}
+			} else if verbose_output.very_verbose && !verbose_output.verbose_failed {
+				println!(" [{:?}]  {}:{} ... passed", spec, name, i);
+			}
 		}
 	}
+	tests_result
 }
 
 /// Denotes the type of transaction.
@@ -371,6 +678,8 @@ enum TxType {
 	AccessList,
 	/// https://eips.ethereum.org/EIPS/eip-1559
 	DynamicFee,
+	/// https://eips.ethereum.org/EIPS/eip-4844
+	ShardBlob,
 }
 
 impl TxType {
@@ -382,6 +691,7 @@ impl TxType {
 			b if b > 0x7f => Self::Legacy,
 			1 => Self::AccessList,
 			2 => Self::DynamicFee,
+			3 => Self::ShardBlob,
 			_ => panic!(
 				"Unknown tx type. \
 You may need to update the TxType enum if Ethereum introduced new enveloped transaction types."

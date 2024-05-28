@@ -76,6 +76,12 @@ pub struct MultiTransaction {
 	pub to: MaybeEmpty<Address>,
 	/// Value set.
 	pub value: Vec<Uint>,
+
+	/// EIP-4844
+	#[serde(default)]
+	pub blob_versioned_hashes: Vec<H256>,
+	/// EIP-4844
+	pub max_fee_per_blob_gas: Option<Uint>,
 }
 
 impl MultiTransaction {

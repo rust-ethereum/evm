@@ -170,7 +170,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 		self.vicinity.blob_base_fee
 	}
 	fn get_blob_hash(&self, _index: usize) -> Result<U256, ExitError> {
-		unreachable!()
+		Ok(U256::zero())
 	}
 }
 

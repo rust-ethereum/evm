@@ -78,6 +78,7 @@ pub struct StackSubstateMetadata<'config> {
 	is_static: bool,
 	depth: Option<usize>,
 	accessed: Option<Accessed>,
+	created: BTreeSet<H160>,
 }
 
 impl<'config> StackSubstateMetadata<'config> {
@@ -92,6 +93,7 @@ impl<'config> StackSubstateMetadata<'config> {
 			is_static: false,
 			depth: None,
 			accessed,
+			created: BTreeSet::new(),
 		}
 	}
 
@@ -120,7 +122,7 @@ impl<'config> StackSubstateMetadata<'config> {
 		Ok(())
 	}
 
-	pub fn swallow_discard(&mut self, _other: Self) -> Result<(), ExitError> {
+	pub fn swallow_discard(&self, _other: Self) -> Result<(), ExitError> {
 		Ok(())
 	}
 
@@ -130,6 +132,7 @@ impl<'config> StackSubstateMetadata<'config> {
 			is_static: is_static || self.is_static,
 			depth: self.depth.map_or(Some(0), |n| Some(n + 1)),
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
+			created: self.created.clone(),
 		}
 	}
 
@@ -196,7 +199,7 @@ pub trait StackState<'config>: Backend {
 
 	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
-	fn created(&self, address: H160) -> bool;
+	fn is_created(&self, address: H160) -> bool;
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
@@ -800,7 +803,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Some(depth) = self.state.metadata().depth {
-			if depth > self.config.call_stack_limit {
+			// As Depth incremented in `enter_substate` we must check depth counter
+			// early to verify exceeding Stack limit. It allows avoid
+			// issue with wrong detection `CallTooDeep` for Create.
+			if depth + 1 > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()));
 			}
 		}
@@ -866,7 +872,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 		// It needed for CANCUN hard fork EIP-6780 we should mark account as created
 		// to handle SELFDESTRUCT in the same transaction
-		self.set_created(address);
+		self.state.set_created(address);
 
 		if self.config.create_increase_nonce {
 			if let Err(e) = self.state.inc_nonce(address) {
@@ -1125,14 +1131,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 	}
 
-	/// Sed address created.
-	fn set_created(&mut self, address: H160) {
-		self.state.set_created(address)
-	}
-
 	/// Check whether an address has already been created.
-	fn created(&self, address: H160) -> bool {
-		self.state.created(address)
+	fn is_created(&self, address: H160) -> bool {
+		self.state.is_created(address)
 	}
 }
 
@@ -1351,7 +1352,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	/// Mark account as deleted
 	/// - SELFDESTRUCT - CANCUN hard fork: EIP-6780
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
-		let is_created = self.created(address);
+		let is_created = self.is_created(address);
 		// SELFDESTRUCT - CANCUN hard fork: EIP-6780 - selfdestruct only if contract is created in the same tx
 		if self.config.has_restricted_selfdestruct && !is_created && address == target {
 			// State is not changed:
@@ -1376,7 +1377,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		self.state.reset_balance(address);
 		// For CANCUN hard fork SELFDESTRUCT (EIP-6780) state is not changed
 		// or if SELFDESTRUCT in the same TX - account should selfdestruct
-		if !self.config.has_restricted_selfdestruct || self.created(address) {
+		if !self.config.has_restricted_selfdestruct || self.is_created(address) {
 			self.state.set_deleted(address);
 		}
 
@@ -1397,7 +1398,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			emit_exit!(reason.clone());
 			return Capture::Exit((reason, None, Vec::new()));
 		}
-
 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 

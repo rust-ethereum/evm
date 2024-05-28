@@ -20,6 +20,9 @@ pub const BLOB_GASPRICE_UPDATE_FRACTION: u64 = 3338477;
 /// First version of the blob.
 pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
 
+/// Precalculated `usize::MAX` for `U256`
+pub const USIZE_MAX: U256 = U256([usize::MAX as u64, 0, 0, 0]);
+
 /// Calculates the `excess_blob_gas` from the parent header's `blob_gas_used` and `excess_blob_gas`.
 ///
 /// See also [the EIP-4844 helpers]<https://eips.ethereum.org/EIPS/eip-4844#helpers>

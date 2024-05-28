@@ -334,10 +334,14 @@ pub fn tstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 /// CANCUN hard fork
 /// EIP-5656: MCOPY - Memory copying instruction
 pub fn mcopy<H: Handler>(runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
-	pop_usize!(runtime, dst, src, len);
+	pop_u256!(runtime, dst, src, len);
+	let len = as_usize_or_fail!(len, ExitError::OutOfGas);
 	if len == 0 {
 		return Control::Continue;
 	}
+	let dst = as_usize_or_fail!(dst, ExitError::OutOfGas);
+	let src = as_usize_or_fail!(src, ExitError::OutOfGas);
+
 	try_or_fail!(runtime
 		.machine
 		.memory_mut()

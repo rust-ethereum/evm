@@ -29,8 +29,10 @@ macro_rules! event {
 }
 #[cfg(feature = "force-debug")]
 macro_rules! log_gas {
-	($self:expr, $($arg:tt)*) => (log::trace!(target: "evm", "Gasometer {} [Gas used: {}, Gas left: {}]", format_args!($($arg)*),
-	$self.total_used_gas(), $self.gas()));
+	($self:expr, $($arg:tt)*) => (
+	log::trace!(target: "evm", "Gasometer {} [Gas used: {}, Gas left: {}]", format_args!($($arg)*),
+	$self.total_used_gas(), $self.gas());
+	);
 }
 
 #[cfg(not(feature = "force-debug"))]
@@ -172,7 +174,6 @@ impl<'config> Gasometer<'config> {
 			cost,
 			snapshot: self.snapshot(),
 		});
-		log_gas!(self, "Record cost {}", cost);
 
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
@@ -181,6 +182,7 @@ impl<'config> Gasometer<'config> {
 		}
 
 		self.inner_mut()?.used_gas += cost;
+		log_gas!(self, "Record cost {}", cost);
 		Ok(())
 	}
 
@@ -243,6 +245,13 @@ impl<'config> Gasometer<'config> {
 			return Err(ExitError::OutOfGas);
 		}
 
+		let after_gas = self.gas_limit - all_gas_cost;
+		try_or_fail!(self.inner, inner_mut.extra_check(cost, after_gas));
+
+		inner_mut.used_gas += gas_cost;
+		inner_mut.memory_gas = memory_gas;
+		inner_mut.refunded_gas += gas_refund;
+
 		log_gas!(
 			self,
 			"Record dynamic cost {} - memory_gas {} - gas_refund {}",
@@ -250,13 +259,6 @@ impl<'config> Gasometer<'config> {
 			memory_gas,
 			gas_refund
 		);
-
-		let after_gas = self.gas_limit - all_gas_cost;
-		try_or_fail!(self.inner, inner_mut.extra_check(cost, after_gas));
-
-		inner_mut.used_gas += gas_cost;
-		inner_mut.memory_gas = memory_gas;
-		inner_mut.refunded_gas += gas_refund;
 
 		Ok(())
 	}
@@ -758,6 +760,22 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			offset: stack.peek_usize(0)?,
 			len: 32,
 		}),
+
+		Opcode::MCOPY => {
+			let len = stack.peek_usize(2)?;
+			if len == 0 {
+				None
+			} else {
+				Some(MemoryCost {
+					offset: {
+						let src = stack.peek_usize(0)?;
+						let dst = stack.peek_usize(1)?;
+						max(src, dst)
+					},
+					len,
+				})
+			}
+		}
 
 		Opcode::MSTORE8 => Some(MemoryCost {
 			offset: stack.peek_usize(0)?,
