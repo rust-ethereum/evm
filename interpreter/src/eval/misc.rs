@@ -1,8 +1,13 @@
-use super::Control;
-use crate::utils::u256_to_h256;
-use crate::{ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 use core::cmp::min;
+
 use primitive_types::{H256, U256};
+
+use crate::{
+	error::{ExitError, ExitException, ExitFatal, ExitSucceed},
+	etable::Control,
+	machine::Machine,
+	utils::u256_to_h256,
+};
 
 #[inline]
 pub fn codesize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {

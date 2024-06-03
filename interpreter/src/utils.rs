@@ -1,9 +1,13 @@
 //! Small utilities.
 
-use crate::{ExitError, ExitFatal};
-use core::cmp::Ordering;
-use core::ops::{Div, Rem};
+use core::{
+	cmp::Ordering,
+	ops::{Div, Rem},
+};
+
 use primitive_types::{H256, U256};
+
+use crate::error::{ExitError, ExitFatal};
 
 /// Convert [U256] into [H256].
 #[must_use]
@@ -160,9 +164,9 @@ impl Rem for I256 {
 
 #[cfg(test)]
 mod tests {
-	use crate::utils::{Sign, I256};
-	use primitive_types::U256;
 	use std::num::Wrapping;
+
+	use super::*;
 
 	#[test]
 	fn div_i256() {

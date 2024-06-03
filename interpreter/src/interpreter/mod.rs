@@ -1,9 +1,13 @@
 mod etable;
+mod valids;
+
+use alloc::vec::Vec;
 
 pub use self::etable::EtableInterpreter;
-
-use crate::{Capture, ExitResult, Machine};
-use alloc::vec::Vec;
+use crate::{
+	error::{Capture, ExitResult},
+	machine::Machine,
+};
 
 pub trait Interpreter {
 	type State;

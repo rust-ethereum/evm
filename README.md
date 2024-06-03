@@ -9,9 +9,9 @@ interpreter that can be easily customized.
 ## Status
 
 The Rust EVM project has a long history dating back to the initial
-implementation in 2017 (when it was called SputnikVM). It has went through
-multiple rewrites over the years to accomodate for different requirements, when
-we successfully tested one integrating Geth to sync the mainnet.
+implementation in 2017 (when it was called SputnikVM). It has gone through
+multiple rewrites over the years to accommodate for different requirements,
+when we successfully tested one integrating Geth to sync the mainnet.
 
 The current rewrite is used in production for the Frontier project (the
 Ethereum-compatibility layer for Polkadot). However, we have not yet fully
