@@ -1,7 +1,8 @@
-use crate::utils::I256;
-use core::convert::TryInto;
 use core::ops::Rem;
+
 use primitive_types::{U256, U512};
+
+use crate::utils::I256;
 
 #[inline]
 pub fn div(op1: U256, op2: U256) -> U256 {

@@ -1,5 +1,6 @@
-use crate::Opcode;
 use alloc::vec::Vec;
+
+use crate::opcode::Opcode;
 
 /// Mapping of valid jump destination from code.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -25,36 +26,17 @@ impl Valids {
 			}
 		}
 
-		Valids(valids)
+		Self(valids)
 	}
 
-	/// Get the length of the valid mapping. This is the same as the
-	/// code bytes.
-	#[inline]
-	#[must_use]
-	pub fn len(&self) -> usize {
-		self.0.len()
-	}
-
-	/// Returns true if the valids list is empty
-	#[inline]
-	#[must_use]
-	pub fn is_empty(&self) -> bool {
-		self.len() == 0
-	}
-
-	/// Returns `true` if the position is a valid jump destination. If
-	/// not, returns `false`.
+	/// Returns `true` if the position is a valid jump destination.
+	/// If not, returns `false`.
 	#[must_use]
 	pub fn is_valid(&self, position: usize) -> bool {
 		if position >= self.0.len() {
 			return false;
 		}
 
-		if !self.0[position] {
-			return false;
-		}
-
-		true
+		self.0[position]
 	}
 }

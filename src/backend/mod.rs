@@ -13,8 +13,9 @@
 
 mod overlayed;
 
+pub use evm_interpreter::runtime::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
+
 pub use self::overlayed::{OverlayedBackend, OverlayedChangeSet};
-pub use evm_interpreter::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
 
 /// Backend with layers that can transactionally be committed or discarded.
 pub trait TransactionalBackend {

@@ -1,7 +1,12 @@
-use crate::PurePrecompile;
 use alloc::vec::Vec;
-use evm::{ExitError, ExitException, ExitResult, ExitSucceed, GasMutState};
+
+use evm::{
+	interpreter::error::{ExitError, ExitException, ExitResult, ExitSucceed},
+	GasMutState,
+};
 use primitive_types::U256;
+
+use crate::PurePrecompile;
 
 /// Copy bytes from input to target.
 fn read_input(source: &[u8], target: &mut [u8], offset: usize) {

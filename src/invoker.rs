@@ -1,5 +1,9 @@
-use crate::{interpreter::Interpreter, Capture, ExitError, ExitResult};
 use alloc::vec::Vec;
+
+use evm_interpreter::{
+	error::{Capture, ExitError, ExitResult},
+	Interpreter,
+};
 
 /// Control for an invoker.
 pub enum InvokerControl<VE, VD> {

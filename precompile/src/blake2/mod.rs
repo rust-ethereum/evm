@@ -1,7 +1,11 @@
 mod eip152;
 
+use evm::{
+	interpreter::error::{ExitException, ExitResult, ExitSucceed},
+	GasMutState,
+};
+
 use crate::PurePrecompile;
-use evm::{ExitException, ExitResult, ExitSucceed, GasMutState};
 
 pub struct Blake2F;
 

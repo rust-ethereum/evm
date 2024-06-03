@@ -1,8 +1,9 @@
-use crate::ExitError;
-use alloc::rc::Rc;
-use alloc::vec::Vec;
+use alloc::{rc::Rc, vec::Vec};
+
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+
+use crate::error::ExitError;
 
 /// Gas state.
 pub trait GasState {
@@ -14,6 +15,7 @@ pub trait GasState {
 pub struct RuntimeState {
 	/// Runtime context.
 	pub context: Context,
+	/// Transaction context.
 	pub transaction_context: Rc<TransactionContext>,
 	/// Return data buffer.
 	pub retbuf: Vec<u8>,

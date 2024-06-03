@@ -1,12 +1,13 @@
-use crate::{ExitException, ExitFatal};
-use alloc::vec;
-use alloc::vec::Vec;
-use core::ops::{BitAnd, Not, Range};
+use alloc::{vec, vec::Vec};
 use core::{
 	cmp::{max, min},
 	mem,
+	ops::{BitAnd, Not, Range},
 };
+
 use primitive_types::U256;
+
+use crate::error::{ExitException, ExitFatal};
 
 /// A sequencial memory. It uses Rust's `Vec` for internal
 /// representation.

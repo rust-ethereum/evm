@@ -72,12 +72,14 @@ mod call_stack;
 mod gasometer;
 mod invoker;
 
-pub use evm_interpreter::*;
+pub use evm_interpreter as interpreter;
 
-pub use crate::backend::TransactionalBackend;
-pub use crate::call_stack::{transact, HeapTransact};
-pub use crate::gasometer::GasMutState;
-pub use crate::invoker::{Invoker, InvokerControl};
+pub use crate::{
+	backend::TransactionalBackend,
+	call_stack::{transact, HeapTransact},
+	gasometer::GasMutState,
+	invoker::{Invoker, InvokerControl},
+};
 
 /// Merge strategy of a backend substate layer or a call stack gasometer layer.
 #[derive(Clone, Debug, Copy)]

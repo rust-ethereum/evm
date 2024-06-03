@@ -1,11 +1,14 @@
-use super::Control;
-use crate::{
-	ExitException, ExitFatal, ExitSucceed, GasState, Log, Machine, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, Transfer,
-};
 use alloc::vec::Vec;
+
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
+
+use crate::{
+	error::{ExitException, ExitFatal, ExitSucceed},
+	etable::Control,
+	machine::Machine,
+	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
+};
 
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(machine, from, len);

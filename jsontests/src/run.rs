@@ -1,16 +1,22 @@
-use crate::error::{Error, TestError};
-use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment};
-use crate::types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti};
-use evm::backend::OverlayedBackend;
-use evm::standard::{Config, Etable, EtableResolver, Invoker, TransactArgs};
-use evm::utils::u256_to_h256;
-use evm::Capture;
-use evm::{interpreter::Interpreter, GasState};
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	fs::{self, File},
+	io::BufReader,
+};
+
+use evm::{
+	backend::OverlayedBackend,
+	interpreter::{error::Capture, runtime::GasState, utils::u256_to_h256, Interpreter},
+	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
+};
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::U256;
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs::{self, File};
-use std::io::BufReader;
+
+use crate::{
+	error::{Error, TestError},
+	in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment},
+	types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti},
+};
 
 const BASIC_FILE_PATH_TO_TRIM: [&str; 2] = [
 	"jsontests/res/ethtests/GeneralStateTests/",
