@@ -369,6 +369,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
+		Opcode::TLOAD if config.eip_1153_enabled => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
@@ -389,7 +390,6 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::SSTORE if !is_static => {
 			let index = stack.peek(0)?;
 			let value = stack.peek(1)?;
-
 			GasCost::SStore {
 				original: handler.original_storage(address, index),
 				current: handler.storage(address, index),
@@ -397,6 +397,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
+		Opcode::TSTORE if !is_static && config.eip_1153_enabled => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
@@ -618,6 +619,10 @@ enum GasCost {
 		/// True if target has not been previously accessed in this transaction
 		target_is_cold: bool,
 	},
+	/// Gas cost for `TLOAD`.
+	TLoad,
+	/// Gas cost for `TSTORE`.
+	TStore,
 	/// Gas cost for `SHA3`.
 	Sha3 {
 		/// Length of the data.
@@ -714,7 +719,8 @@ impl GasCost {
 				new,
 				target_is_cold,
 			} => costs::sstore_cost(original, current, new, gas, target_is_cold, config)?,
-
+			GasCost::TLoad => costs::tload_cost(config)?,
+			GasCost::TStore => costs::tstore_cost(config)?,
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,

@@ -683,6 +683,24 @@ pub fn eval_gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	self::system::gas(machine, handle)
 }
 
+pub fn eval_tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::system::tload(machine, handle)
+}
+
+pub fn eval_tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::system::tstore(machine, handle)
+}
+
 macro_rules! eval_log {
     ($($num:expr),*) => {
 		$(paste::paste! {

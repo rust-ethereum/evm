@@ -97,6 +97,8 @@ pub struct Config {
 	pub has_base_fee: bool,
 	/// Has PUSH0 opcode. See [EIP-3855](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3855.md)
 	pub has_push0: bool,
+	/// Enables transient storage. See [EIP-1153](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1153.md)
+	pub eip_1153_enabled: bool,
 	/// Enables MCOPY instruction. See [EIP-5656](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-5656.md)
 	pub eip_5656_enabled: bool,
 }
@@ -152,6 +154,7 @@ impl Config {
 			has_ext_code_hash: false,
 			has_base_fee: false,
 			has_push0: false,
+			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 		}
 	}
@@ -206,6 +209,7 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee: false,
 			has_push0: false,
+			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 		}
 	}
@@ -241,6 +245,7 @@ impl Config {
 			disallow_executable_format,
 			warm_coinbase_address,
 			max_initcode_size,
+			eip_1153_enabled,
 			eip_5656_enabled,
 		} = inputs;
 
@@ -304,6 +309,7 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee,
 			has_push0,
+			eip_1153_enabled,
 			eip_5656_enabled,
 		}
 	}
@@ -321,6 +327,7 @@ struct DerivedConfigInputs {
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
+	eip_1153_enabled: bool,
 	eip_5656_enabled: bool,
 }
 
@@ -336,6 +343,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 		}
 	}
@@ -351,6 +359,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 		}
 	}
@@ -366,6 +375,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 		}
 	}
@@ -382,6 +392,7 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
+			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 		}
 	}

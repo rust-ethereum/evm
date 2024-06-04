@@ -295,6 +295,28 @@ pub fn gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	Control::Continue
 }
 
+pub fn tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	pop!(machine, index);
+	let value = handler.transient_storage(machine.state.as_ref().context.address, index);
+	push!(machine, value);
+
+	Control::Continue
+}
+
+pub fn tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	pop!(machine, index, value);
+	match handler.set_transient_storage(machine.state.as_ref().context.address, index, value) {
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
+}
+
 pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	n: u8,
