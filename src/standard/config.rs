@@ -417,7 +417,8 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * (MAX_CODE_SIZE = `24576`) = (0xC000 = 49152) as per EIP-3860
 			max_initcode_size: Some(0xC000),
-			eip_1559: true,
+			eip_1153_enabled: true,
+			eip_5656_enabled: true,
 		}
 	}
 }
