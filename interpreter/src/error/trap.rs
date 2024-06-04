@@ -1,15 +1,21 @@
 //! Call and create trap handler.
 
-use crate::utils::{h256_to_u256, u256_to_usize};
-use crate::{
-	interpreter::Interpreter, Context, ExitError, ExitException, ExitResult, Machine, Memory,
-	RuntimeBackend, RuntimeState, Transfer,
-};
 use alloc::vec::Vec;
-use core::cmp::{max, min};
-use core::convert::Infallible;
+use core::{
+	cmp::{max, min},
+	convert::Infallible,
+};
+
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+
+use crate::{
+	error::{ExitError, ExitException, ExitResult},
+	interpreter::Interpreter,
+	machine::{Machine, Memory},
+	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
+	utils::{h256_to_u256, u256_to_usize},
+};
 
 pub trait TrapConstruct<T> {
 	fn construct(v: T) -> Self;
@@ -19,72 +25,6 @@ pub trait TrapConsume<T> {
 	type Rest;
 
 	fn consume(self) -> Result<T, Self::Rest>;
-}
-
-/// Create scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum CreateScheme {
-	/// Legacy create scheme of `CREATE`.
-	Legacy {
-		/// Caller of the create.
-		caller: H160,
-	},
-	/// Create scheme of `CREATE2`.
-	Create2 {
-		/// Caller of the create.
-		caller: H160,
-		/// Code hash.
-		code_hash: H256,
-		/// Salt.
-		salt: H256,
-	},
-}
-
-impl CreateScheme {
-	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
-		match self {
-			Self::Create2 {
-				caller,
-				code_hash,
-				salt,
-			} => {
-				let mut hasher = Keccak256::new();
-				hasher.update([0xff]);
-				hasher.update(&caller[..]);
-				hasher.update(&salt[..]);
-				hasher.update(&code_hash[..]);
-				H256::from_slice(hasher.finalize().as_slice()).into()
-			}
-			Self::Legacy { caller } => {
-				let nonce = handler.nonce(*caller);
-				let mut stream = rlp::RlpStream::new_list(2);
-				stream.append(caller);
-				stream.append(&nonce);
-				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
-			}
-		}
-	}
-
-	#[must_use]
-	pub const fn caller(&self) -> H160 {
-		match self {
-			Self::Create2 { caller, .. } => *caller,
-			Self::Legacy { caller } => *caller,
-		}
-	}
-}
-
-/// Call scheme.
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum CallScheme {
-	/// `CALL`
-	Call,
-	/// `CALLCODE`
-	CallCode,
-	/// `DELEGATECALL`
-	DelegateCall,
-	/// `STATICCALL`
-	StaticCall,
 }
 
 pub enum CallCreateTrap {
@@ -161,6 +101,20 @@ impl CallCreateTrapData {
 	}
 }
 
+/// Call scheme.
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum CallScheme {
+	/// `CALL`
+	Call,
+	/// `CALLCODE`
+	CallCode,
+	/// `DELEGATECALL`
+	DelegateCall,
+	/// `STATICCALL`
+	StaticCall,
+}
+
+#[derive(Clone, Debug)]
 pub struct CallTrapData {
 	pub target: H160,
 	pub transfer: Option<Transfer>,
@@ -373,6 +327,59 @@ impl CallTrapData {
 		self.transfer
 			.as_ref()
 			.map_or(false, |t| t.value != U256::zero())
+	}
+}
+
+/// Create scheme.
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum CreateScheme {
+	/// Legacy create scheme of `CREATE`.
+	Legacy {
+		/// Caller of the create call.
+		caller: H160,
+	},
+	/// Create scheme of `CREATE2`.
+	Create2 {
+		/// Caller of the create call.
+		caller: H160,
+		/// Code hash.
+		code_hash: H256,
+		/// Salt.
+		salt: H256,
+	},
+}
+
+impl CreateScheme {
+	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
+		match self {
+			Self::Create2 {
+				caller,
+				code_hash,
+				salt,
+			} => {
+				let mut hasher = Keccak256::new();
+				hasher.update([0xff]);
+				hasher.update(&caller[..]);
+				hasher.update(&salt[..]);
+				hasher.update(&code_hash[..]);
+				H256::from_slice(hasher.finalize().as_slice()).into()
+			}
+			Self::Legacy { caller } => {
+				let nonce = handler.nonce(*caller);
+				let mut stream = rlp::RlpStream::new_list(2);
+				stream.append(caller);
+				stream.append(&nonce);
+				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+			}
+		}
+	}
+
+	#[must_use]
+	pub const fn caller(&self) -> H160 {
+		match self {
+			Self::Create2 { caller, .. } => *caller,
+			Self::Legacy { caller } => *caller,
+		}
 	}
 }
 

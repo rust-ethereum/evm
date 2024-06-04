@@ -1,8 +1,8 @@
-use super::consts::*;
-use super::utils::log2floor;
-use crate::standard::Config;
-use evm_interpreter::ExitException;
+use evm_interpreter::error::ExitException;
 use primitive_types::{H256, U256};
+
+use super::{consts::*, utils::log2floor};
+use crate::standard::Config;
 
 pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitException> {
 	if config.err_on_call_with_more_gas && U256::from(after_gas) < gas {
@@ -240,6 +240,13 @@ pub fn sstore_cost(
 			gas_cost
 		},
 	)
+}
+pub fn tload_cost(config: &Config) -> Result<u64, ExitException> {
+	Ok(config.gas_storage_read_warm)
+}
+
+pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
+	Ok(config.gas_storage_read_warm)
 }
 
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {

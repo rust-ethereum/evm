@@ -4,9 +4,9 @@ mod in_memory;
 mod run;
 mod types;
 
-use crate::error::Error;
-use crate::types::*;
 use clap::Parser;
+
+use crate::{error::Error, types::*};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

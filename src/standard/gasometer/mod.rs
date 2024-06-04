@@ -2,14 +2,19 @@ mod consts;
 mod costs;
 mod utils;
 
-use crate::standard::Config;
-use crate::{
-	Control, ExitError, ExitException, Machine, MergeStrategy, Opcode, RuntimeBackend,
-	RuntimeState, Stack,
-};
 use alloc::vec::Vec;
 use core::cmp::{max, min};
+
+use evm_interpreter::{
+	error::{ExitError, ExitException},
+	etable::Control,
+	machine::{Machine, Stack},
+	opcode::Opcode,
+	runtime::{RuntimeBackend, RuntimeState},
+};
 use primitive_types::{H160, H256, U256};
+
+use crate::{standard::Config, MergeStrategy};
 
 pub struct GasometerState<'config> {
 	gas_limit: u64,
@@ -388,6 +393,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			GasCost::SLoad { target_is_cold }
 		}
+		Opcode::TLOAD if config.eip_1153_enabled => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
@@ -425,6 +431,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				target_is_cold,
 			}
 		}
+		Opcode::TSTORE if !is_static && config.eip_1153_enabled => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
@@ -646,6 +653,10 @@ enum GasCost {
 		/// True if target has not been previously accessed in this transaction
 		target_is_cold: bool,
 	},
+	/// Gas cost for `TLOAD`.
+	TLoad,
+	/// Gas cost for `TSTORE`.
+	TStore,
 	/// Gas cost for `SHA3`.
 	Sha3 {
 		/// Length of the data.
@@ -742,6 +753,8 @@ impl GasCost {
 				new,
 				target_is_cold,
 			} => costs::sstore_cost(original, current, new, gas, target_is_cold, config)?,
+			GasCost::TLoad => costs::tload_cost(config)?,
+			GasCost::TStore => costs::tstore_cost(config)?,
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,

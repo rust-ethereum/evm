@@ -2,23 +2,34 @@ mod resolver;
 pub mod routines;
 mod state;
 
-pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
-pub use self::state::InvokerState;
+use alloc::{rc::Rc, vec::Vec};
+use core::{cmp::min, convert::Infallible};
 
-use super::Config;
-use crate::trap::{CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
-use crate::{
-	interpreter::Interpreter, Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed,
-	GasState, Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend, Transfer,
-	TrapConsume,
+use evm_interpreter::{
+	error::{
+		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
+		ExitError, ExitException, ExitResult, ExitSucceed, TrapConsume,
+	},
+	opcode::Opcode,
+	runtime::{
+		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
+		Transfer,
+	},
+	Interpreter,
 };
-use alloc::rc::Rc;
-use alloc::vec::Vec;
-use core::cmp::min;
-use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+
+pub use self::{
+	resolver::{EtableResolver, PrecompileSet, Resolver},
+	state::InvokerState,
+};
+use crate::{
+	backend::TransactionalBackend,
+	invoker::{Invoker as InvokerT, InvokerControl},
+	standard::Config,
+	MergeStrategy,
+};
 
 /// A trap that can be turned into either a call/create trap (where we push new
 /// call stack), or an interrupt (an external signal).

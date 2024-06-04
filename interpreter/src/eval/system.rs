@@ -1,11 +1,14 @@
-use super::Control;
-use crate::{
-	ExitException, ExitFatal, ExitSucceed, GasState, Log, Machine, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, Transfer,
-};
 use alloc::vec::Vec;
+
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
+
+use crate::{
+	error::{ExitException, ExitFatal, ExitSucceed},
+	etable::Control,
+	machine::Machine,
+	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
+};
 
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(machine, from, len);
@@ -283,6 +286,28 @@ pub fn gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	push_u256!(machine, machine.state.gas());
 
 	Control::Continue
+}
+
+pub fn tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	pop!(machine, index);
+	let value = handler.transient_storage(machine.state.as_ref().context.address, index);
+	push!(machine, value);
+
+	Control::Continue
+}
+
+pub fn tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	pop!(machine, index, value);
+	match handler.set_transient_storage(machine.state.as_ref().context.address, index, value) {
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
 }
 
 pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(

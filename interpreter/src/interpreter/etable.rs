@@ -1,10 +1,13 @@
-use crate::interpreter::{Interpreter, RunInterpreter, StepInterpreter};
-use crate::{
-	Capture, Control, EtableSet, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed,
-	Machine, Opcode, Stack, Valids,
-};
 use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
+
+use crate::{
+	error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed},
+	etable::{Control, EtableSet},
+	interpreter::{valids::Valids, Interpreter, RunInterpreter, StepInterpreter},
+	machine::{Machine, Stack},
+	opcode::Opcode,
+};
 
 pub struct EtableInterpreter<'etable, ES: EtableSet> {
 	valids: Valids,
