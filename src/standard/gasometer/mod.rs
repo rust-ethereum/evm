@@ -354,6 +354,9 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				len: U256::from_big_endian(&stack.peek(3)?[..]),
 			}
 		}
+		Opcode::MCOPY if config.eip_5656_enabled => GasCost::VeryLowCopy {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
@@ -458,6 +461,16 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
 		}),
+
+		Opcode::MCOPY => {
+			let top0 = U256::from_big_endian(&stack.peek(0)?[..]);
+			let top1 = U256::from_big_endian(&stack.peek(1)?[..]);
+			let offset = top0.max(top1);
+			Some(MemoryCost {
+				offset,
+				len: U256::from_big_endian(&stack.peek(2)?[..]),
+			})
+		}
 
 		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
 			offset: U256::from_big_endian(&stack.peek(0)?[..]),
