@@ -52,4 +52,7 @@ jobs:
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmBitwiseLogicOperation/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmIOandFlowOperations/ \
         jsontests/res/ethtests/GeneralStateTests/VMTests/vmLogTest/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmTests/
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmTests/ \
+        jsontests/res/ethtests/GeneralStateTests/VMTests/vmTests/ \
+        jsontests/res/ethtests/GeneralStateTests/stEIP150singleCodeGasPrices/eip2929.json
+
