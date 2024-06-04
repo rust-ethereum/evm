@@ -430,6 +430,7 @@ impl DerivedConfigInputs {
 			max_initcode_size: Some(0xC000),
 			eip_1153_enabled: true,
 			eip_5656_enabled: true,
+			eip_1559_enabled: true,
 		}
 	}
 }
