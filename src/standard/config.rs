@@ -101,6 +101,8 @@ pub struct Config {
 	pub eip_1153_enabled: bool,
 	/// Enables MCOPY instruction. See [EIP-5656](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-5656.md)
 	pub eip_5656_enabled: bool,
+	/// Uses EIP-1559 (Base fee is burned when this flag is enabled) [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md)
+	pub eip_1559_enabled: bool,
 }
 
 impl Config {
@@ -156,6 +158,7 @@ impl Config {
 			has_push0: false,
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
+			eip_1559_enabled: false,
 		}
 	}
 
@@ -211,6 +214,7 @@ impl Config {
 			has_push0: false,
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
+			eip_1559_enabled: false,
 		}
 	}
 
@@ -252,6 +256,7 @@ impl Config {
 			max_initcode_size,
 			eip_1153_enabled,
 			eip_5656_enabled,
+			eip_1559_enabled,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -316,6 +321,7 @@ impl Config {
 			has_push0,
 			eip_1153_enabled,
 			eip_5656_enabled,
+			eip_1559_enabled,
 		}
 	}
 }
@@ -337,6 +343,7 @@ struct DerivedConfigInputs {
 	max_initcode_size: Option<usize>,
 	eip_1153_enabled: bool,
 	eip_5656_enabled: bool,
+	eip_1559_enabled: bool,
 }
 
 impl DerivedConfigInputs {
@@ -353,6 +360,7 @@ impl DerivedConfigInputs {
 			max_initcode_size: None,
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
+			eip_1559_enabled: false,
 		}
 	}
 
@@ -369,6 +377,7 @@ impl DerivedConfigInputs {
 			max_initcode_size: None,
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 		}
 	}
 
@@ -385,6 +394,7 @@ impl DerivedConfigInputs {
 			max_initcode_size: None,
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 		}
 	}
 
@@ -402,6 +412,7 @@ impl DerivedConfigInputs {
 			max_initcode_size: Some(0xC000),
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 		}
 	}
 
