@@ -304,6 +304,9 @@ where
 
 		table.0[Opcode::GAS.as_usize()] = eval_gas as _;
 
+		table.0[Opcode::TLOAD.as_usize()] = eval_tload as _;
+		table.0[Opcode::TSTORE.as_usize()] = eval_tstore as _;
+
 		table.0[Opcode::LOG0.as_usize()] = eval_log0 as _;
 		table.0[Opcode::LOG1.as_usize()] = eval_log1 as _;
 		table.0[Opcode::LOG2.as_usize()] = eval_log2 as _;
