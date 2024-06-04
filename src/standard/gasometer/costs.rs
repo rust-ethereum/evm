@@ -242,11 +242,11 @@ pub fn sstore_cost(
 	)
 }
 pub fn tload_cost(config: &Config) -> Result<u64, ExitException> {
-	Ok(config.gas_sload)
+	Ok(config.gas_storage_read_warm)
 }
 
 pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
-	Ok(config.gas_sload)
+	Ok(config.gas_storage_read_warm)
 }
 
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
