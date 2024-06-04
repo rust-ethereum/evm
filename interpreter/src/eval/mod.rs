@@ -386,6 +386,15 @@ pub fn eval_jumpdest<S, H, Tr>(
 	Control::Continue
 }
 
+pub fn eval_mcopy<S, H, Tr>(
+	machine: &mut Machine<S>,
+	_handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::misc::mcopy(machine)
+}
+
 macro_rules! eval_push {
     ($($num:expr),*) => {
 		$(paste::paste! {
