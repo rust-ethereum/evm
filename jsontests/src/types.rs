@@ -94,11 +94,7 @@ impl TestMulti {
 					transaction: TestTransaction {
 						data: self.transaction.data[post_state.indexes.data].0.clone(),
 						gas_limit: self.transaction.gas_limit[post_state.indexes.gas],
-						gas_price: self
-							.transaction
-							.gas_price
-							.unwrap_or(self.env.current_base_fee),
-						gas_priority_fee: self.transaction.max_priority_fee_per_gas,
+						gas_price: self.transaction.gas_price.unwrap_or(U256::zero()),
 						nonce: self.transaction.nonce,
 						secret_key: self.transaction.secret_key,
 						sender: self.transaction.sender,
@@ -240,7 +236,6 @@ pub struct TestTransaction {
 	pub data: Vec<u8>,
 	pub gas_limit: U256,
 	pub gas_price: U256,
-	pub gas_priority_fee: Option<U256>,
 	pub nonce: U256,
 	pub secret_key: H256,
 	pub sender: H160,

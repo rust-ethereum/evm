@@ -121,8 +121,8 @@ pub fn run_test(
 		block_difficulty: test.env.current_difficulty,
 		block_randomness: Some(test.env.current_random),
 		block_gas_limit: test.env.current_gas_limit,
-		block_base_fee_per_gas: test.transaction.gas_price,
-		chain_id: U256::zero(), // TODO: fill in this field.
+		block_base_fee_per_gas: U256::zero(), // TODO: fill in this field.
+		chain_id: U256::zero(),               // TODO: fill in this field.
 	};
 
 	let state = test

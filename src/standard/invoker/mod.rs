@@ -76,7 +76,7 @@ pub enum TransactValue {
 /// The invoke used in a top-layer transaction stack.
 pub struct TransactInvoke {
 	pub create_address: Option<H160>,
-	pub gas_limit: U256,
+	pub gas_fee: U256,
 	pub gas_price: U256,
 	pub caller: H160,
 }
@@ -241,7 +241,7 @@ where
 		let value = args.value();
 
 		let invoke = TransactInvoke {
-			gas_limit: args.gas_limit(),
+			gas_fee,
 			gas_price: args.gas_price(),
 			caller: args.caller(),
 			create_address: match &args {
@@ -398,6 +398,8 @@ where
 			Ok(_) | Err(ExitError::Reverted) => left_gas,
 			Err(_) => U256::zero(),
 		};
+		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
+		let coinbase_reward = invoke.gas_fee.saturating_sub(refunded_fee);
 
 		match &result {
 			Ok(_) => {
@@ -408,22 +410,7 @@ where
 			}
 		}
 
-		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
 		handler.deposit(invoke.caller, refunded_fee);
-		// Reward coinbase address
-		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
-		// The base fee is always burned.
-		let coinbase_gas_price = if substate.config().eip_1559 {
-			invoke
-				.gas_price
-				.saturating_sub(handler.block_base_fee_per_gas())
-		} else {
-			invoke.gas_price
-		};
-		let coinbase_reward = invoke
-			.gas_limit
-			.saturating_mul(coinbase_gas_price)
-			.saturating_sub(refunded_fee);
 		handler.deposit(handler.block_coinbase(), coinbase_reward);
 
 		result
