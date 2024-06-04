@@ -314,7 +314,7 @@ mod tests {
 		memory.copy(3usize, 6usize, 2usize);
 
 		// Now the new memory data results in [0, 0, 0, 4, 0, 3, 4, 0].
-		// An extra element is added due to rezising.
+		// An extra element is added due to resizing.
 		assert_eq!(
 			memory.data(),
 			&[0u8, 0u8, 0u8, 4u8, 0u8, 3u8, 4u8, 0u8].to_vec()
