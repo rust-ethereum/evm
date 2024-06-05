@@ -1168,6 +1168,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Interprete
 			});
 		}
 
+		#[cfg(feature = "print-debug")]
+		println!("### {opcode}");
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
 			self.state
 				.metadata_mut()
@@ -1486,17 +1488,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	/// [EIP-7516]: BLOBBASEFEE instruction
 	fn blob_base_fee(&self) -> Option<u128> {
 		if self.config.has_blob_base_fee {
-			self.state.blob_gasprice()
+			self.state.blob_gas_price()
 		} else {
 			None
 		}
 	}
 
-	fn get_blob_hash(&self, index: usize) -> Result<U256, ExitError> {
+	fn get_blob_hash(&self, index: usize) -> Option<U256> {
 		if self.config.has_shard_blob_transactions {
 			self.state.get_blob_hash(index)
 		} else {
-			Err(ExitError::InvalidCode(Opcode::BLOBHASH))
+			None
 		}
 	}
 

@@ -101,6 +101,7 @@ pub struct Transaction {
 
 /// Environment.
 #[derive(Debug, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct Env {
 	/// Address.
 	#[serde(rename = "currentCoinbase")]
@@ -125,9 +126,13 @@ pub struct Env {
 	#[serde(rename = "currentRandom")]
 	#[serde(default)]
 	pub random: Option<Uint>,
-	/// EIP-7516: Blob base fee
-	#[serde(default)]
-	pub blob_base_fee: Option<u128>,
+
+	/// EIP-4844
+	pub parent_blob_gas_used: Option<Uint>,
+	/// EIP-4844
+	pub parent_excess_blob_gas: Option<Uint>,
+	/// EIP-4844
+	pub current_excess_blob_gas: Option<Uint>,
 }
 
 #[cfg(test)]
@@ -202,7 +207,9 @@ mod tests {
 				timestamp: Uint(1.into()),
 				block_base_fee_per_gas: Uint(0.into()),
 				random: Some(Uint(1.into())),
-				blob_base_fee: None,
+				parent_excess_blob_gas: None,
+				parent_blob_gas_used: None,
+				current_excess_blob_gas: None
 			}
 		);
 		assert_eq!(

@@ -1,6 +1,5 @@
 use super::{Apply, ApplyBackend, Backend, Basic, Log};
 use crate::prelude::*;
-use evm_core::ExitError;
 use primitive_types::{H160, H256, U256};
 
 /// Vicinity value of a memory backend.
@@ -13,6 +12,8 @@ use primitive_types::{H160, H256, U256};
 pub struct MemoryVicinity {
 	/// Gas price.
 	pub gas_price: U256,
+	/// Effective gas price.
+	pub effective_gas_price: U256,
 	/// Origin.
 	pub origin: H160,
 	/// Chain ID.
@@ -37,11 +38,10 @@ pub struct MemoryVicinity {
 	/// In Ethereum, this is the randomness beacon provided by the beacon
 	/// chain and is only enabled post Merge.
 	pub block_randomness: Option<H256>,
-	/// Environmental blob base fee per gas.
-	/// CANCUN hard fork
-	/// [EIP-4844]: Shard Blob Transactions
-	/// [EIP-7516]: BLOBBASEFEE instruction
-	pub blob_base_fee: Option<u128>,
+	/// EIP-4844
+	pub blob_gas_price: Option<u128>,
+	/// EIP-4844
+	pub blob_hashes: Vec<U256>,
 }
 
 /// Account information of a memory backend.
@@ -92,8 +92,9 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 }
 
 impl<'vicinity> Backend for MemoryBackend<'vicinity> {
+	#[allow(clippy::misnamed_getters)]
 	fn gas_price(&self) -> U256 {
-		self.vicinity.gas_price
+		self.vicinity.effective_gas_price
 	}
 	fn origin(&self) -> H160 {
 		self.vicinity.origin
@@ -166,11 +167,11 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
 		Some(self.storage(address, index))
 	}
-	fn blob_gasprice(&self) -> Option<u128> {
-		self.vicinity.blob_base_fee
+	fn blob_gas_price(&self) -> Option<u128> {
+		self.vicinity.blob_gas_price
 	}
-	fn get_blob_hash(&self, _index: usize) -> Result<U256, ExitError> {
-		Ok(U256::zero())
+	fn get_blob_hash(&self, index: usize) -> Option<U256> {
+		self.vicinity.blob_hashes.get(index).cloned()
 	}
 }
 

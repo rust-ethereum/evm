@@ -75,6 +75,7 @@ force-debug = [
     "evm-gasometer/force-debug",
 ]
 create-fixed = []
+print-debug = ["evm-gasometer/print-debug"]
 
 [workspace]
 members = [

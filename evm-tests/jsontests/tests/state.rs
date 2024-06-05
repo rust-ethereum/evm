@@ -17,8 +17,6 @@ fn short_test_file_name(name: &str) -> String {
 
 pub fn run(dir: &str) {
 	const SPEC: Option<ForkSpec> = Some(ForkSpec::Cancun);
-	//const SPEC: Option<ForkSpec> = Some(ForkSpec::Shanghai);
-
 	let _ = env_logger::try_init();
 
 	let mut dest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));

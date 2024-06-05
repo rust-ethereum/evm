@@ -518,10 +518,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 
 		self.backend.original_storage(address, key)
 	}
-	fn blob_gasprice(&self) -> Option<u128> {
-		self.backend.blob_gasprice()
+	fn blob_gas_price(&self) -> Option<u128> {
+		self.backend.blob_gas_price()
 	}
-	fn get_blob_hash(&self, index: usize) -> Result<U256, ExitError> {
+	fn get_blob_hash(&self, index: usize) -> Option<U256> {
 		self.backend.get_blob_hash(index)
 	}
 }

@@ -1342,14 +1342,11 @@ impl Implementation for Kzg {
 	fn execute(&self, input: &[u8], output: &mut BytesRef) -> Result<(), &'static str> {
 		// Get and verify KZG input.
 		let kzg_input: kzg::KzgInput = input.try_into()?;
-		if output.is_empty() {
-			return Err("BlobInvalidOutputLength");
-		}
 		let kzg_settings = kzg::EnvKzgSettings::Default;
 		if !kzg_input.verify_kzg_proof(&kzg_settings.get()) {
 			return Err("BlobVerifyKzgProofFailed");
 		}
-		output.copy_from_slice(kzg::RETURN_VALUE.as_slice());
+		output.write(0, kzg::RETURN_VALUE.as_slice());
 		Ok(())
 	}
 }

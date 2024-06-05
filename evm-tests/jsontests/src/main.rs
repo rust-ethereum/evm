@@ -188,29 +188,59 @@ const SKIPPED_CASES: &[&str] = &[
 	// custom json parser. https://github.com/ethereum/tests/issues/971
 	"stTransactionTest/ValueOverflow",
 	"stTransactionTest/ValueOverflowParis",
-	// These tests are passing, but they take a lot of time to execute so we are going to skip them.
-	"stTimeConsuming/static_Call50000_sha256",
-	"vmPerformance/loopMul",
-	"stTimeConsuming/CALLBlake2f_MaxRounds",
-	// Skip python-specific tests
-	"eip4844_blobs",
-	// Cancun blob txs
-	"stEIP4844-blobtransactions",
+	// These tests are passing, but they take a lot of time to execute so can going to skip them.
+	// NOTE: do not remove it to know slowest tests. It's useful for development.
+	// "stTimeConsuming/static_Call50000_sha256",
+	// "vmPerformance/loopMul",
+	// "stTimeConsuming/CALLBlake2f_MaxRounds",
 ];
 
+/// Check is path should be skip.
+/// It checks:
+/// - path/and_file_stam - check path and file name (without extention)
+/// - path/with/sub/path - recursively check path
 fn should_skip(path: &Path) -> bool {
 	let matches = |case: &str| {
-		let file_stem = path.file_stem().unwrap();
-		let dir_path = path.parent().unwrap();
-		let dir_name = dir_path.file_name().unwrap();
-		Path::new(dir_name).join(file_stem) == Path::new(case)
-			|| Path::new(dir_name) == Path::new(case)
+		let case_path = Path::new(case);
+		let case_path_components: Vec<_> = case_path.components().collect();
+		let path_components: Vec<_> = path.components().collect();
+		let case_path_len = case_path_components.len();
+		let path_len = path_components.len();
+
+		// Check path length without file name
+		if case_path_len > path_len {
+			return false;
+		}
+		// Check stem file name (without extension)
+		if let (Some(file_path_stem), Some(case_file_path_stem)) =
+			(path.file_stem(), case_path.file_stem())
+		{
+			if file_path_stem == case_file_path_stem {
+				// If case path contains only file name
+				if case_path_len == 1 {
+					return true;
+				}
+				// Check sub path without file names
+				if case_path_len > 1
+					&& path_len > 1 && case_path_components[..case_path_len - 1]
+					== path_components[path_len - case_path_len..path_len - 1]
+				{
+					return true;
+				}
+			}
+		}
+		// Check recursively path from the end without file name
+		if case_path_len < path_len && path_len > 1 {
+			for i in 1..=path_len - case_path_len {
+				if case_path_components
+					== path_components[path_len - case_path_len - i..path_len - i]
+				{
+					return true;
+				}
+			}
+		}
+		false
 	};
 
-	for case in SKIPPED_CASES {
-		if matches(case) {
-			return true;
-		}
-	}
-	false
+	SKIPPED_CASES.iter().any(|case| matches(case))
 }

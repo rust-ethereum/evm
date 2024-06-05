@@ -19,15 +19,16 @@ evm-runtime = { version = "0.41", path = "../runtime", default-features = false 
 [features]
 default = ["std"]
 std = [
-	"environmental/std",
-	"primitive-types/std",
-	"evm-core/std",
-	"evm-runtime/std",
+    "environmental/std",
+    "primitive-types/std",
+    "evm-core/std",
+    "evm-runtime/std",
 ]
 tracing = [
-	"environmental",
+    "environmental",
 ]
 
 force-debug = [
-	"log",
+    "log",
 ]
+print-debug = ["force-debug"]

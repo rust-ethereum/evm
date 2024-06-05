@@ -23,7 +23,6 @@ pub struct Basic {
 }
 
 pub use ethereum::Log;
-use evm_core::ExitError;
 
 /// Apply state operation.
 #[derive(Clone, Debug)]
@@ -88,12 +87,10 @@ pub trait Backend {
 	/// CANCUN hard fork
 	/// [EIP-4844]: Shard Blob Transactions
 	/// [EIP-7516]: BLOBBASEFEE instruction
-	/// NOTE: `blob_gasprice` should precalculated via [evm_core::utils::calc_blob_gasprice]
-	/// with `excess_blob_gas` parameter in [Backend] as described in EIP-4844.
-	fn blob_gasprice(&self) -> Option<u128>;
+	fn blob_gas_price(&self) -> Option<u128>;
 	/// Get `blob_hash` from `blob_versioned_hashes` by index
 	/// [EIP-4844]: BLOBHASH - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
-	fn get_blob_hash(&self, index: usize) -> Result<U256, ExitError>;
+	fn get_blob_hash(&self, index: usize) -> Option<U256>;
 }
 
 /// EVM backend that can apply changes.

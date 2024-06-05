@@ -119,10 +119,7 @@ pub fn blob_hash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	// Get blob_hash from `tx.blob_versioned_hashes[index]`
 	// as described:
 	// - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
-	let blob_hash = match handler.get_blob_hash(index) {
-		Ok(value) => value,
-		Err(e) => return Control::Exit(e.into()),
-	};
+	let blob_hash = handler.get_blob_hash(index).unwrap_or(U256::zero());
 	// Set top stack index with `blob_hash` value
 	if let Err(e) = runtime.machine.stack_mut().set(0, blob_hash) {
 		return Control::Exit(e.into());

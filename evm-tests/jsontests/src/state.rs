@@ -1,4 +1,4 @@
-use crate::utils::*;
+use crate::utils::transaction::InvalidTxReason;
 use ethjson::hash::Address;
 use ethjson::spec::builtin::{AltBn128ConstOperations, AltBn128Pairing, PricingAt};
 use ethjson::spec::{ForkSpec, Pricing};
@@ -8,6 +8,7 @@ use evm::executor::stack::{
 	MemoryStackState, PrecompileFailure, PrecompileFn, PrecompileOutput, StackExecutor,
 	StackSubstateMetadata,
 };
+use evm::utils::{calc_blob_gas_price, calc_data_fee, calc_excess_blob_gas, calc_max_data_fee};
 use evm::{Config, Context, ExitError, ExitReason, ExitSucceed};
 use lazy_static::lazy_static;
 use libsecp256k1::SecretKey;
@@ -64,7 +65,7 @@ pub struct Test(ethjson::test_helpers::state::State);
 
 impl Test {
 	pub fn unwrap_to_pre_state(&self) -> BTreeMap<H160, MemoryAccount> {
-		unwrap_to_state(&self.0.pre_state)
+		crate::utils::unwrap_to_state(&self.0.pre_state)
 	}
 
 	pub fn unwrap_caller(&self) -> H160 {
@@ -79,40 +80,31 @@ impl Test {
 		H160::from(H256::from_slice(Keccak256::digest(res).as_slice()))
 	}
 
-	pub fn unwrap_to_vicinity(&self, spec: &ForkSpec) -> Option<MemoryVicinity> {
+	pub fn unwrap_to_vicinity(
+		&self,
+		spec: &ForkSpec,
+		blob_gas_price: Option<u128>,
+	) -> Result<MemoryVicinity, InvalidTxReason> {
 		let block_base_fee_per_gas = self.0.env.block_base_fee_per_gas.0;
-		let gas_price = if self.0.transaction.gas_price.0.is_zero() {
-			let max_fee_per_gas = self.0.transaction.max_fee_per_gas.0;
+		let tx = &self.0.transaction;
+		let gas_price = tx.gas_price.or(tx.max_fee_per_gas).unwrap_or_default().0;
 
-			// max_fee_per_gas is only defined for London and later
-			if !max_fee_per_gas.is_zero() && spec < &ForkSpec::London {
-				return None;
+		// EIP-1559: priority fee must be lower than gas_price
+		if let Some(max_priority_fee_per_gas) = tx.max_priority_fee_per_gas {
+			if max_priority_fee_per_gas.0 > gas_price {
+				return Err(InvalidTxReason::PriorityFeeTooLarge);
 			}
-
-			// Cannot specify a lower fee than the base fee
-			if max_fee_per_gas < block_base_fee_per_gas {
-				return None;
-			}
-
-			let max_priority_fee_per_gas = self.0.transaction.max_priority_fee_per_gas.0;
-
-			// priority fee must be lower than regaular fee
-			if max_fee_per_gas < max_priority_fee_per_gas {
-				return None;
-			}
-
-			let priority_fee_per_gas = std::cmp::min(
-				max_priority_fee_per_gas,
-				max_fee_per_gas - block_base_fee_per_gas,
-			);
-			priority_fee_per_gas + block_base_fee_per_gas
-		} else {
-			self.0.transaction.gas_price.0
-		};
+		}
+		let effective_gas_price = self.0.transaction.max_priority_fee_per_gas.map_or(
+			gas_price,
+			|max_priority_fee_per_gas| {
+				gas_price.min(max_priority_fee_per_gas.0 + block_base_fee_per_gas)
+			},
+		);
 
 		// gas price cannot be lower than base fee
 		if gas_price < block_base_fee_per_gas {
-			return None;
+			return Err(InvalidTxReason::GasPriceLessThenBlockBaseFee);
 		}
 
 		let block_randomness = if spec.is_eth2() {
@@ -124,14 +116,16 @@ impl Test {
 				// (0x44), and so for older forks of Ethereum, the threshold value of 2^64 is used to
 				// distinguish between the two: if it's below, the value corresponds to the DIFFICULTY
 				// opcode, otherwise to the PREVRANDAO opcode.
-				u256_to_h256(r.0)
+				crate::utils::u256_to_h256(r.0)
 			})
 		} else {
 			None
 		};
+		let blob_hashes = tx.blob_versioned_hashes.clone();
 
-		Some(MemoryVicinity {
+		Ok(MemoryVicinity {
 			gas_price,
+			effective_gas_price,
 			origin: self.unwrap_caller(),
 			block_hashes: Vec::new(),
 			block_number: self.0.env.number.into(),
@@ -142,7 +136,8 @@ impl Test {
 			chain_id: U256::one(),
 			block_base_fee_per_gas,
 			block_randomness,
-			blob_base_fee: self.0.env.blob_base_fee,
+			blob_gas_price,
+			blob_hashes,
 		})
 	}
 }
@@ -389,7 +384,10 @@ fn cancun_builtins() -> BTreeMap<H160, ethcore_builtin::Builtin> {
 			Address(H160::from_low_u64_be(0xA)),
 			BuiltinCompat {
 				name: "kzg".to_string(),
-				pricing: PricingCompat::Empty,
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 50_000,
+					word: 0,
+				})),
 				activate_at: None,
 			},
 		),
@@ -426,20 +424,183 @@ pub fn test(
 	child.join().unwrap()
 }
 
+/// Validate EIP-3607 - empty create caller
+fn assert_empty_create_caller(expect_exception: &Option<String>, name: &str) {
+	let exception = expect_exception
+		.as_deref()
+		.expect("expected evm-json-test exception");
+	let check_exception = exception == "SenderNotEOA";
+	assert!(
+		check_exception,
+		"expected EmptyCaller exception for test: {name}"
+	);
+}
+
+/// Check call expected exception
+fn assert_call_exit_exception(spec: &ForkSpec, expect_exception: &Option<String>) {
+	if *spec == ForkSpec::Berlin {
+		if let Some(exception) = expect_exception.as_deref() {
+			let check_result = exception == "TR_TypeNotSupported";
+			assert!(check_result, "expected call exception");
+		}
+	} else {
+		assert!(expect_exception.is_none(), "unexpected call exception");
+	}
+}
+
 /// Check Exit Reason of EVM execution
-fn check_create_exit_reason(reason: &ExitReason, expect_exception: &Option<String>) -> bool {
-	if let Some(exception) = expect_exception.as_deref() {
-		if matches!(reason, ExitReason::Error(ExitError::CreateContractLimit)) {
-			let check_result = exception == "TR_InitCodeLimitExceeded"
-				|| exception == "TransactionException.INITCODE_SIZE_EXCEEDED";
+fn check_create_exit_reason(
+	reason: &ExitReason,
+	expect_exception: &Option<String>,
+	name: &str,
+) -> bool {
+	match reason {
+		ExitReason::Error(err) => {
+			if let Some(exception) = expect_exception.as_deref() {
+				match err {
+					ExitError::CreateContractLimit => {
+						let check_result = exception == "TR_InitCodeLimitExceeded"
+							|| exception == "TransactionException.INITCODE_SIZE_EXCEEDED";
+						assert!(
+							check_result,
+							"unexpected exception {exception:?} for CreateContractLimit error for test: {name}"
+						);
+						return true;
+					}
+					ExitError::MaxNonce => {
+						let check_result = exception == "TR_NonceHasMaxValue";
+						assert!(check_result,
+								"unexpected exception {exception:?} for MaxNonce error for test: {name}"
+						);
+						return true;
+					}
+					_ => {
+						panic!("unexpected error: {err:?} for exception: {exception}")
+					}
+				}
+			} else {
+				return false;
+			}
+		}
+		ExitReason::Fatal(err) => {
+			panic!("Unexpected error: {err:?}")
+		}
+		_ => {
 			assert!(
-				check_result,
-				"message: {exception}\nbut expected init code limit exceeded"
+				expect_exception.is_none(),
+				"Unexpected json-test error: {expect_exception:?}"
 			);
-			return true;
 		}
 	}
 	false
+}
+
+/// Check Exit Reason of EVM execution
+fn check_validate_exit_reason(
+	reason: &InvalidTxReason,
+	expect_exception: &Option<String>,
+	name: &str,
+) -> bool {
+	expect_exception.as_deref().map_or_else(
+		|| {
+			panic!("unexpected validation error reason: {reason:?}");
+		},
+		|exception| {
+			match reason {
+				InvalidTxReason::OutOfFund => {
+					let check_result = exception
+						== "TransactionException.INSUFFICIENT_ACCOUNT_FUNDS"
+						|| exception == "TR_TypeNotSupported"
+						|| exception == "TR_NoFunds"
+						|| exception == "TR_NoFundsX"
+						|| exception == "TransactionException.INSUFFICIENT_MAX_FEE_PER_BLOB_GAS";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for OutOfFund for test: {name}"
+					);
+				}
+				InvalidTxReason::GasLimitReached => {
+					let check_result = exception == "TR_GasLimitReached";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for GasLimitReached for test: {name}"
+					);
+				}
+				InvalidTxReason::IntrinsicGas => {
+					let check_result = exception == "TR_NoFundsOrGas"
+						|| exception == "TR_IntrinsicGas"
+						|| exception == "TransactionException.INTRINSIC_GAS_TOO_LOW"
+						|| exception == "IntrinsicGas"
+						|| exception == "TR_TypeNotSupported";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for IntrinsicGas for test: {name}"
+					);
+				}
+				InvalidTxReason::BlobVersionNotSupported => {
+					let check_result = exception
+						== "TransactionException.TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH"
+						|| exception == "TR_BLOBVERSION_INVALID";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for BlobVersionNotSupported for test: {name}"
+					);
+				}
+				InvalidTxReason::BlobCreateTransaction => {
+					let check_result = exception == "TR_BLOBCREATE";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for BlobCreateTransaction for test: {name}"
+					);
+				}
+				InvalidTxReason::BlobGasPriceGreaterThanMax => {
+					let check_result =
+						exception == "TransactionException.INSUFFICIENT_MAX_FEE_PER_BLOB_GAS";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for BlobGasPriceGreaterThanMax for test: {name}"
+					);
+				}
+				InvalidTxReason::TooManyBlobs => {
+					let check_result = exception == "TR_BLOBLIST_OVERSIZE"
+						|| exception == "TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for TooManyBlobs for test: {name}"
+					);
+				}
+				InvalidTxReason::EmptyBlobs => {
+					let check_result = exception == "TransactionException.TYPE_3_TX_ZERO_BLOBS"
+						|| exception == "TR_EMPTYBLOB";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for EmptyBlobs for test: {name}"
+					);
+				}
+				InvalidTxReason::MaxFeePerBlobGasNotSupported => {
+					let check_result =
+						exception == "TransactionException.TYPE_3_TX_PRE_FORK|TransactionException.TYPE_3_TX_ZERO_BLOBS";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for MaxFeePerBlobGasNotSupported for test: {name}"
+					);
+				}
+				InvalidTxReason::BlobVersionedHashesNotSupported => {
+					let check_result = exception == "TransactionException.TYPE_3_TX_PRE_FORK";
+					assert!(
+						check_result,
+						"unexpected exception {exception:?} for BlobVersionedHashesNotSupported for test: {name}"
+					);
+				}
+				_ => {
+					panic!(
+						"unexpected exception {exception:?} for reason {reason:?} for test {name}"
+					);
+				}
+			}
+			true
+		},
+	)
 }
 
 #[allow(clippy::cognitive_complexity)]
@@ -450,6 +611,7 @@ fn test_run(
 	specific_spec: Option<ForkSpec>,
 ) -> TestExecutionResult {
 	let mut tests_result = TestExecutionResult::new();
+	let test_tx = &test.0.transaction;
 	for (spec, states) in &test.0.post_states {
 		// Run tests for specific SPEC (Hard fork)
 		if let Some(s) = specific_spec.as_ref() {
@@ -465,19 +627,53 @@ fn test_run(
 			ForkSpec::Paris => (Config::merge(), true),
 			ForkSpec::Shanghai => (Config::shanghai(), true),
 			ForkSpec::Cancun => (Config::cancun(), true),
-			spec => {
-				println!("Skip spec {spec:?}");
+			_ => {
 				continue;
 			}
 		};
 
+		// EIP-4844
+		let blob_gas_price =
+			if let Some(current_excess_blob_gas) = test.0.env.current_excess_blob_gas {
+				Some(calc_blob_gas_price(current_excess_blob_gas.0.as_u64()))
+			} else if let (Some(parent_blob_gas_used), Some(parent_excess_blob_gas)) = (
+				test.0.env.parent_blob_gas_used,
+				test.0.env.parent_excess_blob_gas,
+			) {
+				let excess_blob_gas = calc_excess_blob_gas(
+					parent_blob_gas_used.0.as_u64(),
+					parent_excess_blob_gas.0.as_u64(),
+				);
+				Some(calc_blob_gas_price(excess_blob_gas))
+			} else {
+				None
+			};
+		// EIP-4844
+		let data_max_fee = if gasometer_config.has_shard_blob_transactions {
+			let max_fee_per_blob_gas = test_tx.max_fee_per_blob_gas.unwrap_or_default().0;
+			Some(calc_max_data_fee(
+				max_fee_per_blob_gas,
+				test_tx.blob_versioned_hashes.len(),
+			))
+		} else {
+			None
+		};
+		let data_fee = if gasometer_config.has_shard_blob_transactions {
+			Some(calc_data_fee(
+				blob_gas_price.expect("expect blob_gas_price"),
+				test_tx.blob_versioned_hashes.len(),
+			))
+		} else {
+			None
+		};
+
 		let original_state = test.unwrap_to_pre_state();
-		let vicinity = test.unwrap_to_vicinity(spec);
-		if vicinity.is_none() {
+		let vicinity = test.unwrap_to_vicinity(spec, blob_gas_price);
+		if let Err(tx_err) = vicinity {
 			let h = states.first().unwrap().hash.0;
 			// if vicinity could not be computed then the transaction was invalid so we simply
 			// check the original state and move on
-			let (is_valid_hash, actual_hash) = assert_valid_hash(&h, &original_state);
+			let (is_valid_hash, actual_hash) = crate::utils::assert_valid_hash(&h, &original_state);
 			if !is_valid_hash {
 				tests_result.failed_tests.push(FailedTestDetails {
 					expected_hash: h,
@@ -487,7 +683,16 @@ fn test_run(
 					spec: spec.clone(),
 					state: original_state,
 				});
+
+				if verbose_output.verbose_failed {
+					println!(" [{spec:?}] {name}: {tx_err:?} ... validation failed\t<----");
+				}
 				tests_result.failed += 1;
+			}
+			// Set test to passed as it pass hash-validation
+			tests_result.total += states.len() as u64;
+			if verbose_output.verbose_failed {
+				println!("---> SKIPPED [{tx_err:?}]: [{spec:?}] {name}");
 			}
 			continue;
 		}
@@ -502,7 +707,7 @@ fn test_run(
 			.map_or_else(Vec::new, |acc| acc.code.clone());
 
 		for (i, state) in states.iter().enumerate() {
-			let transaction = test.0.transaction.select(&state.indexes);
+			let transaction = test_tx.select(&state.indexes);
 			let mut backend = MemoryBackend::new(&vicinity, original_state.clone());
 
 			// Test case may be expected to fail with an unsupported tx type if the current fork is
@@ -525,15 +730,35 @@ fn test_run(
 
 			tests_result.total += 1;
 
-			// Only execute valid transactions
-			if let Ok(transaction) = crate::utils::transaction::validate(
-				transaction,
+			let gas_limit: u64 = transaction.gas_limit.into();
+			let data: Vec<u8> = transaction.data.clone().into();
+
+			let valid_tx = crate::utils::transaction::validate(
+				&transaction,
 				test.0.env.gas_limit.0,
 				caller_balance,
 				&gasometer_config,
-			) {
-				let gas_limit: u64 = transaction.gas_limit.into();
-				let data: Vec<u8> = transaction.data.into();
+				test_tx,
+				&vicinity,
+				blob_gas_price,
+				data_max_fee,
+				spec,
+			);
+			if let Err(err) = &valid_tx {
+				if check_validate_exit_reason(err, &state.expect_exception, name) {
+					continue;
+				}
+			}
+
+			// We do not check overflow after TX validation
+			let total_fee = if let Some(data_fee) = data_fee {
+				vicinity.effective_gas_price * gas_limit + data_fee
+			} else {
+				vicinity.effective_gas_price * gas_limit
+			};
+
+			// Only execute valid transactions
+			if valid_tx.is_ok() {
 				let metadata =
 					StackSubstateMetadata::new(transaction.gas_limit.into(), &gasometer_config);
 				let executor_state = MemoryStackState::new(metadata, &backend);
@@ -543,8 +768,6 @@ fn test_run(
 					&gasometer_config,
 					&precompile,
 				);
-				let total_fee = vicinity.gas_price * gas_limit;
-
 				executor.state_mut().withdraw(caller, total_fee).unwrap();
 
 				let access_list = transaction
@@ -559,6 +782,7 @@ fn test_run(
 						ethjson::maybe::MaybeEmpty::Some(to) => {
 							let value = transaction.value.into();
 
+							// Exit reason for Call do not analyzed as it mostly do not expect exceptions
 							let _reason = executor.transact_call(
 								caller,
 								to.into(),
@@ -567,6 +791,7 @@ fn test_run(
 								gas_limit,
 								access_list,
 							);
+							assert_call_exit_exception(spec, &state.expect_exception);
 						}
 						ethjson::maybe::MaybeEmpty::None => {
 							let code = data;
@@ -579,11 +804,17 @@ fn test_run(
 								gas_limit,
 								access_list,
 							);
-							if check_create_exit_reason(&reason.0, &state.expect_exception) {
+							if check_create_exit_reason(
+								&reason.0,
+								&state.expect_exception,
+								&format!("{spec:?}-{name}-{i}"),
+							) {
 								continue;
 							}
 						}
 					}
+				} else {
+					assert_empty_create_caller(&state.expect_exception, name);
 				}
 
 				if verbose_output.print_state {
@@ -593,16 +824,14 @@ fn test_run(
 					);
 				}
 
-				let actual_fee = executor.fee(vicinity.gas_price);
+				let actual_fee = executor.fee(vicinity.effective_gas_price);
 				// Forks after London burn miner rewards and thus have different gas fee
 				// calculation (see EIP-1559)
 				let miner_reward = if spec.is_eth2() {
-					let max_priority_fee_per_gas = test.0.transaction.max_priority_fee_per_gas();
-					let max_fee_per_gas = test.0.transaction.max_fee_per_gas();
-					let base_fee_per_gas = vicinity.block_base_fee_per_gas;
-					let priority_fee_per_gas =
-						std::cmp::min(max_priority_fee_per_gas, max_fee_per_gas - base_fee_per_gas);
-					executor.fee(priority_fee_per_gas)
+					let coinbase_gas_price = vicinity
+						.effective_gas_price
+						.saturating_sub(vicinity.block_base_fee_per_gas);
+					executor.fee(coinbase_gas_price)
 				} else {
 					actual_fee
 				};
@@ -610,13 +839,26 @@ fn test_run(
 				executor
 					.state_mut()
 					.deposit(vicinity.block_coinbase, miner_reward);
-				executor.state_mut().deposit(caller, total_fee - actual_fee);
+
+				let amount_to_return_for_caller = data_fee.map_or_else(
+					|| total_fee - actual_fee,
+					|data_fee| total_fee - actual_fee - data_fee,
+				);
+				executor
+					.state_mut()
+					.deposit(caller, amount_to_return_for_caller);
 
 				let (values, logs) = executor.into_state().deconstruct();
 
 				backend.apply(values, logs, delete_empty);
+			} else {
+				if let Some(e) = state.expect_exception.as_ref() {
+					panic!("unexpected exception: {e} for test {name}-{i}");
+				}
+				panic!("unexpected validation for test {name}-{i}")
 			}
-			let (is_valid_hash, actual_hash) = assert_valid_hash(&state.hash.0, backend.state());
+			let (is_valid_hash, actual_hash) =
+				crate::utils::assert_valid_hash(&state.hash.0, backend.state());
 			if !is_valid_hash {
 				let failed_res = FailedTestDetails {
 					expected_hash: state.hash.0,
@@ -629,7 +871,9 @@ fn test_run(
 				tests_result.failed_tests.push(failed_res);
 				tests_result.failed += 1;
 
-				println!(" [{:?}]  {}:{} ... failed\t<----", spec, name, i);
+				if verbose_output.verbose_failed {
+					println!(" [{spec:?}] {name}:{i} ... failed\t<----");
+				}
 				if verbose_output.print_state {
 					// Print detailed state data
 					println!(
@@ -640,12 +884,6 @@ fn test_run(
 						// Decode balance
 						let mut write_buf = [0u8; 32];
 						acc.balance.to_big_endian(&mut write_buf[..]);
-						// Convert to balance to Hex format
-						// let balance = if acc.balance > U256::from(u128::MAX) {
-						// 	hex::encode(write_buf)
-						// } else {
-						// 	format!("{:x?}", acc.balance.as_u128())
-						// };
 						let balance = acc.balance.to_string();
 
 						println!(
