@@ -156,6 +156,109 @@ pub fn flush() {
 	io::stdout().flush().expect("Could not flush stdout");
 }
 
+/// [EIP-4844]: https://eips.ethereum.org/EIPS/eip-4844
+pub mod eip_4844 {
+	use super::U256;
+
+	/// EIP-4844 constants
+	/// Gas consumption of a single data blob (== blob byte size).
+	pub const GAS_PER_BLOB: u64 = 1 << 17;
+	/// Target number of the blob per block.
+	pub const TARGET_BLOB_NUMBER_PER_BLOCK: u64 = 3;
+	/// Max number of blobs per block
+	pub const MAX_BLOB_NUMBER_PER_BLOCK: u64 = 2 * TARGET_BLOB_NUMBER_PER_BLOCK;
+	/// Target consumable blob gas for data blobs per block (for 1559-like pricing).
+	pub const TARGET_BLOB_GAS_PER_BLOCK: u64 = TARGET_BLOB_NUMBER_PER_BLOCK * GAS_PER_BLOB;
+	/// Minimum gas price for data blobs.
+	pub const MIN_BLOB_GASPRICE: u64 = 1;
+	/// Controls the maximum rate of change for blob gas price.
+	pub const BLOB_GASPRICE_UPDATE_FRACTION: u64 = 3338477;
+	/// First version of the blob.
+	pub const VERSIONED_HASH_VERSION_KZG: u8 = 0x01;
+
+	/// Calculates the `excess_blob_gas` from the parent header's `blob_gas_used` and `excess_blob_gas`.
+	///
+	/// See also [the EIP-4844 helpers]<https://eips.ethereum.org/EIPS/eip-4844#helpers>
+	/// (`calc_excess_blob_gas`).
+	#[inline]
+	pub const fn calc_excess_blob_gas(
+		parent_excess_blob_gas: u64,
+		parent_blob_gas_used: u64,
+	) -> u64 {
+		(parent_excess_blob_gas + parent_blob_gas_used).saturating_sub(TARGET_BLOB_GAS_PER_BLOCK)
+	}
+
+	/// Calculates the blob gas price from the header's excess blob gas field.
+	///
+	/// See also [the EIP-4844 helpers](https://eips.ethereum.org/EIPS/eip-4844#helpers)
+	/// (`get_blob_gasprice`).
+	#[inline]
+	pub fn calc_blob_gas_price(excess_blob_gas: u64) -> u128 {
+		fake_exponential(
+			MIN_BLOB_GASPRICE,
+			excess_blob_gas,
+			BLOB_GASPRICE_UPDATE_FRACTION,
+		)
+	}
+
+	/// See [EIP-4844], [`calc_max_data_fee`]
+	///
+	/// [EIP-4844]: https://eips.ethereum.org/EIPS/eip-4844
+	#[inline]
+	pub const fn get_total_blob_gas(blob_hashes_len: usize) -> u64 {
+		GAS_PER_BLOB * blob_hashes_len as u64
+	}
+
+	/// Calculates the [EIP-4844] `data_fee` of the transaction.
+	///
+	/// [EIP-4844]: https://eips.ethereum.org/EIPS/eip-4844
+	#[inline]
+	pub fn calc_max_data_fee(max_fee_per_blob_gas: U256, blob_hashes_len: usize) -> U256 {
+		max_fee_per_blob_gas.saturating_mul(U256::from(get_total_blob_gas(blob_hashes_len)))
+	}
+
+	/// Calculates the [EIP-4844] `data_fee` of the transaction.
+	///
+	/// [EIP-4844]: https://eips.ethereum.org/EIPS/eip-4844
+	#[inline]
+	pub fn calc_data_fee(blob_gas_price: u128, blob_hashes_len: usize) -> U256 {
+		U256::from(blob_gas_price).saturating_mul(U256::from(get_total_blob_gas(blob_hashes_len)))
+	}
+
+	/// Approximates `factor * e ** (numerator / denominator)` using Taylor expansion.
+	///
+	/// This is used to calculate the blob price.
+	///
+	/// See also [the EIP-4844 helpers](https://eips.ethereum.org/EIPS/eip-4844#helpers)
+	/// (`fake_exponential`).
+	///
+	/// # Panics
+	///
+	/// This function panics if `denominator` is zero.
+	///
+	/// # NOTES
+	/// PLEASE DO NOT USE IN PRODUCTION as not checked overflow. For tests only.
+	#[inline]
+	pub fn fake_exponential(factor: u64, numerator: u64, denominator: u64) -> u128 {
+		assert_ne!(denominator, 0, "attempt to divide by zero");
+		let factor = factor as u128;
+		let numerator = numerator as u128;
+		let denominator = denominator as u128;
+
+		let mut i = 1;
+		let mut output = 0;
+		let mut numerator_accum = factor * denominator;
+		while numerator_accum > 0 {
+			output += numerator_accum;
+
+			// Denominator is asserted as not zero at the start of the function.
+			numerator_accum = (numerator_accum * numerator) / (denominator * i);
+			i += 1;
+		}
+		output / denominator
+	}
+}
+
 pub mod transaction {
 	use ethjson::hash::Address;
 	use ethjson::maybe::MaybeEmpty;
@@ -165,7 +268,6 @@ pub mod transaction {
 	use ethjson::uint::Uint;
 	use evm::backend::MemoryVicinity;
 	use evm::gasometer::{self, Gasometer};
-	use evm::utils::{MAX_BLOB_NUMBER_PER_BLOCK, VERSIONED_HASH_VERSION_KZG};
 	use primitive_types::{H160, H256, U256};
 
 	// TODO: it will be refactored as old solution inefficient, also will be removed clippy-allow flag
@@ -240,14 +342,16 @@ pub mod transaction {
 				for blob in test_tx.blob_versioned_hashes.iter() {
 					let mut blob_hash = H256([0; 32]);
 					blob.to_big_endian(&mut blob_hash[..]);
-					if blob_hash[0] != VERSIONED_HASH_VERSION_KZG {
+					if blob_hash[0] != super::eip_4844::VERSIONED_HASH_VERSION_KZG {
 						return Err(InvalidTxReason::BlobVersionNotSupported);
 					}
 				}
 
 				// ensure the total blob gas spent is at most equal to the limit
 				// assert blob_gas_used <= MAX_BLOB_GAS_PER_BLOCK
-				if test_tx.blob_versioned_hashes.len() > MAX_BLOB_NUMBER_PER_BLOCK as usize {
+				if test_tx.blob_versioned_hashes.len()
+					> super::eip_4844::MAX_BLOB_NUMBER_PER_BLOCK as usize
+				{
 					return Err(InvalidTxReason::TooManyBlobs);
 				}
 			}

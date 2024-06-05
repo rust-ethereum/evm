@@ -1,3 +1,4 @@
+use crate::utils::eip_4844;
 use crate::utils::transaction::InvalidTxReason;
 use ethjson::hash::Address;
 use ethjson::spec::builtin::{AltBn128ConstOperations, AltBn128Pairing, PricingAt};
@@ -8,7 +9,6 @@ use evm::executor::stack::{
 	MemoryStackState, PrecompileFailure, PrecompileFn, PrecompileOutput, StackExecutor,
 	StackSubstateMetadata,
 };
-use evm::utils::{calc_blob_gas_price, calc_data_fee, calc_excess_blob_gas, calc_max_data_fee};
 use evm::{Config, Context, ExitError, ExitReason, ExitSucceed};
 use lazy_static::lazy_static;
 use libsecp256k1::SecretKey;
@@ -635,23 +635,25 @@ fn test_run(
 		// EIP-4844
 		let blob_gas_price =
 			if let Some(current_excess_blob_gas) = test.0.env.current_excess_blob_gas {
-				Some(calc_blob_gas_price(current_excess_blob_gas.0.as_u64()))
+				Some(eip_4844::calc_blob_gas_price(
+					current_excess_blob_gas.0.as_u64(),
+				))
 			} else if let (Some(parent_blob_gas_used), Some(parent_excess_blob_gas)) = (
 				test.0.env.parent_blob_gas_used,
 				test.0.env.parent_excess_blob_gas,
 			) {
-				let excess_blob_gas = calc_excess_blob_gas(
+				let excess_blob_gas = eip_4844::calc_excess_blob_gas(
 					parent_blob_gas_used.0.as_u64(),
 					parent_excess_blob_gas.0.as_u64(),
 				);
-				Some(calc_blob_gas_price(excess_blob_gas))
+				Some(eip_4844::calc_blob_gas_price(excess_blob_gas))
 			} else {
 				None
 			};
 		// EIP-4844
 		let data_max_fee = if gasometer_config.has_shard_blob_transactions {
 			let max_fee_per_blob_gas = test_tx.max_fee_per_blob_gas.unwrap_or_default().0;
-			Some(calc_max_data_fee(
+			Some(eip_4844::calc_max_data_fee(
 				max_fee_per_blob_gas,
 				test_tx.blob_versioned_hashes.len(),
 			))
@@ -659,7 +661,7 @@ fn test_run(
 			None
 		};
 		let data_fee = if gasometer_config.has_shard_blob_transactions {
-			Some(calc_data_fee(
+			Some(eip_4844::calc_data_fee(
 				blob_gas_price.expect("expect blob_gas_price"),
 				test_tx.blob_versioned_hashes.len(),
 			))
