@@ -153,7 +153,7 @@ impl Memory {
 	}
 
 	/// Copy memory region form `src` to `dst` with length.
-	/// `copy_within` used `memmove` to avoid DoS attacks.
+	/// `copy_within` uses `memmove` to avoid DoS attacks.
 	pub fn copy(
 		&mut self,
 		src_offset: usize,

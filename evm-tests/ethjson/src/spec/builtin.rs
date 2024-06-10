@@ -121,7 +121,7 @@ pub enum Pricing {
 	Bls12G2Multiexp(Bls12G2Multiexp),
 }
 
-/// Builtin compability layer
+/// Builtin compatibility layer
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]

@@ -195,7 +195,7 @@ const SKIPPED_CASES: &[&str] = &[
 	// "stTimeConsuming/CALLBlake2f_MaxRounds",
 ];
 
-/// Check is path should be skip.
+/// Check if a path should be skipped.
 /// It checks:
 /// - path/and_file_stam - check path and file name (without extention)
 /// - path/with/sub/path - recursively check path
