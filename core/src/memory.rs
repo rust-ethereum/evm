@@ -167,9 +167,11 @@ impl Memory {
 
 		// Get maximum offset
 		let offset = core::cmp::max(src_offset, dst_offset);
-		let offset_length = offset.checked_add(length).ok_or(ExitFatal::NotSupported)?;
+		let offset_length = offset
+			.checked_add(length)
+			.ok_or_else(|| ExitFatal::Other(Cow::from("OverflowOnCopy")))?;
 		if offset_length > self.limit {
-			return Err(ExitFatal::NotSupported);
+			return Err(ExitFatal::Other(Cow::from("OutOfGasOnCopy")));
 		}
 
 		// Resize data memory
