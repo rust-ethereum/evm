@@ -1,10 +1,10 @@
 /// Opcode enum. One-to-one corresponding to an `u8` value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
-	feature = "with-codec",
+	feature = "scale",
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Opcode(pub u8);
 
 // Core opcodes.
@@ -57,6 +57,13 @@ impl Opcode {
 	/// `BYTE`
 	pub const BYTE: Opcode = Opcode(0x1a);
 
+	/// `SHL`
+	pub const SHL: Opcode = Opcode(0x1b);
+	/// `SHR`
+	pub const SHR: Opcode = Opcode(0x1c);
+	/// `SAR`
+	pub const SAR: Opcode = Opcode(0x1d);
+
 	/// `CALLDATALOAD`
 	pub const CALLDATALOAD: Opcode = Opcode(0x35);
 	/// `CALLDATASIZE`
@@ -68,13 +75,6 @@ impl Opcode {
 	/// `CODECOPY`
 	pub const CODECOPY: Opcode = Opcode(0x39);
 
-	/// `SHL`
-	pub const SHL: Opcode = Opcode(0x1b);
-	/// `SHR`
-	pub const SHR: Opcode = Opcode(0x1c);
-	/// `SAR`
-	pub const SAR: Opcode = Opcode(0x1d);
-
 	/// `POP`
 	pub const POP: Opcode = Opcode(0x50);
 	/// `MLOAD`
@@ -83,6 +83,7 @@ impl Opcode {
 	pub const MSTORE: Opcode = Opcode(0x52);
 	/// `MSTORE8`
 	pub const MSTORE8: Opcode = Opcode(0x53);
+
 	/// `JUMP`
 	pub const JUMP: Opcode = Opcode(0x56);
 	/// `JUMPI`
@@ -91,6 +92,7 @@ impl Opcode {
 	pub const PC: Opcode = Opcode(0x58);
 	/// `MSIZE`
 	pub const MSIZE: Opcode = Opcode(0x59);
+
 	/// `JUMPDEST`
 	pub const JUMPDEST: Opcode = Opcode(0x5b);
 
@@ -165,48 +167,48 @@ impl Opcode {
 	pub const SWAP15: Opcode = Opcode(0x9e);
 	pub const SWAP16: Opcode = Opcode(0x9f);
 
+	/// See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md)
+	pub const EOFMAGIC: Opcode = Opcode(0xef);
+
 	/// `RETURN`
 	pub const RETURN: Opcode = Opcode(0xf3);
+
 	/// `REVERT`
 	pub const REVERT: Opcode = Opcode(0xfd);
 
 	/// `INVALID`
 	pub const INVALID: Opcode = Opcode(0xfe);
-
-	/// See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md)
-	pub const EOFMAGIC: Opcode = Opcode(0xef);
 }
 
 // External opcodes
 impl Opcode {
 	/// `SHA3`
 	pub const SHA3: Opcode = Opcode(0x20);
+
 	/// `ADDRESS`
 	pub const ADDRESS: Opcode = Opcode(0x30);
 	/// `BALANCE`
 	pub const BALANCE: Opcode = Opcode(0x31);
-	/// `SELFBALANCE`
-	pub const SELFBALANCE: Opcode = Opcode(0x47);
-	/// `BASEFEE`
-	pub const BASEFEE: Opcode = Opcode(0x48);
 	/// `ORIGIN`
 	pub const ORIGIN: Opcode = Opcode(0x32);
 	/// `CALLER`
 	pub const CALLER: Opcode = Opcode(0x33);
 	/// `CALLVALUE`
 	pub const CALLVALUE: Opcode = Opcode(0x34);
+
 	/// `GASPRICE`
 	pub const GASPRICE: Opcode = Opcode(0x3a);
 	/// `EXTCODESIZE`
 	pub const EXTCODESIZE: Opcode = Opcode(0x3b);
 	/// `EXTCODECOPY`
 	pub const EXTCODECOPY: Opcode = Opcode(0x3c);
-	/// `EXTCODEHASH`
-	pub const EXTCODEHASH: Opcode = Opcode(0x3f);
 	/// `RETURNDATASIZE`
 	pub const RETURNDATASIZE: Opcode = Opcode(0x3d);
 	/// `RETURNDATACOPY`
 	pub const RETURNDATACOPY: Opcode = Opcode(0x3e);
+	/// `EXTCODEHASH`
+	pub const EXTCODEHASH: Opcode = Opcode(0x3f);
+
 	/// `BLOCKHASH`
 	pub const BLOCKHASH: Opcode = Opcode(0x40);
 	/// `COINBASE`
@@ -219,34 +221,45 @@ impl Opcode {
 	pub const DIFFICULTY: Opcode = Opcode(0x44);
 	/// `GASLIMIT`
 	pub const GASLIMIT: Opcode = Opcode(0x45);
+	/// `CHAINID`
+	pub const CHAINID: Opcode = Opcode(0x46);
+	/// `SELFBALANCE`
+	pub const SELFBALANCE: Opcode = Opcode(0x47);
+	/// `BASEFEE`
+	pub const BASEFEE: Opcode = Opcode(0x48);
+
 	/// `SLOAD`
 	pub const SLOAD: Opcode = Opcode(0x54);
 	/// `SSTORE`
 	pub const SSTORE: Opcode = Opcode(0x55);
+
 	/// `GAS`
 	pub const GAS: Opcode = Opcode(0x5a);
+
 	/// `LOGn`
 	pub const LOG0: Opcode = Opcode(0xa0);
 	pub const LOG1: Opcode = Opcode(0xa1);
 	pub const LOG2: Opcode = Opcode(0xa2);
 	pub const LOG3: Opcode = Opcode(0xa3);
 	pub const LOG4: Opcode = Opcode(0xa4);
+
 	/// `CREATE`
 	pub const CREATE: Opcode = Opcode(0xf0);
-	/// `CREATE2`
-	pub const CREATE2: Opcode = Opcode(0xf5);
 	/// `CALL`
 	pub const CALL: Opcode = Opcode(0xf1);
 	/// `CALLCODE`
 	pub const CALLCODE: Opcode = Opcode(0xf2);
+
 	/// `DELEGATECALL`
 	pub const DELEGATECALL: Opcode = Opcode(0xf4);
+	/// `CREATE2`
+	pub const CREATE2: Opcode = Opcode(0xf5);
+
 	/// `STATICCALL`
 	pub const STATICCALL: Opcode = Opcode(0xfa);
+
 	/// `SUICIDE`
 	pub const SUICIDE: Opcode = Opcode(0xff);
-	/// `CHAINID`
-	pub const CHAINID: Opcode = Opcode(0x46);
 }
 
 impl Opcode {
