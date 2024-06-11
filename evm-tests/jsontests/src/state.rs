@@ -3,6 +3,7 @@ use crate::utils::transaction::InvalidTxReason;
 use ethjson::hash::Address;
 use ethjson::spec::builtin::{AltBn128ConstOperations, AltBn128Pairing, PricingAt};
 use ethjson::spec::{ForkSpec, Pricing};
+use ethjson::test_helpers::state::PostStateResult;
 use ethjson::uint::Uint;
 use evm::backend::{ApplyBackend, MemoryAccount, MemoryBackend, MemoryVicinity};
 use evm::executor::stack::{
@@ -87,7 +88,15 @@ impl Test {
 	) -> Result<MemoryVicinity, InvalidTxReason> {
 		let block_base_fee_per_gas = self.0.env.block_base_fee_per_gas.0;
 		let tx = &self.0.transaction;
-		let gas_price = tx.gas_price.or(tx.max_fee_per_gas).unwrap_or_default().0;
+		// Validation for EIP-1559 that was introduced in London hard fork
+		let gas_price = if *spec >= ForkSpec::London {
+			tx.gas_price.or(tx.max_fee_per_gas).unwrap_or_default().0
+		} else {
+			if tx.max_fee_per_gas.is_some() {
+				return Err(InvalidTxReason::GasPriseEip1559);
+			}
+			tx.gas_price.expect("expect gas price").0
+		};
 
 		// EIP-1559: priority fee must be lower than gas_price
 		if let Some(max_priority_fee_per_gas) = tx.max_priority_fee_per_gas {
@@ -664,15 +673,11 @@ fn assert_empty_create_caller(expect_exception: &Option<String>, name: &str) {
 }
 
 /// Check call expected exception
-fn assert_call_exit_exception(spec: &ForkSpec, expect_exception: &Option<String>) {
-	if *spec == ForkSpec::Berlin {
-		if let Some(exception) = expect_exception.as_deref() {
-			let check_result = exception == "TR_TypeNotSupported";
-			assert!(check_result, "expected call exception");
-		}
-	} else {
-		assert!(expect_exception.is_none(), "unexpected call exception");
-	}
+fn assert_call_exit_exception(expect_exception: &Option<String>) {
+	assert!(
+		expect_exception.is_none(),
+		"unexpected call exception: {expect_exception:?}"
+	);
 }
 
 /// Check Exit Reason of EVM execution
@@ -722,11 +727,159 @@ fn check_create_exit_reason(
 	false
 }
 
+/// Assert vicinity validation to ensure that test os expected validation error
+#[allow(clippy::cognitive_complexity)]
+fn assert_vicinity_validation(
+	reason: &InvalidTxReason,
+	states: &[PostStateResult],
+	spec: &ForkSpec,
+	name: &str,
+) {
+	match *spec {
+		ForkSpec::Istanbul | ForkSpec::Berlin => match reason {
+			InvalidTxReason::GasPriseEip1559 => {
+				for (i, state) in states.iter().enumerate() {
+					let expected = state
+						.expect_exception
+						.as_deref()
+						.expect("expected error message for test: [{spec}] {name}:{i}");
+					let is_checked = expected == "TR_TypeNotSupported";
+					assert!(
+						is_checked,
+						"unexpected error message {expected:?} for: [{spec:?}] {name}:{i}",
+					);
+				}
+			}
+			_ => panic!("Unexpected validation reason: {reason:?} [{name}]"),
+		},
+		ForkSpec::London => {
+			match reason {
+				InvalidTxReason::PriorityFeeTooLarge => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "tipTooHigh" || expected == "TR_TipGtFeeCap";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				InvalidTxReason::GasPriceLessThenBlockBaseFee => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked =
+							expected == "lowFeeCap" || expected == "TR_FeeCapLessThanBlocks";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				_ => panic!("Unexpected validation reason: {reason:?} [{spec:?}] {name}"),
+			}
+		}
+		ForkSpec::Paris => {
+			match reason {
+				InvalidTxReason::PriorityFeeTooLarge => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "TR_TipGtFeeCap";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				InvalidTxReason::GasPriceLessThenBlockBaseFee => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "TR_FeeCapLessThanBlocks";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				_ => panic!("Unexpected validation reason: {reason:?} [{spec:?}] {name}"),
+			}
+		}
+		ForkSpec::Shanghai => {
+			match reason {
+				InvalidTxReason::PriorityFeeTooLarge => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "TR_TipGtFeeCap";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				InvalidTxReason::GasPriceLessThenBlockBaseFee => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "TR_FeeCapLessThanBlocks";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				_ => panic!("Unexpected validation reason: {reason:?} [{spec:?}] {name}"),
+			}
+		}
+		ForkSpec::Cancun => {
+			match reason {
+				InvalidTxReason::PriorityFeeTooLarge => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "TR_TipGtFeeCap";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				InvalidTxReason::GasPriceLessThenBlockBaseFee => {
+					for (i, state) in states.iter().enumerate() {
+						let expected = state.expect_exception.as_deref().expect(
+							"expected error message for test: {reason:?} [{spec}] {name}:{i}",
+						);
+						let is_checked = expected == "TR_FeeCapLessThanBlocks"
+							|| expected == "TransactionException.INSUFFICIENT_MAX_FEE_PER_GAS";
+						assert!(
+							is_checked,
+							"unexpected error message {expected:?} for: {reason:?} [{spec:?}] {name}:{i}",
+						);
+					}
+				}
+				_ => panic!("Unexpected validation reason: {reason:?} [{spec:?}] {name}"),
+			}
+		}
+		_ => panic!("Unexpected validation reason: {reason:?} [{spec:?}] {name}"),
+	}
+}
+
 /// Check Exit Reason of EVM execution
 fn check_validate_exit_reason(
 	reason: &InvalidTxReason,
 	expect_exception: &Option<String>,
 	name: &str,
+	spec: &ForkSpec,
 ) -> bool {
 	expect_exception.as_deref().map_or_else(
 		|| {
@@ -737,31 +890,29 @@ fn check_validate_exit_reason(
 				InvalidTxReason::OutOfFund => {
 					let check_result = exception
 						== "TransactionException.INSUFFICIENT_ACCOUNT_FUNDS"
-						|| exception == "TR_TypeNotSupported"
 						|| exception == "TR_NoFunds"
 						|| exception == "TR_NoFundsX"
 						|| exception == "TransactionException.INSUFFICIENT_MAX_FEE_PER_BLOB_GAS";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for OutOfFund for test: {name}"
+						"unexpected exception {exception:?} for OutOfFund for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::GasLimitReached => {
 					let check_result = exception == "TR_GasLimitReached";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for GasLimitReached for test: {name}"
+						"unexpected exception {exception:?} for GasLimitReached for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::IntrinsicGas => {
 					let check_result = exception == "TR_NoFundsOrGas"
 						|| exception == "TR_IntrinsicGas"
 						|| exception == "TransactionException.INTRINSIC_GAS_TOO_LOW"
-						|| exception == "IntrinsicGas"
-						|| exception == "TR_TypeNotSupported";
+						|| exception == "IntrinsicGas";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for IntrinsicGas for test: {name}"
+						"unexpected exception {exception:?} for IntrinsicGas for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::BlobVersionNotSupported => {
@@ -770,14 +921,14 @@ fn check_validate_exit_reason(
 						|| exception == "TR_BLOBVERSION_INVALID";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for BlobVersionNotSupported for test: {name}"
+						"unexpected exception {exception:?} for BlobVersionNotSupported for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::BlobCreateTransaction => {
 					let check_result = exception == "TR_BLOBCREATE";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for BlobCreateTransaction for test: {name}"
+						"unexpected exception {exception:?} for BlobCreateTransaction for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::BlobGasPriceGreaterThanMax => {
@@ -785,7 +936,7 @@ fn check_validate_exit_reason(
 						exception == "TransactionException.INSUFFICIENT_MAX_FEE_PER_BLOB_GAS";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for BlobGasPriceGreaterThanMax for test: {name}"
+						"unexpected exception {exception:?} for BlobGasPriceGreaterThanMax for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::TooManyBlobs => {
@@ -793,7 +944,7 @@ fn check_validate_exit_reason(
 						|| exception == "TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for TooManyBlobs for test: {name}"
+						"unexpected exception {exception:?} for TooManyBlobs for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::EmptyBlobs => {
@@ -801,7 +952,7 @@ fn check_validate_exit_reason(
 						|| exception == "TR_EMPTYBLOB";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for EmptyBlobs for test: {name}"
+						"unexpected exception {exception:?} for EmptyBlobs for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::MaxFeePerBlobGasNotSupported => {
@@ -809,19 +960,19 @@ fn check_validate_exit_reason(
 						exception == "TransactionException.TYPE_3_TX_PRE_FORK|TransactionException.TYPE_3_TX_ZERO_BLOBS";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for MaxFeePerBlobGasNotSupported for test: {name}"
+						"unexpected exception {exception:?} for MaxFeePerBlobGasNotSupported for test: [{spec:?}] {name}"
 					);
 				}
 				InvalidTxReason::BlobVersionedHashesNotSupported => {
 					let check_result = exception == "TransactionException.TYPE_3_TX_PRE_FORK";
 					assert!(
 						check_result,
-						"unexpected exception {exception:?} for BlobVersionedHashesNotSupported for test: {name}"
+						"unexpected exception {exception:?} for BlobVersionedHashesNotSupported for test: [{spec:?}] {name}"
 					);
 				}
 				_ => {
 					panic!(
-						"unexpected exception {exception:?} for reason {reason:?} for test {name}"
+						"unexpected exception {exception:?} for reason {reason:?} for test: [{spec:?}] {name}"
 					);
 				}
 			}
@@ -899,6 +1050,7 @@ fn test_run(
 		let original_state = test.unwrap_to_pre_state();
 		let vicinity = test.unwrap_to_vicinity(spec, blob_gas_price);
 		if let Err(tx_err) = vicinity {
+			tests_result.total += states.len() as u64;
 			let h = states.first().unwrap().hash.0;
 			// if vicinity could not be computed then the transaction was invalid so we simply
 			// check the original state and move on
@@ -917,12 +1069,10 @@ fn test_run(
 					println!(" [{spec:?}] {name}: {tx_err:?} ... validation failed\t<----");
 				}
 				tests_result.failed += 1;
+				continue;
 			}
-			// Set test to passed as it pass hash-validation
-			tests_result.total += states.len() as u64;
-			if verbose_output.verbose_failed {
-				println!("---> SKIPPED [{tx_err:?}]: [{spec:?}] {name}");
-			}
+			assert_vicinity_validation(&tx_err, states, spec, name);
+			// As it's expected validation error - skip the test run
 			continue;
 		}
 		let vicinity = vicinity.unwrap();
@@ -938,7 +1088,7 @@ fn test_run(
 		for (i, state) in states.iter().enumerate() {
 			let transaction = test_tx.select(&state.indexes);
 			let mut backend = MemoryBackend::new(&vicinity, original_state.clone());
-
+			tests_result.total += 1;
 			// Test case may be expected to fail with an unsupported tx type if the current fork is
 			// older than Berlin (see EIP-2718). However, this is not implemented in sputnik itself and rather
 			// in the code hosting sputnik. https://github.com/rust-blockchain/evm/pull/40
@@ -950,14 +1100,12 @@ fn test_run(
 						| ForkSpec::Homestead | ForkSpec::Byzantium
 						| ForkSpec::Constantinople
 						| ForkSpec::ConstantinopleFix
-						| ForkSpec::Istanbul
+						| ForkSpec::Istanbul | ForkSpec::Berlin
 				) && TxType::from_txbytes(&state.txbytes) != TxType::Legacy
 					&& state.expect_exception.as_deref() == Some("TR_TypeNotSupported");
 			if expect_tx_type_not_supported {
 				continue;
 			}
-
-			tests_result.total += 1;
 
 			let gas_limit: u64 = transaction.gas_limit.into();
 			let data: Vec<u8> = transaction.data.clone().into();
@@ -974,7 +1122,7 @@ fn test_run(
 				spec,
 			);
 			if let Err(err) = &valid_tx {
-				if check_validate_exit_reason(err, &state.expect_exception, name) {
+				if check_validate_exit_reason(err, &state.expect_exception, name, spec) {
 					continue;
 				}
 			}
@@ -1020,7 +1168,7 @@ fn test_run(
 								gas_limit,
 								access_list,
 							);
-							assert_call_exit_exception(spec, &state.expect_exception);
+							assert_call_exit_exception(&state.expect_exception);
 						}
 						ethjson::maybe::MaybeEmpty::None => {
 							let code = data;

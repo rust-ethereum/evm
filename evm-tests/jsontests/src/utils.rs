@@ -386,5 +386,6 @@ pub mod transaction {
 		BlobGasPriceGreaterThanMax,
 		BlobVersionedHashesNotSupported,
 		MaxFeePerBlobGasNotSupported,
+		GasPriseEip1559,
 	}
 }

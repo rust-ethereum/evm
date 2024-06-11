@@ -287,7 +287,7 @@ const SKIPPED_CASES: &[&str] = &[
 	"stTransactionTest/ValueOverflow",
 	"stTransactionTest/ValueOverflowParis",
 	// It's impossible touch storage by precompiles
-	// NOTE: this tests related to hard forks: Londod and befor London
+	// NOTE: this tests related to hard forks: London and before London
 	"stRevertTest/RevertPrecompiledTouch",
 	"stRevertTest/RevertPrecompiledTouch_storage",
 ];
@@ -299,7 +299,7 @@ const SKIPPED_CASES: &[&str] = &[
 	"stTransactionTest/ValueOverflow",
 	"stTransactionTest/ValueOverflowParis",
 	// It's impossible touch storage by precompiles
-	// NOTE: this tests related to hard forks: Londod and befor London
+	// NOTE: this tests related to hard forks: London and before London
 	"stRevertTest/RevertPrecompiledTouch",
 	"stRevertTest/RevertPrecompiledTouch_storage",
 	// These tests are passing, but they take a lot of time to execute so can going to skip them.
