@@ -11,6 +11,7 @@ extern crate alloc;
 pub mod prelude {
 	pub use alloc::vec::Vec;
 }
+
 #[cfg(feature = "std")]
 pub mod prelude {
 	pub use std::vec::Vec;
@@ -28,8 +29,12 @@ macro_rules! event {
 }
 #[cfg(feature = "force-debug")]
 macro_rules! log_gas {
-	($self:expr, $($arg:tt)*) => (log::trace!(target: "evm", "Gasometer {} [Gas used: {}, Gas left: {}]", format_args!($($arg)*),
-	$self.total_used_gas(), $self.gas()));
+	($self:expr, $($arg:tt)*) => (
+	log::trace!(target: "evm", "Gasometer {} [Gas used: {}, Gas left: {}]", format_args!($($arg)*),
+	$self.total_used_gas(), $self.gas());
+	#[cfg(feature = "print-debug")]
+	println!("\t# {} [{} | {}]", format_args!($($arg)*), $self.total_used_gas(), $self.gas());
+	);
 }
 
 #[cfg(not(feature = "force-debug"))]
@@ -171,7 +176,6 @@ impl<'config> Gasometer<'config> {
 			cost,
 			snapshot: self.snapshot(),
 		});
-		log_gas!(self, "Record cost {}", cost);
 
 		let all_gas_cost = self.total_used_gas() + cost;
 		if self.gas_limit < all_gas_cost {
@@ -180,6 +184,7 @@ impl<'config> Gasometer<'config> {
 		}
 
 		self.inner_mut()?.used_gas += cost;
+		log_gas!(self, "record_cost: {}", cost);
 		Ok(())
 	}
 
@@ -190,7 +195,7 @@ impl<'config> Gasometer<'config> {
 			refund,
 			snapshot: self.snapshot(),
 		});
-		log_gas!(self, "Record refund -{}", refund);
+		log_gas!(self, "record_refund: -{}", refund);
 
 		self.inner_mut()?.refunded_gas += refund;
 		Ok(())
@@ -242,20 +247,15 @@ impl<'config> Gasometer<'config> {
 			return Err(ExitError::OutOfGas);
 		}
 
-		log_gas!(
-			self,
-			"Record dynamic cost {} - memory_gas {} - gas_refund {}",
-			gas_cost,
-			memory_gas,
-			gas_refund
-		);
-
 		let after_gas = self.gas_limit - all_gas_cost;
 		try_or_fail!(self.inner, inner_mut.extra_check(cost, after_gas));
 
 		inner_mut.used_gas += gas_cost;
 		inner_mut.memory_gas = memory_gas;
 		inner_mut.refunded_gas += gas_refund;
+
+		// NOTE Extended meesage: "Record dynamic cost {gas_cost} - memory_gas {} - gas_refund {}",
+		log_gas!(self, "record_dynamic_cost: {}", gas_cost,);
 
 		Ok(())
 	}
@@ -269,7 +269,7 @@ impl<'config> Gasometer<'config> {
 		});
 
 		self.inner_mut()?.used_gas -= stipend;
-		log_gas!(self, "Record stipent {}", stipend);
+		log_gas!(self, "record_stipent: {}", stipend);
 		Ok(())
 	}
 
@@ -527,7 +527,7 @@ pub fn static_opcode_cost(opcode: Opcode) -> Option<u32> {
 }
 
 /// Calculate the opcode cost.
-#[allow(clippy::nonminimal_bool)]
+#[allow(clippy::nonminimal_bool, clippy::cognitive_complexity)]
 pub fn dynamic_opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Opcode,
@@ -556,6 +556,23 @@ pub fn dynamic_opcode_cost<H: Handler>(
 
 		Opcode::BASEFEE if config.has_base_fee => GasCost::Base,
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
+
+		Opcode::BLOBBASEFEE if config.has_blob_base_fee => GasCost::Base,
+		Opcode::BLOBBASEFEE => GasCost::Invalid(opcode),
+
+		Opcode::BLOBHASH if config.has_shard_blob_transactions => GasCost::VeryLow,
+		Opcode::BLOBHASH => GasCost::Invalid(opcode),
+
+		Opcode::TLOAD if config.has_transient_storage => GasCost::WarmStorageRead,
+		Opcode::TLOAD => GasCost::Invalid(opcode),
+
+		Opcode::TSTORE if !is_static && config.has_transient_storage => GasCost::WarmStorageRead,
+		Opcode::TSTORE => GasCost::Invalid(opcode),
+
+		Opcode::MCOPY if config.has_mcopy => GasCost::VeryLowCopy {
+			len: stack.peek(2)?,
+		},
+		Opcode::MCOPY => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
 			let target = stack.peek_h256(0)?.into();
@@ -741,6 +758,22 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			len: 32,
 		}),
 
+		Opcode::MCOPY => {
+			let len = stack.peek_usize(2)?;
+			if len == 0 {
+				None
+			} else {
+				Some(MemoryCost {
+					offset: {
+						let src = stack.peek_usize(0)?;
+						let dst = stack.peek_usize(1)?;
+						max(src, dst)
+					},
+					len,
+				})
+			}
+		}
+
 		Opcode::MSTORE8 => Some(MemoryCost {
 			offset: stack.peek_usize(0)?,
 			len: 1,
@@ -915,6 +948,7 @@ impl<'config> Inner<'config> {
 				self.config.gas_ext_code_hash,
 				self.config,
 			),
+			GasCost::WarmStorageRead => costs::storage_read_warm(self.config),
 		})
 	}
 
@@ -1071,6 +1105,7 @@ pub enum GasCost {
 		/// True if target has not been previously accessed in this transaction
 		target_is_cold: bool,
 	},
+	WarmStorageRead,
 }
 
 /// Storage opcode will access. Used for tracking accessed storage (EIP-2929).

@@ -35,52 +35,53 @@ name = "loop"
 harness = false
 
 [features]
-default = ["std"]
+default = ["std", "force-debug"]
 std = [
-	"ethereum/std",
-	"log/std",
-	"primitive-types/std",
-	"rlp/std",
-	"sha3/std",
-	"environmental/std",
-	"scale-codec/std",
-	"scale-info/std",
-	"serde/std",
-	"evm-core/std",
-	"evm-gasometer/std",
-	"evm-runtime/std",
+    "ethereum/std",
+    "log/std",
+    "primitive-types/std",
+    "rlp/std",
+    "sha3/std",
+    "environmental/std",
+    "scale-codec/std",
+    "scale-info/std",
+    "serde/std",
+    "evm-core/std",
+    "evm-gasometer/std",
+    "evm-runtime/std",
 ]
 with-codec = [
-	"scale-codec",
-	"scale-info",
-	"primitive-types/codec",
-	"primitive-types/scale-info",
-	"ethereum/with-codec",
-	"evm-core/with-codec",
+    "scale-codec",
+    "scale-info",
+    "primitive-types/codec",
+    "primitive-types/scale-info",
+    "ethereum/with-codec",
+    "evm-core/with-codec",
 ]
 with-serde = [
-	"serde",
-	"primitive-types/impl-serde",
-	"evm-core/with-serde",
-	"ethereum/with-serde",
+    "serde",
+    "primitive-types/impl-serde",
+    "evm-core/with-serde",
+    "ethereum/with-serde",
 ]
 tracing = [
-	"environmental",
-	"evm-core/tracing",
-	"evm-gasometer/tracing",
-	"evm-runtime/tracing",
+    "environmental",
+    "evm-core/tracing",
+    "evm-gasometer/tracing",
+    "evm-runtime/tracing",
 ]
 force-debug = [
-	"evm-core/force-debug",
-	"evm-gasometer/force-debug",
+    "evm-core/force-debug",
+    "evm-gasometer/force-debug",
 ]
 create-fixed = []
+print-debug = ["evm-gasometer/print-debug"]
 
 [workspace]
 members = [
-	"core",
-	"gasometer",
-	"runtime",
-	"fuzzer",
-	"evm-tests/jsontests"
+    "core",
+    "gasometer",
+    "runtime",
+    "fuzzer",
+    "evm-tests/jsontests"
 ]

@@ -50,7 +50,7 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::LOG2 => system::log(state, 2, handler),
 		Opcode::LOG3 => system::log(state, 3, handler),
 		Opcode::LOG4 => system::log(state, 4, handler),
-		Opcode::SUICIDE => system::suicide(state, handler),
+		Opcode::SUICIDE => system::selfdestruct(state, handler),
 		Opcode::CREATE => system::create(state, false, handler),
 		Opcode::CREATE2 => system::create(state, true, handler),
 		Opcode::CALL => system::call(state, CallScheme::Call, handler),
@@ -59,6 +59,11 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::STATICCALL => system::call(state, CallScheme::StaticCall, handler),
 		Opcode::CHAINID => system::chainid(state, handler),
 		Opcode::BASEFEE => system::base_fee(state, handler),
+		Opcode::BLOBBASEFEE => system::blob_base_fee(state, handler),
+		Opcode::BLOBHASH => system::blob_hash(state, handler),
+		Opcode::TLOAD => system::tload(state, handler),
+		Opcode::TSTORE => system::tstore(state, handler),
+		Opcode::MCOPY => system::mcopy(state, handler),
 		_ => handle_other(state, opcode, handler),
 	}
 }

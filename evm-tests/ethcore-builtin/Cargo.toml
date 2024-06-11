@@ -19,7 +19,10 @@ libsecp256k1 = "0.7"
 ripemd = { version = "0.1", default-features = false }
 sha2 = { version = "0.10.0", default-features = false }
 eth_pairings = { git = "https://github.com/matter-labs/eip1962.git", default-features = false, features = ["eip_2537"], rev = "ece6cbabc41948db4200e41f0bfdab7ab94c7af8" }
+hex-literal = "0.4"
+c-kzg = "1.0"
+derive_more = "0.99"
+hex = "0.4.3"
 
 [dev-dependencies]
-hex-literal = "0.4"
 maplit = "1.0.2"

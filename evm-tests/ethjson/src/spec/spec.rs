@@ -19,11 +19,24 @@
 use crate::spec::{Engine, Genesis, HardcodedSync, Params, State};
 use serde::Deserialize;
 use serde_json::Error;
+use std::convert::TryFrom;
 use std::io::Read;
 
 /// Fork spec definition
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Deserialize)]
 pub enum ForkSpec {
+	/// Byzantium transition test-net
+	EIP158ToByzantiumAt5,
+	/// Homestead transition test-net
+	FrontierToHomesteadAt5,
+	/// Homestead transition test-net
+	HomesteadToDaoAt5,
+	/// EIP158/EIP161 transition test-net
+	HomesteadToEIP150At5,
+	/// ConstantinopleFix transition test-net
+	ByzantiumToConstantinopleFixAt5,
+	/// Istanbul transition test-net
+	ConstantinopleFixToIstanbulAt5,
 	/// EIP 150 Tangerine Whistle: Gas cost changes for IO-heavy operations (#2,463,000, 2016-10-18)
 	EIP150,
 	/// EIP 158/EIP 161 Spurious Dragon: State trie clearing (#2,675,000, 2016-11-22)
@@ -42,34 +55,67 @@ pub enum ForkSpec {
 	Istanbul,
 	/// Berlin (#12,244,000, 2021-04-15)
 	Berlin,
+
 	/// London (#12,965,000, 2021-08-05)
 	London,
 	/// Paris - The Merge (#15,537,394, 2022-09-15)
 	Merge,
+	/// Paris - The Merge (#15,537,394, 2022-09-15)
+	Paris,
 	/// Shanghai (#17,034,870, 2023-04-12)
 	Shanghai,
-	/// Cancun
+	/// Cancun (2024-03-13)
 	Cancun,
-
-	/// Byzantium transition test-net
-	EIP158ToByzantiumAt5,
-	/// Homestead transition test-net
-	FrontierToHomesteadAt5,
-	/// Homestead transition test-net
-	HomesteadToDaoAt5,
-	/// EIP158/EIP161 transition test-net
-	HomesteadToEIP150At5,
-	/// ConstantinopleFix transition test-net
-	ByzantiumToConstantinopleFixAt5,
-	/// Istanbul transition test-net
-	ConstantinopleFixToIstanbulAt5,
 }
 
 impl ForkSpec {
 	/// Returns true if the fork is at or after the merge.
 	pub const fn is_eth2(&self) -> bool {
-		// NOTE: Include new forks in this match arm.
-		matches!(*self, Self::London | Self::Merge | Self::Shanghai)
+		!matches!(
+			*self,
+			Self::EIP158ToByzantiumAt5
+				| Self::FrontierToHomesteadAt5
+				| Self::HomesteadToDaoAt5
+				| Self::HomesteadToEIP150At5
+				| Self::ByzantiumToConstantinopleFixAt5
+				| Self::ConstantinopleFixToIstanbulAt5
+				| Self::EIP150 | Self::EIP158
+				| Self::Frontier | Self::Homestead
+				| Self::Byzantium
+				| Self::Constantinople
+				| Self::ConstantinopleFix
+				| Self::Istanbul | Self::Berlin
+		)
+	}
+}
+
+impl TryFrom<String> for ForkSpec {
+	type Error = String;
+	fn try_from(value: String) -> Result<Self, Self::Error> {
+		let res = match value.to_lowercase().as_str() {
+			"eip158tobyzantiumat5" => Self::EIP158ToByzantiumAt5,
+			"frontiertohomesteadat5" => Self::FrontierToHomesteadAt5,
+			"homesteadtodaoat5" => Self::HomesteadToDaoAt5,
+			"homesteadtoeip150at5" => Self::HomesteadToEIP150At5,
+			"byzantiumtoconstantinoplefixat5" => Self::ByzantiumToConstantinopleFixAt5,
+			"constantinoplefixtoistanbulat5" => Self::ConstantinopleFixToIstanbulAt5,
+			"eip150" => Self::EIP150,
+			"eip158" => Self::EIP158,
+			"frontier" => Self::Frontier,
+			"homestead" => Self::Homestead,
+			"byzantium" => Self::Byzantium,
+			"constantinople" => Self::Constantinople,
+			"constantinoplefix" => Self::ConstantinopleFix,
+			"istanbul" => Self::Istanbul,
+			"berlin" => Self::Berlin,
+			"london" => Self::London,
+			"merge" => Self::Merge,
+			"paris" => Self::Paris,
+			"shanghai" => Self::Shanghai,
+			"cancun" => Self::Cancun,
+			other => return Err(format!("Unknown hard fork spec {other}")),
+		};
+		Ok(res)
 	}
 }
 

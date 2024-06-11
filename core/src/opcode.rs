@@ -1,3 +1,5 @@
+use core::fmt::{Display, Formatter};
+
 /// Opcode enum. One-to-one corresponding to an `u8` value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[cfg_attr(
@@ -95,6 +97,13 @@ impl Opcode {
 	/// `JUMPDEST`
 	pub const JUMPDEST: Opcode = Opcode(0x5b);
 
+	/// `TLOAD` - EIP-1153
+	pub const TLOAD: Opcode = Opcode(0x5c);
+	/// `TSTORE` - EIP-1153
+	pub const TSTORE: Opcode = Opcode(0x5d);
+	/// `MCOPY` - EIP-5656
+	pub const MCOPY: Opcode = Opcode(0x5e);
+
 	/// `PUSHn`
 	pub const PUSH0: Opcode = Opcode(0x5f);
 	pub const PUSH1: Opcode = Opcode(0x60);
@@ -191,6 +200,10 @@ impl Opcode {
 	pub const SELFBALANCE: Opcode = Opcode(0x47);
 	/// `BASEFEE`
 	pub const BASEFEE: Opcode = Opcode(0x48);
+	/// `BLOBHASH` - EIP-4844
+	pub const BLOBHASH: Opcode = Opcode(0x49);
+	/// `BLOBBASEFEE` - EIP-7516
+	pub const BLOBBASEFEE: Opcode = Opcode(0x4a);
 	/// `ORIGIN`
 	pub const ORIGIN: Opcode = Opcode(0x32);
 	/// `CALLER`
@@ -273,5 +286,164 @@ impl Opcode {
 	#[must_use]
 	pub const fn as_usize(&self) -> usize {
 		self.0 as usize
+	}
+}
+
+impl Display for Opcode {
+	fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+		let name = match *self {
+			Self::STOP => "STOP",
+			Self::ADD => "ADD",
+			Self::MUL => "MUL",
+			Self::SUB => "SUB",
+			Self::DIV => "DIV",
+			Self::SDIV => "SDIV",
+			Self::MOD => "MOD",
+			Self::SMOD => "SMOD",
+			Self::ADDMOD => "ADDMOD",
+			Self::MULMOD => "MULMOD",
+			Self::EXP => "EXP",
+			Self::SIGNEXTEND => "SIGNEXTEND",
+			Self::LT => "LT",
+			Self::GT => "GT",
+			Self::SLT => "SLT",
+			Self::SGT => "SGT",
+			Self::EQ => "EQ",
+			Self::ISZERO => "ISZERO",
+			Self::AND => "AND",
+			Self::OR => "OR",
+			Self::XOR => "XOR",
+			Self::NOT => "NOT",
+			Self::BYTE => "BYTE",
+			Self::CALLDATALOAD => "CALLDATALOAD",
+			Self::CALLDATASIZE => "CALLDATASIZE",
+			Self::CALLDATACOPY => "CALLDATACOPY",
+			Self::CODESIZE => "CODESIZE",
+			Self::CODECOPY => "CODECOPY",
+			Self::SHL => "SHL",
+			Self::SHR => "SHR",
+			Self::SAR => "SAR",
+			Self::POP => "POP",
+			Self::MLOAD => "MLOAD",
+			Self::MSTORE => "MSTORE",
+			Self::MSTORE8 => "MSTORE8",
+			Self::JUMP => "JUMP",
+			Self::JUMPI => "JUMPI",
+			Self::PC => "PC",
+			Self::MSIZE => "MSIZE",
+			Self::JUMPDEST => "JUMPDEST",
+			Self::TLOAD => "TLOAD",
+			Self::TSTORE => "TSTORE",
+			Self::MCOPY => "MCOPY",
+			Self::PUSH0 => "PUSH0",
+			Self::PUSH1 => "PUSH1",
+			Self::PUSH2 => "PUSH2",
+			Self::PUSH3 => "PUSH3",
+			Self::PUSH4 => "PUSH4",
+			Self::PUSH5 => "PUSH5",
+			Self::PUSH6 => "PUSH6",
+			Self::PUSH7 => "PUSH7",
+			Self::PUSH8 => "PUSH8",
+			Self::PUSH9 => "PUSH9",
+			Self::PUSH10 => "PUSH10",
+			Self::PUSH11 => "PUSH11",
+			Self::PUSH12 => "PUSH12",
+			Self::PUSH13 => "PUSH13",
+			Self::PUSH14 => "PUSH14",
+			Self::PUSH15 => "PUSH15",
+			Self::PUSH16 => "PUSH16",
+			Self::PUSH17 => "PUSH17",
+			Self::PUSH18 => "PUSH18",
+			Self::PUSH19 => "PUSH19",
+			Self::PUSH20 => "PUSH20",
+			Self::PUSH21 => "PUSH21",
+			Self::PUSH22 => "PUSH22",
+			Self::PUSH23 => "PUSH23",
+			Self::PUSH24 => "PUSH24",
+			Self::PUSH25 => "PUSH25",
+			Self::PUSH26 => "PUSH26",
+			Self::PUSH27 => "PUSH27",
+			Self::PUSH28 => "PUSH28",
+			Self::PUSH29 => "PUSH29",
+			Self::PUSH30 => "PUSH30",
+			Self::PUSH31 => "PUSH31",
+			Self::PUSH32 => "PUSH32",
+			Self::DUP1 => "DUP1",
+			Self::DUP2 => "DUP2",
+			Self::DUP3 => "DUP3",
+			Self::DUP4 => "DUP4",
+			Self::DUP5 => "DUP5",
+			Self::DUP6 => "DUP6",
+			Self::DUP7 => "DUP7",
+			Self::DUP8 => "DUP8",
+			Self::DUP9 => "DUP9",
+			Self::DUP10 => "DUP10",
+			Self::DUP11 => "DUP11",
+			Self::DUP12 => "DUP12",
+			Self::DUP13 => "DUP13",
+			Self::DUP14 => "DUP14",
+			Self::DUP15 => "DUP15",
+			Self::DUP16 => "DUP16",
+			Self::SWAP1 => "SWAP1",
+			Self::SWAP2 => "SWAP2",
+			Self::SWAP3 => "SWAP3",
+			Self::SWAP4 => "SWAP4",
+			Self::SWAP5 => "SWAP5",
+			Self::SWAP6 => "SWAP6",
+			Self::SWAP7 => "SWAP7",
+			Self::SWAP8 => "SWAP8",
+			Self::SWAP9 => "SWAP9",
+			Self::SWAP10 => "SWAP10",
+			Self::SWAP11 => "SWAP11",
+			Self::SWAP12 => "SWAP12",
+			Self::SWAP13 => "SWAP13",
+			Self::SWAP14 => "SWAP14",
+			Self::SWAP15 => "SWAP15",
+			Self::SWAP16 => "SWAP16",
+			Self::RETURN => "RETURN",
+			Self::REVERT => "REVERT",
+			Self::INVALID => "INVALID",
+			Self::EOFMAGIC => "EOFMAGIC",
+			Self::SHA3 => "SHA3",
+			Self::ADDRESS => "ADDRESS",
+			Self::BALANCE => "BALANCE",
+			Self::SELFBALANCE => "SELFBALANCE",
+			Self::BASEFEE => "BASEFEE",
+			Self::BLOBHASH => "BLOBHASH",
+			Self::BLOBBASEFEE => "BLOBBASEFEE",
+			Self::ORIGIN => "ORIGIN",
+			Self::CALLER => "CALLER",
+			Self::CALLVALUE => "CALLVALUE",
+			Self::GASPRICE => "GASPRICE",
+			Self::EXTCODESIZE => "EXTCODESIZE",
+			Self::EXTCODECOPY => "EXTCODECOPY",
+			Self::EXTCODEHASH => "EXTCODEHASH",
+			Self::RETURNDATASIZE => "RETURNDATASIZE",
+			Self::RETURNDATACOPY => "RETURNDATACOPY",
+			Self::BLOCKHASH => "BLOCKHASH",
+			Self::COINBASE => "COINBASE",
+			Self::TIMESTAMP => "TIMESTAMP",
+			Self::NUMBER => "NUMBER",
+			Self::DIFFICULTY => "DIFFICULTY",
+			Self::GASLIMIT => "GASLIMIT",
+			Self::SLOAD => "SLOAD",
+			Self::SSTORE => "SSTORE",
+			Self::GAS => "GAS",
+			Self::LOG0 => "LOG0",
+			Self::LOG1 => "LOG1",
+			Self::LOG2 => "LOG2",
+			Self::LOG3 => "LOG3",
+			Self::LOG4 => "LOG4",
+			Self::CREATE => "CREATE",
+			Self::CREATE2 => "CREATE2",
+			Self::CALL => "CALL",
+			Self::CALLCODE => "CALLCODE",
+			Self::DELEGATECALL => "DELEGATECALL",
+			Self::STATICCALL => "STATICCALL",
+			Self::SUICIDE => "SUICIDE",
+			Self::CHAINID => "CHAINID",
+			_ => "UNKNOWN",
+		};
+		write!(f, "{name} [{}]", self.0)
 	}
 }

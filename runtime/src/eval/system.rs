@@ -3,6 +3,7 @@ use crate::prelude::*;
 use crate::{
 	CallScheme, Capture, Context, CreateScheme, ExitError, ExitSucceed, Handler, Runtime, Transfer,
 };
+use core::cmp::max;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -10,6 +11,7 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	pop_u256!(runtime, from);
 	pop_usize!(runtime, len);
 
+	// Cast to `usize` after length checking to avoid overflow
 	let from = if len == 0 {
 		usize::MAX
 	} else {
@@ -86,10 +88,42 @@ pub fn gasprice<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 }
 
 pub fn base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
-	let mut ret = H256::default();
-	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
-	push_h256!(runtime, ret);
+	push_u256!(runtime, handler.block_base_fee_per_gas());
+	Control::Continue
+}
 
+/// CANCUN hard fork
+/// EIP-7516: BLOBBASEFEE opcode
+pub fn blob_base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	let blob_base_fee = U256::from(handler.blob_base_fee().unwrap_or_default());
+	push_u256!(runtime, blob_base_fee);
+	Control::Continue
+}
+
+/// CANCUN hard fork
+/// EIP-4844: Shard Blob Transactions
+/// Logic related to operating with BLOBHASH opcode described:
+/// - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
+pub fn blob_hash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	// Peek index from the top of the stack
+	let raw_index = match runtime.machine.stack().peek(0) {
+		Ok(value) => value,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Safely cast to usize
+	let index = if raw_index > usize::MAX.into() {
+		usize::MAX
+	} else {
+		raw_index.as_usize()
+	};
+	// Get blob_hash from `tx.blob_versioned_hashes[index]`
+	// as described:
+	// - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
+	let blob_hash = handler.get_blob_hash(index).unwrap_or(U256::zero());
+	// Set top stack index with `blob_hash` value
+	if let Err(e) = runtime.machine.stack_mut().set(0, blob_hash) {
+		return Control::Exit(e.into());
+	}
 	Control::Continue
 }
 
@@ -117,6 +151,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 		return Control::Continue;
 	}
 
+	// Cast to `usize` after length checking to avoid overflow
 	let memory_offset = memory_offset.as_usize();
 
 	try_or_fail!(runtime
@@ -256,6 +291,68 @@ pub fn sstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 	}
 }
 
+/// EIP-1153: Transient storage opcodes
+/// Load value from transient storage
+pub fn tload<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+	// Peek index from the top of the stack
+	let index = match runtime.machine.stack().peek(0) {
+		Ok(value) => {
+			let mut h = H256::default();
+			value.to_big_endian(&mut h[..]);
+			h
+		}
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Load value from transient storage
+	let value = match handler.tload(runtime.context.address, index) {
+		Ok(value) => value,
+		Err(e) => return Control::Exit(e.into()),
+	};
+	// Set top stack index with `transient` value result
+	match runtime.machine.stack_mut().set(0, value) {
+		Ok(()) => (),
+		Err(e) => return Control::Exit(e.into()),
+	}
+
+	Control::Continue
+}
+
+/// EIP-1153: Transient storage
+/// Store value to transient storage
+pub fn tstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+	pop_h256!(runtime, index);
+	pop_u256!(runtime, value);
+	match handler.tstore(runtime.context.address, index, value) {
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
+}
+
+/// CANCUN hard fork
+/// EIP-5656: MCOPY - Memory copying instruction
+pub fn mcopy<H: Handler>(runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
+	pop_u256!(runtime, dst, src, len);
+	let len = as_usize_or_fail!(len, ExitError::OutOfGas);
+	if len == 0 {
+		return Control::Continue;
+	}
+	let dst = as_usize_or_fail!(dst, ExitError::OutOfGas);
+	let src = as_usize_or_fail!(src, ExitError::OutOfGas);
+
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(max(src, dst), len));
+
+	// copy memory
+	match runtime.machine.memory_mut().copy(src, dst, len) {
+		Ok(()) => (),
+		Err(e) => return Control::Exit(e.into()),
+	};
+
+	Control::Continue
+}
+
 pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	push_u256!(runtime, handler.gas_left());
 
@@ -266,6 +363,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	pop_u256!(runtime, offset);
 	pop_usize!(runtime, len);
 
+	// Cast to `usize` after length checking to avoid overflow
 	let offset = if len == 0 {
 		usize::MAX
 	} else {
@@ -295,7 +393,18 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	}
 }
 
-pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+/// Performances SELFDESTRUCT action.
+/// Transfers balance from address to target. Check if target exist/is_cold
+///
+/// Note: balance will be lost if address and target are the same BUT when
+/// current spec enables Cancun, this happens only when the account associated to address
+/// is created in the same tx
+///
+/// references:
+///  * <https://github.com/ethereum/go-ethereum/blob/141cd425310b503c5678e674a8c3872cf46b7086/core/vm/instructions.go#L832-L833>
+///  * <https://github.com/ethereum/go-ethereum/blob/141cd425310b503c5678e674a8c3872cf46b7086/core/state/statedb.go#L449>
+///  * <https://eips.ethereum.org/EIPS/eip-6780>
+pub fn selfdestruct<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop_h256!(runtime, target);
 
 	match handler.mark_delete(runtime.context.address, target.into()) {
@@ -313,6 +422,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	pop_u256!(runtime, code_offset);
 	pop_usize!(runtime, len);
 
+	// Cast to `usize` after length checking to avoid overflow
 	let code_offset = if len == 0 {
 		usize::MAX
 	} else {
@@ -375,11 +485,13 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 	pop_u256!(runtime, out_offset);
 	pop_usize!(runtime, out_len);
 
+	// Cast to `usize` after length checking to avoid overflow
 	let in_offset = if in_len == 0 {
 		usize::MAX
 	} else {
 		in_offset.as_usize()
 	};
+	// Cast to `usize` after length checking to avoid overflow
 	let out_offset = if out_len == 0 {
 		usize::MAX
 	} else {

@@ -35,10 +35,6 @@ pub struct Transaction {
 	pub access_list: Vec<(Address, Vec<H256>)>,
 	/// Gas limit.
 	pub gas_limit: Uint,
-	/// Gas price.
-	pub gas_price: Uint,
-	/// Nonce.
-	pub nonce: Uint,
 	/// To.
 	pub to: MaybeEmpty<Address>,
 	/// Value.
@@ -79,10 +75,7 @@ mod tests {
 		let tx: Transaction = serde_json::from_str(s).expect("JSON string is valid");
 		assert_eq!(tx.data, Bytes::new(Vec::new()));
 		assert_eq!(tx.gas_limit, Uint(U256::from(0xf388)));
-		assert_eq!(tx.gas_price, Uint(U256::from(0x09184e72a000_u64)));
-		assert_eq!(tx.nonce, Uint(U256::zero()));
 		assert_eq!(tx.to, MaybeEmpty::None);
-		assert_eq!(tx.value, Uint(U256::zero()));
 		assert_eq!(tx.r, Uint(U256::zero()).into());
 		assert_eq!(tx.s, Uint(U256::one()).into());
 		assert_eq!(tx.v, Uint(U256::from(2)).into());

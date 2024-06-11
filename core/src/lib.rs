@@ -22,7 +22,7 @@ mod external;
 mod memory;
 mod opcode;
 mod stack;
-mod utils;
+pub mod utils;
 mod valids;
 
 pub use crate::error::{Capture, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Trap};

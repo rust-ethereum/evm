@@ -19,7 +19,9 @@ pub struct MemoryStackSubstate<'config> {
 	logs: Vec<Log>,
 	accounts: BTreeMap<H160, MemoryStackAccount>,
 	storages: BTreeMap<(H160, H256), H256>,
+	tstorages: BTreeMap<(H160, H256), U256>,
 	deletes: BTreeSet<H160>,
+	creates: BTreeSet<H160>,
 }
 
 impl<'config> MemoryStackSubstate<'config> {
@@ -30,7 +32,9 @@ impl<'config> MemoryStackSubstate<'config> {
 			logs: Vec::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
+			tstorages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
+			creates: BTreeSet::new(),
 		}
 	}
 
@@ -87,7 +91,18 @@ impl<'config> MemoryStackSubstate<'config> {
 			}
 
 			let apply = {
-				let account = self.account_mut(address, backend);
+				let account = if self.is_created(address) {
+					let account = self
+						.accounts
+						.get_mut(&address)
+						.expect("New account was just inserted");
+					// Reset storage for CREATE call as initially it's always should be empty.
+					// NOTE: related to `ethereum-tests`: `stSStoreTest/InitCollisionParis.json`
+					account.reset = true;
+					account
+				} else {
+					self.account_mut(address, backend)
+				};
 
 				Apply::Modify {
 					address,
@@ -115,7 +130,9 @@ impl<'config> MemoryStackSubstate<'config> {
 			logs: Vec::new(),
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
+			tstorages: BTreeMap::new(),
 			deletes: BTreeSet::new(),
+			creates: BTreeSet::new(),
 		};
 		mem::swap(&mut entering, self);
 
@@ -147,7 +164,9 @@ impl<'config> MemoryStackSubstate<'config> {
 
 		self.accounts.append(&mut exited.accounts);
 		self.storages.append(&mut exited.storages);
+		self.tstorages.append(&mut exited.tstorages);
 		self.deletes.append(&mut exited.deletes);
+		self.creates.append(&mut exited.creates);
 
 		Ok(())
 	}
@@ -323,7 +342,6 @@ impl<'config> MemoryStackSubstate<'config> {
 		for ok in removing {
 			self.storages.remove(&(address, ok));
 		}
-
 		self.account_mut(address, backend).reset = true;
 	}
 
@@ -337,6 +355,22 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn set_deleted(&mut self, address: H160) {
 		self.deletes.insert(address);
+	}
+
+	pub fn set_created(&mut self, address: H160) {
+		self.creates.insert(address);
+	}
+
+	pub fn is_created(&self, address: H160) -> bool {
+		if self.creates.contains(&address) {
+			return true;
+		}
+
+		if let Some(parent) = self.parent.as_ref() {
+			return parent.is_created(address);
+		}
+
+		false
 	}
 
 	pub fn set_code<B: Backend>(&mut self, address: H160, code: Vec<u8>, backend: &B) {
@@ -392,6 +426,24 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn touch<B: Backend>(&mut self, address: H160, backend: &B) {
 		self.account_mut(address, backend);
+	}
+
+	pub fn get_tstorage(&self, address: H160, key: H256) -> U256 {
+		self.known_tstorage(address, key).unwrap_or_default()
+	}
+
+	pub fn known_tstorage(&self, address: H160, key: H256) -> Option<U256> {
+		if let Some(value) = self.tstorages.get(&(address, key)) {
+			return Some(*value);
+		}
+		if let Some(parent) = self.parent.as_ref() {
+			return parent.known_tstorage(address, key);
+		}
+		None
+	}
+
+	pub fn set_tstorage(&mut self, address: H160, key: H256, value: U256) {
+		self.tstorages.insert((address, key), value);
 	}
 }
 
@@ -466,6 +518,12 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 
 		self.backend.original_storage(address, key)
 	}
+	fn blob_gas_price(&self) -> Option<u128> {
+		self.backend.blob_gas_price()
+	}
+	fn get_blob_hash(&self, index: usize) -> Option<U256> {
+		self.backend.get_blob_hash(index)
+	}
 }
 
 impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'backend, 'config, B> {
@@ -535,6 +593,14 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 		self.substate.set_deleted(address)
 	}
 
+	fn set_created(&mut self, address: H160) {
+		self.substate.set_created(address)
+	}
+
+	fn is_created(&self, address: H160) -> bool {
+		self.substate.is_created(address)
+	}
+
 	fn set_code(&mut self, address: H160, code: Vec<u8>) {
 		self.substate.set_code(address, code, self.backend)
 	}
@@ -549,6 +615,15 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 
 	fn touch(&mut self, address: H160) {
 		self.substate.touch(address, self.backend)
+	}
+
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError> {
+		Ok(self.substate.get_tstorage(address, index))
+	}
+
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError> {
+		self.substate.set_tstorage(address, index, value);
+		Ok(())
 	}
 }
 

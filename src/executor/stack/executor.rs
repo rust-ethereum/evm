@@ -78,6 +78,7 @@ pub struct StackSubstateMetadata<'config> {
 	is_static: bool,
 	depth: Option<usize>,
 	accessed: Option<Accessed>,
+	created: BTreeSet<H160>,
 }
 
 impl<'config> StackSubstateMetadata<'config> {
@@ -92,6 +93,7 @@ impl<'config> StackSubstateMetadata<'config> {
 			is_static: false,
 			depth: None,
 			accessed,
+			created: BTreeSet::new(),
 		}
 	}
 
@@ -120,7 +122,7 @@ impl<'config> StackSubstateMetadata<'config> {
 		Ok(())
 	}
 
-	pub fn swallow_discard(&mut self, _other: Self) -> Result<(), ExitError> {
+	pub fn swallow_discard(&self, _other: Self) -> Result<(), ExitError> {
 		Ok(())
 	}
 
@@ -130,6 +132,7 @@ impl<'config> StackSubstateMetadata<'config> {
 			is_static: is_static || self.is_static,
 			depth: self.depth.map_or(Some(0), |n| Some(n + 1)),
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
+			created: self.created.clone(),
 		}
 	}
 
@@ -184,7 +187,7 @@ impl<'config> StackSubstateMetadata<'config> {
 	}
 }
 
-#[auto_impl::auto_impl(&mut, Box)]
+#[auto_impl::auto_impl(& mut, Box)]
 pub trait StackState<'config>: Backend {
 	fn metadata(&self) -> &StackSubstateMetadata<'config>;
 	fn metadata_mut(&mut self) -> &mut StackSubstateMetadata<'config>;
@@ -196,6 +199,7 @@ pub trait StackState<'config>: Backend {
 
 	fn is_empty(&self, address: H160) -> bool;
 	fn deleted(&self, address: H160) -> bool;
+	fn is_created(&self, address: H160) -> bool;
 	fn is_cold(&self, address: H160) -> bool;
 	fn is_storage_cold(&self, address: H160, key: H256) -> bool;
 
@@ -204,6 +208,7 @@ pub trait StackState<'config>: Backend {
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
+	fn set_created(&mut self, address: H160);
 	fn set_code(&mut self, address: H160, code: Vec<u8>);
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
@@ -251,6 +256,13 @@ pub trait StackState<'config>: Backend {
 	}
 
 	fn refund_external_cost(&mut self, _ref_time: Option<u64>, _proof_size: Option<u64>) {}
+
+	/// Set tstorage value of address at index.
+	/// EIP-1153: Transient storage
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError>;
+	/// Get tstorage value of address at index.
+	/// EIP-1153: Transient storage
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError>;
 }
 
 /// Stack-based executor.
@@ -791,7 +803,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		});
 
 		if let Some(depth) = self.state.metadata().depth {
-			if depth > self.config.call_stack_limit {
+			// As Depth incremented in `enter_substate` we must check depth counter
+			// early to verify exceeding Stack limit. It allows avoid
+			// issue with wrong detection `CallTooDeep` for Create.
+			if depth + 1 > self.config.call_stack_limit {
 				return Capture::Exit((ExitError::CallTooDeep.into(), None, Vec::new()));
 			}
 		}
@@ -855,6 +870,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				return Capture::Exit((ExitReason::Error(e), None, Vec::new()));
 			}
 		}
+		// It needed for CANCUN hard fork EIP-6780 we should mark account as created
+		// to handle SELFDESTRUCT in the same transaction
+		self.state.set_created(address);
 
 		if self.config.create_increase_nonce {
 			if let Err(e) = self.state.inc_nonce(address) {
@@ -1112,6 +1130,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 	}
+
+	/// Check whether an address has already been created.
+	fn is_created(&self, address: H160) -> bool {
+		self.state.is_created(address)
+	}
 }
 
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> InterpreterHandler
@@ -1145,6 +1168,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Interprete
 			});
 		}
 
+		#[cfg(feature = "print-debug")]
+		println!("### {opcode}");
 		if let Some(cost) = gasometer::static_opcode_cost(opcode) {
 			self.state
 				.metadata_mut()
@@ -1198,6 +1223,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Interprete
 }
 
 pub struct StackExecutorCallInterrupt<'borrow>(TaggedRuntime<'borrow>);
+
 pub struct StackExecutorCreateInterrupt<'borrow>(TaggedRuntime<'borrow>);
 
 impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
@@ -1325,7 +1351,18 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		Ok(())
 	}
 
+	/// Mark account as deleted
+	/// - SELFDESTRUCT - CANCUN hard fork: EIP-6780
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError> {
+		let is_created = self.is_created(address);
+		// SELFDESTRUCT - CANCUN hard fork: EIP-6780 - selfdestruct only if contract is created in the same tx
+		if self.config.has_restricted_selfdestruct && !is_created && address == target {
+			// State is not changed:
+			// * if we are after Cancun upgrade specify the target is
+			// same as selfdestructed account. The balance stays unchanged.
+			return Ok(());
+		}
+
 		let balance = self.balance(address);
 
 		event!(Suicide {
@@ -1340,7 +1377,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			value: balance,
 		})?;
 		self.state.reset_balance(address);
-		self.state.set_deleted(address);
+		// For CANCUN hard fork SELFDESTRUCT (EIP-6780) state is not changed
+		// or if SELFDESTRUCT in the same TX - account should selfdestruct
+		if !self.config.has_restricted_selfdestruct || self.is_created(address) {
+			self.state.set_deleted(address);
+		}
 
 		Ok(())
 	}
@@ -1359,7 +1400,6 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			emit_exit!(reason.clone());
 			return Capture::Exit((reason, None, Vec::new()));
 		}
-
 		self.create_inner(caller, scheme, value, init_code, target_gas, true)
 	}
 
@@ -1439,6 +1479,43 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError> {
 		self.state.record_external_operation(op)
+	}
+
+	/// Returns `None` if `Cancun` hard fork is not enabled
+	/// via `has_blob_base_fee` config.
+	///
+	/// [EIP-4844]: Shard Blob Transactions
+	/// [EIP-7516]: BLOBBASEFEE instruction
+	fn blob_base_fee(&self) -> Option<u128> {
+		if self.config.has_blob_base_fee {
+			self.state.blob_gas_price()
+		} else {
+			None
+		}
+	}
+
+	fn get_blob_hash(&self, index: usize) -> Option<U256> {
+		if self.config.has_shard_blob_transactions {
+			self.state.get_blob_hash(index)
+		} else {
+			None
+		}
+	}
+
+	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError> {
+		if self.config.has_transient_storage {
+			self.state.tstore(address, index, value)
+		} else {
+			Err(ExitError::InvalidCode(Opcode::TSTORE))
+		}
+	}
+
+	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError> {
+		if self.config.has_transient_storage {
+			self.state.tload(address, index)
+		} else {
+			Err(ExitError::InvalidCode(Opcode::TLOAD))
+		}
 	}
 }
 

@@ -121,16 +121,17 @@ pub enum Pricing {
 	Bls12G2Multiexp(Bls12G2Multiexp),
 }
 
-/// Builtin compability layer
+/// Builtin compatibility layer
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Debug, PartialEq, Deserialize, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct BuiltinCompat {
 	/// Builtin name.
-	name: String,
+	pub name: String,
 	/// Builtin pricing.
-	pricing: PricingCompat,
+	pub pricing: PricingCompat,
 	/// Activation block.
-	activate_at: Option<Uint>,
+	pub activate_at: Option<Uint>,
 }
 
 /// Spec builtin.
@@ -160,6 +161,7 @@ impl From<BuiltinCompat> for Builtin {
 			PricingCompat::Multi(pricings) => {
 				pricings.into_iter().map(|(a, p)| (a.into(), p)).collect()
 			}
+			PricingCompat::Empty => BTreeMap::new(),
 		};
 		Self {
 			name: legacy.name,
@@ -169,15 +171,17 @@ impl From<BuiltinCompat> for Builtin {
 }
 
 /// Compability layer for different pricings
-#[derive(Debug, PartialEq, Deserialize, Clone)]
+#[derive(Debug, Eq, PartialEq, Deserialize, Clone)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 #[serde(untagged)]
-enum PricingCompat {
+pub enum PricingCompat {
 	/// Single builtin
 	Single(Pricing),
 	/// Multiple builtins
 	Multi(BTreeMap<Uint, PricingAt>),
+	/// Not provided pricing info
+	Empty,
 }
 
 /// Price for a builtin, with the block number to activate it on

@@ -84,6 +84,13 @@ pub trait Backend {
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
+	/// CANCUN hard fork
+	/// [EIP-4844]: Shard Blob Transactions
+	/// [EIP-7516]: BLOBBASEFEE instruction
+	fn blob_gas_price(&self) -> Option<u128>;
+	/// Get `blob_hash` from `blob_versioned_hashes` by index
+	/// [EIP-4844]: BLOBHASH - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
+	fn get_blob_hash(&self, index: usize) -> Option<U256>;
 }
 
 /// EVM backend that can apply changes.

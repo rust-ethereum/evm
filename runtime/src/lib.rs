@@ -265,6 +265,16 @@ pub struct Config {
 	pub has_push0: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
+	/// Has BLOBBASEFEE. See [EIP-7516](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7516.md)
+	pub has_blob_base_fee: bool,
+	/// Has Shard Blob Transactions. See [EIP-4844](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-4844.md)
+	pub has_shard_blob_transactions: bool,
+	/// Has Transient storage. See [EIP-1153](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1153.md)
+	pub has_transient_storage: bool,
+	/// Has MCOPY - Memory copying instruction. See [EIP-5656](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-5656.md)
+	pub has_mcopy: bool,
+	/// SELFDESTRUCT restriction: EIP-6780
+	pub has_restricted_selfdestruct: bool,
 }
 
 impl Config {
@@ -319,6 +329,11 @@ impl Config {
 			has_base_fee: false,
 			has_push0: false,
 			estimate: false,
+			has_blob_base_fee: false,
+			has_shard_blob_transactions: false,
+			has_transient_storage: false,
+			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -373,6 +388,11 @@ impl Config {
 			has_base_fee: false,
 			has_push0: false,
 			estimate: false,
+			has_blob_base_fee: false,
+			has_shard_blob_transactions: false,
+			has_transient_storage: false,
+			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -396,6 +416,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
 	}
 
+	/// Cancun hard fork configuration.
+	pub const fn cancun() -> Self {
+		Self::config_with_derived_values(DerivedConfigInputs::cancun())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Self {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -407,6 +432,11 @@ impl Config {
 			disallow_executable_format,
 			warm_coinbase_address,
 			max_initcode_size,
+			has_blob_base_fee,
+			has_shard_blob_transactions,
+			has_transient_storage,
+			has_mcopy,
+			has_restricted_selfdestruct,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -470,6 +500,11 @@ impl Config {
 			has_base_fee,
 			has_push0,
 			estimate: false,
+			has_blob_base_fee,
+			has_shard_blob_transactions,
+			has_transient_storage,
+			has_mcopy,
+			has_restricted_selfdestruct,
 		}
 	}
 }
@@ -486,6 +521,11 @@ struct DerivedConfigInputs {
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
+	has_blob_base_fee: bool,
+	has_shard_blob_transactions: bool,
+	has_transient_storage: bool,
+	has_mcopy: bool,
+	has_restricted_selfdestruct: bool,
 }
 
 impl DerivedConfigInputs {
@@ -500,6 +540,11 @@ impl DerivedConfigInputs {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			has_blob_base_fee: false,
+			has_shard_blob_transactions: false,
+			has_transient_storage: false,
+			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -514,6 +559,11 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			has_blob_base_fee: false,
+			has_shard_blob_transactions: false,
+			has_transient_storage: false,
+			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -528,6 +578,11 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			has_blob_base_fee: false,
+			has_shard_blob_transactions: false,
+			has_transient_storage: false,
+			has_mcopy: false,
+			has_restricted_selfdestruct: false,
 		}
 	}
 
@@ -543,6 +598,31 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
+			has_blob_base_fee: false,
+			has_shard_blob_transactions: false,
+			has_transient_storage: false,
+			has_mcopy: false,
+			has_restricted_selfdestruct: false,
+		}
+	}
+
+	const fn cancun() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			// 2 * 24576 as per EIP-3860
+			max_initcode_size: Some(0xC000),
+			has_blob_base_fee: true,
+			has_shard_blob_transactions: true,
+			has_transient_storage: true,
+			has_mcopy: true,
+			has_restricted_selfdestruct: true,
 		}
 	}
 }

@@ -2,6 +2,9 @@ use core::cmp::Ordering;
 use core::ops::{Div, Rem};
 use primitive_types::U256;
 
+/// Precalculated `usize::MAX` for `U256`
+pub const USIZE_MAX: U256 = U256([usize::MAX as u64, 0, 0, 0]);
+
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Sign {
 	Plus,

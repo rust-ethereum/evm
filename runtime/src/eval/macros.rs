@@ -69,3 +69,21 @@ macro_rules! pop_usize {
 		)*
 	);
 }
+
+macro_rules! as_usize_or_fail {
+	( $v:expr ) => {{
+		if $v > crate::utils::USIZE_MAX {
+			return Control::Exit(ExitFatal::NotSupported.into());
+		}
+
+		$v.as_usize()
+	}};
+
+	( $v:expr, $reason:expr ) => {{
+		if $v > crate::utils::USIZE_MAX {
+			return Control::Exit($reason.into());
+		}
+
+		$v.as_usize()
+	}};
+}

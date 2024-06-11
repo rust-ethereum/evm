@@ -152,6 +152,38 @@ impl Memory {
 		Ok(())
 	}
 
+	/// Copy memory region form `src` to `dst` with length.
+	/// `copy_within` uses `memmove` to avoid DoS attacks.
+	pub fn copy(
+		&mut self,
+		src_offset: usize,
+		dst_offset: usize,
+		length: usize,
+	) -> Result<(), ExitFatal> {
+		// If length is zero - do nothing
+		if length == 0 {
+			return Ok(());
+		}
+
+		// Get maximum offset
+		let offset = core::cmp::max(src_offset, dst_offset);
+		let offset_length = offset
+			.checked_add(length)
+			.ok_or_else(|| ExitFatal::Other(Cow::from("OverflowOnCopy")))?;
+		if offset_length > self.limit {
+			return Err(ExitFatal::Other(Cow::from("OutOfGasOnCopy")));
+		}
+
+		// Resize data memory
+		if self.data.len() < offset_length {
+			self.data.resize(offset_length, 0);
+		}
+
+		self.data
+			.copy_within(src_offset..src_offset + length, dst_offset);
+		Ok(())
+	}
+
 	/// Copy `data` into the memory, of given `len`.
 	pub fn copy_large(
 		&mut self,
