@@ -286,6 +286,10 @@ const SKIPPED_CASES: &[&str] = &[
 	// custom json parser. https://github.com/ethereum/tests/issues/971
 	"stTransactionTest/ValueOverflow",
 	"stTransactionTest/ValueOverflowParis",
+	// It's impossible touch storage by precompiles
+	// NOTE: this tests related to hard forks: Londod and befor London
+	"stRevertTest/RevertPrecompiledTouch",
+	"stRevertTest/RevertPrecompiledTouch_storage",
 ];
 
 #[cfg(not(feature = "enable-slow-tests"))]
@@ -294,6 +298,10 @@ const SKIPPED_CASES: &[&str] = &[
 	// custom json parser. https://github.com/ethereum/tests/issues/971
 	"stTransactionTest/ValueOverflow",
 	"stTransactionTest/ValueOverflowParis",
+	// It's impossible touch storage by precompiles
+	// NOTE: this tests related to hard forks: Londod and befor London
+	"stRevertTest/RevertPrecompiledTouch",
+	"stRevertTest/RevertPrecompiledTouch_storage",
 	// These tests are passing, but they take a lot of time to execute so can going to skip them.
 	"stTimeConsuming/static_Call50000_sha256",
 	"vmPerformance/loopMul",

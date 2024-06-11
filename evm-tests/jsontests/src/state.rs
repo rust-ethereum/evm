@@ -143,13 +143,11 @@ impl Test {
 }
 
 lazy_static! {
-	static ref ISTANBUL_BUILTINS: BTreeMap<H160, ethcore_builtin::Builtin> =
-		JsonPrecompile::builtins("./res/istanbul_builtins.json");
+	static ref ISTANBUL_BUILTINS: BTreeMap<H160, ethcore_builtin::Builtin> = istanbul_builtins();
 }
 
 lazy_static! {
-	static ref BERLIN_BUILTINS: BTreeMap<H160, ethcore_builtin::Builtin> =
-		JsonPrecompile::builtins("./res/berlin_builtins.json");
+	static ref BERLIN_BUILTINS: BTreeMap<H160, ethcore_builtin::Builtin> = berlin_builtins();
 }
 
 lazy_static! {
@@ -224,21 +222,6 @@ impl JsonPrecompile {
 		}
 	}
 
-	fn builtins(spec_path: &str) -> BTreeMap<H160, ethcore_builtin::Builtin> {
-		let reader = std::fs::File::open(spec_path).expect(spec_path);
-		let builtins: BTreeMap<ethjson::hash::Address, ethjson::spec::builtin::BuiltinCompat> =
-			serde_json::from_reader(reader).unwrap();
-		builtins
-			.into_iter()
-			.map(|(address, builtin)| {
-				(
-					address.into(),
-					ethjson::spec::Builtin::from(builtin).try_into().unwrap(),
-				)
-			})
-			.collect()
-	}
-
 	fn exec_as_precompile(
 		builtin: &ethcore_builtin::Builtin,
 		input: &[u8],
@@ -268,6 +251,250 @@ impl JsonPrecompile {
 			}),
 		}
 	}
+}
+
+fn istanbul_builtins() -> BTreeMap<H160, ethcore_builtin::Builtin> {
+	use ethjson::spec::builtin::{BuiltinCompat, Linear, Modexp, PricingCompat};
+
+	let builtins: BTreeMap<Address, BuiltinCompat> = BTreeMap::from([
+		(
+			Address(H160::from_low_u64_be(1)),
+			BuiltinCompat {
+				name: "ecrecover".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 3000,
+					word: 0,
+				})),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(2)),
+			BuiltinCompat {
+				name: "sha256".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear { base: 60, word: 12 })),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(3)),
+			BuiltinCompat {
+				name: "ripemd160".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 600,
+					word: 120,
+				})),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(4)),
+			BuiltinCompat {
+				name: "identity".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear { base: 15, word: 3 })),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(5)),
+			BuiltinCompat {
+				name: "modexp".to_string(),
+				pricing: PricingCompat::Single(Pricing::Modexp(Modexp {
+					divisor: 20,
+					is_eip_2565: false,
+				})),
+				activate_at: Some(Uint(U256::zero())),
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(6)),
+			BuiltinCompat {
+				name: "alt_bn128_add".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+							price: 150,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(7)),
+			BuiltinCompat {
+				name: "alt_bn128_mul".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+							price: 6000,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(8)),
+			BuiltinCompat {
+				name: "alt_bn128_pairing".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128Pairing(AltBn128Pairing {
+							base: 45000,
+							pair: 34000,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(9)),
+			BuiltinCompat {
+				name: "blake2_f".to_string(),
+				pricing: PricingCompat::Single(Pricing::Blake2F { gas_per_round: 1 }),
+				activate_at: Some(Uint(U256::zero())),
+			},
+		),
+	]);
+	builtins
+		.into_iter()
+		.map(|(address, builtin)| {
+			(
+				address.into(),
+				ethjson::spec::Builtin::from(builtin).try_into().unwrap(),
+			)
+		})
+		.collect()
+}
+
+fn berlin_builtins() -> BTreeMap<H160, ethcore_builtin::Builtin> {
+	use ethjson::spec::builtin::{BuiltinCompat, Linear, Modexp, PricingCompat};
+
+	let builtins: BTreeMap<Address, BuiltinCompat> = BTreeMap::from([
+		(
+			Address(H160::from_low_u64_be(1)),
+			BuiltinCompat {
+				name: "ecrecover".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 3000,
+					word: 0,
+				})),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(2)),
+			BuiltinCompat {
+				name: "sha256".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear { base: 60, word: 12 })),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(3)),
+			BuiltinCompat {
+				name: "ripemd160".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear {
+					base: 600,
+					word: 120,
+				})),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(4)),
+			BuiltinCompat {
+				name: "identity".to_string(),
+				pricing: PricingCompat::Single(Pricing::Linear(Linear { base: 15, word: 3 })),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(5)),
+			BuiltinCompat {
+				name: "modexp".to_string(),
+				pricing: PricingCompat::Single(Pricing::Modexp(Modexp {
+					divisor: 3,
+					is_eip_2565: true,
+				})),
+				activate_at: Some(Uint(U256::zero())),
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(6)),
+			BuiltinCompat {
+				name: "alt_bn128_add".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+							price: 150,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(7)),
+			BuiltinCompat {
+				name: "alt_bn128_mul".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128ConstOperations(AltBn128ConstOperations {
+							price: 6000,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(8)),
+			BuiltinCompat {
+				name: "alt_bn128_pairing".to_string(),
+				pricing: PricingCompat::Multi(BTreeMap::from([(
+					Uint(U256::zero()),
+					PricingAt {
+						info: Some("EIP 1108 transition".to_string()),
+						price: Pricing::AltBn128Pairing(AltBn128Pairing {
+							base: 45000,
+							pair: 34000,
+						}),
+					},
+				)])),
+				activate_at: None,
+			},
+		),
+		(
+			Address(H160::from_low_u64_be(9)),
+			BuiltinCompat {
+				name: "blake2_f".to_string(),
+				pricing: PricingCompat::Single(Pricing::Blake2F { gas_per_round: 1 }),
+				activate_at: Some(Uint(U256::zero())),
+			},
+		),
+	]);
+	builtins
+		.into_iter()
+		.map(|(address, builtin)| {
+			(
+				address.into(),
+				ethjson::spec::Builtin::from(builtin).try_into().unwrap(),
+			)
+		})
+		.collect()
 }
 
 fn cancun_builtins() -> BTreeMap<H160, ethcore_builtin::Builtin> {
@@ -853,6 +1080,23 @@ fn test_run(
 				let (values, logs) = executor.into_state().deconstruct();
 
 				backend.apply(values, logs, delete_empty);
+				// It's special case for hard forks: London or before London
+				// According to EIP-160 empty account should be removed. But in that particular test - original test state
+				// contains account 0x03 (it's precompile), and when precompile 0x03 was called it exit with
+				// OutOfGas result. And after exit of substate account not marked as touched, as exit reason
+				// is not success. And it mean, that it don't appeared in Apply::Modify, then as untouched it
+				// can't be removed by backend.apply event. In that particular case we should manage it manually.
+				// NOTE: it's not realistic situation for real life flow.
+				if *spec <= ForkSpec::London && delete_empty && name == "failed_tx_xcf416c53" {
+					let state = backend.state_mut();
+					state.retain(|addr, account| {
+						// Check is account empty for precompile 0x03
+						!(addr == &H160::from_low_u64_be(3)
+							&& account.balance == U256::zero()
+							&& account.nonce == U256::zero()
+							&& account.code.is_empty())
+					});
+				}
 			} else {
 				if let Some(e) = state.expect_exception.as_ref() {
 					panic!("unexpected exception: {e} for test {name}-{i}");
@@ -889,9 +1133,7 @@ fn test_run(
 						let balance = acc.balance.to_string();
 
 						println!(
-                            "{:?}: {{\n    balance: {}\n    code: {:?}\n    nonce: {}\n    storage: {:#?}\n}}",
-                            addr,
-                            balance,
+                            "{addr:?}: {{\n    balance: {balance}\n    code: {:?}\n    nonce: {}\n    storage: {:#?}\n}}",
                             hex::encode(acc.code),
                             acc.nonce,
                             acc.storage
