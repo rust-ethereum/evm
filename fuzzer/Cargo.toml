@@ -2,14 +2,14 @@
 name = "evm-fuzzer"
 version = "0.2.0-dev"
 authors = ["Vincent Ulitzsch <vincent@srlabs.de>"]
-edition = "2018"
+edition = "2021"
 description = "Fuzzer for EVM."
 license = "Apache-2.0"
 
 [dependencies]
 honggfuzz = "0.5"
 
-evm-core = { version = "0.41", path = "../core" }
+evm-core = { version = "0.42", path = "../core" }
 
 [[bin]]
 name = "evm_fuzz"

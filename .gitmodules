@@ -1,4 +1,0 @@
-[submodule "evm-tests/jsontests/res/ethtests"]
-	path = evm-tests/jsontests/res/ethtests
-	url = https://github.com/ethereum/tests
-	tag = v13.2

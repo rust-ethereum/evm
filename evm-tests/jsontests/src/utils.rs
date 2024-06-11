@@ -102,26 +102,7 @@ impl rlp::Decodable for TrieAccount {
 	}
 }
 
-pub fn assert_valid_state(a: &ethjson::spec::State, b: &BTreeMap<H160, MemoryAccount>) {
-	match &a.0 {
-		ethjson::spec::HashOrMap::Map(m) => {
-			assert_eq!(
-				&m.iter()
-					.map(|(k, v)| { ((*k).into(), unwrap_to_account(v)) })
-					.collect::<BTreeMap<_, _>>(),
-				b
-			);
-		}
-		ethjson::spec::HashOrMap::Hash(h) => {
-			let x = assert_valid_hash(&(*h).into(), b);
-			if !x.0 {
-				panic!("Wrong hash: {:#x?}", x.1);
-			}
-		}
-	}
-}
-
-pub fn assert_valid_hash(h: &H256, b: &BTreeMap<H160, MemoryAccount>) -> (bool, H256) {
+pub fn check_valid_hash(h: &H256, b: &BTreeMap<H160, MemoryAccount>) -> (bool, H256) {
 	let tree = b
 		.iter()
 		.map(|(address, account)| {

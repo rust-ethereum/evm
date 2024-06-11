@@ -1,4 +1,4 @@
-use crate::utils::*;
+use crate::state::{TestExecutionResult, VerboseOutput};
 use evm::backend::{ApplyBackend, MemoryAccount, MemoryBackend, MemoryVicinity};
 use evm::executor::stack::{MemoryStackState, StackExecutor, StackSubstateMetadata};
 use evm::Config;
@@ -11,11 +11,11 @@ use std::rc::Rc;
 pub struct Test(ethjson::vm::Vm);
 
 impl Test {
-	pub fn unwrap_to_pre_state(&self) -> BTreeMap<H160, MemoryAccount> {
-		unwrap_to_state(&self.0.pre_state)
+	fn unwrap_to_pre_state(&self) -> BTreeMap<H160, MemoryAccount> {
+		crate::utils::unwrap_to_state(&self.0.pre_state)
 	}
 
-	pub fn unwrap_to_vicinity(&self) -> MemoryVicinity {
+	fn unwrap_to_vicinity(&self) -> MemoryVicinity {
 		let block_randomness = self.0.env.random.map(|r| {
 			// Convert between U256 and H256. U256 is in little-endian but since H256 is just
 			// a string-like byte array, it's big endian (MSB is the first element of the array).
@@ -47,15 +47,15 @@ impl Test {
 		}
 	}
 
-	pub fn unwrap_to_code(&self) -> Rc<Vec<u8>> {
+	fn unwrap_to_code(&self) -> Rc<Vec<u8>> {
 		Rc::new(self.0.transaction.code.clone().into())
 	}
 
-	pub fn unwrap_to_data(&self) -> Rc<Vec<u8>> {
+	fn unwrap_to_data(&self) -> Rc<Vec<u8>> {
 		Rc::new(self.0.transaction.data.clone().into())
 	}
 
-	pub fn unwrap_to_context(&self) -> evm::Context {
+	fn unwrap_to_context(&self) -> evm::Context {
 		evm::Context {
 			address: self.0.transaction.address.into(),
 			caller: self.0.transaction.sender.into(),
@@ -63,22 +63,43 @@ impl Test {
 		}
 	}
 
-	pub fn unwrap_to_return_value(&self) -> Vec<u8> {
+	fn unwrap_to_return_value(&self) -> Vec<u8> {
 		self.0.output.clone().unwrap().into()
 	}
 
-	pub fn unwrap_to_gas_limit(&self) -> u64 {
+	fn unwrap_to_gas_limit(&self) -> u64 {
 		self.0.transaction.gas.into()
 	}
 
-	pub fn unwrap_to_post_gas(&self) -> u64 {
+	fn unwrap_to_post_gas(&self) -> u64 {
 		self.0.gas_left.unwrap().into()
+	}
+
+	fn check_valid_state(&self, b: &BTreeMap<H160, MemoryAccount>) -> bool {
+		let post_state = self.0.post_state.as_ref().unwrap();
+		match &post_state.0 {
+			ethjson::spec::HashOrMap::Map(m) => {
+				&m.iter()
+					.map(|(k, v)| ((*k).into(), crate::utils::unwrap_to_account(v)))
+					.collect::<BTreeMap<_, _>>()
+					== b
+			}
+			ethjson::spec::HashOrMap::Hash(h) => {
+				let x = crate::utils::check_valid_hash(&(*h).into(), b);
+				!x.0
+			}
+		}
 	}
 }
 
-pub fn test(name: &str, test: Test) {
-	print!("Running test {} ... ", name);
-	flush();
+pub fn test(verbose_output: &VerboseOutput, name: &str, test: Test) -> TestExecutionResult {
+	let mut result = TestExecutionResult::new();
+	let mut failed = false;
+	result.total = 1;
+	if verbose_output.verbose {
+		print!("Running test {} ... ", name);
+		crate::utils::flush();
+	}
 
 	let original_state = test.unwrap_to_pre_state();
 	let vicinity = test.unwrap_to_vicinity();
@@ -101,21 +122,61 @@ pub fn test(name: &str, test: Test) {
 	backend.apply(values, logs, false);
 
 	if test.0.output.is_none() {
-		print!("{:?} ", reason);
+		if verbose_output.verbose {
+			print!("{:?} ", reason);
+		}
 
-		assert!(!reason.is_succeed());
-		assert!(test.0.post_state.is_none() && test.0.gas_left.is_none());
+		if reason.is_succeed() {
+			failed = true;
+			if verbose_output.verbose_failed {
+				print!("[Failed: succeed for empty output: {:?}] ", reason);
+			}
+		}
+		if !(test.0.post_state.is_none() && test.0.gas_left.is_none()) {
+			failed = true;
+			if verbose_output.verbose_failed {
+				print!(
+					"[Failed: not empty state and left gas for empty output: {:?}] ",
+					reason
+				);
+			}
+		}
 	} else {
 		let expected_post_gas = test.unwrap_to_post_gas();
-		print!("{:?} ", reason);
+		if verbose_output.verbose {
+			print!("{:?} ", reason);
+		}
 
-		assert_eq!(
-			runtime.machine().return_value(),
-			test.unwrap_to_return_value()
-		);
-		assert_valid_state(test.0.post_state.as_ref().unwrap(), backend.state());
-		assert_eq!(gas, expected_post_gas);
+		if runtime.machine().return_value() != test.unwrap_to_return_value() {
+			failed = true;
+			if verbose_output.verbose_failed {
+				print!(
+					"[Failed: wrong return value: {:?}] ",
+					runtime.machine().return_value()
+				);
+			}
+		}
+		if !test.check_valid_state(backend.state()) {
+			failed = true;
+			if verbose_output.verbose_failed {
+				print!("[Failed: invalid state] ");
+			}
+		}
+		if gas != expected_post_gas {
+			failed = true;
+			if verbose_output.verbose_failed {
+				print!("[Failed: unexpected gas: {:?}] ", gas);
+			}
+		}
 	}
 
-	println!("succeed");
+	if failed {
+		result.failed += 1;
+		if verbose_output.verbose || verbose_output.verbose_failed {
+			println!("failed <-------");
+		}
+	} else if verbose_output.verbose {
+		println!("succeed");
+	}
+	result
 }

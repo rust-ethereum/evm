@@ -1,12 +1,12 @@
 [package]
 name = "evm-core"
-version = "0.41.0"
+version = "0.42.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
 repository = "https://github.com/sorpaas/rust-evm"
 keywords = ["no_std", "ethereum"]
-edition = "2018"
+edition = "2021"
 
 [dependencies]
 log = { version = "0.4", optional = true }
@@ -21,21 +21,21 @@ hex = "0.4"
 [features]
 default = ["std"]
 std = [
-	"primitive-types/std",
-	"serde/std",
-	"scale-codec/std",
-	"scale-info/std",
+    "primitive-types/std",
+    "serde/std",
+    "scale-codec/std",
+    "scale-info/std",
 ]
 with-codec = [
-	"scale-codec",
-	"scale-info",
-	"primitive-types/impl-codec",
+    "scale-codec",
+    "scale-info",
+    "primitive-types/impl-codec",
 ]
 with-serde = [
-	"serde",
-	"primitive-types/impl-serde",
+    "serde",
+    "primitive-types/impl-serde",
 ]
 force-debug = [
-	"log",
+    "log",
 ]
 tracing = []

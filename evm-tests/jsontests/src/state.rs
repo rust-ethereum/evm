@@ -675,7 +675,7 @@ fn test_run(
 			let h = states.first().unwrap().hash.0;
 			// if vicinity could not be computed then the transaction was invalid so we simply
 			// check the original state and move on
-			let (is_valid_hash, actual_hash) = crate::utils::assert_valid_hash(&h, &original_state);
+			let (is_valid_hash, actual_hash) = crate::utils::check_valid_hash(&h, &original_state);
 			if !is_valid_hash {
 				tests_result.failed_tests.push(FailedTestDetails {
 					expected_hash: h,
@@ -860,7 +860,7 @@ fn test_run(
 				panic!("unexpected validation for test {name}-{i}")
 			}
 			let (is_valid_hash, actual_hash) =
-				crate::utils::assert_valid_hash(&state.hash.0, backend.state());
+				crate::utils::check_valid_hash(&state.hash.0, backend.state());
 			if !is_valid_hash {
 				let failed_res = FailedTestDetails {
 					expected_hash: state.hash.0,
@@ -902,7 +902,7 @@ fn test_run(
 					}
 				}
 			} else if verbose_output.very_verbose && !verbose_output.verbose_failed {
-				println!(" [{:?}]  {}:{} ... passed", spec, name, i);
+				println!(" [{spec:?}]  {name}:{i} ... passed");
 			}
 		}
 	}
