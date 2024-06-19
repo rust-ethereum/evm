@@ -164,6 +164,13 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 			.unwrap_or_default()
 	}
 
+	fn is_empty_storage(&self, address: H160) -> bool {
+		self.state
+			.get(&address)
+			.map(|v| v.storage.is_empty())
+			.unwrap_or(true)
+	}
+
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
 		Some(self.storage(address, index))
 	}

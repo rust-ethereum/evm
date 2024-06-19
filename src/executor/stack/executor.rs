@@ -703,6 +703,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.basic(address).nonce
 	}
 
+	/// Check if the existing account is "create collision".    
+	/// [EIP-7610](https://eips.ethereum.org/EIPS/eip-7610)
+	pub fn is_create_collision(&self, address: H160) -> bool {
+		self.code_size(address) != U256::zero()
+			|| self.nonce(address) > U256::zero()
+			|| !self.state.is_empty_storage(address)
+	}
+
 	/// Get the created address from given scheme.
 	pub fn create_address(&self, scheme: CreateScheme) -> H160 {
 		match scheme {
@@ -839,18 +847,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		self.enter_substate(gas_limit, false);
 
-		{
-			if self.code_size(address) != U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
-			}
-
-			if self.nonce(address) > U256::zero() {
-				let _ = self.exit_substate(StackExitKind::Failed);
-				return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
-			}
-
-			self.state.reset_storage(address);
+		// Check create collision: EIP-7610
+		if self.is_create_collision(address) {
+			let _ = self.exit_substate(StackExitKind::Failed);
+			return Capture::Exit((ExitError::CreateCollision.into(), None, Vec::new()));
 		}
 
 		let context = Context {
@@ -1256,6 +1256,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state.storage(address, index)
+	}
+
+	fn is_empty_storage(&self, address: H160) -> bool {
+		self.state.is_empty(address)
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> H256 {

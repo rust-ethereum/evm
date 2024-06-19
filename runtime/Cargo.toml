@@ -1,12 +1,12 @@
 [package]
 name = "evm-runtime"
-version = "0.42.0"
-license = "Apache-2.0"
-authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
-description = "SputnikVM - a Portable Blockchain Virtual Machine"
-repository = "https://github.com/sorpaas/rust-evm"
-keywords = ["no_std", "ethereum"]
-edition = "2021"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+edition.workspace = true
+keywords.workspace = true
+description.workspace = true
+repository.workspace = true
 
 [dependencies]
 auto_impl = "1.0"
@@ -14,7 +14,7 @@ environmental = { version = "1.1", default-features = false, optional = true }
 primitive-types = { version = "0.12", default-features = false }
 sha3 = { version = "0.10", default-features = false }
 
-evm-core = { version = "0.42", path = "../core", default-features = false }
+evm-core = { version = "0.43", path = "../core", default-features = false }
 
 [features]
 default = ["std"]

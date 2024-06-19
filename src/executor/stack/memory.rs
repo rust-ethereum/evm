@@ -511,6 +511,10 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 			.unwrap_or_else(|| self.backend.storage(address, key))
 	}
 
+	fn is_empty_storage(&self, address: H160) -> bool {
+		self.backend.is_empty_storage(address)
+	}
+
 	fn original_storage(&self, address: H160, key: H256) -> Option<H256> {
 		if let Some(value) = self.substate.known_original_storage(address) {
 			return Some(value);

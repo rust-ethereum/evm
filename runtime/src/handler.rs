@@ -35,6 +35,8 @@ pub trait Handler {
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
+	/// Check if the storage of the address is empty.
+	fn is_empty_storage(&self, address: H160) -> bool;
 	/// Get original storage value of address at index.
 	fn original_storage(&self, address: H160, index: H256) -> H256;
 

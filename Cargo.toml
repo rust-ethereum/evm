@@ -1,12 +1,12 @@
 [package]
 name = "evm"
-version = "0.42.0"
-license = "Apache-2.0"
-authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
-description = "SputnikVM - a Portable Blockchain Virtual Machine"
-repository = "https://github.com/sorpaas/rust-evm"
-keywords = ["no_std", "ethereum"]
-edition = "2021"
+version.workspace = true
+license.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+keywords.workspace = true
+edition.workspace = true
 
 [dependencies]
 auto_impl = "1.0"
@@ -22,9 +22,9 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.11", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
-evm-core = { version = "0.42", path = "core", default-features = false }
-evm-gasometer = { version = "0.42", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.42", path = "runtime", default-features = false }
+evm-core = { version = "0.43", path = "core", default-features = false }
+evm-runtime = { version = "0.43", path = "runtime", default-features = false }
+evm-gasometer = { version = "0.43", path = "gasometer", default-features = false }
 
 [dev-dependencies]
 criterion = "0.5"
@@ -77,7 +77,17 @@ force-debug = [
 create-fixed = []
 print-debug = ["evm-gasometer/print-debug"]
 
+[workspace.package]
+version = "0.43.0"
+license = "Apache-2.0"
+authors = ["Aurora Labs <hello@aurora.dev>", "Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
+description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
+repository = "https://github.com/sorpaas/rust-evm"
+keywords = ["no_std", "ethereum"]
+edition = "2021"
+
 [workspace]
+resolver = "2"
 members = [
     "core",
     "gasometer",

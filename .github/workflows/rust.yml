@@ -50,8 +50,9 @@ jobs:
         with:
           repository: ethereum/tests
           path: ethtests
-          ref: v13.2
+          ref: v13.3
           submodules: recursive
+          fetch-depth: 1
 
       - name: Run Ethereum state tests
         run: |
