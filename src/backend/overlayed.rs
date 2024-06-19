@@ -192,7 +192,12 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 		self.substate.storage_resets.insert(address);
 	}
 
-	fn set_code(&mut self, address: H160, code: Vec<u8>, _caller: Option<H160>) -> Result<(), ExitError> {
+	fn set_code(
+		&mut self,
+		address: H160,
+		code: Vec<u8>,
+		_caller: Option<H160>,
+	) -> Result<(), ExitError> {
 		self.substate.codes.insert(address, code);
 		Ok(())
 	}
