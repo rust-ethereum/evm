@@ -156,7 +156,7 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);
 	/// Set code of an account.
-	fn set_code(&mut self, address: H160, code: Vec<u8>) -> Result<(), ExitError>;
+	fn set_code(&mut self, address: H160, code: Vec<u8>, caller: Option<H160>) -> Result<(), ExitError>;
 	/// Reset balance of an account.
 	fn reset_balance(&mut self, address: H160);
 	fn deposit(&mut self, target: H160, value: U256);

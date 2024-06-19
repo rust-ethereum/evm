@@ -197,6 +197,7 @@ pub fn deploy_create_code<'config, S, H>(
 	retbuf: Vec<u8>,
 	state: &mut S,
 	handler: &mut H,
+	caller: Option<H160>,
 ) -> Result<(), ExitError>
 where
 	S: InvokerState<'config>,
@@ -212,7 +213,7 @@ where
 
 	state.record_codedeposit(retbuf.len())?;
 
-	handler.set_code(address, retbuf)?;
+	handler.set_code(address, retbuf, caller)?;
 
 	Ok(())
 }
