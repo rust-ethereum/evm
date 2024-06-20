@@ -5,12 +5,18 @@ mod bitwise;
 mod misc;
 mod system;
 
-use crate::{
-	fork::Fork, trap::CallCreateTrap, Control, ExitException, ExitSucceed, GasState, Machine,
-	Opcode, RuntimeBackend, RuntimeEnvironment, RuntimeState, TrapConstruct,
-};
 use core::ops::{BitAnd, BitOr, BitXor};
+
 use primitive_types::{H256, U256};
+
+use crate::{
+	error::{CallCreateTrap, ExitException, ExitSucceed, TrapConstruct},
+	etable::Control,
+	machine::Machine,
+	opcode::Opcode,
+	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+    fork::Fork,
+};
 
 pub fn eval_pass<S, H, Tr>(
 	_machine: &mut Machine<S>,
@@ -381,6 +387,15 @@ pub fn eval_jumpdest<S, H, Tr>(
 	Control::Continue
 }
 
+pub fn eval_mcopy<S, H, Tr>(
+	machine: &mut Machine<S>,
+	_handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::misc::mcopy(machine)
+}
+
 macro_rules! eval_push {
     ($($num:expr),*) => {
 		$(paste::paste! {
@@ -667,6 +682,24 @@ pub fn eval_gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	_position: usize,
 ) -> Control<Tr> {
 	self::system::gas(machine, handle)
+}
+
+pub fn eval_tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::system::tload(machine, handle)
+}
+
+pub fn eval_tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handle: &mut H,
+	_opcode: Opcode,
+	_position: usize,
+) -> Control<Tr> {
+	self::system::tstore(machine, handle)
 }
 
 macro_rules! eval_log {

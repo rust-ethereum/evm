@@ -1,11 +1,14 @@
-use super::Control;
-use crate::{
-	ExitException, ExitFatal, ExitSucceed, GasState, Log, Machine, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, Transfer,
-};
 use alloc::vec::Vec;
+
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
+
+use crate::{
+	error::{ExitException, ExitFatal, ExitSucceed},
+	etable::Control,
+	machine::Machine,
+	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
+};
 
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(machine, from, len);
@@ -47,7 +50,6 @@ pub fn balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, address);
-	handler.mark_hot(address.into(), None);
 	push_u256!(machine, handler.balance(address.into()));
 
 	Control::Continue
@@ -127,7 +129,6 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, address);
-	handler.mark_hot(address.into(), None);
 	let code_size = handler.code_size(address.into());
 	push_u256!(machine, code_size);
 
@@ -139,7 +140,6 @@ pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, address);
-	handler.mark_hot(address.into(), None);
 	let code_hash = handler.code_hash(address.into());
 	push!(machine, code_hash);
 
@@ -152,8 +152,6 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 ) -> Control<Tr> {
 	pop!(machine, address);
 	pop_u256!(machine, memory_offset, code_offset, len);
-
-	handler.mark_hot(address.into(), None);
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 
 	let code = handler.code(address.into());
@@ -263,7 +261,6 @@ pub fn sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, index);
-	handler.mark_hot(machine.state.as_ref().context.address, Some(index));
 	let value = handler.storage(machine.state.as_ref().context.address, index);
 	push!(machine, value);
 
@@ -275,7 +272,6 @@ pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop!(machine, index, value);
-	handler.mark_hot(machine.state.as_ref().context.address, Some(index));
 
 	match handler.set_storage(machine.state.as_ref().context.address, index, value) {
 		Ok(()) => Control::Continue,
@@ -290,6 +286,28 @@ pub fn gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	push_u256!(machine, machine.state.gas());
 
 	Control::Continue
+}
+
+pub fn tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	pop!(machine, index);
+	let value = handler.transient_storage(machine.state.as_ref().context.address, index);
+	push!(machine, value);
+
+	Control::Continue
+}
+
+pub fn tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &mut H,
+) -> Control<Tr> {
+	pop!(machine, index, value);
+	match handler.set_transient_storage(machine.state.as_ref().context.address, index, value) {
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
 }
 
 pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(

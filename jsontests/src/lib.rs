@@ -73,3 +73,11 @@ fn vm_tests() {
 	let tests_status = run::run_single(JSON_FILENAME, false).unwrap();
 	tests_status.print_total();
 }
+
+#[test]
+fn sqt_eip_2930() {
+	const JSON_FILENAME: &str =
+		"res/ethtests/GeneralStateTests/stEIP150singleCodeGasPrices/eip2929.json";
+	let tests_status = run::run_single(JSON_FILENAME, false).unwrap();
+	tests_status.print_total();
+}

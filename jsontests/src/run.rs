@@ -1,16 +1,22 @@
-use crate::error::{Error, TestError};
-use crate::in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment};
-use crate::types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti};
-use evm::backend::OverlayedBackend;
-use evm::standard::{Config, Etable, EtableResolver, Invoker, TransactArgs};
-use evm::utils::u256_to_h256;
-use evm::Capture;
-use evm::{interpreter::Interpreter, GasState};
+use std::{
+	collections::{BTreeMap, BTreeSet},
+	fs::{self, File},
+	io::BufReader,
+};
+
+use evm::{
+	backend::OverlayedBackend,
+	interpreter::{error::Capture, runtime::GasState, utils::u256_to_h256, Interpreter},
+	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
+};
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::U256;
-use std::collections::{BTreeMap, BTreeSet};
-use std::fs::{self, File};
-use std::io::BufReader;
+
+use crate::{
+	error::{Error, TestError},
+	in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment},
+	types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti},
+};
 
 const BASIC_FILE_PATH_TO_TRIM: [&str; 2] = [
 	"jsontests/res/ethtests/GeneralStateTests/",
@@ -115,8 +121,8 @@ pub fn run_test(
 		block_difficulty: test.env.current_difficulty,
 		block_randomness: Some(test.env.current_random),
 		block_gas_limit: test.env.current_gas_limit,
-		block_base_fee_per_gas: U256::zero(), // TODO: fill in this field.
-		chain_id: U256::zero(),               // TODO: fill in this field.
+		block_base_fee_per_gas: test.transaction.gas_price,
+		chain_id: U256::zero(), // TODO: fill in this field.
 	};
 
 	let state = test
@@ -138,6 +144,7 @@ pub fn run_test(
 					code: account.code.0,
 					nonce: account.nonce,
 					storage,
+					transient_storage: Default::default(),
 				},
 			)
 		})

@@ -1,5 +1,7 @@
-use evm::standard::{Machine, State};
-use evm::Opcode;
+use evm::{
+	interpreter::opcode::Opcode,
+	standard::{Machine, State},
+};
 
 pub trait EvalTracer<H> {
 	fn on_eval(&mut self, machine: &Machine, handle: &H, opcode: Opcode, position: usize);

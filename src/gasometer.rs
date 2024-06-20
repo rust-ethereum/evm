@@ -1,6 +1,6 @@
 //! EVM gasometer.
 
-use crate::{ExitError, GasState};
+use evm_interpreter::{error::ExitError, runtime::GasState};
 use primitive_types::U256;
 
 pub trait GasMutState: GasState {

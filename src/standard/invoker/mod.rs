@@ -2,23 +2,34 @@ mod resolver;
 pub mod routines;
 mod state;
 
-pub use self::resolver::{EtableResolver, PrecompileSet, Resolver};
-pub use self::state::InvokerState;
+use alloc::{rc::Rc, vec::Vec};
+use core::{cmp::min, convert::Infallible};
 
-use super::Config;
-use crate::trap::{CallCreateTrap, CallCreateTrapData, CallTrapData, CreateScheme, CreateTrapData};
-use crate::{
-	interpreter::Interpreter, Capture, Context, ExitError, ExitException, ExitResult, ExitSucceed,
-	GasState, Invoker as InvokerT, InvokerControl, MergeStrategy, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, TransactionContext, TransactionalBackend, Transfer,
-	TrapConsume,
+use evm_interpreter::{
+	error::{
+		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
+		ExitError, ExitException, ExitResult, ExitSucceed, TrapConsume,
+	},
+	opcode::Opcode,
+	runtime::{
+		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
+		Transfer,
+	},
+	Interpreter,
 };
-use alloc::rc::Rc;
-use alloc::vec::Vec;
-use core::cmp::min;
-use core::convert::Infallible;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+
+pub use self::{
+	resolver::{EtableResolver, PrecompileSet, Resolver},
+	state::InvokerState,
+};
+use crate::{
+	backend::TransactionalBackend,
+	invoker::{Invoker as InvokerT, InvokerControl},
+	standard::Config,
+	MergeStrategy,
+};
 
 /// A trap that can be turned into either a call/create trap (where we push new
 /// call stack), or an interrupt (an external signal).
@@ -65,7 +76,7 @@ pub enum TransactValue {
 /// The invoke used in a top-layer transaction stack.
 pub struct TransactInvoke {
 	pub create_address: Option<H160>,
-	pub gas_fee: U256,
+	pub gas_limit: U256,
 	pub gas_price: U256,
 	pub caller: H160,
 }
@@ -230,7 +241,7 @@ where
 		let value = args.value();
 
 		let invoke = TransactInvoke {
-			gas_fee,
+			gas_limit: args.gas_limit(),
 			gas_price: args.gas_price(),
 			caller: args.caller(),
 			create_address: match &args {
@@ -388,8 +399,6 @@ where
 			Ok(_) | Err(ExitError::Reverted) => left_gas,
 			Err(_) => U256::zero(),
 		};
-		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
-		let coinbase_reward = invoke.gas_fee.saturating_sub(refunded_fee);
 
 		match &result {
 			Ok(_) => {
@@ -400,7 +409,22 @@ where
 			}
 		}
 
+		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
 		handler.deposit(invoke.caller, refunded_fee);
+		// Reward coinbase address
+		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
+		// The base fee is always burned.
+		let coinbase_gas_price = if substate.config().eip_1559_enabled {
+			invoke
+				.gas_price
+				.saturating_sub(handler.block_base_fee_per_gas())
+		} else {
+			invoke.gas_price
+		};
+		let coinbase_reward = invoke
+			.gas_limit
+			.saturating_mul(coinbase_gas_price)
+			.saturating_sub(refunded_fee);
 		handler.deposit(handler.block_coinbase(), coinbase_reward);
 
 		result

@@ -99,6 +99,12 @@ pub struct Config {
 	pub has_base_fee: bool,
 	/// Has PUSH0 opcode. See [EIP-3855](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3855.md)
 	pub has_push0: bool,
+	/// Enables transient storage. See [EIP-1153](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1153.md)
+	pub eip_1153_enabled: bool,
+	/// Enables MCOPY instruction. See [EIP-5656](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-5656.md)
+	pub eip_5656_enabled: bool,
+	/// Uses EIP-1559 (Base fee is burned when this flag is enabled) [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md)
+	pub eip_1559_enabled: bool,
 	pub fork: Fork,
 }
 
@@ -153,6 +159,9 @@ impl Config {
 			has_ext_code_hash: false,
 			has_base_fee: false,
 			has_push0: false,
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: false,
 			fork: FRONTIER,
 		}
 	}
@@ -207,6 +216,9 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee: false,
 			has_push0: false,
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: false,
 			fork: ISTANBUL,
 		}
 	}
@@ -231,6 +243,7 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
 	}
 
+	/// Cancun hard fork configuration.
 	pub const fn cancun() -> Config {
 		Self::config_with_derived_values(DerivedConfigInputs::cancun())
 	}
@@ -246,6 +259,9 @@ impl Config {
 			disallow_executable_format,
 			warm_coinbase_address,
 			max_initcode_size,
+			eip_1153_enabled,
+			eip_5656_enabled,
+			eip_1559_enabled,
 			fork,
 		} = inputs;
 
@@ -309,6 +325,9 @@ impl Config {
 			has_ext_code_hash: true,
 			has_base_fee,
 			has_push0,
+			eip_1153_enabled,
+			eip_5656_enabled,
+			eip_1559_enabled,
 			fork,
 		}
 	}
@@ -317,8 +336,11 @@ impl Config {
 /// Independent inputs that are used to derive other config values.
 /// See `Config::config_with_derived_values` implementation for details.
 struct DerivedConfigInputs {
+	/// `WARM_STORAGE_READ_COST` (see EIP-2929).
 	gas_storage_read_warm: u64,
+	/// `COLD_SLOAD_COST` (see EIP-2929).
 	gas_sload_cold: u64,
+	/// `ACCESS_LIST_STORAGE_KEY_COST` (see EIP-2930).
 	gas_access_list_storage_key: u64,
 	decrease_clears_refund: bool,
 	has_base_fee: bool,
@@ -326,6 +348,9 @@ struct DerivedConfigInputs {
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
+	eip_1153_enabled: bool,
+	eip_5656_enabled: bool,
+	eip_1559_enabled: bool,
 	fork: Fork,
 }
 
@@ -341,6 +366,9 @@ impl DerivedConfigInputs {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: false,
 			fork: BERLIN,
 		}
 	}
@@ -356,6 +384,9 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 			fork: LONDON,
 		}
 	}
@@ -371,6 +402,9 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 			fork: MERGE,
 		}
 	}
@@ -387,6 +421,9 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 			fork: SHANGHAI,
 		}
 	}
@@ -402,6 +439,9 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * (MAX_CODE_SIZE = `24576`) = (0xC000 = 49152) as per EIP-3860
 			max_initcode_size: Some(0xC000),
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
+			eip_1559_enabled: true,
 			fork: CANCUN,
 		}
 	}

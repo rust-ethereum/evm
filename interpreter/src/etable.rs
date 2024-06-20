@@ -1,9 +1,15 @@
-use crate::{
-	eval::*, trap::CallCreateTrap, ExitResult, GasState, Machine, Opcode, RuntimeBackend,
-	RuntimeEnvironment, RuntimeState, TrapConstruct,
+use core::{
+	marker::PhantomData,
+	ops::{Deref, DerefMut},
 };
-use core::marker::PhantomData;
-use core::ops::{Deref, DerefMut};
+
+use crate::{
+	error::{CallCreateTrap, ExitResult, TrapConstruct},
+	eval::*,
+	machine::Machine,
+	opcode::Opcode,
+	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+};
 
 pub trait EtableSet {
 	type State;
@@ -180,6 +186,7 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 		table[Opcode::MSIZE.as_usize()] = eval_msize as _;
 
 		table[Opcode::JUMPDEST.as_usize()] = eval_jumpdest as _;
+		table[Opcode::MCOPY.as_usize()] = eval_mcopy as _;
 
 		table[Opcode::PUSH0.as_usize()] = eval_push0 as _;
 		table[Opcode::PUSH1.as_usize()] = eval_push1 as _;
@@ -297,6 +304,9 @@ where
 		table.0[Opcode::SSTORE.as_usize()] = eval_sstore as _;
 
 		table.0[Opcode::GAS.as_usize()] = eval_gas as _;
+
+		table.0[Opcode::TLOAD.as_usize()] = eval_tload as _;
+		table.0[Opcode::TSTORE.as_usize()] = eval_tstore as _;
 
 		table.0[Opcode::LOG0.as_usize()] = eval_log0 as _;
 		table.0[Opcode::LOG1.as_usize()] = eval_log1 as _;
