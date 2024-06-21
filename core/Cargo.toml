@@ -9,8 +9,10 @@ description.workspace = true
 repository.workspace = true
 
 [dependencies]
+primitive-types.workspace = true
+
+# Optional
 log = { version = "0.4", optional = true }
-primitive-types = { version = "0.12", default-features = false }
 scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }

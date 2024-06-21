@@ -9,7 +9,7 @@ keywords.workspace = true
 edition.workspace = true
 
 [dependencies]
-evm = { path = "../..", version = "0.43" }
+evm.workspace = true
 ethereum = "0.15.0"
 primitive-types = "0.12"
 serde = { version = "1.0", features = ["derive"] }

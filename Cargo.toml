@@ -8,13 +8,20 @@ repository.workspace = true
 keywords.workspace = true
 edition.workspace = true
 
-[dependencies]
+[workspace.dependencies]
+evm = { version = "0.43", path = "." }
+evm-core = { version = "0.43", path = "core", default-features = false }
+evm-gasometer = { version = "0.43", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.43", path = "runtime", default-features = false }
+primitive-types = { version = "0.12", default-features = false }
 auto_impl = "1.0"
+sha3 = { version = "0.10", default-features = false }
+
+[dependencies]
 ethereum = { version = "0.15", default-features = false }
 log = { version = "0.4", default-features = false }
-primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
+primitive-types = { workspace = true, features = ["rlp"] }
 rlp = { version = "0.5", default-features = false }
-sha3 = { version = "0.10", default-features = false }
 
 # Optional dependencies
 environmental = { version = "1.1.2", default-features = false, optional = true }
@@ -22,9 +29,11 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.11", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
-evm-core = { version = "0.43", path = "core", default-features = false }
-evm-runtime = { version = "0.43", path = "runtime", default-features = false }
-evm-gasometer = { version = "0.43", path = "gasometer", default-features = false }
+auto_impl.workspace = true
+sha3.workspace = true
+evm-core.workspace = true
+evm-gasometer.workspace = true
+evm-runtime.workspace = true
 
 [dev-dependencies]
 criterion = "0.5"

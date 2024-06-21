@@ -9,12 +9,13 @@ description.workspace = true
 repository.workspace = true
 
 [dependencies]
-auto_impl = "1.0"
-environmental = { version = "1.1", default-features = false, optional = true }
-primitive-types = { version = "0.12", default-features = false }
-sha3 = { version = "0.10", default-features = false }
+auto_impl.workspace = true
+primitive-types.workspace = true
+sha3.workspace = true
+evm-core.workspace = true
 
-evm-core = { version = "0.43", path = "../core", default-features = false }
+# Optional
+environmental = { version = "1.1", default-features = false, optional = true }
 
 [features]
 default = ["std"]
