@@ -103,6 +103,8 @@ pub struct Config {
 	pub eip_5656_enabled: bool,
 	/// Uses EIP-1559 (Base fee is burned when this flag is enabled) [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md)
 	pub eip_1559_enabled: bool,
+	/// Selfdestruct deletet contract only if called in the same tx as creation [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
+	pub suicide_only_in_same_tx: bool,
 }
 
 impl Config {
@@ -159,6 +161,7 @@ impl Config {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -215,6 +218,7 @@ impl Config {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -257,6 +261,7 @@ impl Config {
 			eip_1153_enabled,
 			eip_5656_enabled,
 			eip_1559_enabled,
+			suicide_only_in_same_tx,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -322,6 +327,7 @@ impl Config {
 			eip_1153_enabled,
 			eip_5656_enabled,
 			eip_1559_enabled,
+			suicide_only_in_same_tx,
 		}
 	}
 }
@@ -344,6 +350,7 @@ struct DerivedConfigInputs {
 	eip_1153_enabled: bool,
 	eip_5656_enabled: bool,
 	eip_1559_enabled: bool,
+	suicide_only_in_same_tx: bool,
 }
 
 impl DerivedConfigInputs {
@@ -361,6 +368,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -378,6 +386,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -395,6 +404,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -413,9 +423,9 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
+			suicide_only_in_same_tx: false,
 		}
 	}
-
 	const fn cancun() -> Self {
 		Self {
 			gas_storage_read_warm: 100,
@@ -428,9 +438,10 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * (MAX_CODE_SIZE = `24576`) = (0xC000 = 49152) as per EIP-3860
 			max_initcode_size: Some(0xC000),
-			eip_1153_enabled: true,
-			eip_5656_enabled: true,
+			eip_1153_enabled: false,
+			eip_5656_enabled: false,
 			eip_1559_enabled: true,
+			suicide_only_in_same_tx: true,
 		}
 	}
 }

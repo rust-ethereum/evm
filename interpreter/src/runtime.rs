@@ -139,6 +139,8 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	fn original_storage(&self, address: H160, index: H256) -> H256;
 	/// Check whether an address has already been deleted.
 	fn deleted(&self, address: H160) -> bool;
+	/// Check whether an address has already been created in the transaction.
+	fn created(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed.
 	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
 	fn is_hot(&self, address: H160, index: Option<H256>) -> bool {
@@ -158,8 +160,10 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, log: Log) -> Result<(), ExitError>;
-	/// Mark an address to be deleted.
-	fn mark_delete(&mut self, address: H160);
+	/// Mark an address to be deleted and its balance to be reset.
+	fn mark_delete_reset(&mut self, address: H160);
+	// Mark an address as created in the current transaction.
+	fn mark_create(&mut self, address: H160);
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);
 	/// Set code of an account.

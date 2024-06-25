@@ -32,6 +32,9 @@ sha3 = { version = "0.10", default-features = false }
 
 evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
 
+[dev-dependencies]
+hex = { version = "0.4", features = [ "serde" ] }
+
 [features]
 default = ["std"]
 std = [

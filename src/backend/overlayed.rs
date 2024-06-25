@@ -11,7 +11,7 @@ use evm_interpreter::{
 };
 use primitive_types::{H160, H256, U256};
 
-use crate::{backend::TransactionalBackend, MergeStrategy};
+use crate::{backend::TransactionalBackend, standard::Config, MergeStrategy};
 
 #[derive(Clone, Debug)]
 pub struct OverlayedChangeSet {
@@ -25,18 +25,24 @@ pub struct OverlayedChangeSet {
 	pub deletes: BTreeSet<H160>,
 }
 
-pub struct OverlayedBackend<B> {
+pub struct OverlayedBackend<'config, B> {
 	backend: B,
 	substate: Box<Substate>,
 	accessed: BTreeSet<(H160, Option<H256>)>,
+	config: &'config Config,
 }
 
-impl<B> OverlayedBackend<B> {
-	pub fn new(backend: B, accessed: BTreeSet<(H160, Option<H256>)>) -> Self {
+impl<'config, B> OverlayedBackend<'config, B> {
+	pub fn new(
+		backend: B,
+		accessed: BTreeSet<(H160, Option<H256>)>,
+		config: &'config Config,
+	) -> Self {
 		Self {
 			backend,
 			substate: Box::new(Substate::new()),
 			accessed,
+			config,
 		}
 	}
 
@@ -57,7 +63,7 @@ impl<B> OverlayedBackend<B> {
 	}
 }
 
-impl<B: RuntimeEnvironment> RuntimeEnvironment for OverlayedBackend<B> {
+impl<B: RuntimeEnvironment> RuntimeEnvironment for OverlayedBackend<'_, B> {
 	fn block_hash(&self, number: U256) -> H256 {
 		self.backend.block_hash(number)
 	}
@@ -95,7 +101,7 @@ impl<B: RuntimeEnvironment> RuntimeEnvironment for OverlayedBackend<B> {
 	}
 }
 
-impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<B> {
+impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 	fn balance(&self, address: H160) -> U256 {
 		if let Some(balance) = self.substate.known_balance(address) {
 			balance
@@ -145,9 +151,13 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<B> {
 	}
 }
 
-impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
+impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
 		self.backend.storage(address, index)
+	}
+
+	fn created(&self, address: H160) -> bool {
+		self.substate.created(address)
 	}
 
 	fn deleted(&self, address: H160) -> bool {
@@ -184,8 +194,20 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 		Ok(())
 	}
 
-	fn mark_delete(&mut self, address: H160) {
-		self.substate.deletes.insert(address);
+	fn mark_delete_reset(&mut self, address: H160) {
+		if self.config.suicide_only_in_same_tx {
+			if self.created(address) {
+				self.substate.deletes.insert(address);
+				self.substate.storage_resets.insert(address);
+			}
+		} else {
+			self.substate.deletes.insert(address);
+			self.substate.storage_resets.insert(address);
+		}
+	}
+
+	fn mark_create(&mut self, address: H160) {
+		self.substate.creates.insert(address);
 	}
 
 	fn reset_storage(&mut self, address: H160) {
@@ -238,7 +260,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 	}
 }
 
-impl<B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<B> {
+impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'config, B> {
 	fn push_substate(&mut self) {
 		let mut parent = Box::new(Substate::new());
 		mem::swap(&mut parent, &mut self.substate);
@@ -278,6 +300,9 @@ impl<B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<B> {
 				for address in child.deletes {
 					self.substate.deletes.insert(address);
 				}
+				for address in child.creates {
+					self.substate.creates.insert(address);
+				}
 			}
 			MergeStrategy::Revert | MergeStrategy::Discard => {}
 		}
@@ -294,6 +319,7 @@ struct Substate {
 	storages: BTreeMap<(H160, H256), H256>,
 	transient_storage: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
+	creates: BTreeSet<H160>,
 }
 
 impl Substate {
@@ -308,6 +334,7 @@ impl Substate {
 			storages: Default::default(),
 			transient_storage: Default::default(),
 			deletes: Default::default(),
+			creates: Default::default(),
 		}
 	}
 
@@ -381,6 +408,16 @@ impl Substate {
 			true
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.deleted(address)
+		} else {
+			false
+		}
+	}
+
+	pub fn created(&self, address: H160) -> bool {
+		if self.creates.contains(&address) {
+			true
+		} else if let Some(parent) = self.parent.as_ref() {
+			parent.created(address)
 		} else {
 			false
 		}

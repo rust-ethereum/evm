@@ -362,9 +362,7 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 			value: balance,
 		})?;
 
-		handler.mark_delete(address);
-		handler.reset_balance(address);
-
+		handler.mark_delete_reset(address);
 		Ok(((), ()))
 	}) {
 		Ok(()) => Control::Exit(ExitSucceed::Suicided.into()),

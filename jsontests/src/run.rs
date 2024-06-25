@@ -184,8 +184,8 @@ pub fn run_test(
 		state,
 	};
 
-	let mut run_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone());
-	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone());
+	let mut run_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config);
+	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config);
 
 	// Run
 	let run_result = evm::transact(args.clone(), Some(4), &mut run_backend, &invoker);

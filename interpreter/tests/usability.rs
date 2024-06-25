@@ -1,5 +1,3 @@
-use std::rc::Rc;
-
 use evm_interpreter::{
 	error::{CallCreateTrap, Capture, ExitError, ExitSucceed},
 	etable::{Control, Etable},
@@ -12,6 +10,7 @@ use evm_interpreter::{
 	EtableInterpreter, RunInterpreter,
 };
 use primitive_types::{H160, H256, U256};
+use std::rc::Rc;
 
 const CODE1: &str = "60e060020a6000350480632839e92814601e57806361047ff414603457005b602a6004356024356047565b8060005260206000f35b603d6004356099565b8060005260206000f35b600082600014605457605e565b8160010190506093565b81600014606957607b565b60756001840360016047565b90506093565b609060018403608c85600186036047565b6047565b90505b92915050565b6000816000148060a95750816001145b60b05760b7565b81905060cf565b60c1600283036099565b60cb600184036099565b0190505b91905056";
 const DATA1: &str = "2839e92800000000000000000000000000000000000000000000000000000000000000030000000000000000000000000000000000000000000000000000000000000001";
@@ -135,6 +134,11 @@ impl RuntimeBackend for UnimplementedHandler {
 	fn deleted(&self, _address: H160) -> bool {
 		unimplemented!()
 	}
+
+	fn created(&self, _address: H160) -> bool {
+		unimplemented!()
+	}
+
 	fn is_cold(&self, _address: H160, _index: Option<H256>) -> bool {
 		unimplemented!()
 	}
@@ -157,7 +161,11 @@ impl RuntimeBackend for UnimplementedHandler {
 	fn log(&mut self, _log: Log) -> Result<(), ExitError> {
 		unimplemented!()
 	}
-	fn mark_delete(&mut self, _address: H160) {
+	fn mark_delete_reset(&mut self, _address: H160) {
+		unimplemented!()
+	}
+
+	fn mark_create(&mut self, _address: H160) {
 		unimplemented!()
 	}
 
