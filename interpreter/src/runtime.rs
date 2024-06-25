@@ -3,7 +3,7 @@ use alloc::{rc::Rc, vec::Vec};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
-use crate::{error::ExitError, fork::Fork};
+use crate::error::ExitError;
 
 /// Gas state.
 pub trait GasState {
@@ -19,8 +19,6 @@ pub struct RuntimeState {
 	pub transaction_context: Rc<TransactionContext>,
 	/// Return data buffer.
 	pub retbuf: Vec<u8>,
-	/// EVM Fork.
-	pub fork: Fork,
 }
 
 impl AsRef<Self> for RuntimeState {
@@ -155,9 +153,9 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, log: Log) -> Result<(), ExitError>;
-	/// Mark an address to be deleted.
-	fn mark_delete(&mut self, address: H160);
-	// Mark an address that is being created in the transaction.
+	/// Mark an address to be deleted and its balance to be reset.
+	fn mark_delete_reset(&mut self, address: H160);
+	// Mark an address as created in the current transaction.
 	fn mark_create(&mut self, address: H160);
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);

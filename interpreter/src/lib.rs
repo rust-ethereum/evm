@@ -14,6 +14,5 @@ pub mod machine;
 pub mod opcode;
 pub mod runtime;
 pub mod utils;
-pub mod fork;
 
 pub use self::interpreter::{EtableInterpreter, Interpreter, RunInterpreter, StepInterpreter};

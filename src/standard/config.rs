@@ -1,5 +1,3 @@
-use evm_interpreter::fork::{Fork, Fork::*};
-
 /// Runtime configuration.
 #[derive(Clone, Debug)]
 pub struct Config {
@@ -105,7 +103,8 @@ pub struct Config {
 	pub eip_5656_enabled: bool,
 	/// Uses EIP-1559 (Base fee is burned when this flag is enabled) [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md)
 	pub eip_1559_enabled: bool,
-	pub fork: Fork,
+	/// Selfdestruct deletet contract only if called in the same tx as creation [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
+	pub suicide_only_in_same_tx: bool,
 }
 
 impl Config {
@@ -162,7 +161,7 @@ impl Config {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
-			fork: FRONTIER,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -219,7 +218,7 @@ impl Config {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
-			fork: ISTANBUL,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -262,7 +261,7 @@ impl Config {
 			eip_1153_enabled,
 			eip_5656_enabled,
 			eip_1559_enabled,
-			fork,
+			suicide_only_in_same_tx,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -328,7 +327,7 @@ impl Config {
 			eip_1153_enabled,
 			eip_5656_enabled,
 			eip_1559_enabled,
-			fork,
+			suicide_only_in_same_tx,
 		}
 	}
 }
@@ -351,7 +350,7 @@ struct DerivedConfigInputs {
 	eip_1153_enabled: bool,
 	eip_5656_enabled: bool,
 	eip_1559_enabled: bool,
-	fork: Fork,
+	suicide_only_in_same_tx: bool,
 }
 
 impl DerivedConfigInputs {
@@ -369,7 +368,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
-			fork: BERLIN,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -387,7 +386,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
-			fork: LONDON,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -405,7 +404,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
-			fork: MERGE,
+			suicide_only_in_same_tx: false,
 		}
 	}
 
@@ -424,7 +423,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
-			fork: SHANGHAI,
+			suicide_only_in_same_tx: false,
 		}
 	}
 	const fn cancun() -> Self {
@@ -442,7 +441,7 @@ impl DerivedConfigInputs {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: true,
-			fork: CANCUN,
+			suicide_only_in_same_tx: true,
 		}
 	}
 }

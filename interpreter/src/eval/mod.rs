@@ -15,7 +15,6 @@ use crate::{
 	machine::Machine,
 	opcode::Opcode,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
-    fork::Fork,
 };
 
 pub fn eval_pass<S, H, Tr>(
@@ -725,11 +724,7 @@ pub fn eval_suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	_opcode: Opcode,
 	_position: usize,
 ) -> Control<Tr> {
-	if machine.state.as_ref().fork >= Fork::CANCUN {
-		self::system::suicide_eip_6780(machine, handle)
-	} else {
-		self::system::suicide(machine, handle)
-	}
+	self::system::suicide(machine, handle)
 }
 
 pub fn eval_chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(

@@ -1,6 +1,6 @@
 extern crate evm;
 
-use evm::{backend::OverlayedChangeSet, RuntimeBaseBackend, RuntimeEnvironment};
+use evm::backend::{OverlayedChangeSet, RuntimeBaseBackend, RuntimeEnvironment};
 use primitive_types::{H160, H256, U256};
 use std::collections::BTreeMap;
 
@@ -10,6 +10,7 @@ pub struct MockAccount {
 	pub code: Vec<u8>,
 	pub nonce: U256,
 	pub storage: BTreeMap<H256, H256>,
+	pub transient_storage: BTreeMap<H256, H256>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -116,6 +117,17 @@ impl RuntimeBaseBackend for MockBackend {
 			.cloned()
 			.unwrap_or(Default::default())
 			.storage
+			.get(&index)
+			.cloned()
+			.unwrap_or(H256::default())
+	}
+
+	fn transient_storage(&self, address: H160, index: H256) -> H256 {
+		self.state
+			.get(&address)
+			.cloned()
+			.unwrap_or(Default::default())
+			.transient_storage
 			.get(&index)
 			.cloned()
 			.unwrap_or(H256::default())

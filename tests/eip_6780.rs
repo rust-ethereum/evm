@@ -1,8 +1,8 @@
 mod mock;
 use evm::{
-	backend::OverlayedBackend,
+	backend::{OverlayedBackend, RuntimeBaseBackend},
+	interpreter::error::ExitError,
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
-	RuntimeBaseBackend,
 };
 use mock::{MockAccount, MockBackend};
 use primitive_types::{H160, H256, U256};
@@ -14,7 +14,7 @@ fn transact(
 	config: &Config,
 	args: TransactArgs,
 	overlayed_backend: &mut OverlayedBackend<MockBackend>,
-) -> Result<TransactValue, evm::ExitError> {
+) -> Result<TransactValue, ExitError> {
 	let gas_etable = Etable::single(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
 	let etable = (gas_etable, exec_etable);
@@ -34,9 +34,11 @@ fn self_destruct_before_cancun() {
 			code: vec![],
 			nonce: U256::one(),
 			storage: Default::default(),
+			transient_storage: Default::default(),
 		},
 	);
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default());
+	let config = Config::shanghai();
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
 
 	let init_code = hex::decode(SIMPLE_CONTRACT_INITCODE.trim_end()).unwrap();
 	let args = TransactArgs::Create {
@@ -48,8 +50,6 @@ fn self_destruct_before_cancun() {
 		gas_price: U256::from(1),
 		access_list: vec![],
 	};
-
-	let config = Config::shanghai();
 
 	// Create simple contract
 	let contract_address = match transact(&config, args, &mut overlayed_backend) {
@@ -66,7 +66,7 @@ fn self_destruct_before_cancun() {
 	backend.apply_overlayed(&changeset);
 
 	// Call Self destruct in anothor transaction
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default());
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
 	let args = TransactArgs::Call {
 		caller: H160::from_low_u64_be(1),
 		address: contract_address,
@@ -97,9 +97,11 @@ fn self_destruct_cancun() {
 			code: vec![],
 			nonce: U256::one(),
 			storage: Default::default(),
+			transient_storage: Default::default(),
 		},
 	);
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default());
+	let config = Config::cancun();
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
 
 	let init_code =
 		hex::decode(SIMPLE_CONTRACT_INITCODE.trim_end()).expect("Failed to decode contract");
@@ -112,8 +114,6 @@ fn self_destruct_cancun() {
 		gas_price: U256::from(1),
 		access_list: vec![],
 	};
-
-	let config = Config::cancun();
 
 	// Create simple contract
 	let contract_address = match transact(&config, args, &mut overlayed_backend) {
@@ -129,7 +129,7 @@ fn self_destruct_cancun() {
 	let (mut backend, changeset) = overlayed_backend.deconstruct();
 	backend.apply_overlayed(&changeset);
 
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default());
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
 	// Self destruct contract in another transaction
 	let args = TransactArgs::Call {
 		caller: H160::from_low_u64_be(1),
@@ -161,9 +161,11 @@ fn self_destruct_same_tx_cancun() {
 			code: vec![],
 			nonce: U256::one(),
 			storage: Default::default(),
+			transient_storage: Default::default(),
 		},
 	);
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default());
+	let config = Config::cancun();
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
 
 	let init_code =
 		hex::decode(DEPLOY_AND_DESTROY_INITCODE.trim_end()).expect("Failed to decode contract");
@@ -176,8 +178,6 @@ fn self_destruct_same_tx_cancun() {
 		gas_price: U256::from(1),
 		access_list: vec![],
 	};
-
-	let config = Config::cancun();
 
 	// Create deploy and destroy contract
 	let result = transact(&config, args, &mut overlayed_backend);
