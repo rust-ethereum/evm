@@ -7,7 +7,7 @@ use core::mem;
 
 use evm_interpreter::{
 	error::{ExitError, ExitException},
-	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment},
+	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin},
 };
 use primitive_types::{H160, H256, U256};
 
@@ -196,7 +196,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<B> {
 		&mut self,
 		address: H160,
 		code: Vec<u8>,
-		_caller: Option<H160>,
+		_origin: SetCodeOrigin,
 	) -> Result<(), ExitError> {
 		self.substate.codes.insert(address, code);
 		Ok(())

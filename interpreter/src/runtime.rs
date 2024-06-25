@@ -77,6 +77,13 @@ pub struct Log {
 	pub data: Vec<u8>,
 }
 
+// Identify if the origin of set_code() comes from a transact or subcall.
+#[derive(Clone, Debug)]
+pub enum SetCodeOrigin {
+	Transaction,
+	Subcall(H160),
+}
+
 #[auto_impl::auto_impl(&, Box)]
 pub trait RuntimeEnvironment {
 	/// Get environmental block hash.
@@ -160,7 +167,7 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 		&mut self,
 		address: H160,
 		code: Vec<u8>,
-		caller: Option<H160>,
+		origin: SetCodeOrigin,
 	) -> Result<(), ExitError>;
 	/// Reset balance of an account.
 	fn reset_balance(&mut self, address: H160);

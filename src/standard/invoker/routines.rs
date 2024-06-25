@@ -3,7 +3,7 @@ use alloc::vec::Vec;
 use evm_interpreter::{
 	error::{CallTrapData, CreateTrapData, ExitError, ExitException, ExitResult},
 	opcode::Opcode,
-	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
+	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, Transfer},
 };
 use primitive_types::{H160, U256};
 
@@ -197,7 +197,7 @@ pub fn deploy_create_code<'config, S, H>(
 	retbuf: Vec<u8>,
 	state: &mut S,
 	handler: &mut H,
-	caller: Option<H160>,
+	origin: SetCodeOrigin,
 ) -> Result<(), ExitError>
 where
 	S: InvokerState<'config>,
@@ -213,7 +213,7 @@ where
 
 	state.record_codedeposit(retbuf.len())?;
 
-	handler.set_code(address, retbuf, caller)?;
+	handler.set_code(address, retbuf, origin)?;
 
 	Ok(())
 }

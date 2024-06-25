@@ -12,8 +12,8 @@ use evm_interpreter::{
 	},
 	opcode::Opcode,
 	runtime::{
-		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
-		Transfer,
+		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
+		TransactionContext, Transfer,
 	},
 	Interpreter,
 };
@@ -375,7 +375,7 @@ where
 							retbuf,
 							&mut substate,
 							handler,
-							None,
+							SetCodeOrigin::Transaction,
 						)?;
 
 						Ok(TransactValue::Create {
@@ -574,7 +574,7 @@ where
 						retbuf.clone(),
 						&mut substate,
 						handler,
-						Some(caller),
+						SetCodeOrigin::Subcall(caller),
 					)?;
 
 					Ok(address)
