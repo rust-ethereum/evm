@@ -77,6 +77,13 @@ pub struct Log {
 	pub data: Vec<u8>,
 }
 
+// Identify if the origin of set_code() comes from a transact or subcall.
+#[derive(Clone, Debug)]
+pub enum SetCodeOrigin {
+	Transaction,
+	Subcall(H160),
+}
+
 #[auto_impl::auto_impl(&, Box)]
 pub trait RuntimeEnvironment {
 	/// Get environmental block hash.
@@ -156,7 +163,12 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);
 	/// Set code of an account.
-	fn set_code(&mut self, address: H160, code: Vec<u8>) -> Result<(), ExitError>;
+	fn set_code(
+		&mut self,
+		address: H160,
+		code: Vec<u8>,
+		origin: SetCodeOrigin,
+	) -> Result<(), ExitError>;
 	/// Reset balance of an account.
 	fn reset_balance(&mut self, address: H160);
 	fn deposit(&mut self, target: H160, value: U256);

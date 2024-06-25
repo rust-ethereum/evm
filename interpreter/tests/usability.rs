@@ -7,7 +7,7 @@ use evm_interpreter::{
 	opcode::Opcode,
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
-		TransactionContext,
+		SetCodeOrigin, TransactionContext,
 	},
 	EtableInterpreter, RunInterpreter,
 };
@@ -165,7 +165,12 @@ impl RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 
-	fn set_code(&mut self, _address: H160, _code: Vec<u8>) -> Result<(), ExitError> {
+	fn set_code(
+		&mut self,
+		_address: H160,
+		_code: Vec<u8>,
+		_origin: SetCodeOrigin,
+	) -> Result<(), ExitError> {
 		unimplemented!()
 	}
 

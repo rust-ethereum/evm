@@ -12,8 +12,8 @@ use evm_interpreter::{
 	},
 	opcode::Opcode,
 	runtime::{
-		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, TransactionContext,
-		Transfer,
+		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
+		TransactionContext, Transfer,
 	},
 	Interpreter,
 };
@@ -375,6 +375,7 @@ where
 							retbuf,
 							&mut substate,
 							handler,
+							SetCodeOrigin::Transaction,
 						)?;
 
 						Ok(TransactValue::Create {
@@ -564,6 +565,7 @@ where
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {
 				let retbuf = retval;
+				let caller = trap.scheme.caller();
 
 				let result = result.and_then(|_| {
 					routines::deploy_create_code(
@@ -572,6 +574,7 @@ where
 						retbuf.clone(),
 						&mut substate,
 						handler,
+						SetCodeOrigin::Subcall(caller),
 					)?;
 
 					Ok(address)
