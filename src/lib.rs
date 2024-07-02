@@ -15,10 +15,12 @@ pub mod prelude {
 		rc::Rc,
 		vec::Vec,
 	};
+	pub use core::cell::RefCell;
 }
 #[cfg(feature = "std")]
 pub mod prelude {
 	pub use std::{
+		cell::RefCell,
 		collections::{BTreeMap, BTreeSet},
 		rc::Rc,
 		vec::Vec,

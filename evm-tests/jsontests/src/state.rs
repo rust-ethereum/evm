@@ -10,6 +10,7 @@ use evm::executor::stack::{
 	MemoryStackState, PrecompileFailure, PrecompileFn, PrecompileOutput, StackExecutor,
 	StackSubstateMetadata,
 };
+use evm::utils::U64_MAX;
 use evm::{Config, Context, ExitError, ExitReason, ExitSucceed};
 use lazy_static::lazy_static;
 use libsecp256k1::SecretKey;
@@ -239,7 +240,7 @@ impl JsonPrecompile {
 		let cost = builtin.cost(input, 0);
 
 		if let Some(target_gas) = gas_limit {
-			if cost > U256::from(u64::MAX) || target_gas < cost.as_u64() {
+			if cost > U64_MAX || target_gas < cost.as_u64() {
 				return Err(PrecompileFailure::Error {
 					exit_status: ExitError::OutOfGas,
 				});

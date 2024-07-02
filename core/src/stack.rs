@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::utils::USIZE_MAX;
 use crate::ExitError;
 use primitive_types::{H256, U256};
 
@@ -104,7 +105,7 @@ impl Stack {
 	/// If the value is larger than `usize::MAX`, `OutOfGas` error is returned.
 	pub fn peek_usize(&self, no_from_top: usize) -> Result<usize, ExitError> {
 		let u = self.peek(no_from_top)?;
-		if u > usize::MAX.into() {
+		if u > USIZE_MAX {
 			return Err(ExitError::OutOfGas);
 		}
 		Ok(u.as_usize())

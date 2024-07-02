@@ -4,6 +4,8 @@ use primitive_types::U256;
 
 /// Precalculated `usize::MAX` for `U256`
 pub const USIZE_MAX: U256 = U256([usize::MAX as u64, 0, 0, 0]);
+/// Precalculated `u64::MAX` for `U256`
+pub const U64_MAX: U256 = U256([u64::MAX, 0, 0, 0]);
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Sign {

@@ -34,6 +34,7 @@ pub use crate::valids::Valids;
 
 use crate::eval::{eval, Control};
 use crate::prelude::*;
+use crate::utils::USIZE_MAX;
 use core::ops::Range;
 use primitive_types::{H160, U256};
 
@@ -135,9 +136,9 @@ impl Machine {
 	/// Copy and get the return value of the machine, if any.
 	#[must_use]
 	pub fn return_value(&self) -> Vec<u8> {
-		if self.return_range.start > U256::from(usize::MAX) {
+		if self.return_range.start > USIZE_MAX {
 			vec![0; (self.return_range.end - self.return_range.start).as_usize()]
-		} else if self.return_range.end > U256::from(usize::MAX) {
+		} else if self.return_range.end > USIZE_MAX {
 			let mut ret = self.memory.get(
 				self.return_range.start.as_usize(),
 				usize::MAX - self.return_range.start.as_usize(),

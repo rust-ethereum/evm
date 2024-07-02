@@ -1,4 +1,5 @@
 use super::Control;
+use crate::utils::USIZE_MAX;
 use crate::{ExitError, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
@@ -43,7 +44,7 @@ pub fn calldataload(state: &mut Machine) -> Control {
 	#[allow(clippy::needless_range_loop)]
 	for i in 0..32 {
 		if let Some(p) = index.checked_add(U256::from(i)) {
-			if p <= U256::from(usize::MAX) {
+			if p <= USIZE_MAX {
 				let p = p.as_usize();
 				if p < state.data.len() {
 					load[i] = state.data[p];

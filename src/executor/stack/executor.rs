@@ -11,6 +11,7 @@ use crate::{
 	Transfer,
 };
 use core::{cmp::min, convert::Infallible};
+use evm_core::utils::U64_MAX;
 use evm_core::{ExitFatal, InterpreterHandler, Machine, Trap};
 use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
@@ -459,7 +460,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
 	) -> (ExitReason, Vec<u8>) {
-		if self.nonce(caller) >= U256::from(u64::MAX) {
+		if self.nonce(caller) >= U64_MAX {
 			return (ExitError::MaxNonce.into(), Vec::new());
 		}
 
@@ -635,7 +636,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 		});
 
-		if self.nonce(caller) >= U256::from(u64::MAX) {
+		if self.nonce(caller) >= U64_MAX {
 			return (ExitError::MaxNonce.into(), Vec::new());
 		}
 
@@ -699,6 +700,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Get account nonce.
+	/// NOTE: we don't need to cache it as by default it's MemoryStackState with cache flow
 	pub fn nonce(&self, address: H160) -> U256 {
 		self.state.basic(address).nonce
 	}
@@ -779,7 +781,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		target_gas: Option<u64>,
 		take_l64: bool,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), StackExecutorCreateInterrupt<'static>> {
-		if self.nonce(caller) >= U256::from(u64::MAX) {
+		if self.nonce(caller) >= U64_MAX {
 			return Capture::Exit((ExitError::MaxNonce.into(), None, Vec::new()));
 		}
 
@@ -1234,14 +1236,18 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	type CallInterrupt = StackExecutorCallInterrupt<'static>;
 	type CallFeedback = Infallible;
 
+	/// Get account balance
+	/// NOTE: we don't need to cache it as by default it's MemoryStackState with cache flow
 	fn balance(&self, address: H160) -> U256 {
 		self.state.basic(address).balance
 	}
 
+	/// Get account code size
 	fn code_size(&self, address: H160) -> U256 {
 		self.state.code_size(address)
 	}
 
+	/// Get account code hash
 	fn code_hash(&self, address: H160) -> H256 {
 		if !self.exists(address) {
 			return H256::default();
@@ -1250,14 +1256,17 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		self.state.code_hash(address)
 	}
 
+	/// Get account code
 	fn code(&self, address: H160) -> Vec<u8> {
 		self.state.code(address)
 	}
 
+	/// Get account storage by index
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state.storage(address, index)
 	}
 
+	/// Check is account storage empty
 	fn is_empty_storage(&self, address: H160) -> bool {
 		self.state.is_empty(address)
 	}
@@ -1268,6 +1277,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			.unwrap_or_default()
 	}
 
+	/// Check is account exists on backend side
 	fn exists(&self, address: H160) -> bool {
 		if self.config.empty_considered_exists {
 			self.state.exists(address)

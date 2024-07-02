@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use crate::utils::USIZE_MAX;
 use crate::{ExitError, ExitFatal};
 use core::cmp::min;
 use core::ops::{BitAnd, Not};
@@ -204,7 +205,7 @@ impl Memory {
 		let data = data_offset
 			.checked_add(len.into())
 			.map_or(&[] as &[u8], |end| {
-				if end > U256::from(usize::MAX) {
+				if end > USIZE_MAX {
 					&[]
 				} else {
 					let data_offset = data_offset.as_usize();

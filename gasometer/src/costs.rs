@@ -1,5 +1,6 @@
 use crate::consts::*;
 use crate::Config;
+use evm_core::utils::U64_MAX;
 use evm_core::ExitError;
 use primitive_types::{H256, U256};
 
@@ -72,7 +73,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 		.ok_or(ExitError::OutOfGas)?;
 	let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::MAX) {
+	if gas > U64_MAX {
 		return Err(ExitError::OutOfGas);
 	}
 
@@ -91,7 +92,7 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 			)
 			.ok_or(ExitError::OutOfGas)?;
 
-		if gas > U256::from(u64::MAX) {
+		if gas > U64_MAX {
 			return Err(ExitError::OutOfGas);
 		}
 
@@ -115,7 +116,7 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 		)
 		.ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::MAX) {
+	if gas > U64_MAX {
 		return Err(ExitError::OutOfGas);
 	}
 
@@ -137,7 +138,7 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 		)
 		.ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::MAX) {
+	if gas > U64_MAX {
 		return Err(ExitError::OutOfGas);
 	}
 
@@ -155,7 +156,7 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
 		.checked_add(U256::from(G_LOGTOPIC * n as u32))
 		.ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::MAX) {
+	if gas > U64_MAX {
 		return Err(ExitError::OutOfGas);
 	}
 
@@ -178,7 +179,7 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 		)
 		.ok_or(ExitError::OutOfGas)?;
 
-	if gas > U256::from(u64::MAX) {
+	if gas > U64_MAX {
 		return Err(ExitError::OutOfGas);
 	}
 
