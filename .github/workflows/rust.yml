@@ -7,65 +7,92 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ETHTESTS_VERSION: v14.0
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
       - name: Rustfmt
         run: cargo fmt --all -- --check
+
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D clippy::all -D clippy::nursery
+
       - name: Clippy no_std
         run: cargo clippy --no-default-features -- -D clippy::all -D clippy::nursery
+
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
       - name: Build
         run: cargo build --verbose
+
       - name: Build NoStd
         run: cargo build --no-default-features
+
       - name: Build for feature (tracing)
         run: cargo build --features tracing
-  tests:
+
+  unit-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
       - name: Run tests
         run: cargo test --all --verbose
+
+  unit-tests-32-bit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Run tests 32 bit
+        uses: vxcontrol/run-on-arch-action@0.9.0
+        id: tests
+        with:
+          arch: i386
+          distro: bullseye
+          githubToken: ${{ github.token }}
+          run: |
+            apt-get update && apt-get install -y curl clang llvm
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            export PATH="$PATH:$HOME/.cargo/bin"
+            cargo test --all --verbose
+
   ethereum-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
 
       - name: Checkout ethereum/tests
         uses: actions/checkout@v4
         with:
           repository: ethereum/tests
           path: ethtests
-          ref: v14.0
+          ref: ${{ env.ETHTESTS_VERSION }}
           submodules: recursive
           fetch-depth: 1
 
       - name: Run Ethereum state tests
         run: |
-          cargo run -r -p evm-jsontests -F enable-slow-tests -- \
-          	state -f \
-          	ethtests/GeneralStateTests/ \
-            ethtests/LegacyTests/Cancun/GeneralStateTests/ \
-            ethtests/EIPTests/StateTests/
+          cargo run -r -p evm-jsontests -F enable-slow-tests -- state -f \
+          ethtests/GeneralStateTests/ \
+          ethtests/LegacyTests/Cancun/GeneralStateTests/ \
+          ethtests/EIPTests/StateTests/
 
       - name: Run Ethereum vm tests
         run: |
-          cargo run -r -p evm-jsontests -F enable-slow-tests -- \
-          	vm -f \
+          cargo run -r -p evm-jsontests -F enable-slow-tests -- vm -f \
             ethtests/LegacyTests/Constantinople/VMTests/vmArithmeticTest \
             ethtests/LegacyTests/Constantinople/VMTests/vmBitwiseLogicOperation \
             ethtests/LegacyTests/Constantinople/VMTests/vmBlockInfoTest \
@@ -78,3 +105,47 @@ jobs:
             ethtests/LegacyTests/Constantinople/VMTests/vmSha3Test \
             ethtests/LegacyTests/Constantinople/VMTests/vmSystemOperations \
             ethtests/LegacyTests/Constantinople/VMTests/vmTests
+
+  ethereum-tests-32-bit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Checkout ethereum/tests
+        uses: actions/checkout@v4
+        with:
+          repository: ethereum/tests
+          path: ethtests
+          ref: ${{ env.ETHTESTS_VERSION }}
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Run Ethereum state tests 32 bit
+        uses: vxcontrol/run-on-arch-action@0.9.0
+        id: tests
+        with:
+          arch: i386
+          distro: bullseye
+          githubToken: ${{ github.token }}
+          run: |
+            apt-get update && apt-get install -y curl clang llvm
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+            export PATH="$PATH:$HOME/.cargo/bin"
+            cargo run -r -p evm-jsontests -F enable-slow-tests -- state -f \
+              ethtests/GeneralStateTests/ \
+              ethtests/LegacyTests/Cancun/GeneralStateTests/ \
+              ethtests/EIPTests/StateTests/
+            cargo run -r -p evm-jsontests -F enable-slow-tests -- vm -f \
+              ethtests/LegacyTests/Constantinople/VMTests/vmArithmeticTest \
+              ethtests/LegacyTests/Constantinople/VMTests/vmBitwiseLogicOperation \
+              ethtests/LegacyTests/Constantinople/VMTests/vmBlockInfoTest \
+              ethtests/LegacyTests/Constantinople/VMTests/vmEnvironmentalInfo \
+              ethtests/LegacyTests/Constantinople/VMTests/vmIOandFlowOperations \
+              ethtests/LegacyTests/Constantinople/VMTests/vmLogTest \
+              ethtests/LegacyTests/Constantinople/VMTests/vmPerformance \
+              ethtests/LegacyTests/Constantinople/VMTests/vmPushDupSwapTest \
+              ethtests/LegacyTests/Constantinople/VMTests/vmRandomTest \
+              ethtests/LegacyTests/Constantinople/VMTests/vmSha3Test \
+              ethtests/LegacyTests/Constantinople/VMTests/vmSystemOperations \
+              ethtests/LegacyTests/Constantinople/VMTests/vmTests
