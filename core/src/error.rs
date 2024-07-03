@@ -182,6 +182,8 @@ impl From<ExitError> for ExitReason {
 pub enum ExitFatal {
 	/// The operation is not supported.
 	NotSupported,
+	/// `usize` casting overflow
+	UsizeOverflow,
 	/// The trap (interrupt) is unhandled.
 	UnhandledInterrupt,
 	/// The environment explicitly set call errors as fatal error.

@@ -9,10 +9,10 @@ keywords.workspace = true
 edition.workspace = true
 
 [workspace.dependencies]
-evm = { version = "0.43", path = "." }
-evm-core = { version = "0.43", path = "core", default-features = false }
-evm-gasometer = { version = "0.43", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.43", path = "runtime", default-features = false }
+evm = { version = "0.44", path = "." }
+evm-core = { version = "0.44", path = "core", default-features = false }
+evm-gasometer = { version = "0.44", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.44", path = "runtime", default-features = false }
 primitive-types = { version = "0.12", default-features = false }
 auto_impl = "1.0"
 sha3 = { version = "0.10", default-features = false }
@@ -87,7 +87,7 @@ create-fixed = []
 print-debug = ["evm-gasometer/print-debug"]
 
 [workspace.package]
-version = "0.43.0"
+version = "0.44.0"
 license = "Apache-2.0"
 authors = ["Aurora Labs <hello@aurora.dev>", "Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
 description = "Portable Ethereum Virtual Machine implementation written in pure Rust."

@@ -1,6 +1,7 @@
 use super::Control;
+
 use crate::utils::USIZE_MAX;
-use crate::{ExitError, ExitRevert, ExitSucceed, Machine};
+use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
 
@@ -13,18 +14,16 @@ pub fn codesize(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn codecopy(state: &mut Machine) -> Control {
-	pop_u256!(state, memory_offset);
-	pop_u256!(state, code_offset);
-	pop_usize!(state, len);
+	pop_u256!(state, memory_offset, code_offset, len);
 
 	// If `len` is zero then nothing happens, regardless of the
 	// value of the other parameters. In particular, `memory_offset`
 	// might be larger than `usize::MAX`, hence why we check this first.
-	if len == 0 {
+	if len == U256::zero() {
 		return Control::Continue(1);
 	}
-
-	let memory_offset = memory_offset.as_usize();
+	let len = as_usize_or_fail!(len);
+	let memory_offset = as_usize_or_fail!(memory_offset);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 	match state
@@ -66,15 +65,15 @@ pub fn calldatasize(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn calldatacopy(state: &mut Machine) -> Control {
-	pop_u256!(state, memory_offset);
-	pop_u256!(state, data_offset);
-	pop_usize!(state, len);
+	pop_u256!(state, memory_offset, data_offset, len);
 
 	// See comment on `codecopy` about the `len == 0` case.
-	if len == 0 {
+	if len == U256::zero() {
 		return Control::Continue(1);
 	}
-	let memory_offset = memory_offset.as_usize();
+	let len = as_usize_or_fail!(len);
+	let memory_offset = as_usize_or_fail!(memory_offset);
+
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 
 	match state
@@ -94,7 +93,8 @@ pub fn pop(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn mload(state: &mut Machine) -> Control {
-	pop_usize!(state, index);
+	pop_u256!(state, index);
+	let index = as_usize_or_fail!(index);
 	try_or_fail!(state.memory.resize_offset(index, 32));
 	let value = state.memory.get_h256(index);
 	push_h256!(state, value);
@@ -103,7 +103,8 @@ pub fn mload(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn mstore(state: &mut Machine) -> Control {
-	pop_usize!(state, index);
+	pop_u256!(state, index);
+	let index = as_usize_or_fail!(index);
 	pop_h256!(state, value);
 	try_or_fail!(state.memory.resize_offset(index, 32));
 	match state.memory.set(index, &value[..], Some(32)) {
@@ -114,8 +115,8 @@ pub fn mstore(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn mstore8(state: &mut Machine) -> Control {
-	pop_usize!(state, index);
-	pop_u256!(state, value);
+	pop_u256!(state, index, value);
+	let index = as_usize_or_fail!(index);
 	try_or_fail!(state.memory.resize_offset(index, 1));
 	let value = (value.low_u32() & 0xff) as u8;
 	match state.memory.set(index, &[value], Some(1)) {
@@ -138,8 +139,7 @@ pub fn jump(state: &mut Machine) -> Control {
 
 #[inline]
 pub fn jumpi(state: &mut Machine) -> Control {
-	pop_u256!(state, dest);
-	pop_u256!(state, value);
+	pop_u256!(state, dest, value);
 
 	if value == U256::zero() {
 		Control::Continue(1)
@@ -237,22 +237,24 @@ pub fn swap(state: &mut Machine, n: usize) -> Control {
 
 #[inline]
 pub fn ret(state: &mut Machine) -> Control {
-	pop_u256!(state, start);
-	pop_usize!(state, len);
-	if len > 0 {
-		try_or_fail!(state.memory.resize_offset(start.as_usize(), len));
+	pop_u256!(state, start, len);
+	if len > U256::zero() {
+		let start = as_usize_or_fail!(start);
+		let len = as_usize_or_fail!(len);
+		try_or_fail!(state.memory.resize_offset(start, len));
 	}
-	state.return_range = start..(start + U256::from(len));
+	state.return_range = start..(start + len);
 	Control::Exit(ExitSucceed::Returned.into())
 }
 
 #[inline]
 pub fn revert(state: &mut Machine) -> Control {
-	pop_u256!(state, start);
-	pop_usize!(state, len);
-	if len > 0 {
-		try_or_fail!(state.memory.resize_offset(start.as_usize(), len));
+	pop_u256!(state, start, len);
+	if len > U256::zero() {
+		let start = as_usize_or_fail!(start);
+		let len = as_usize_or_fail!(len);
+		try_or_fail!(state.memory.resize_offset(start, len));
 	}
-	state.return_range = start..(start + U256::from(len));
+	state.return_range = start..(start + len);
 	Control::Exit(ExitRevert::Reverted.into())
 }

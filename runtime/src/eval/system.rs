@@ -1,7 +1,8 @@
 use super::Control;
 use crate::prelude::*;
 use crate::{
-	CallScheme, Capture, Context, CreateScheme, ExitError, ExitSucceed, Handler, Runtime, Transfer,
+	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitSucceed, Handler,
+	Runtime, Transfer,
 };
 use core::cmp::max;
 use evm_core::utils::{U64_MAX, USIZE_MAX};
@@ -9,15 +10,15 @@ use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	pop_u256!(runtime, from);
-	pop_usize!(runtime, len);
+	pop_u256!(runtime, from, len);
 
 	// Cast to `usize` after length checking to avoid overflow
-	let from = if len == 0 {
+	let from = if len == U256::zero() {
 		usize::MAX
 	} else {
-		from.as_usize()
+		as_usize_or_fail!(from)
 	};
+	let len = as_usize_or_fail!(len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(from, len));
 	let data = if len == 0 {
@@ -144,16 +145,15 @@ pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H>
 
 pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	pop_h256!(runtime, address);
-	pop_u256!(runtime, memory_offset);
-	pop_u256!(runtime, code_offset);
-	pop_usize!(runtime, len);
+	pop_u256!(runtime, memory_offset, code_offset, len);
 
-	if len == 0 {
+	if len == U256::zero() {
 		return Control::Continue;
 	}
+	let len = as_usize_or_fail!(len);
 
 	// Cast to `usize` after length checking to avoid overflow
-	let memory_offset = memory_offset.as_usize();
+	let memory_offset = as_usize_or_fail!(memory_offset);
 
 	try_or_fail!(runtime
 		.machine
@@ -180,24 +180,23 @@ pub fn returndatasize<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 }
 
 pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
-	pop_u256!(runtime, memory_offset);
-	pop_u256!(runtime, data_offset);
-	pop_usize!(runtime, len);
+	pop_u256!(runtime, memory_offset, data_offset, len);
 
 	// If `len` is zero then nothing happens to the memory, regardless
 	// of the value of `memory_offset`. In particular, the value taken
 	// from the stack might be larger than `usize::MAX`, hence why the
 	// `as_usize` cast is not always safe. But because the value does
 	// not matter when `len == 0` we can safely set it equal to zero instead.
-	let memory_offset = if len == 0 {
+	let memory_offset = if len == U256::zero() {
 		0
 	} else {
 		// SAFETY: this cast is safe because if `len > 0` then gas cost of memory
 		// would have already been taken into account at this point. It is impossible
 		// to have a memory offset greater than `usize::MAX` for any gas limit less
 		// than `u64::MAX` (and gas limits higher than this are disallowed in general).
-		memory_offset.as_usize()
+		as_usize_or_fail!(memory_offset)
 	};
+	let len = as_usize_or_fail!(len);
 
 	try_or_fail!(runtime
 		.machine
@@ -333,10 +332,10 @@ pub fn tstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> 
 /// EIP-5656: MCOPY - Memory copying instruction
 pub fn mcopy<H: Handler>(runtime: &mut Runtime, _handler: &mut H) -> Control<H> {
 	pop_u256!(runtime, dst, src, len);
-	let len = as_usize_or_fail!(len, ExitError::OutOfGas);
-	if len == 0 {
+	if len == U256::zero() {
 		return Control::Continue;
 	}
+	let len = as_usize_or_fail!(len, ExitError::OutOfGas);
 	let dst = as_usize_or_fail!(dst, ExitError::OutOfGas);
 	let src = as_usize_or_fail!(src, ExitError::OutOfGas);
 
@@ -361,15 +360,15 @@ pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 }
 
 pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
-	pop_u256!(runtime, offset);
-	pop_usize!(runtime, len);
+	pop_u256!(runtime, offset, len);
 
 	// Cast to `usize` after length checking to avoid overflow
-	let offset = if len == 0 {
+	let offset = if len == U256::zero() {
 		usize::MAX
 	} else {
-		offset.as_usize()
+		as_usize_or_fail!(offset)
 	};
+	let len = as_usize_or_fail!(len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(offset, len));
 	let data = if len == 0 {
@@ -419,16 +418,15 @@ pub fn selfdestruct<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contr
 pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {
 	runtime.return_data_buffer = Vec::new();
 
-	pop_u256!(runtime, value);
-	pop_u256!(runtime, code_offset);
-	pop_usize!(runtime, len);
+	pop_u256!(runtime, value, code_offset, len);
 
 	// Cast to `usize` after length checking to avoid overflow
-	let code_offset = if len == 0 {
+	let code_offset = if len == U256::zero() {
 		usize::MAX
 	} else {
-		code_offset.as_usize()
+		as_usize_or_fail!(code_offset)
 	};
+	let len = as_usize_or_fail!(len);
 
 	try_or_fail!(runtime.machine.memory_mut().resize_offset(code_offset, len));
 	let code = if len == 0 {
@@ -481,23 +479,23 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		CallScheme::DelegateCall | CallScheme::StaticCall => U256::zero(),
 	};
 
-	pop_u256!(runtime, in_offset);
-	pop_usize!(runtime, in_len);
-	pop_u256!(runtime, out_offset);
-	pop_usize!(runtime, out_len);
+	pop_u256!(runtime, in_offset, in_len);
+	pop_u256!(runtime, out_offset, out_len);
 
 	// Cast to `usize` after length checking to avoid overflow
-	let in_offset = if in_len == 0 {
+	let in_offset = if in_len == U256::zero() {
 		usize::MAX
 	} else {
-		in_offset.as_usize()
+		as_usize_or_fail!(in_offset)
 	};
+	let in_len = as_usize_or_fail!(in_len);
 	// Cast to `usize` after length checking to avoid overflow
-	let out_offset = if out_len == 0 {
+	let out_offset = if out_len == U256::zero() {
 		usize::MAX
 	} else {
-		out_offset.as_usize()
+		as_usize_or_fail!(out_offset)
 	};
+	let out_len = as_usize_or_fail!(out_len);
 
 	try_or_fail!(runtime
 		.machine

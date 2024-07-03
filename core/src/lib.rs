@@ -143,8 +143,10 @@ impl Machine {
 				self.return_range.start.as_usize(),
 				usize::MAX - self.return_range.start.as_usize(),
 			);
-			while ret.len() < (self.return_range.end - self.return_range.start).as_usize() {
-				ret.push(0);
+
+			let new_len = (self.return_range.end - self.return_range.start).as_usize();
+			if ret.len() < new_len {
+				ret.resize(new_len, 0);
 			}
 			ret
 		} else {
