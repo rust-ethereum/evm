@@ -66,6 +66,8 @@ pub enum ForkSpec {
 	Shanghai,
 	/// Cancun (2024-03-13)
 	Cancun,
+	/// Prague-Electra—aka Pectra
+	Prague,
 }
 
 impl ForkSpec {

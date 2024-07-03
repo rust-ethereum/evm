@@ -50,7 +50,7 @@ jobs:
         with:
           repository: ethereum/tests
           path: ethtests
-          ref: v13.3
+          ref: v14.0
           submodules: recursive
           fetch-depth: 1
 
@@ -58,7 +58,9 @@ jobs:
         run: |
           cargo run -r -p evm-jsontests -F enable-slow-tests -- \
           	state -f \
-          	ethtests/GeneralStateTests/
+          	ethtests/GeneralStateTests/ \
+            ethtests/LegacyTests/Cancun/GeneralStateTests/ \
+            ethtests/EIPTests/StateTests/
 
       - name: Run Ethereum vm tests
         run: |
