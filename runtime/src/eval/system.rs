@@ -1,8 +1,7 @@
 use super::Control;
 use crate::prelude::*;
 use crate::{
-	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitSucceed, Handler,
-	Runtime, Transfer,
+	CallScheme, Capture, Context, CreateScheme, ExitError, ExitSucceed, Handler, Runtime, Transfer,
 };
 use core::cmp::max;
 use evm_core::utils::{U64_MAX, USIZE_MAX};

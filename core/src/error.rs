@@ -164,6 +164,10 @@ pub enum ExitError {
 	/// https://eips.ethereum.org/EIPS/eip-2681
 	#[cfg_attr(feature = "with-codec", codec(index = 14))]
 	MaxNonce,
+
+	/// `usize` casting overflow
+	#[cfg_attr(feature = "with-codec", codec(index = 15))]
+	UsizeOverflow,
 }
 
 impl From<ExitError> for ExitReason {
@@ -182,8 +186,6 @@ impl From<ExitError> for ExitReason {
 pub enum ExitFatal {
 	/// The operation is not supported.
 	NotSupported,
-	/// `usize` casting overflow
-	UsizeOverflow,
 	/// The trap (interrupt) is unhandled.
 	UnhandledInterrupt,
 	/// The environment explicitly set call errors as fatal error.

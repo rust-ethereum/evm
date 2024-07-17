@@ -1,7 +1,7 @@
 use super::Control;
 
 use crate::utils::USIZE_MAX;
-use crate::{ExitError, ExitFatal, ExitRevert, ExitSucceed, Machine};
+use crate::{ExitError, ExitRevert, ExitSucceed, Machine};
 use core::cmp::min;
 use primitive_types::{H256, U256};
 

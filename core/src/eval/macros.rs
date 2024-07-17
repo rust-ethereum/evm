@@ -134,7 +134,7 @@ macro_rules! op3_u256_fn {
 macro_rules! as_usize_or_fail {
 	( $v:expr ) => {{
 		if $v > crate::utils::USIZE_MAX {
-			return Control::Exit(ExitFatal::UsizeOverflow.into());
+			return Control::Exit(ExitError::UsizeOverflow.into());
 		}
 
 		$v.as_usize()
