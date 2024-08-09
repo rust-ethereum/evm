@@ -1017,10 +1017,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 							return (e.into(), None, Vec::new());
 						}
 						let exit_result = self.exit_substate(StackExitKind::Succeeded);
-						self.state.set_code(address, out);
 						if let Err(e) = exit_result {
 							return (e.into(), None, Vec::new());
 						}
+						self.state.set_code(address, out);
 						(ExitReason::Succeed(s), Some(address), Vec::new())
 					}
 					Err(e) => {
