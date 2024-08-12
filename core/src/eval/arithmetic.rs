@@ -107,6 +107,7 @@ pub fn exp(op1: U256, op2: U256) -> U256 {
 pub fn signextend(op1: U256, op2: U256) -> U256 {
 	if op1 < U256::from(32) {
 		// `low_u32` works since op1 < 32
+		#[allow(clippy::as_conversions)]
 		let bit_index = (8 * op1.low_u32() + 7) as usize;
 		let bit = op2.bit(bit_index);
 		let mask = (U256::one() << bit_index) - U256::one();
@@ -142,7 +143,7 @@ mod tests {
 			U256::MAX,
 		];
 		for x in 0..64 {
-			for y in test_values.iter() {
+			for y in &test_values {
 				compare_old_signextend(x.into(), *y);
 			}
 		}

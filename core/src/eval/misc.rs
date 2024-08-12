@@ -118,7 +118,7 @@ pub fn mstore8(state: &mut Machine) -> Control {
 	pop_u256!(state, index, value);
 	let index = as_usize_or_fail!(index);
 	try_or_fail!(state.memory.resize_offset(index, 1));
-	let value = (value.low_u32() & 0xff) as u8;
+	let value = u8::try_from(value.low_u32() & 0xff).unwrap_or(u8::MAX);
 	match state.memory.set(index, &[value], Some(1)) {
 		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),

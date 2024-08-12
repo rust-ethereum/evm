@@ -2,6 +2,9 @@
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables)]
+#![deny(clippy::pedantic, clippy::nursery)]
+#![deny(clippy::as_conversions)]
+#![allow(clippy::module_name_repetitions)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -81,8 +84,9 @@ pub struct Snapshot {
 
 #[cfg(feature = "tracing")]
 impl Snapshot {
-	fn new<'config>(gas_limit: u64, inner: &'config Inner<'config>) -> Snapshot {
-		Snapshot {
+	#[must_use]
+	const fn new<'config>(gas_limit: u64, inner: &'config Inner<'config>) -> Self {
+		Self {
 			gas_limit,
 			memory_gas: inner.memory_gas,
 			used_gas: inner.used_gas,
@@ -101,6 +105,7 @@ pub struct Gasometer<'config> {
 
 impl<'config> Gasometer<'config> {
 	/// Create a new gasometer with given gas limit and config.
+	#[must_use]
 	pub const fn new(gas_limit: u64, config: &'config Config) -> Self {
 		Self {
 			gas_limit,
@@ -114,8 +119,11 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
-	#[inline]
 	/// Returns the numerical gas cost value.
+	///
+	/// # Errors
+	/// Return `ExitError`
+	#[inline]
 	pub fn gas_cost(&self, cost: GasCost, gas: u64) -> Result<u64, ExitError> {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.gas_cost(cost, gas),
@@ -128,28 +136,32 @@ impl<'config> Gasometer<'config> {
 		self.inner.as_mut().map_err(|e| e.clone())
 	}
 
-	#[inline]
 	/// Reference of the config.
+	#[inline]
+	#[must_use]
 	pub const fn config(&self) -> &'config Config {
 		self.config
 	}
 
-	#[inline]
 	/// Gas limit.
+	#[inline]
+	#[must_use]
 	pub const fn gas_limit(&self) -> u64 {
 		self.gas_limit
 	}
 
-	#[inline]
 	/// Remaining gas.
+	#[inline]
+	#[must_use]
 	pub fn gas(&self) -> u64 {
 		self.inner.as_ref().map_or(0, |inner| {
 			self.gas_limit - inner.used_gas - inner.memory_gas
 		})
 	}
 
-	#[inline]
 	/// Total used gas.
+	#[inline]
+	#[must_use]
 	pub const fn total_used_gas(&self) -> u64 {
 		match self.inner.as_ref() {
 			Ok(inner) => inner.used_gas + inner.memory_gas,
@@ -157,8 +169,9 @@ impl<'config> Gasometer<'config> {
 		}
 	}
 
-	#[inline]
 	/// Refunded gas.
+	#[inline]
+	#[must_use]
 	pub fn refunded_gas(&self) -> i64 {
 		self.inner.as_ref().map_or(0, |inner| inner.refunded_gas)
 	}
@@ -169,8 +182,11 @@ impl<'config> Gasometer<'config> {
 		ExitError::OutOfGas
 	}
 
-	#[inline]
 	/// Record an explicit cost.
+	///
+	/// # Errors
+	/// Return `ExitError`
+	#[inline]
 	pub fn record_cost(&mut self, cost: u64) -> Result<(), ExitError> {
 		event!(RecordCost {
 			cost,
@@ -190,6 +206,9 @@ impl<'config> Gasometer<'config> {
 
 	#[inline]
 	/// Record an explicit refund.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn record_refund(&mut self, refund: i64) -> Result<(), ExitError> {
 		event!(RecordRefund {
 			refund,
@@ -201,14 +220,24 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
-	#[inline]
 	/// Record `CREATE` code deposit.
+	///
+	///
+	///
+	/// # Errors
+	/// Return `ExitError`
+	/// NOTE: in that context usize->u64 `as_conversions` is save
+	#[allow(clippy::as_conversions)]
+	#[inline]
 	pub fn record_deposit(&mut self, len: usize) -> Result<(), ExitError> {
-		let cost = len as u64 * (consts::G_CODEDEPOSIT as u64);
+		let cost = len as u64 * u64::from(consts::G_CODEDEPOSIT);
 		self.record_cost(cost)
 	}
 
 	/// Record opcode gas cost.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn record_dynamic_cost(
 		&mut self,
 		cost: GasCost,
@@ -260,8 +289,11 @@ impl<'config> Gasometer<'config> {
 		Ok(())
 	}
 
-	#[inline]
 	/// Record opcode stipend.
+	///
+	/// # Errors
+	/// Return `ExitError`
+	#[inline]
 	pub fn record_stipend(&mut self, stipend: u64) -> Result<(), ExitError> {
 		event!(RecordStipend {
 			stipend,
@@ -274,8 +306,13 @@ impl<'config> Gasometer<'config> {
 	}
 
 	/// Record transaction cost.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn record_transaction(&mut self, cost: TransactionCost) -> Result<(), ExitError> {
 		let gas_cost = match cost {
+			// NOTE: in that context usize->u64 `as_conversions` is save
+			#[allow(clippy::as_conversions)]
 			TransactionCost::Call {
 				zero_data_len,
 				non_zero_data_len,
@@ -302,6 +339,8 @@ impl<'config> Gasometer<'config> {
 
 				cost
 			}
+			// NOTE: in that context usize->u64 `as_conversions` is save
+			#[allow(clippy::as_conversions)]
 			TransactionCost::Create {
 				zero_data_len,
 				non_zero_data_len,
@@ -348,6 +387,7 @@ impl<'config> Gasometer<'config> {
 	}
 
 	#[cfg(feature = "tracing")]
+	#[must_use]
 	pub fn snapshot(&self) -> Option<Snapshot> {
 		self.inner
 			.as_ref()
@@ -358,6 +398,7 @@ impl<'config> Gasometer<'config> {
 
 /// Calculate the call transaction cost.
 #[allow(clippy::naive_bytecount)]
+#[must_use]
 pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
@@ -373,6 +414,7 @@ pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> 
 
 /// Calculate the create transaction cost.
 #[allow(clippy::naive_bytecount)]
+#[must_use]
 pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
@@ -388,6 +430,10 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 	}
 }
 
+/// Init code cost, related to `EIP-3860`
+/// NOTE: in that context `as-conversion` is safe for `usize->u64`
+#[allow(clippy::as_conversions)]
+#[must_use]
 pub const fn init_code_cost(data: &[u8]) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
@@ -403,7 +449,9 @@ fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
 	(access_list_address_len, access_list_storage_len)
 }
 
+#[allow(clippy::too_many_lines)]
 #[inline]
+#[must_use]
 pub fn static_opcode_cost(opcode: Opcode) -> Option<u32> {
 	static TABLE: [Option<u32>; 256] = {
 		let mut table = [None; 256];
@@ -527,7 +575,15 @@ pub fn static_opcode_cost(opcode: Opcode) -> Option<u32> {
 }
 
 /// Calculate the opcode cost.
-#[allow(clippy::nonminimal_bool, clippy::cognitive_complexity)]
+///
+/// # Errors
+/// Return `ExitError`
+#[allow(
+	clippy::nonminimal_bool,
+	clippy::cognitive_complexity,
+	clippy::too_many_lines,
+	clippy::match_same_arms
+)]
 pub fn dynamic_opcode_cost<H: Handler>(
 	address: H160,
 	opcode: Opcode,
@@ -841,12 +897,10 @@ impl<'config> Inner<'config> {
 
 	fn extra_check(&self, cost: GasCost, after_gas: u64) -> Result<(), ExitError> {
 		match cost {
-			GasCost::Call { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
-			GasCost::CallCode { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
-			GasCost::DelegateCall { gas, .. } => {
-				costs::call_extra_check(gas, after_gas, self.config)
-			}
-			GasCost::StaticCall { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
+			GasCost::Call { gas, .. }
+			| GasCost::CallCode { gas, .. }
+			| GasCost::DelegateCall { gas, .. }
+			| GasCost::StaticCall { gas, .. } => costs::call_extra_check(gas, after_gas, self.config),
 			_ => Ok(()),
 		}
 	}
@@ -922,14 +976,14 @@ impl<'config> Inner<'config> {
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
 			GasCost::Exp { power } => costs::exp_cost(power, self.config)?,
-			GasCost::Create => consts::G_CREATE as u64,
+			GasCost::Create => u64::from(consts::G_CREATE),
 			GasCost::Create2 { len } => costs::create2_cost(len)?,
 			GasCost::SLoad { target_is_cold } => costs::sload_cost(target_is_cold, self.config),
 
-			GasCost::Zero => consts::G_ZERO as u64,
-			GasCost::Base => consts::G_BASE as u64,
-			GasCost::VeryLow => consts::G_VERYLOW as u64,
-			GasCost::Low => consts::G_LOW as u64,
+			GasCost::Zero => u64::from(consts::G_ZERO),
+			GasCost::Base => u64::from(consts::G_BASE),
+			GasCost::VeryLow => u64::from(consts::G_VERYLOW),
+			GasCost::Low => u64::from(consts::G_LOW),
 			GasCost::Invalid(opcode) => return Err(ExitError::InvalidCode(opcode)),
 
 			GasCost::ExtCodeSize { target_is_cold } => {
@@ -942,7 +996,7 @@ impl<'config> Inner<'config> {
 			GasCost::Balance { target_is_cold } => {
 				costs::address_access_cost(target_is_cold, self.config.gas_balance, self.config)
 			}
-			GasCost::BlockHash => consts::G_BLOCKHASH as u64,
+			GasCost::BlockHash => u64::from(consts::G_BLOCKHASH),
 			GasCost::ExtCodeHash { target_is_cold } => costs::address_access_cost(
 				target_is_cold,
 				self.config.gas_ext_code_hash,
@@ -1013,7 +1067,7 @@ pub enum GasCost {
 		/// Whether the target exists.
 		target_exists: bool,
 	},
-	/// Gas cost for `CALLCODE.
+	/// Gas cost for `CALLCODE`.
 	CallCode {
 		/// Call value.
 		value: U256,
@@ -1159,6 +1213,7 @@ pub enum TransactionCost {
 
 impl MemoryCost {
 	/// Join two memory cost together.
+	#[must_use]
 	pub const fn join(self, other: Self) -> Self {
 		if self.len == 0 {
 			return other;

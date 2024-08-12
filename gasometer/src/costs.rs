@@ -1,4 +1,4 @@
-use crate::consts::*;
+use crate::consts;
 use crate::Config;
 use evm_core::utils::U64_MAX;
 use evm_core::ExitError;
@@ -12,11 +12,11 @@ pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<()
 	}
 }
 
-pub const fn suicide_refund(already_removed: bool) -> i64 {
+pub fn suicide_refund(already_removed: bool) -> i64 {
 	if already_removed {
 		0
 	} else {
-		R_SUICIDE as i64
+		i64::from(consts::R_SUICIDE)
 	}
 }
 
@@ -40,11 +40,12 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 				}
 
 				if original == new {
-					if original == H256::default() {
-						refund += (config.gas_sstore_set - config.gas_sload) as i64;
+					let for_refund = if original == H256::default() {
+						config.gas_sstore_set - config.gas_sload
 					} else {
-						refund += (config.gas_sstore_reset - config.gas_sload) as i64;
-					}
+						config.gas_sstore_reset - config.gas_sload
+					};
+					refund += i64::try_from(for_refund).unwrap_or(i64::MAX);
 				}
 
 				refund
@@ -60,7 +61,7 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 }
 
 pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
-	let base = U256::from(G_CREATE);
+	let base = U256::from(consts::G_CREATE);
 	// ceil(len / 32.0)
 	let sha_addup_base = len / U256::from(32)
 		+ if len % U256::from(32) == U256::zero() {
@@ -68,7 +69,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 		} else {
 			U256::one()
 		};
-	let sha_addup = U256::from(G_SHA3WORD)
+	let sha_addup = U256::from(consts::G_SHA3WORD)
 		.checked_mul(sha_addup_base)
 		.ok_or(ExitError::OutOfGas)?;
 	let gas = base.checked_add(sha_addup).ok_or(ExitError::OutOfGas)?;
@@ -82,9 +83,9 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitError> {
 
 pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 	if power == U256::zero() {
-		Ok(G_EXP as u64)
+		Ok(u64::from(consts::G_EXP))
 	} else {
-		let gas = U256::from(G_EXP)
+		let gas = U256::from(consts::G_EXP)
 			.checked_add(
 				U256::from(config.gas_expbyte)
 					.checked_mul(U256::from(crate::utils::log2floor(power) / 8 + 1))
@@ -102,16 +103,12 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitError> {
 
 pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let is_wordr = (len % U256::from(32)) == U256::zero();
 
-	let gas = U256::from(G_VERYLOW)
+	let gas = U256::from(consts::G_VERYLOW)
 		.checked_add(
-			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
-					wordd
-				} else {
-					wordd + U256::one()
-				})
+			U256::from(consts::G_COPY)
+				.checked_mul(if is_wordr { wordd } else { wordd + U256::one() })
 				.ok_or(ExitError::OutOfGas)?,
 		)
 		.ok_or(ExitError::OutOfGas)?;
@@ -125,15 +122,11 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitError> {
 
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let is_wordr = (len % U256::from(32)) == U256::zero();
 	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code, config))
 		.checked_add(
-			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
-					wordd
-				} else {
-					wordd + U256::one()
-				})
+			U256::from(consts::G_COPY)
+				.checked_mul(if is_wordr { wordd } else { wordd + U256::one() })
 				.ok_or(ExitError::OutOfGas)?,
 		)
 		.ok_or(ExitError::OutOfGas)?;
@@ -146,14 +139,14 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 }
 
 pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
-	let gas = U256::from(G_LOG)
+	let gas = U256::from(consts::G_LOG)
 		.checked_add(
-			U256::from(G_LOGDATA)
+			U256::from(consts::G_LOGDATA)
 				.checked_mul(len)
 				.ok_or(ExitError::OutOfGas)?,
 		)
 		.ok_or(ExitError::OutOfGas)?
-		.checked_add(U256::from(G_LOGTOPIC * n as u32))
+		.checked_add(U256::from(consts::G_LOGTOPIC * u32::from(n)))
 		.ok_or(ExitError::OutOfGas)?;
 
 	if gas > U64_MAX {
@@ -165,16 +158,12 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitError> {
 
 pub fn sha3_cost(len: U256) -> Result<u64, ExitError> {
 	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let is_wordr = (len % U256::from(32)) == U256::zero();
 
-	let gas = U256::from(G_SHA3)
+	let gas = U256::from(consts::G_SHA3)
 		.checked_add(
-			U256::from(G_SHA3WORD)
-				.checked_mul(if wordr == U256::zero() {
-					wordd
-				} else {
-					wordd + U256::one()
-				})
+			U256::from(consts::G_SHA3WORD)
+				.checked_mul(if is_wordr { wordd } else { wordd + U256::one() })
 				.ok_or(ExitError::OutOfGas)?,
 		)
 		.ok_or(ExitError::OutOfGas)?;
@@ -266,11 +255,12 @@ pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Co
 
 	let mut gas = config.gas_suicide + suicide_gas_topup;
 	if config.increase_state_access_gas && is_cold {
-		gas += config.gas_account_access_cold
+		gas += config.gas_account_access_cold;
 	}
 	gas
 }
 
+#[allow(clippy::fn_params_excessive_bools)]
 pub fn call_cost(
 	value: U256,
 	is_cold: bool,
@@ -297,15 +287,15 @@ pub const fn address_access_cost(is_cold: bool, regular_value: u64, config: &Con
 	}
 }
 
-const fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
+fn xfer_cost(is_call_or_callcode: bool, transfers_value: bool) -> u64 {
 	if is_call_or_callcode && transfers_value {
-		G_CALLVALUE as u64
+		u64::from(consts::G_CALLVALUE)
 	} else {
 		0
 	}
 }
 
-const fn new_cost(
+fn new_cost(
 	is_call_or_staticcall: bool,
 	new_account: bool,
 	transfers_value: bool,
@@ -315,12 +305,12 @@ const fn new_cost(
 	if is_call_or_staticcall {
 		if eip161 {
 			if transfers_value && new_account {
-				G_NEWACCOUNT as u64
+				u64::from(consts::G_NEWACCOUNT)
 			} else {
 				0
 			}
 		} else if new_account {
-			G_NEWACCOUNT as u64
+			u64::from(consts::G_NEWACCOUNT)
 		} else {
 			0
 		}

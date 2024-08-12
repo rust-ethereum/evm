@@ -19,7 +19,7 @@ impl Valids {
 				valids[i] = true;
 				i += 1;
 			} else if let Some(v) = opcode.is_push() {
-				i += v as usize + 1;
+				i += usize::from(v) + 1;
 			} else {
 				i += 1;
 			}

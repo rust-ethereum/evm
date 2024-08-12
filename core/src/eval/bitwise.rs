@@ -61,8 +61,7 @@ pub fn shl(shift: U256, value: U256) -> U256 {
 	if value == U256::zero() || shift >= U256::from(256) {
 		U256::zero()
 	} else {
-		let shift: u64 = shift.as_u64();
-		value << shift as usize
+		value << shift.as_usize()
 	}
 }
 
@@ -71,8 +70,7 @@ pub fn shr(shift: U256, value: U256) -> U256 {
 	if value == U256::zero() || shift >= U256::from(256) {
 		U256::zero()
 	} else {
-		let shift: u64 = shift.as_u64();
-		value >> shift as usize
+		value >> shift.as_usize()
 	}
 }
 
@@ -89,12 +87,12 @@ pub fn sar(shift: U256, value: U256) -> U256 {
 			Sign::Minus => I256(Sign::Minus, U256::one()).into(),
 		}
 	} else {
-		let shift: u64 = shift.as_u64();
+		let shift: usize = shift.as_usize();
 
 		match value.0 {
-			Sign::Plus | Sign::Zero => value.1 >> shift as usize,
+			Sign::Plus | Sign::Zero => value.1 >> shift,
 			Sign::Minus => {
-				let shifted = ((value.1.overflowing_sub(U256::one()).0) >> shift as usize)
+				let shifted = ((value.1.overflowing_sub(U256::one()).0) >> shift)
 					.overflowing_add(U256::one())
 					.0;
 				I256(Sign::Minus, shifted).into()

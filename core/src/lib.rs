@@ -2,6 +2,9 @@
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables, unused_imports)]
+#![deny(clippy::pedantic, clippy::nursery)]
+#![deny(clippy::as_conversions)]
+#![allow(clippy::module_name_repetitions)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(not(feature = "std"))]
@@ -62,6 +65,8 @@ pub trait InterpreterHandler {
 
 	fn after_eval(&mut self);
 
+	/// # Errors
+	/// Return `ExitError`
 	fn before_bytecode(
 		&mut self,
 		opcode: Opcode,
@@ -169,8 +174,11 @@ impl Machine {
 		}
 	}
 
-	#[inline]
 	/// Step the machine, executing until exit or trap.
+	///
+	/// # Errors
+	/// Return `Capture<ExitReason, Trap>`
+	#[inline]
 	pub fn step<H: InterpreterHandler>(
 		&mut self,
 		handler: &mut H,

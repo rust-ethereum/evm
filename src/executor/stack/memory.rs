@@ -26,6 +26,7 @@ pub struct MemoryStackSubstate<'config> {
 }
 
 impl<'config> MemoryStackSubstate<'config> {
+	#[must_use]
 	pub const fn new(metadata: StackSubstateMetadata<'config>) -> Self {
 		Self {
 			metadata,
@@ -39,6 +40,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
+	#[must_use]
 	pub fn logs(&self) -> &[Log] {
 		&self.logs
 	}
@@ -47,6 +49,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		&mut self.logs
 	}
 
+	#[must_use]
 	pub const fn metadata(&self) -> &StackSubstateMetadata<'config> {
 		&self.metadata
 	}
@@ -57,6 +60,9 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	/// Deconstruct the memory stack substate, return state to be applied. Panic if the
 	/// substate is not in the top-level substate.
+	///
+	/// # Panics
+	/// Panic if parent presents
 	#[must_use]
 	pub fn deconstruct<B: Backend>(
 		mut self,
@@ -140,6 +146,11 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.parent = Some(Box::new(entering));
 	}
 
+	/// # Panics
+	/// Cannot commit on root substate"
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn exit_commit(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot commit on root substate");
 		mem::swap(&mut exited, self);
@@ -172,20 +183,30 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
+	/// # Panics
+	/// Cannot discard on root substate
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn exit_revert(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
 		mem::swap(&mut exited, self);
 
-		self.metadata.swallow_revert(exited.metadata)?;
+		self.metadata.swallow_revert(&exited.metadata)?;
 
 		Ok(())
 	}
 
+	/// # Panics
+	/// Cannot discard on root substate
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn exit_discard(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
 		mem::swap(&mut exited, self);
 
-		self.metadata.swallow_discard(exited.metadata)?;
+		self.metadata.swallow_discard(&exited.metadata)?;
 
 		Ok(())
 	}
@@ -201,14 +222,17 @@ impl<'config> MemoryStackSubstate<'config> {
 		)
 	}
 
+	#[must_use]
 	pub fn known_basic(&self, address: H160) -> Option<Basic> {
 		self.known_account(address).map(|acc| acc.basic.clone())
 	}
 
+	#[must_use]
 	pub fn known_code(&self, address: H160) -> Option<Vec<u8>> {
 		self.known_account(address).and_then(|acc| acc.code.clone())
 	}
 
+	#[must_use]
 	pub fn known_empty(&self, address: H160) -> Option<bool> {
 		if let Some(account) = self.known_account(address) {
 			if account.basic.balance != U256::zero() {
@@ -231,6 +255,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
+	#[must_use]
 	pub fn known_storage(&self, address: H160, key: H256) -> Option<H256> {
 		if let Some(value) = self.storages.get(&(address, key)) {
 			return Some(*value);
@@ -249,6 +274,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
+	#[must_use]
 	pub fn known_original_storage(&self, address: H160) -> Option<H256> {
 		if let Some(account) = self.accounts.get(&address) {
 			if account.reset {
@@ -263,26 +289,28 @@ impl<'config> MemoryStackSubstate<'config> {
 		None
 	}
 
+	#[must_use]
 	pub fn is_cold(&self, address: H160) -> bool {
 		self.recursive_is_cold(&|a| a.accessed_addresses.contains(&address))
 	}
 
+	#[must_use]
 	pub fn is_storage_cold(&self, address: H160, key: H256) -> bool {
 		self.recursive_is_cold(&|a: &Accessed| a.accessed_storage.contains(&(address, key)))
 	}
 
 	fn recursive_is_cold<F: Fn(&Accessed) -> bool>(&self, f: &F) -> bool {
-		let local_is_accessed = self.metadata.accessed().as_ref().map(f).unwrap_or(false);
+		let local_is_accessed = self.metadata.accessed().as_ref().is_some_and(f);
 		if local_is_accessed {
 			false
 		} else {
 			self.parent
 				.as_ref()
-				.map(|p| p.recursive_is_cold(f))
-				.unwrap_or(true)
+				.map_or(true, |p| p.recursive_is_cold(f))
 		}
 	}
 
+	#[must_use]
 	pub fn deleted(&self, address: H160) -> bool {
 		if self.deletes.contains(&address) {
 			return true;
@@ -298,18 +326,17 @@ impl<'config> MemoryStackSubstate<'config> {
 	#[allow(clippy::map_entry)]
 	fn account_mut<B: Backend>(&mut self, address: H160, backend: &B) -> &mut MemoryStackAccount {
 		if !self.accounts.contains_key(&address) {
-			let account = self
-				.known_account(address)
-				.cloned()
-				.map(|mut v| {
-					v.reset = false;
-					v
-				})
-				.unwrap_or_else(|| MemoryStackAccount {
+			let account = self.known_account(address).cloned().map_or_else(
+				|| MemoryStackAccount {
 					basic: backend.basic(address),
 					code: None::<Vec<_>>,
 					reset: false,
-				});
+				},
+				|mut v| {
+					v.reset = false;
+					v
+				},
+			);
 			self.accounts.insert(address, account);
 		}
 
@@ -318,6 +345,8 @@ impl<'config> MemoryStackSubstate<'config> {
 			.expect("New account was just inserted")
 	}
 
+	/// # Errors
+	/// Return `ExitError`
 	pub fn inc_nonce<B: Backend>(&mut self, address: H160, backend: &B) -> Result<(), ExitError> {
 		let nonce = &mut self.account_mut(address, backend).basic.nonce;
 		if *nonce >= U64_MAX {
@@ -362,6 +391,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.creates.insert(address);
 	}
 
+	#[must_use]
 	pub fn is_created(&self, address: H160) -> bool {
 		if self.creates.contains(&address) {
 			return true;
@@ -378,9 +408,11 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(address, backend).code = Some(code);
 	}
 
+	/// # Errors
+	/// Return `ExitError`
 	pub fn transfer<B: Backend>(
 		&mut self,
-		transfer: Transfer,
+		transfer: &Transfer,
 		backend: &B,
 	) -> Result<(), ExitError> {
 		{
@@ -399,7 +431,9 @@ impl<'config> MemoryStackSubstate<'config> {
 		Ok(())
 	}
 
-	// Only needed for jsontests.
+	/// Only needed for jsontests.
+	/// # Errors
+	/// Return `ExitError`
 	pub fn withdraw<B: Backend>(
 		&mut self,
 		address: H160,
@@ -429,10 +463,12 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(address, backend);
 	}
 
+	#[must_use]
 	pub fn get_tstorage(&self, address: H160, key: H256) -> U256 {
 		self.known_tstorage(address, key).unwrap_or_default()
 	}
 
+	#[must_use]
 	pub fn known_tstorage(&self, address: H160, key: H256) -> Option<U256> {
 		if let Some(value) = self.tstorages.get(&(address, key)) {
 			return Some(*value);
@@ -541,7 +577,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 	}
 
 	fn enter(&mut self, gas_limit: u64, is_static: bool) {
-		self.substate.enter(gas_limit, is_static)
+		self.substate.enter(gas_limit, is_static);
 	}
 
 	fn exit_commit(&mut self) -> Result<(), ExitError> {
@@ -583,7 +619,7 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 	}
 
 	fn set_storage(&mut self, address: H160, key: H256, value: H256) {
-		self.substate.set_storage(address, key, value)
+		self.substate.set_storage(address, key, value);
 	}
 
 	fn reset_storage(&mut self, address: H160) {
@@ -595,11 +631,11 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 	}
 
 	fn set_deleted(&mut self, address: H160) {
-		self.substate.set_deleted(address)
+		self.substate.set_deleted(address);
 	}
 
 	fn set_created(&mut self, address: H160) {
-		self.substate.set_created(address)
+		self.substate.set_created(address);
 	}
 
 	fn is_created(&self, address: H160) -> bool {
@@ -607,19 +643,19 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 	}
 
 	fn set_code(&mut self, address: H160, code: Vec<u8>) {
-		self.substate.set_code(address, code, self.backend)
+		self.substate.set_code(address, code, self.backend);
 	}
 
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
-		self.substate.transfer(transfer, self.backend)
+		self.substate.transfer(&transfer, self.backend)
 	}
 
 	fn reset_balance(&mut self, address: H160) {
-		self.substate.reset_balance(address, self.backend)
+		self.substate.reset_balance(address, self.backend);
 	}
 
 	fn touch(&mut self, address: H160) {
-		self.substate.touch(address, self.backend)
+		self.substate.touch(address, self.backend);
 	}
 
 	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError> {
@@ -655,11 +691,13 @@ impl<'backend, 'config, B: Backend> MemoryStackState<'backend, 'config, B> {
 		self.substate.deconstruct(self.backend)
 	}
 
+	/// # Errors
+	/// Return `ExitError`
 	pub fn withdraw(&mut self, address: H160, value: U256) -> Result<(), ExitError> {
 		self.substate.withdraw(address, value, self.backend)
 	}
 
 	pub fn deposit(&mut self, address: H160, value: U256) {
-		self.substate.deposit(address, value, self.backend)
+		self.substate.deposit(address, value, self.backend);
 	}
 }

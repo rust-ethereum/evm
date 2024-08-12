@@ -72,6 +72,7 @@ pub struct MemoryBackend<'vicinity> {
 
 impl<'vicinity> MemoryBackend<'vicinity> {
 	/// Create a new memory backend.
+	#[must_use]
 	pub fn new(vicinity: &'vicinity MemoryVicinity, state: BTreeMap<H160, MemoryAccount>) -> Self {
 		Self {
 			vicinity,
@@ -81,6 +82,7 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 	}
 
 	/// Get the underlying `BTreeMap` storing the state.
+	#[must_use]
 	pub const fn state(&self) -> &BTreeMap<H160, MemoryAccount> {
 		&self.state
 	}
@@ -160,15 +162,14 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		self.state
 			.get(&address)
-			.map(|v| v.storage.get(&index).cloned().unwrap_or_default())
+			.map(|v| v.storage.get(&index).copied().unwrap_or_default())
 			.unwrap_or_default()
 	}
 
 	fn is_empty_storage(&self, address: H160) -> bool {
 		self.state
 			.get(&address)
-			.map(|v| v.storage.is_empty())
-			.unwrap_or(true)
+			.map_or(true, |v| v.storage.is_empty())
 	}
 
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
@@ -178,7 +179,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 		self.vicinity.blob_gas_price
 	}
 	fn get_blob_hash(&self, index: usize) -> Option<U256> {
-		self.vicinity.blob_hashes.get(index).cloned()
+		self.vicinity.blob_hashes.get(index).copied()
 	}
 }
 

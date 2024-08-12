@@ -284,12 +284,14 @@ impl Opcode {
 
 	#[inline]
 	#[must_use]
+	#[allow(clippy::as_conversions)]
 	pub const fn as_usize(&self) -> usize {
 		self.0 as usize
 	}
 }
 
 impl Display for Opcode {
+	#[allow(clippy::too_many_lines)]
 	fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
 		let name = match *self {
 			Self::STOP => "STOP",

@@ -75,7 +75,7 @@ pub fn finish_create(
 	return_data: Vec<u8>,
 ) -> Result<(), ExitReason> {
 	runtime.return_data_buffer = return_data;
-	let create_address: H256 = address.map(|a| a.into()).unwrap_or_default();
+	let create_address: H256 = address.map(Into::into).unwrap_or_default();
 
 	match reason {
 		ExitReason::Succeed(_) => {
@@ -112,21 +112,26 @@ pub fn finish_call(
 
 	match reason {
 		ExitReason::Succeed(_) => {
-			match runtime.machine.memory_mut().copy_large(
-				out_offset,
-				U256::zero(),
-				target_len,
-				&runtime.return_data_buffer[..],
-			) {
-				Ok(()) => {
-					runtime.machine.stack_mut().push(U256::one())?;
-					Ok(())
-				}
-				Err(_) => {
-					runtime.machine.stack_mut().push(U256::zero())?;
-					Ok(())
-				}
-			}
+			let value_to_push = if runtime
+				.machine
+				.memory_mut()
+				.copy_large(
+					out_offset,
+					U256::zero(),
+					target_len,
+					&runtime.return_data_buffer[..],
+				)
+				.is_ok()
+			{
+				U256::one()
+			} else {
+				U256::zero()
+			};
+			runtime
+				.machine
+				.stack_mut()
+				.push(value_to_push)
+				.map_err(Into::into)
 		}
 		ExitReason::Revert(_) => {
 			runtime.machine.stack_mut().push(U256::zero())?;

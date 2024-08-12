@@ -1,3 +1,4 @@
+#![allow(clippy::manual_let_else)]
 // Copyright 2015-2020 Parity Technologies (UK) Ltd.
 // This file is part of Open Ethereum.
 

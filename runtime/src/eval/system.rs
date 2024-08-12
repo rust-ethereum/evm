@@ -104,7 +104,7 @@ pub fn blob_base_fee<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<
 /// CANCUN hard fork
 /// EIP-4844: Shard Blob Transactions
 /// Logic related to operating with BLOBHASH opcode described:
-/// - https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes
+/// - <https://eips.ethereum.org/EIPS/eip-4844#opcode-to-get-versioned-hashes>
 pub fn blob_hash<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	// Peek index from the top of the stack
 	let raw_index = match runtime.machine.stack().peek(0) {
@@ -203,8 +203,7 @@ pub fn returndatacopy<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 		.resize_offset(memory_offset, len));
 	if data_offset
 		.checked_add(len.into())
-		.map(|l| l > U256::from(runtime.return_data_buffer.len()))
-		.unwrap_or(true)
+		.map_or(true, |l| l > U256::from(runtime.return_data_buffer.len()))
 	{
 		return Control::Exit(ExitError::OutOfOffset.into());
 	}
@@ -377,7 +376,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 	};
 
 	let mut topics = Vec::new();
-	for _ in 0..(n as usize) {
+	for _ in 0..n {
 		match runtime.machine.stack_mut().pop_h256() {
 			Ok(value) => {
 				topics.push(value);
@@ -393,7 +392,7 @@ pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control
 }
 
 /// Performances SELFDESTRUCT action.
-/// Transfers balance from address to target. Check if target exist/is_cold
+/// Transfers balance from address to target. Check if target `exist/is_cold`
 ///
 /// Note: balance will be lost if address and target are the same BUT when
 /// current spec enables Cancun, this happens only when the account associated to address

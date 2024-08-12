@@ -29,14 +29,14 @@ fn handle_data(sequence: &[u8]) {
 	let memory_limit = 10000;
 	let mut vm = Machine::new(Rc::new(code), Rc::new(data), stack_limit, memory_limit);
 	let res = vm.run();
-	#[cfg(not(fuzzing))]
+	#[cfg(not(feature = "fuzzing"))]
 	{
 		println!("Result: {:?}", res);
 	}
 }
 
 fn main() {
-	#[cfg(fuzzing)]
+	#[cfg(feature = "fuzzing")]
 	{
 		use honggfuzz::fuzz;
 
@@ -46,7 +46,7 @@ fn main() {
 			});
 		}
 	}
-	#[cfg(not(fuzzing))]
+	#[cfg(not(feature = "fuzzing"))]
 	{
 		use std::env;
 		use std::fs;

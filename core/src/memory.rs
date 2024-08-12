@@ -57,6 +57,9 @@ impl Memory {
 
 	/// Resize the memory, making it cover the memory region of `offset..offset + len`,
 	/// with 32 bytes as the step. If the length is zero, this function does nothing.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn resize_offset(&mut self, offset: usize, len: usize) -> Result<(), ExitError> {
 		if len == 0 {
 			return Ok(());
@@ -68,6 +71,9 @@ impl Memory {
 	}
 
 	/// Resize the memory, making it cover to `end`, with 32 bytes as the step.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	pub fn resize_end(&mut self, end: usize) -> Result<(), ExitError> {
 		if end > self.effective_len {
 			let new_end = next_multiple_of_32(end).ok_or(ExitError::InvalidRange)?;
@@ -119,6 +125,9 @@ impl Memory {
 
 	/// Set memory region at given offset. The offset and value is considered
 	/// untrusted.
+	///
+	/// # Errors
+	/// Return `ExitFatal`
 	pub fn set(
 		&mut self,
 		offset: usize,
@@ -154,7 +163,10 @@ impl Memory {
 	}
 
 	/// Copy memory region form `src` to `dst` with length.
-	/// `copy_within` uses `memmove` to avoid DoS attacks.
+	/// `copy_within` uses `memmove` to avoid `DoS` attacks.
+	///
+	/// # Errors
+	/// Return `ExitFatal`
 	pub fn copy(
 		&mut self,
 		src_offset: usize,
@@ -186,6 +198,9 @@ impl Memory {
 	}
 
 	/// Copy `data` into the memory, of given `len`.
+	///
+	/// # Errors
+	/// Return `ExitFatal`
 	pub fn copy_large(
 		&mut self,
 		memory_offset: usize,
@@ -202,6 +217,7 @@ impl Memory {
 			return Ok(());
 		}
 
+		#[allow(clippy::as_conversions)]
 		let data = data_offset
 			.checked_add(len.into())
 			.map_or(&[] as &[u8], |end| {

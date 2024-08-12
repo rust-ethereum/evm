@@ -60,7 +60,7 @@ pub type Blake2FPricer = u64;
 
 impl Pricer for Blake2FPricer {
 	fn cost(&self, input: &[u8]) -> U256 {
-		const FOUR: usize = std::mem::size_of::<u32>();
+		const FOUR: usize = size_of::<u32>();
 		// Returning zero if the conversion fails is fine because `execute()` will check the length
 		// and bail with the appropriate error.
 		if input.len() < FOUR {
@@ -236,7 +236,7 @@ impl ModexpPricer {
 			return U256::zero();
 		}
 
-		let max_len = U256::from(u32::max_value() / 2);
+		let max_len = U256::from(u32::MAX / 2);
 		if base_len > max_len || mod_len > max_len || exp_len > max_len {
 			return U256::max_value();
 		}
@@ -259,7 +259,7 @@ impl ModexpPricer {
 	}
 
 	fn eip_2565_mul_complexity(base_length: U256, modulus_length: U256) -> U256 {
-		let max_length = std::cmp::max(base_length, modulus_length);
+		let max_length = max(base_length, modulus_length);
 		let words = {
 			// div_ceil(max_length, 8);
 			let tmp = max_length / 8;
@@ -284,7 +284,7 @@ impl ModexpPricer {
 				.saturating_mul(exponent_length - thirty_two)
 				.saturating_add(U256::from(exponent.bits()).saturating_sub(U256::from(1)))
 		};
-		std::cmp::max(it, U256::one())
+		max(it, U256::one())
 	}
 
 	fn eip_2565_cost(
@@ -296,7 +296,7 @@ impl ModexpPricer {
 	) -> U256 {
 		let multiplication_complexity = Self::eip_2565_mul_complexity(base_length, modulus_length);
 		let iteration_count = Self::eip_2565_iter_count(exponent_length, exponent);
-		std::cmp::max(
+		max(
 			U256::from(200),
 			multiplication_complexity.saturating_mul(iteration_count) / divisor,
 		)

@@ -14,3 +14,6 @@ evm-core.workspace = true
 [[bin]]
 name = "evm_fuzz"
 path = "src/main.rs"
+
+[features]
+fuzzing = []

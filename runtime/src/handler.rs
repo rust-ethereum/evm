@@ -75,13 +75,25 @@ pub trait Handler {
 	/// References:
 	/// * <https://eips.ethereum.org/EIPS/eip-2929>
 	/// * <https://eips.ethereum.org/EIPS/eip-2930>
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn is_cold(&mut self, address: H160, index: Option<H256>) -> Result<bool, ExitError>;
 
 	/// Set storage value of address at index.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn mark_delete(&mut self, address: H160, target: H160) -> Result<(), ExitError>;
 	/// Invoke a create operation.
 	fn create(
@@ -93,7 +105,13 @@ pub trait Handler {
 		target_gas: Option<u64>,
 	) -> Capture<(ExitReason, Option<H160>, Vec<u8>), Self::CreateInterrupt>;
 	/// Feed in create feedback.
-	fn create_feedback(&mut self, _feedback: Self::CreateFeedback) -> Result<(), ExitError> {
+	///
+	/// # Errors
+	/// Return `ExitError`
+	fn create_feedback(
+		&mut self,
+		#[allow(clippy::used_underscore_binding)] _feedback: Self::CreateFeedback,
+	) -> Result<(), ExitError> {
 		Ok(())
 	}
 	/// Invoke a call operation.
@@ -107,15 +125,31 @@ pub trait Handler {
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
 	/// Feed in call feedback.
-	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
+	///
+	/// # Errors
+	/// Return `ExitError`
+	fn call_feedback(
+		&mut self,
+		#[allow(clippy::used_underscore_binding)] _feedback: Self::CallFeedback,
+	) -> Result<(), ExitError> {
 		Ok(())
 	}
 	/// Handle other unknown external opcodes.
-	fn other(&mut self, opcode: Opcode, _stack: &mut Machine) -> Result<(), ExitError> {
+	///
+	/// # Errors
+	/// Return `ExitError`
+	fn other(
+		&mut self,
+		opcode: Opcode,
+		#[allow(clippy::used_underscore_binding)] _stack: &mut Machine,
+	) -> Result<(), ExitError> {
 		Err(ExitError::InvalidCode(opcode))
 	}
 
 	/// Records some associated `ExternalOperation`.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn record_external_operation(&mut self, op: crate::ExternalOperation) -> Result<(), ExitError>;
 
 	/// Returns `None` if `Cancun` is not enabled.
@@ -128,8 +162,14 @@ pub trait Handler {
 	fn get_blob_hash(&self, index: usize) -> Option<U256>;
 	/// Set tstorage value of address at index.
 	/// [EIP-1153]: Transient storage
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn tstore(&mut self, address: H160, index: H256, value: U256) -> Result<(), ExitError>;
 	/// Get tstorage value of address at index.
 	/// [EIP-1153]: Transient storage
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn tload(&mut self, address: H160, index: H256) -> Result<U256, ExitError>;
 }

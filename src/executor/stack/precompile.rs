@@ -48,9 +48,15 @@ pub trait PrecompileHandle {
 	) -> (ExitReason, Vec<u8>);
 
 	/// Record cost to the Runtime gasometer.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn record_cost(&mut self, cost: u64) -> Result<(), ExitError>;
 
 	/// Record Substrate specific cost.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn record_external_cost(
 		&mut self,
 		ref_time: Option<u64>,
@@ -65,6 +71,9 @@ pub trait PrecompileHandle {
 	fn remaining_gas(&self) -> u64;
 
 	/// Record a log.
+	///
+	/// # Errors
+	/// Return `ExitError`
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 
 	/// Retreive the code address (what is the address of the precompile being called).

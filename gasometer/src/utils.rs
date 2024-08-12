@@ -8,12 +8,11 @@ pub fn log2floor(value: U256) -> u64 {
 		if value.0[i] == 0u64 {
 			l -= 64;
 		} else {
-			l -= value.0[i].leading_zeros() as u64;
+			l -= u64::from(value.0[i].leading_zeros());
 			if l == 0 {
 				return l;
-			} else {
-				return l - 1;
 			}
+			return l - 1;
 		}
 	}
 	l
