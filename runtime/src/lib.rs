@@ -413,35 +413,35 @@ impl Config {
 
 	/// Berlin hard fork configuration.
 	#[must_use]
-	pub fn berlin() -> Self {
+	pub const fn berlin() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::berlin())
 	}
 
 	/// london hard fork configuration.
 	#[must_use]
-	pub fn london() -> Self {
+	pub const fn london() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::london())
 	}
 
 	/// The Merge (Paris) hard fork configuration.
 	#[must_use]
-	pub fn merge() -> Self {
+	pub const fn merge() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::merge())
 	}
 
 	/// Shanghai hard fork configuration.
 	#[must_use]
-	pub fn shanghai() -> Self {
+	pub const fn shanghai() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
 	}
 
 	/// Cancun hard fork configuration.
 	#[must_use]
-	pub fn cancun() -> Self {
+	pub const fn cancun() -> Self {
 		Self::config_with_derived_values(DerivedConfigInputs::cancun())
 	}
 
-	fn config_with_derived_values(inputs: DerivedConfigInputs) -> Self {
+	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Self {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
 			gas_sload_cold,
@@ -463,10 +463,11 @@ impl Config {
 		let gas_sload = gas_storage_read_warm;
 		let gas_sstore_reset = 5000 - gas_sload_cold;
 
+		// In that particular case allow unsigned casting to signed as it can't be more than `i64::MAX`.
+		#[allow(clippy::as_conversions, clippy::cast_possible_wrap)]
 		// See https://eips.ethereum.org/EIPS/eip-3529
 		let refund_sstore_clears = if decrease_clears_refund {
-			// Avoid unsigned casting to signed as it may overflow
-			i64::try_from(gas_sstore_reset + gas_access_list_storage_key).unwrap_or(i64::MAX)
+			(gas_sstore_reset + gas_access_list_storage_key) as i64
 		} else {
 			15000
 		};
