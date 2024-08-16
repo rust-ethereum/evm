@@ -1,4 +1,4 @@
-mod standard;
+pub mod standard;
 
 use evm::interpreter::{machine::Machine, opcode::Opcode};
 
