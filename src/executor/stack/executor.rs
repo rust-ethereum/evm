@@ -79,7 +79,6 @@ pub struct StackSubstateMetadata<'config> {
 	is_static: bool,
 	depth: Option<usize>,
 	accessed: Option<Accessed>,
-	created: BTreeSet<H160>,
 }
 
 impl<'config> StackSubstateMetadata<'config> {
@@ -95,17 +94,22 @@ impl<'config> StackSubstateMetadata<'config> {
 			is_static: false,
 			depth: None,
 			accessed,
-			created: BTreeSet::new(),
 		}
 	}
 
+	/// Swallow commit implements part of logic for `exit_commit`:
+	/// - Record opcode stipend.
+	/// - Record an explicit refund.
+	/// - Merge warmed accounts and storages
+	///
 	/// # Errors
-	/// Return `ExitError`
+	/// Return `ExitError` that is thrown by gasometer gas calculation errors.
 	pub fn swallow_commit(&mut self, other: Self) -> Result<(), ExitError> {
 		self.gasometer.record_stipend(other.gasometer.gas())?;
 		self.gasometer
 			.record_refund(other.gasometer.refunded_gas())?;
 
+		// Merge warmed accounts and storages
 		if let (Some(mut other_accessed), Some(self_accessed)) =
 			(other.accessed, self.accessed.as_mut())
 		{
@@ -120,19 +124,18 @@ impl<'config> StackSubstateMetadata<'config> {
 		Ok(())
 	}
 
+	/// Swallow revert implements part of logic for `exit_commit`:
+	/// - Record opcode stipend.
+	///
 	/// # Errors
-	/// Return `ExitError`
+	/// Return `ExitError` that is thrown by gasometer gas calculation errors.
 	pub fn swallow_revert(&mut self, other: &Self) -> Result<(), ExitError> {
-		self.gasometer.record_stipend(other.gasometer.gas())?;
-
-		Ok(())
+		self.gasometer.record_stipend(other.gasometer.gas())
 	}
 
-	/// # Errors
-	/// Return `ExitError`
-	pub const fn swallow_discard(&self, _other: &Self) -> Result<(), ExitError> {
-		Ok(())
-	}
+	/// Swallow revert implements part of logic for `exit_commit`:
+	/// At the moment, it does nothing.
+	pub const fn swallow_discard(&self, _other: &Self) {}
 
 	#[must_use]
 	pub fn spit_child(&self, gas_limit: u64, is_static: bool) -> Self {
@@ -141,7 +144,6 @@ impl<'config> StackSubstateMetadata<'config> {
 			is_static: is_static || self.is_static,
 			depth: self.depth.map_or(Some(0), |n| Some(n + 1)),
 			accessed: self.accessed.as_ref().map(|_| Accessed::default()),
-			created: self.created.clone(),
 		}
 	}
 
@@ -194,6 +196,8 @@ impl<'config> StackSubstateMetadata<'config> {
 		}
 	}
 
+	/// Used for gas calculation logic.
+	/// It's most significant for `cold/warm` gas calculation as warmed addresses spent less gas.
 	#[must_use]
 	pub const fn accessed(&self) -> &Option<Accessed> {
 		&self.accessed
@@ -356,7 +360,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.state.enter(gas_limit, is_static);
 	}
 
-	/// Exit a substate. Panic if it results an empty substate stack.
+	/// Exit a substate.
+	///
+	/// # Panics
+	/// Panic occurs if a result is an empty `substate` stack.
 	///
 	/// # Errors
 	/// Return `ExitError`
@@ -842,8 +849,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		let address = self.create_address(scheme);
 
-		self.state.metadata_mut().access_address(caller);
-		self.state.metadata_mut().access_address(address);
+		self.state
+			.metadata_mut()
+			.access_addresses([caller, address].iter().copied());
 
 		event!(Create {
 			caller,

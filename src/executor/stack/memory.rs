@@ -146,11 +146,21 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.parent = Some(Box::new(entering));
 	}
 
-	/// # Panics
-	/// Cannot commit on root substate"
+	/// Exit commit represent successful execution of the `substate`.
+	///
+	/// It includes:
+	/// - swallow commit
+	///   - gas recording
+	///   - warmed accesses merging
+	/// - logs merging
+	/// - for account existed from substate with reset flag, remove storages by keys
+	/// - merge substate data: accounts, storages, tstorages, deletes, creates
 	///
 	/// # Errors
-	/// Return `ExitError`
+	/// Return `ExitError` that is thrown by gasometer gas calculation errors.
+	///
+	/// # Panics
+	/// Cannot commit on root `substate` i.e. it forces to panic.
 	pub fn exit_commit(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot commit on root substate");
 		mem::swap(&mut exited, self);
@@ -179,35 +189,34 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.tstorages.append(&mut exited.tstorages);
 		self.deletes.append(&mut exited.deletes);
 		self.creates.append(&mut exited.creates);
-
 		Ok(())
 	}
 
-	/// # Panics
-	/// Cannot discard on root substate
+	/// Exit revert. Represents revert execution of the `substate`.
 	///
 	/// # Errors
 	/// Return `ExitError`
+	///
+	/// # Panics
+	/// Cannot discard on root substate
 	pub fn exit_revert(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
 		mem::swap(&mut exited, self);
-
 		self.metadata.swallow_revert(&exited.metadata)?;
-
 		Ok(())
 	}
 
-	/// # Panics
-	/// Cannot discard on root substate
+	/// Exit discard. Represents discard execution of the `substate`.
 	///
 	/// # Errors
-	/// Return `ExitError`
+	/// Return `ExitError`. At the momoet it's not throwing any real error.
+	///
+	/// # Panics
+	/// Cannot discard on root substate
 	pub fn exit_discard(&mut self) -> Result<(), ExitError> {
 		let mut exited = *self.parent.take().expect("Cannot discard on root substate");
 		mem::swap(&mut exited, self);
-
-		self.metadata.swallow_discard(&exited.metadata)?;
-
+		self.metadata.swallow_discard(&exited.metadata);
 		Ok(())
 	}
 

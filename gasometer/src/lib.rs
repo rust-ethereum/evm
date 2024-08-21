@@ -208,7 +208,7 @@ impl<'config> Gasometer<'config> {
 	/// Record an explicit refund.
 	///
 	/// # Errors
-	/// Return `ExitError`
+	/// Return `ExitError` that is thrown by gasometer gas calculation errors.
 	pub fn record_refund(&mut self, refund: i64) -> Result<(), ExitError> {
 		event!(RecordRefund {
 			refund,
@@ -292,7 +292,7 @@ impl<'config> Gasometer<'config> {
 	/// Record opcode stipend.
 	///
 	/// # Errors
-	/// Return `ExitError`
+	/// Return `ExitError` that is thrown by gasometer gas calculation errors.
 	#[inline]
 	pub fn record_stipend(&mut self, stipend: u64) -> Result<(), ExitError> {
 		event!(RecordStipend {
