@@ -168,6 +168,8 @@ pub enum ExitError {
 	/// `usize` casting overflow
 	#[cfg_attr(feature = "with-codec", codec(index = 15))]
 	UsizeOverflow,
+	#[cfg_attr(feature = "with-codec", codec(index = 16))]
+	CreateContractStartingWithEF,
 }
 
 impl From<ExitError> for ExitReason {

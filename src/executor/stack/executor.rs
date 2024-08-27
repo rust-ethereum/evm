@@ -1085,10 +1085,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		reason: ExitReason,
 		return_data: Vec<u8>,
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
-		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
-			{
-				return Err(ExitError::InvalidCode(Opcode::EOFMAGIC));
+		// EIP-3541: Reject new contract code starting with the 0xEF byte (EOF Magic)
+		fn check_first_byte_eof_magic(config: &Config, code: &[u8]) -> Result<(), ExitError> {
+			if config.disallow_executable_format && Some(&0xEF) == code.first() {
+				return Err(ExitError::CreateContractStartingWithEF);
 			}
 			Ok(())
 		}
@@ -1100,7 +1100,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				let out = return_data;
 				let address = created_address;
 				// As of EIP-3541 code starting with 0xef cannot be deployed
-				if let Err(e) = check_first_byte(self.config, &out) {
+				if let Err(e) = check_first_byte_eof_magic(self.config, &out) {
 					self.state.metadata_mut().gasometer.fail();
 					let _ = self.exit_substate(&StackExitKind::Failed);
 					return (e.into(), None, Vec::new());
