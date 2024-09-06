@@ -7,7 +7,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  ETHTESTS_VERSION: v14.0
+  ETHTESTS_VERSION: v14.1
 
 jobs:
   lint:
