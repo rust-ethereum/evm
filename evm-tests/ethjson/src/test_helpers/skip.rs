@@ -63,7 +63,7 @@ pub struct StateSkipSubStates {
 
 impl SkipTests {
 	/// Empty skip states.
-	pub fn empty() -> Self {
+	pub const fn empty() -> Self {
 		Self {
 			block: Vec::new(),
 			state: Vec::new(),

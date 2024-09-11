@@ -1107,10 +1107,12 @@ fn test_run(
 					spec,
 					ForkSpec::EIP150
 						| ForkSpec::EIP158 | ForkSpec::Frontier
-						| ForkSpec::Homestead | ForkSpec::Byzantium
+						| ForkSpec::Homestead
+						| ForkSpec::Byzantium
 						| ForkSpec::Constantinople
 						| ForkSpec::ConstantinopleFix
-						| ForkSpec::Istanbul | ForkSpec::Berlin
+						| ForkSpec::Istanbul
+						| ForkSpec::Berlin
 				) && TxType::from_txbytes(&state.txbytes) != TxType::Legacy
 					&& state.expect_exception.as_deref() == Some("TR_TypeNotSupported");
 			if expect_tx_type_not_supported {

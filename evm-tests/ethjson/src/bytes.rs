@@ -29,7 +29,7 @@ pub struct Bytes(Vec<u8>);
 
 impl Bytes {
 	/// Creates bytes struct.
-	pub fn new(v: Vec<u8>) -> Self {
+	pub const fn new(v: Vec<u8>) -> Self {
 		Self(v)
 	}
 }

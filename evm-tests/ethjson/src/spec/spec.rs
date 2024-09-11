@@ -81,12 +81,15 @@ impl ForkSpec {
 				| Self::HomesteadToEIP150At5
 				| Self::ByzantiumToConstantinopleFixAt5
 				| Self::ConstantinopleFixToIstanbulAt5
-				| Self::EIP150 | Self::EIP158
-				| Self::Frontier | Self::Homestead
+				| Self::EIP150
+				| Self::EIP158
+				| Self::Frontier
+				| Self::Homestead
 				| Self::Byzantium
 				| Self::Constantinople
 				| Self::ConstantinopleFix
-				| Self::Istanbul | Self::Berlin
+				| Self::Istanbul
+				| Self::Berlin
 		)
 	}
 }

@@ -73,7 +73,10 @@ pub struct MemoryBackend<'vicinity> {
 impl<'vicinity> MemoryBackend<'vicinity> {
 	/// Create a new memory backend.
 	#[must_use]
-	pub fn new(vicinity: &'vicinity MemoryVicinity, state: BTreeMap<H160, MemoryAccount>) -> Self {
+	pub const fn new(
+		vicinity: &'vicinity MemoryVicinity,
+		state: BTreeMap<H160, MemoryAccount>,
+	) -> Self {
 		Self {
 			vicinity,
 			state,
