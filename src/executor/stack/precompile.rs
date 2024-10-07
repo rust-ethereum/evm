@@ -104,15 +104,7 @@ pub trait PrecompileSet {
 	/// Check if the given address is a precompile. Should only be called to
 	/// perform the check while not executing the precompile afterward, since
 	/// `execute` already performs a check internally.
-	fn is_precompile(&self, address: H160, remaining_gas: u64) -> IsPrecompileResult;
-}
-
-pub enum IsPrecompileResult {
-	Answer {
-		is_precompile: bool,
-		extra_cost: u64,
-	},
-	OutOfGas,
+	fn is_precompile(&self, address: H160) -> bool;
 }
 
 impl PrecompileSet for () {
@@ -120,11 +112,8 @@ impl PrecompileSet for () {
 		None
 	}
 
-	fn is_precompile(&self, _: H160, _: u64) -> IsPrecompileResult {
-		IsPrecompileResult::Answer {
-			is_precompile: false,
-			extra_cost: 0,
-		}
+	fn is_precompile(&self, _: H160) -> bool {
+		false
 	}
 }
 
@@ -161,10 +150,7 @@ impl PrecompileSet for BTreeMap<H160, PrecompileFn> {
 	/// Check if the given address is a precompile. Should only be called to
 	/// perform the check while not executing the precompile afterward, since
 	/// `execute` already performs a check internally.
-	fn is_precompile(&self, address: H160, _: u64) -> IsPrecompileResult {
-		IsPrecompileResult::Answer {
-			is_precompile: self.contains_key(&address),
-			extra_cost: 0,
-		}
+	fn is_precompile(&self, address: H160) -> bool {
+		self.contains_key(&address)
 	}
 }

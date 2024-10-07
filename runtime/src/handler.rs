@@ -78,7 +78,7 @@ pub trait Handler {
 	///
 	/// # Errors
 	/// Return `ExitError`
-	fn is_cold(&mut self, address: H160, index: Option<H256>) -> Result<bool, ExitError>;
+	fn is_cold(&mut self, address: H160, index: Option<H256>) -> bool;
 
 	/// Set storage value of address at index.
 	///

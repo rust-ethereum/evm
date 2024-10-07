@@ -634,14 +634,14 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeSize {
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 			}
 		}
 		Opcode::BALANCE => {
 			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::Balance {
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 			}
 		}
 		Opcode::BLOCKHASH => GasCost::BlockHash,
@@ -650,7 +650,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeHash {
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 			}
 		}
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
@@ -661,7 +661,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::CallCode {
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
@@ -673,7 +673,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			storage_target = StorageTarget::Address(target);
 			GasCost::StaticCall {
 				gas: stack.peek(0)?,
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
@@ -687,7 +687,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let target = stack.peek_h256(0)?.into();
 			storage_target = StorageTarget::Address(target);
 			GasCost::ExtCodeCopy {
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 				len: stack.peek(3)?,
 			}
 		}
@@ -701,7 +701,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			let index = stack.peek_h256(0)?;
 			storage_target = StorageTarget::Slot(address, index);
 			GasCost::SLoad {
-				target_is_cold: handler.is_cold(address, Some(index))?,
+				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
 
@@ -710,7 +710,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			storage_target = StorageTarget::Address(target);
 			GasCost::DelegateCall {
 				gas: stack.peek(0)?,
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
@@ -734,7 +734,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				original: handler.original_storage(address, index),
 				current: handler.storage(address, index),
 				new: value,
-				target_is_cold: handler.is_cold(address, Some(index))?,
+				target_is_cold: handler.is_cold(address, Some(index)),
 			}
 		}
 		Opcode::LOG0 if !is_static => GasCost::Log {
@@ -766,7 +766,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			storage_target = StorageTarget::Address(target);
 			GasCost::Suicide {
 				value: handler.balance(address),
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)
@@ -780,7 +780,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 			GasCost::Call {
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
-				target_is_cold: handler.is_cold(target, None)?,
+				target_is_cold: handler.is_cold(target, None),
 				target_exists: {
 					handler.record_external_operation(evm_core::ExternalOperation::IsEmpty)?;
 					handler.exists(target)

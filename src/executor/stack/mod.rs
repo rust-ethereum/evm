@@ -12,7 +12,6 @@ pub use self::executor::{
 };
 pub use self::memory::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate};
 pub use self::precompile::{
-	IsPrecompileResult, PrecompileFailure, PrecompileFn, PrecompileHandle, PrecompileOutput,
-	PrecompileSet,
+	PrecompileFailure, PrecompileFn, PrecompileHandle, PrecompileOutput, PrecompileSet,
 };
 pub use ethereum::Log;
