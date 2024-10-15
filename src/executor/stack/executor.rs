@@ -16,6 +16,7 @@ use evm_core::{ExitFatal, InterpreterHandler, Machine, Trap};
 use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
+use smallvec::{smallvec, SmallVec};
 
 macro_rules! emit_exit {
 	($reason:expr) => {{
@@ -389,11 +390,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 	/// Execute the runtime until it returns.
 	pub fn execute(&mut self, runtime: &mut Runtime) -> ExitReason {
-		let mut call_stack = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
-		call_stack.push(TaggedRuntime {
-			kind: RuntimeKind::Execute,
-			inner: MaybeBorrowed::Borrowed(runtime),
-		});
+		let mut call_stack: SmallVec<[TaggedRuntime; DEFAULT_CALL_STACK_CAPACITY]> =
+			smallvec!(TaggedRuntime {
+				kind: RuntimeKind::Execute,
+				inner: MaybeBorrowed::Borrowed(runtime),
+			});
 		let (reason, _, _) = self.execute_with_call_stack(&mut call_stack);
 		reason
 	}
@@ -401,7 +402,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	/// Execute using Runtimes on the `call_stack` until it returns.
 	fn execute_with_call_stack(
 		&mut self,
-		call_stack: &mut Vec<TaggedRuntime<'_>>,
+		call_stack: &mut SmallVec<[TaggedRuntime<'_>; DEFAULT_CALL_STACK_CAPACITY]>,
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
 		// This `interrupt_runtime` is used to pass the runtime obtained from the
 		// `Capture::Trap` branch in the match below back to the top of the call stack.
@@ -556,8 +557,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		) {
 			Capture::Exit((s, v)) => emit_exit!(s, v),
 			Capture::Trap(rt) => {
-				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
-				cs.push(rt.0);
+				let mut cs: SmallVec<[TaggedRuntime<'_>; DEFAULT_CALL_STACK_CAPACITY]> =
+					smallvec!(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs);
 				emit_exit!(s, v)
 			}
@@ -602,8 +603,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		) {
 			Capture::Exit((s, _, v)) => emit_exit!(s, v),
 			Capture::Trap(rt) => {
-				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
-				cs.push(rt.0);
+				let mut cs: SmallVec<[TaggedRuntime<'_>; DEFAULT_CALL_STACK_CAPACITY]> =
+					smallvec!(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs);
 				emit_exit!(s, v)
 			}
@@ -663,8 +664,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		) {
 			Capture::Exit((s, v)) => emit_exit!(s, v),
 			Capture::Trap(rt) => {
-				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
-				cs.push(rt.0);
+				let mut cs: SmallVec<[TaggedRuntime<'_>; DEFAULT_CALL_STACK_CAPACITY]> =
+					smallvec!(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs);
 				emit_exit!(s, v)
 			}
@@ -734,8 +735,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		) {
 			Capture::Exit((s, v)) => emit_exit!(s, v),
 			Capture::Trap(rt) => {
-				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
-				cs.push(rt.0);
+				let mut cs: SmallVec<[TaggedRuntime<'_>; DEFAULT_CALL_STACK_CAPACITY]> =
+					smallvec!(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs);
 				emit_exit!(s, v)
 			}
@@ -1621,8 +1622,8 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 				// not allow it. For now we'll make a recursive call instead of making a breaking
 				// change to the precompile API. But this means a custom precompile could still
 				// potentially cause a stack overflow if you're not careful.
-				let mut call_stack = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
-				call_stack.push(rt.0);
+				let mut call_stack: SmallVec<[TaggedRuntime; DEFAULT_CALL_STACK_CAPACITY]> =
+					smallvec!(rt.0);
 				let (reason, _, return_data) =
 					self.executor.execute_with_call_stack(&mut call_stack);
 				emit_exit!(reason, return_data)
