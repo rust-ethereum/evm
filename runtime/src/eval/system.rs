@@ -448,8 +448,17 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 	};
 
 	match handler.create(runtime.context.address, scheme, value, code, None) {
-		Capture::Exit((reason, address, return_data)) => {
-			match super::finish_create(runtime, reason, address, return_data) {
+		Capture::Exit((reason, return_data)) => {
+			// The `Capture::Exit` case used to always have `address: None` because it was only returned when
+			// the call to `create_inner` encountered an error and therefore no contract was created. The happy
+			// path is returning `Capture::Trap` and `finish_create` ends up being called later
+			// with the created address as part of the EVM call stack handling logic.
+			// And it means that the `Capture::Exit` case only happens if there was an error - `ExitError`.
+			debug_assert!(
+				reason.is_error(),
+				"ExitReason for finish_create should be only ExitError"
+			);
+			match super::finish_create(runtime, reason, None, return_data) {
 				Ok(()) => Control::Continue,
 				Err(e) => Control::Exit(e),
 			}
