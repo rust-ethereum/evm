@@ -1159,7 +1159,7 @@ fn test_run(
 				);
 				executor.state_mut().withdraw(caller, total_fee).unwrap();
 
-				let access_list = transaction
+				let access_list: Vec<(H160, Vec<H256>)> = transaction
 					.access_list
 					.into_iter()
 					.map(|(address, keys)| (address.0, keys.into_iter().map(|k| k.0).collect()))
@@ -1178,7 +1178,7 @@ fn test_run(
 								value,
 								data,
 								gas_limit,
-								access_list,
+								&access_list,
 							);
 							assert_call_exit_exception(&state.expect_exception);
 						}
@@ -1191,7 +1191,7 @@ fn test_run(
 								value,
 								code,
 								gas_limit,
-								access_list,
+								&access_list,
 							);
 							if check_create_exit_reason(
 								&reason.0,
