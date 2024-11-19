@@ -25,7 +25,7 @@ are welcomed.
   additional precompiles, different gasometers or other more exotic use cases.
 * **Portable** - support `no_std`, and can be used in different environments
   like in WebAssembly.
-* **Fast** - we of course try to be fast!
+* **Fast** - we of course try our best to be fast!
 * written in Rust, can be used as a binary, cargo crate or shared library.
 
 ## Dependencies
