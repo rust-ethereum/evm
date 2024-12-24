@@ -9,7 +9,7 @@ use primitive_types::U256;
 
 use crate::error::{ExitException, ExitFatal};
 
-/// A sequencial memory. It uses Rust's `Vec` for internal
+/// A sequential memory. It uses Rust's `Vec` for internal
 /// representation.
 #[derive(Clone, Debug)]
 pub struct Memory {
