@@ -1215,9 +1215,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		address: H160,
 		index: H256,
 		value: H256,
-	) -> Result<(), ExitError> {
+	) {
 		self.state.set_transient_storage(address, index, value);
-		Ok(())
 	}
 
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError> {

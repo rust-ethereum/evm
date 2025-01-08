@@ -262,11 +262,9 @@ pub fn tload<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 
 pub fn tstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
 	pop!(runtime, index, value);
+	handler.set_transient_storage(runtime.context.address, index, value);
 
-	match handler.set_transient_storage(runtime.context.address, index, value) {
-		Ok(()) => Control::Continue,
-		Err(e) => Control::Exit(e.into()),
-	}
+	Control::Continue
 }
 
 pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
