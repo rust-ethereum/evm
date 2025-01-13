@@ -288,6 +288,8 @@ pub struct Config {
 	pub has_push0: bool,
 	/// Whether the gasometer is running in estimate mode.
 	pub estimate: bool,
+	/// Has EIP-6780. See [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
+	pub has_eip_6780: bool,
 }
 
 impl Config {
@@ -342,6 +344,7 @@ impl Config {
 			has_base_fee: false,
 			has_push0: false,
 			estimate: false,
+			has_eip_6780: false,
 		}
 	}
 
@@ -396,6 +399,7 @@ impl Config {
 			has_base_fee: false,
 			has_push0: false,
 			estimate: false,
+			has_eip_6780: false,
 		}
 	}
 
@@ -419,6 +423,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
 	}
 
+	/// Cancun hard fork configuration.
+	pub const fn cancun() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::cancun())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -430,6 +439,7 @@ impl Config {
 			disallow_executable_format,
 			warm_coinbase_address,
 			max_initcode_size,
+			has_eip_6780,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -493,6 +503,7 @@ impl Config {
 			has_base_fee,
 			has_push0,
 			estimate: false,
+			has_eip_6780,
 		}
 	}
 }
@@ -509,6 +520,7 @@ struct DerivedConfigInputs {
 	disallow_executable_format: bool,
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
+	has_eip_6780: bool,
 }
 
 impl DerivedConfigInputs {
@@ -523,6 +535,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			has_eip_6780: false,
 		}
 	}
 
@@ -537,6 +550,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			has_eip_6780: false,
 		}
 	}
 
@@ -551,6 +565,7 @@ impl DerivedConfigInputs {
 			disallow_executable_format: true,
 			warm_coinbase_address: false,
 			max_initcode_size: None,
+			has_eip_6780: false,
 		}
 	}
 
@@ -566,6 +581,23 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: true,
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
+			has_eip_6780: false,
+		}
+	}
+
+	const fn cancun() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			// 2 * 24576 as per EIP-3860
+			max_initcode_size: Some(0xC000),
+			has_eip_6780: true,
 		}
 	}
 }

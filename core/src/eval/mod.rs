@@ -176,6 +176,10 @@ fn eval_jumpdest(_state: &mut Machine, _opcode: Opcode, _position: usize) -> Con
 	Control::Continue(1)
 }
 
+fn eval_mcopy(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
+	self::misc::mcopy(state)
+}
+
 fn eval_push0(state: &mut Machine, _opcode: Opcode, position: usize) -> Control {
 	self::misc::push(state, 0, position)
 }
@@ -497,6 +501,7 @@ pub fn eval(state: &mut Machine, opcode: Opcode, position: usize) -> Control {
 		table[Opcode::PC.as_usize()] = eval_pc as _;
 		table[Opcode::MSIZE.as_usize()] = eval_msize as _;
 		table[Opcode::JUMPDEST.as_usize()] = eval_jumpdest as _;
+		table[Opcode::MCOPY.as_usize()] = eval_mcopy as _;
 
 		table[Opcode::PUSH0.as_usize()] = eval_push0 as _;
 		table[Opcode::PUSH1.as_usize()] = eval_push1 as _;

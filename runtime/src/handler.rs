@@ -35,6 +35,9 @@ pub trait Handler {
 	fn code(&self, address: H160) -> Vec<u8>;
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
+	/// Get transient storage value of address at index.
+	fn transient_storage(&self, address: H160, index: H256) -> H256;
+
 	/// Get original storage value of address at index.
 	fn original_storage(&self, address: H160, index: H256) -> H256;
 
@@ -77,6 +80,13 @@ pub trait Handler {
 
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
+	/// Set transient storage value of address at index, transient storage gets discarded after every transaction. (see EIP-1153)
+	fn set_transient_storage(
+		&mut self,
+		address: H160,
+		index: H256,
+		value: H256,
+	);
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.

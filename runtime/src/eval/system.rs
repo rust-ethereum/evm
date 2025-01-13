@@ -252,6 +252,21 @@ pub fn gas<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
 	Control::Continue
 }
 
+pub fn tload<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+	pop!(runtime, index);
+	let value = handler.transient_storage(runtime.context.address, index);
+	push!(runtime, value);
+
+	Control::Continue
+}
+
+pub fn tstore<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H> {
+	pop!(runtime, index, value);
+	handler.set_transient_storage(runtime.context.address, index, value);
+
+	Control::Continue
+}
+
 pub fn log<H: Handler>(runtime: &mut Runtime, n: u8, handler: &mut H) -> Control<H> {
 	pop_u256!(runtime, offset, len);
 
