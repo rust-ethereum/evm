@@ -22,9 +22,9 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
-evm-core = { version = "0.41", path = "core", default-features = false }
-evm-gasometer = { version = "0.41", path = "gasometer", default-features = false }
-evm-runtime = { version = "0.41", path = "runtime", default-features = false }
+evm-core = { version = "0.42", path = "core", default-features = false }
+evm-gasometer = { version = "0.42", path = "gasometer", default-features = false }
+evm-runtime = { version = "0.42", path = "runtime", default-features = false }
 
 [dev-dependencies]
 criterion = "0.4"
