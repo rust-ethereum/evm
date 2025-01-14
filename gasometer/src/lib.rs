@@ -586,7 +586,10 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				len: U256::from_big_endian(&stack.peek(3)?[..]),
 			}
 		}
-		Opcode::CALLDATACOPY | Opcode::CODECOPY | Opcode::MCOPY => GasCost::VeryLowCopy {
+		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
+			len: U256::from_big_endian(&stack.peek(2)?[..]),
+		},
+		Opcode::MCOPY if config.has_mcopy => GasCost::VeryLowCopy {
 			len: U256::from_big_endian(&stack.peek(2)?[..]),
 		},
 		Opcode::EXP => GasCost::Exp {
@@ -599,7 +602,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_is_cold: handler.is_cold(address, Some(index))?,
 			}
 		}
-		Opcode::TLOAD => GasCost::TLoad,
+		Opcode::TLOAD if config.has_tloadstore => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
 			let target = stack.peek(1)?.into();
@@ -633,7 +636,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 				target_is_cold: handler.is_cold(address, Some(index))?,
 			}
 		}
-		Opcode::TSTORE if !is_static => GasCost::TStore,
+		Opcode::TSTORE if config.has_tloadstore && !is_static => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: U256::from_big_endian(&stack.peek(1)?[..]),
