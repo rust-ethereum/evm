@@ -778,7 +778,7 @@ struct Inner<'config> {
 	config: &'config Config,
 }
 
-impl<'config> Inner<'config> {
+impl Inner<'_> {
 	fn memory_gas(&self, memory: MemoryCost) -> Result<u64, ExitError> {
 		let from = memory.offset;
 		let len = memory.len;

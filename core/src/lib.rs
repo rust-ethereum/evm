@@ -103,6 +103,9 @@ impl Machine {
 	}
 
 	/// Copy and get the return value of the machine, if any.
+	#[allow(clippy::slow_vector_initialization)]
+	// Clippy complains about not using `no_std`. However, we need to support
+	// `no_std` and we can't use that.
 	pub fn return_value(&self) -> Vec<u8> {
 		if self.return_range.start > U256::from(usize::MAX) {
 			let mut ret = Vec::new();

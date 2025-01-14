@@ -48,9 +48,8 @@ impl Memory {
 		&self.data
 	}
 
-	/// Resize the memory, making it cover the memory region of `offset..(offset
-	/// + len)`, with 32 bytes as the step. If the length is zero, this function
-	/// does nothing.
+	/// Resize the memory, making it cover the memory region of `offset..(offset + len)`,
+	/// with 32 bytes as the step. If the length is zero, this function does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitError> {
 		if len == U256::zero() {
 			return Ok(());
@@ -79,6 +78,9 @@ impl Memory {
 	///
 	/// Value of `size` is considered trusted. If they're too large,
 	/// the program can run out of memory, or it can overflow.
+	#[allow(clippy::slow_vector_initialization)]
+	// Clippy complains about not using `vec!`. However, we need to support
+	// `no_std` and we can't use that.
 	pub fn get(&self, offset: usize, size: usize) -> Vec<u8> {
 		let mut ret = Vec::new();
 		ret.resize(size, 0);

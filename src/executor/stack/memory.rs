@@ -441,7 +441,7 @@ pub struct MemoryStackState<'backend, 'config, B> {
 	substate: MemoryStackSubstate<'config>,
 }
 
-impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'config, B> {
+impl<B: Backend> Backend for MemoryStackState<'_, '_, B> {
 	fn gas_price(&self) -> U256 {
 		self.backend.gas_price()
 	}
@@ -515,7 +515,7 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 	}
 }
 
-impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'backend, 'config, B> {
+impl<'config, B: Backend> StackState<'config> for MemoryStackState<'_, 'config, B> {
 	fn metadata(&self) -> &StackSubstateMetadata<'config> {
 		self.substate.metadata()
 	}

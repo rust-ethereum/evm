@@ -13,7 +13,7 @@ pub enum MaybeBorrowed<'a, T> {
 	Owned(T),
 }
 
-impl<'a, T> core::ops::Deref for MaybeBorrowed<'a, T> {
+impl<T> core::ops::Deref for MaybeBorrowed<'_, T> {
 	type Target = T;
 
 	fn deref(&self) -> &Self::Target {
@@ -24,7 +24,7 @@ impl<'a, T> core::ops::Deref for MaybeBorrowed<'a, T> {
 	}
 }
 
-impl<'a, T> core::ops::DerefMut for MaybeBorrowed<'a, T> {
+impl<T> core::ops::DerefMut for MaybeBorrowed<'_, T> {
 	fn deref_mut(&mut self) -> &mut Self::Target {
 		match self {
 			Self::Borrowed(x) => x,
