@@ -1210,12 +1210,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		Ok(())
 	}
 
-	fn set_transient_storage(
-		&mut self,
-		address: H160,
-		index: H256,
-		value: H256,
-	) {
+	fn set_transient_storage(&mut self, address: H160, index: H256, value: H256) {
 		self.state.set_transient_storage(address, index, value);
 	}
 
