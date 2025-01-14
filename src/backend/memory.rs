@@ -88,7 +88,7 @@ impl<'vicinity> MemoryBackend<'vicinity> {
 	}
 }
 
-impl<'vicinity> Backend for MemoryBackend<'vicinity> {
+impl Backend for MemoryBackend<'_> {
 	fn gas_price(&self) -> U256 {
 		self.vicinity.gas_price
 	}
@@ -172,7 +172,7 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	}
 }
 
-impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
+impl ApplyBackend for MemoryBackend<'_> {
 	fn apply<A, I, L>(&mut self, values: A, logs: L, delete_empty: bool)
 	where
 		A: IntoIterator<Item = Apply<I>>,
@@ -189,7 +189,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 					reset_storage,
 				} => {
 					let is_empty = {
-						let account = self.state.entry(address).or_insert_with(Default::default);
+						let account = self.state.entry(address).or_default();
 						account.balance = basic.balance;
 						account.nonce = basic.nonce;
 						if let Some(code) = code {

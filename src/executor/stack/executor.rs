@@ -672,7 +672,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(&caller);
 				stream.append(&nonce);
-				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+				H256::from_slice(Keccak256::digest(stream.out()).as_slice()).into()
 			}
 			CreateScheme::Fixed(naddress) => naddress,
 		}
@@ -1087,8 +1087,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 pub struct StackExecutorCallInterrupt<'borrow>(TaggedRuntime<'borrow>);
 pub struct StackExecutorCreateInterrupt<'borrow>(TaggedRuntime<'borrow>);
 
-impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
-	for StackExecutor<'config, 'precompiles, S, P>
+impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
+	for StackExecutor<'config, '_, S, P>
 {
 	type CreateInterrupt = StackExecutorCreateInterrupt<'static>;
 	type CreateFeedback = Infallible;
@@ -1210,12 +1210,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		Ok(())
 	}
 
-	fn set_transient_storage(
-		&mut self,
-		address: H160,
-		index: H256,
-		value: H256,
-	) {
+	fn set_transient_storage(&mut self, address: H160, index: H256, value: H256) {
 		self.state.set_transient_storage(address, index, value);
 	}
 
@@ -1402,8 +1397,8 @@ struct StackExecutorHandle<'inner, 'config, 'precompiles, S, P> {
 	is_static: bool,
 }
 
-impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
-	for StackExecutorHandle<'inner, 'config, 'precompiles, S, P>
+impl<'config, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
+	for StackExecutorHandle<'_, 'config, '_, S, P>
 {
 	// Perform subcall in provided context.
 	/// Precompile specifies in which context the subcall is executed.
