@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 auto_impl = "1.0"
-ethereum = { git = "https://github.com/rust-ethereum/ethereum.git", rev = "3be0d8f", default-features = false }
+ethereum = { git = "https://github.com/rust-ethereum/ethereum.git", rev = "3be0d8fd4c2ad1ba216b69ef65b9382612efc8ba", default-features = false }
 log = { version = "0.4", default-features = false }
 primitive-types = { version = "0.13", default-features = false, features = ["rlp"] }
 rlp = { version = "0.6", default-features = false }
