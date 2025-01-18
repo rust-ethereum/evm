@@ -43,8 +43,7 @@ macro_rules! push {
 macro_rules! push_u256 {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			let mut value = H256::default();
-			$x.to_big_endian(&mut value[..]);
+			let value = H256::from($x.to_big_endian());
 			match $machine.machine.stack_mut().push(value) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),

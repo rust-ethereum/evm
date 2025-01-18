@@ -113,8 +113,7 @@ pub fn finish_call(
 				&runtime.return_data_buffer[..],
 			) {
 				Ok(()) => {
-					let mut value = H256::default();
-					U256::one().to_big_endian(&mut value[..]);
+					let value = H256::from(U256::one().to_big_endian());
 					runtime.machine.stack_mut().push(value)?;
 					Ok(())
 				}
