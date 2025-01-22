@@ -5,7 +5,7 @@ mod system;
 use crate::{CallScheme, ExitReason, Handler, Opcode, Runtime};
 use alloc::vec::Vec;
 use core::cmp::min;
-use primitive_types::{H160, H256, U256};
+use evm_core::primitive_types::{H160, H256, U256};
 
 pub enum Control<H: Handler> {
 	Continue,

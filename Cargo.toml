@@ -12,7 +12,6 @@ edition = "2018"
 auto_impl = "1.0"
 ethereum = { git = "https://github.com/rust-ethereum/ethereum.git", rev = "3be0d8fd4c2ad1ba216b69ef65b9382612efc8ba", default-features = false }
 log = { version = "0.4", default-features = false }
-primitive-types = { version = "0.13", default-features = false, features = ["rlp"] }
 rlp = { version = "0.6", default-features = false }
 sha3 = { version = "0.10", default-features = false }
 
@@ -39,7 +38,6 @@ default = ["std"]
 std = [
 	"ethereum/std",
 	"log/std",
-	"primitive-types/std",
 	"rlp/std",
 	"sha3/std",
 	"environmental/std",
@@ -53,14 +51,11 @@ std = [
 with-codec = [
 	"scale-codec",
 	"scale-info",
-	"primitive-types/codec",
-	"primitive-types/scale-info",
 	"ethereum/with-scale",
 	"evm-core/with-codec",
 ]
 with-serde = [
 	"serde",
-	"primitive-types/impl-serde",
 	"evm-core/with-serde",
 	"ethereum/with-serde",
 ]

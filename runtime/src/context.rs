@@ -1,4 +1,4 @@
-use primitive_types::{H160, H256, U256};
+use evm_core::primitive_types::{H160, H256, U256};
 
 /// Create scheme.
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]

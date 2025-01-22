@@ -1,7 +1,7 @@
 use super::{Apply, ApplyBackend, Backend, Basic, Log};
 use alloc::collections::BTreeMap;
 use alloc::vec::Vec;
-use primitive_types::{H160, H256, U256};
+use evm_core::primitive_types::{H160, H256, U256};
 
 /// Vicinity value of a memory backend.
 #[derive(Clone, Debug, Eq, PartialEq)]

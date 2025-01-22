@@ -1,6 +1,6 @@
 use crate::{Context, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Transfer};
 use alloc::{collections::BTreeMap, vec::Vec};
-use primitive_types::{H160, H256};
+use evm_core::primitive_types::{H160, H256};
 
 /// A precompile result.
 pub type PrecompileResult = Result<PrecompileOutput, PrecompileFailure>;

@@ -22,6 +22,8 @@ pub use crate::opcode::Opcode;
 pub use crate::stack::Stack;
 pub use crate::valids::Valids;
 
+pub use primitive_types;
+
 use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;

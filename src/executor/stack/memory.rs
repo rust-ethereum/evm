@@ -7,7 +7,7 @@ use alloc::{
 	vec::Vec,
 };
 use core::mem;
-use primitive_types::{H160, H256, U256};
+use evm_core::primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
 pub struct MemoryStackAccount {

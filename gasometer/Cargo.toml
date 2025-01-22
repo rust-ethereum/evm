@@ -11,7 +11,6 @@ edition = "2018"
 [dependencies]
 environmental = { version = "1.1.2", default-features = false, optional = true }
 log = { version = "0.4", optional = true }
-primitive-types = { version = "0.13", default-features = false }
 
 evm-core = { version = "0.42", path = "../core", default-features = false }
 evm-runtime = { version = "0.42", path = "../runtime", default-features = false }
@@ -20,7 +19,6 @@ evm-runtime = { version = "0.42", path = "../runtime", default-features = false 
 default = ["std"]
 std = [
 	"environmental/std",
-	"primitive-types/std",
 	"evm-core/std",
 	"evm-runtime/std",
 ]

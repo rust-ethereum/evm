@@ -39,9 +39,9 @@ mod utils;
 
 use alloc::vec::Vec;
 use core::cmp::max;
+use evm_core::primitive_types::{H160, H256, U256};
 use evm_core::{ExitError, Opcode, Stack};
 use evm_runtime::{Config, Handler};
-use primitive_types::{H160, H256, U256};
 
 macro_rules! try_or_fail {
 	( $inner:expr, $e:expr ) => {

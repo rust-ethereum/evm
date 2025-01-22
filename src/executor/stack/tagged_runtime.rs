@@ -3,7 +3,7 @@
 
 use crate::maybe_borrowed::MaybeBorrowed;
 use crate::Runtime;
-use primitive_types::H160;
+use evm_core::primitive_types::H160;
 
 pub struct TaggedRuntime<'borrow> {
 	pub kind: RuntimeKind,

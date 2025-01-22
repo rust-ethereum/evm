@@ -35,7 +35,7 @@ pub use crate::interrupt::{Resolve, ResolveCall, ResolveCreate};
 
 use alloc::rc::Rc;
 use alloc::vec::Vec;
-use primitive_types::{H160, U256};
+use evm_core::primitive_types::{H160, U256};
 
 macro_rules! step {
 	( $self:expr, $handler:expr, $return:tt $($err:path)?; $($ok:path)? ) => ({

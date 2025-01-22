@@ -4,7 +4,7 @@ use crate::{
 	Runtime, Transfer,
 };
 use alloc::vec::Vec;
-use primitive_types::{H256, U256};
+use evm_core::primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
