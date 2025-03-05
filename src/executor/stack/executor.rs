@@ -551,6 +551,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute a `CREATE` transaction that force the contract address
+	#[cfg(feature = "allow_explicit_address")]
 	pub fn transact_create_force_address(
 		&mut self,
 		caller: H160,
