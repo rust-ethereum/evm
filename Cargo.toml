@@ -50,6 +50,7 @@ std = [
 	"evm-gasometer/std",
 	"evm-runtime/std",
 ]
+allow_explicit_address = []
 with-codec = [
 	"scale-codec",
 	"scale-info",
