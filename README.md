@@ -19,6 +19,17 @@
 * written in Rust, can be used as a binary, cargo crate or shared
   library
 
+### Feature Flags
+
+SputnikVM provides optional feature flags to enable specific functionalities:
+
+- `allow_explicit_address`
+Enables the `transact_create_force_address` method, allowing contract creation with a predefined address.
+- `with-codec`
+- `with-serde`
+- `tracing`
+- `force-debug`
+
 ## Dependencies
 
 Ensure you have at least `rustc 1.51.0 (2fd73fabe 2021-03-23)`. Rust 1.50.0 and
