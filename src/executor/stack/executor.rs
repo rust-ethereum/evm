@@ -212,7 +212,12 @@ pub trait StackState<'config>: Backend {
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
 	fn set_created(&mut self, address: H160);
-	fn set_code(&mut self, address: H160, code: Vec<u8>, caller: Option<H160>) -> Result<(), ExitError>;
+	fn set_code(
+		&mut self,
+		address: H160,
+		code: Vec<u8>,
+		caller: Option<H160>,
+	) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -1030,7 +1035,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		created_address: H160,
 		reason: ExitReason,
 		return_data: Vec<u8>,
-		caller: Option<H160>
+		caller: Option<H160>,
 	) -> (ExitReason, Option<H160>, Vec<u8>) {
 		fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 			if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
