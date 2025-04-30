@@ -76,11 +76,17 @@ pub trait PrecompileHandle {
 	/// Retreive the context in which the precompile is executed.
 	fn context(&self) -> &Context;
 
+	/// Retreive the address of the EOA that originated the transaction.
+	fn origin(&self) -> H160;
+
 	/// Is the precompile call is done statically.
 	fn is_static(&self) -> bool;
 
 	/// Retreive the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64>;
+
+	/// Check if a given address is a contract being constructed
+	fn is_contract_being_constructed(&self, address: H160) -> bool;
 }
 
 /// A set of precompiles.

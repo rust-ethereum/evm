@@ -1582,6 +1582,11 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
 		self.context
 	}
 
+	/// Retreive the address of the EOA that originated the transaction.
+	fn origin(&self) -> H160 {
+		self.executor.state.origin()
+	}
+
 	/// Is the precompile call is done statically.
 	fn is_static(&self) -> bool {
 		self.is_static
@@ -1590,5 +1595,10 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> PrecompileHandle
 	/// Retreive the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
+	}
+
+	/// Check if a given address is a contract being constructed
+	fn is_contract_being_constructed(&self, address: H160) -> bool {
+		self.executor.state.created(address)
 	}
 }
