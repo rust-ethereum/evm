@@ -1,5 +1,5 @@
 use crate::Opcode;
-use alloc::string::String;
+use alloc::borrow::Cow;
 
 /// Trap which indicates that an `ExternalOpcode` has to be handled.
 pub type Trap = Opcode;
@@ -174,7 +174,7 @@ pub enum ExitError {
 
 	/// Other normal errors.
 	#[cfg_attr(feature = "with-codec", codec(index = 13))]
-	Other(String),
+	Other(Cow<'static, str>),
 
 	/// Nonce reached maximum value of 2^64-1
 	/// https://eips.ethereum.org/EIPS/eip-2681
@@ -209,7 +209,7 @@ pub enum ExitFatal {
 	CallErrorAsFatal(ExitError),
 
 	/// Other fatal errors.
-	Other(String),
+	Other(Cow<'static, str>),
 }
 
 impl From<ExitFatal> for ExitReason {

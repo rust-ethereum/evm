@@ -16,9 +16,8 @@ primitive-types = { version = "0.13", default-features = false, features = ["rlp
 rlp = { version = "0.6", default-features = false }
 sha3 = { version = "0.10", default-features = false }
 
-# Optional dependencies
 environmental = { version = "1.1.2", default-features = false, optional = true }
-scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive"], optional = true }
+scale-codec = { package = "parity-scale-codec", git = "https://github.com/paritytech/parity-scale-codec", rev = "334b99c9cc8def7408bcd91d1ff7bfd79f7e2915", default-features = false, features = ["derive"], optional = true }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 
@@ -82,3 +81,7 @@ members = [
 	"runtime",
 	"fuzzer",
 ]
+
+# --- Path to force use the correct parity-scale-codec version ---
+[patch.crates-io]
+parity-scale-codec = { git = "https://github.com/paritytech/parity-scale-codec", rev = "334b99c9cc8def7408bcd91d1ff7bfd79f7e2915", default-features = false, features = ["derive"]}
