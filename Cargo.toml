@@ -82,6 +82,6 @@ members = [
 	"fuzzer",
 ]
 
-# --- Path to force use the correct parity-scale-codec version ---
+# --- Patch to force use the correct parity-scale-codec version ---
 [patch.crates-io]
 parity-scale-codec = { git = "https://github.com/paritytech/parity-scale-codec", rev = "334b99c9cc8def7408bcd91d1ff7bfd79f7e2915", default-features = false, features = ["derive"]}
