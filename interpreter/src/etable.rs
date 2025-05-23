@@ -64,15 +64,12 @@ where
 	) -> Control<Tr> {
 		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
 
-		match ret {
-			Control::NextEtable(n) => {
-				if n == 0 {
-					ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
-				} else {
-					ret = Control::Exit(ExitFatal::UnknownEtable.into());
-				}
+		if let Control::NextEtable(n) = ret {
+			if n == 0 {
+				ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
+			} else {
+				ret = Control::Exit(ExitFatal::UnknownEtable.into());
 			}
-			_ => (),
 		}
 
 		ret
@@ -103,26 +100,20 @@ where
 	) -> Control<Tr> {
 		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
 
-		match ret {
-			Control::NextEtable(n) => {
-				if n == 0 {
-					ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
-				} else {
-					ret = Control::Exit(ExitFatal::UnknownEtable.into());
-				}
+		if let Control::NextEtable(n) = ret {
+			if n == 0 {
+				ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
+			} else {
+				ret = Control::Exit(ExitFatal::UnknownEtable.into());
 			}
-			_ => (),
 		}
 
-		match ret {
-			Control::NextEtable(n) => {
-				if n < self.2.len() {
-					ret = self.2[n][opcode.as_usize()](machine, handle, opcode, position);
-				} else {
-					ret = Control::Exit(ExitFatal::UnknownEtable.into());
-				}
+		if let Control::NextEtable(n) = ret {
+			if n < self.2.len() {
+				ret = self.2[n][opcode.as_usize()](machine, handle, opcode, position);
+			} else {
+				ret = Control::Exit(ExitFatal::UnknownEtable.into());
 			}
-			_ => (),
 		}
 
 		ret
