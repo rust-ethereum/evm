@@ -1,13 +1,13 @@
 use alloc::vec::Vec;
 
-use primitive_types::H256;
+use primitive_types::U256;
 
 use crate::error::{ExitError, ExitException};
 
 /// EVM stack.
 #[derive(Clone, Debug)]
 pub struct Stack {
-	data: Vec<H256>,
+	data: Vec<U256>,
 	limit: usize,
 }
 
@@ -27,8 +27,8 @@ macro_rules! impl_perform_popn_pushn {
 		#[allow(unused_parens)]
 		pub fn $name<R, F>(&mut self, f: F) -> Result<R, ExitError> where
 			F: FnOnce(
-				$(impl_perform_popn_pushn!(INTERNAL_TYPE_RH256, $peek_pop)),*
-			) -> Result<(($(impl_perform_popn_pushn!(INTERNAL_TYPE_H256, $peek_push)),*), R), ExitError>
+				$(impl_perform_popn_pushn!(INTERNAL_TYPE_RU256, $peek_pop)),*
+			) -> Result<(($(impl_perform_popn_pushn!(INTERNAL_TYPE_U256, $peek_push)),*), R), ExitError>
 		{
 			match self.check_pop_push($pop_len, $push_len) {
 				Ok(()) => (),
@@ -44,8 +44,8 @@ macro_rules! impl_perform_popn_pushn {
 			Ok(ret)
 		}
 	};
-	(INTERNAL_TYPE_RH256, $e:expr) => { &H256 };
-	(INTERNAL_TYPE_H256, $e:expr) => { H256 };
+	(INTERNAL_TYPE_RU256, $e:expr) => { &U256 };
+	(INTERNAL_TYPE_U256, $e:expr) => { U256 };
 }
 
 impl Stack {
@@ -82,7 +82,7 @@ impl Stack {
 	/// Stack data.
 	#[inline]
 	#[must_use]
-	pub const fn data(&self) -> &Vec<H256> {
+	pub const fn data(&self) -> &Vec<U256> {
 		&self.data
 	}
 
@@ -94,7 +94,7 @@ impl Stack {
 	/// Pop a value from the stack.
 	/// If the stack is already empty, returns the `StackUnderflow` error.
 	#[inline]
-	pub fn pop(&mut self) -> Result<H256, ExitException> {
+	pub fn pop(&mut self) -> Result<U256, ExitException> {
 		self.data.pop().ok_or(ExitException::StackUnderflow)
 	}
 
@@ -102,7 +102,7 @@ impl Stack {
 	/// If it exceeds the stack limit, returns `StackOverflow` error and
 	/// leaves the stack unchanged.
 	#[inline]
-	pub fn push(&mut self, value: H256) -> Result<(), ExitException> {
+	pub fn push(&mut self, value: U256) -> Result<(), ExitException> {
 		if self.data.len() + 1 > self.limit {
 			return Err(ExitException::StackOverflow);
 		}
@@ -121,11 +121,11 @@ impl Stack {
 		Ok(())
 	}
 
-	fn unchecked_peek(&self, no_from_top: usize) -> &H256 {
+	fn unchecked_peek(&self, no_from_top: usize) -> &U256 {
 		&self.data[self.data.len() - no_from_top - 1]
 	}
 
-	fn unchecked_pop_push1(&mut self, pop: usize, p1: H256) {
+	fn unchecked_pop_push1(&mut self, pop: usize, p1: U256) {
 		for _ in 0..pop {
 			self.data.pop();
 		}
@@ -142,7 +142,7 @@ impl Stack {
 	/// the stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
 	#[inline]
-	pub fn peek(&self, no_from_top: usize) -> Result<H256, ExitException> {
+	pub fn peek(&self, no_from_top: usize) -> Result<U256, ExitException> {
 		if self.data.len() > no_from_top {
 			Ok(self.data[self.data.len() - no_from_top - 1])
 		} else {
@@ -154,7 +154,7 @@ impl Stack {
 	/// stack is at index `0`. If the index is too large,
 	/// `StackError::Underflow` is returned.
 	#[inline]
-	pub fn set(&mut self, no_from_top: usize, val: H256) -> Result<(), ExitException> {
+	pub fn set(&mut self, no_from_top: usize, val: U256) -> Result<(), ExitException> {
 		if self.data.len() > no_from_top {
 			let len = self.data.len();
 			self.data[len - no_from_top - 1] = val;
