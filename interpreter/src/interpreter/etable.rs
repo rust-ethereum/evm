@@ -149,7 +149,7 @@ where
 			Control::Continue(p) => {
 				self.position = position + p;
 			}
-			Control::NextTable(_) => {
+			Control::NextEtable(_) => {
 				return Err(Capture::Exit(ExitFatal::UnknownEtable.into()));
 			}
 			Control::Exit(e) => {

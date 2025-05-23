@@ -65,7 +65,7 @@ where
 		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
 
 		match ret {
-			Control::NextTable(n) => {
+			Control::NextEtable(n) => {
 				if n == 0 {
 					ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
 				} else {
@@ -74,8 +74,6 @@ where
 			}
 			_ => (),
 		}
-
-		if matches!(ret, Control::NextTable(0)) {}
 
 		ret
 	}
@@ -106,7 +104,7 @@ where
 		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
 
 		match ret {
-			Control::NextTable(n) => {
+			Control::NextEtable(n) => {
 				if n == 0 {
 					ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
 				} else {
@@ -117,7 +115,7 @@ where
 		}
 
 		match ret {
-			Control::NextTable(n) => {
+			Control::NextEtable(n) => {
 				if n < self.2.len() {
 					ret = self.2[n][opcode.as_usize()](machine, handle, opcode, position);
 				} else {
@@ -126,8 +124,6 @@ where
 			}
 			_ => (),
 		}
-
-		if matches!(ret, Control::NextTable(0)) {}
 
 		ret
 	}
@@ -395,9 +391,14 @@ where
 /// Control state.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control<Trap> {
-	NextTable(usize),
+	/// Hand off control to the next etable.
+	NextEtable(usize),
+	/// Continue the execution, increase the PC by N.
 	Continue(usize),
+	/// Exit the execution.
 	Exit(ExitResult),
+	/// Jump to the specified PC.
 	Jump(usize),
+	/// Trapping the execution with the possibility to resume.
 	Trap(Trap),
 }

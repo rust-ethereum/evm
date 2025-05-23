@@ -217,7 +217,7 @@ where
 	H: RuntimeBackend,
 {
 	match eval_to_result(machine, handler, opcode, position) {
-		Ok(()) => Control::NextTable(0),
+		Ok(()) => Control::NextEtable(0),
 		Err(err) => Control::Exit(Err(err)),
 	}
 }
