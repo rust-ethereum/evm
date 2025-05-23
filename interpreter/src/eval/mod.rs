@@ -23,7 +23,7 @@ pub fn eval_pass<S, H, Tr>(
 	_opcode: Opcode,
 	_position: usize,
 ) -> Control<Tr> {
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn eval_stop<S, H, Tr>(
@@ -383,7 +383,7 @@ pub fn eval_jumpdest<S, H, Tr>(
 	_opcode: Opcode,
 	_position: usize,
 ) -> Control<Tr> {
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn eval_mcopy<S, H, Tr>(

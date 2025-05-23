@@ -28,7 +28,7 @@ pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr>
 	let ret = Keccak256::digest(data.as_slice());
 	push_h256!(machine, H256::from_slice(ret.as_slice()));
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -37,14 +37,14 @@ pub fn chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 ) -> Control<Tr> {
 	push_u256!(machine, handler.chain_id());
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn address<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	let ret = H256::from(machine.state.as_ref().context.address);
 	push_h256!(machine, ret);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -54,7 +54,7 @@ pub fn balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	pop_h256!(machine, address);
 	push_u256!(machine, handler.balance(address.into()));
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn selfbalance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -66,7 +66,7 @@ pub fn selfbalance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 		handler.balance(machine.state.as_ref().context.address)
 	);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn origin<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -76,14 +76,14 @@ pub fn origin<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	let ret = H256::from(machine.state.as_ref().transaction_context.origin);
 	push_h256!(machine, ret);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn caller<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	let ret = H256::from(machine.state.as_ref().context.caller);
 	push_h256!(machine, ret);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
@@ -96,7 +96,7 @@ pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Contro
 		.to_big_endian(&mut ret[..]);
 	push_h256!(machine, ret);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -112,7 +112,7 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 		.to_big_endian(&mut ret[..]);
 	push_h256!(machine, ret);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -123,7 +123,7 @@ pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
 	push_h256!(machine, ret);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -134,7 +134,7 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	let code_size = handler.code_size(address.into());
 	push_u256!(machine, code_size);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -145,7 +145,7 @@ pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	let code_hash = handler.code_hash(address.into());
 	push_h256!(machine, code_hash);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -165,14 +165,14 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 		Err(e) => return Control::Exit(e.into()),
 	};
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn returndatasize<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	let size = U256::from(machine.state.as_ref().retbuf.len());
 	push_u256!(machine, size);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn returndatacopy<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
@@ -191,7 +191,7 @@ pub fn returndatacopy<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> C
 		len,
 		&machine.state.as_ref().retbuf,
 	) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }
@@ -203,7 +203,7 @@ pub fn blockhash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend,
 	pop_u256!(machine, number);
 	push_h256!(machine, handler.block_hash(number));
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn coinbase<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -211,7 +211,7 @@ pub fn coinbase<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 	handler: &H,
 ) -> Control<Tr> {
 	push_h256!(machine, handler.block_coinbase().into());
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn timestamp<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -219,7 +219,7 @@ pub fn timestamp<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend,
 	handler: &H,
 ) -> Control<Tr> {
 	push_u256!(machine, handler.block_timestamp());
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn number<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -227,7 +227,7 @@ pub fn number<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	handler: &H,
 ) -> Control<Tr> {
 	push_u256!(machine, handler.block_number());
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn difficulty<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -235,7 +235,7 @@ pub fn difficulty<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend
 	handler: &H,
 ) -> Control<Tr> {
 	push_u256!(machine, handler.block_difficulty());
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn prevrandao<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -244,7 +244,7 @@ pub fn prevrandao<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend
 ) -> Control<Tr> {
 	if let Some(rand) = handler.block_randomness() {
 		push_h256!(machine, rand);
-		Control::Continue
+		Control::Continue(1)
 	} else {
 		difficulty(machine, handler)
 	}
@@ -255,7 +255,7 @@ pub fn gaslimit<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 	handler: &H,
 ) -> Control<Tr> {
 	push_u256!(machine, handler.block_gas_limit());
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -266,7 +266,7 @@ pub fn sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>
 	let value = handler.storage(machine.state.as_ref().context.address, index);
 	push_h256!(machine, value);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -276,7 +276,7 @@ pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	pop_h256!(machine, index, value);
 
 	match handler.set_storage(machine.state.as_ref().context.address, index, value) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }
@@ -287,7 +287,7 @@ pub fn gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 ) -> Control<Tr> {
 	push_u256!(machine, machine.state.gas());
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -298,7 +298,7 @@ pub fn tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>
 	let value = handler.transient_storage(machine.state.as_ref().context.address, index);
 	push_h256!(machine, value);
 
-	Control::Continue
+	Control::Continue(1)
 }
 
 pub fn tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
@@ -307,7 +307,7 @@ pub fn tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 ) -> Control<Tr> {
 	pop_h256!(machine, index, value);
 	match handler.set_transient_storage(machine.state.as_ref().context.address, index, value) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }
@@ -344,7 +344,7 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 		topics,
 		data,
 	}) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }

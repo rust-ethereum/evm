@@ -61,7 +61,7 @@ macro_rules! op1_u256_fn {
 		let ret = $op(op1);
 		push_u256!($machine, ret);
 
-		Control::Continue
+		Control::Continue(1)
 	}};
 }
 
@@ -71,7 +71,7 @@ macro_rules! op2_u256_bool_ref {
 		let ret = op1.$op(&op2);
 		push_u256!($machine, if ret { U256::one() } else { U256::zero() });
 
-		Control::Continue
+		Control::Continue(1)
 	}};
 }
 
@@ -81,7 +81,7 @@ macro_rules! op2_u256 {
 		let ret = op1.$op(op2);
 		push_u256!($machine, ret);
 
-		Control::Continue
+		Control::Continue(1)
 	}};
 }
 
@@ -91,7 +91,7 @@ macro_rules! op2_u256_tuple {
 		let (ret, ..) = op1.$op(op2);
 		push_u256!($machine, ret);
 
-		Control::Continue
+		Control::Continue(1)
 	}};
 }
 
@@ -101,7 +101,7 @@ macro_rules! op2_u256_fn {
 		let ret = $op(op1, op2);
 		push_u256!($machine, ret);
 
-		Control::Continue
+		Control::Continue(1)
 	}};
 }
 
@@ -111,7 +111,7 @@ macro_rules! op3_u256_fn {
 		let ret = $op(op1, op2, op3);
 		push_u256!($machine, ret);
 
-		Control::Continue
+		Control::Continue(1)
 	}};
 }
 

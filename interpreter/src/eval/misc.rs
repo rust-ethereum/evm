@@ -17,7 +17,7 @@ pub fn codesize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 		let size = U256::from(code.len());
 		Ok((size, ()))
 	}) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(Err(e)),
 	}
 }
@@ -32,7 +32,7 @@ pub fn codecopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 		memory.copy_large(*memory_offset, *code_offset, *len, code)?;
 		Ok(((), ()))
 	}) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(Err(e)),
 	}
 }
@@ -55,14 +55,14 @@ pub fn calldataload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	}
 
 	push_h256!(state, H256::from(load));
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
 pub fn calldatasize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let len = U256::from(state.data.len());
 	push_u256!(state, len);
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
@@ -71,14 +71,14 @@ pub fn calldatacopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
 	if len == U256::zero() {
-		return Control::Continue;
+		return Control::Continue(1);
 	}
 
 	match state
 		.memory
 		.copy_large(memory_offset, data_offset, len, &state.data)
 	{
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }
@@ -86,7 +86,7 @@ pub fn calldatacopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 #[inline]
 pub fn pop<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_h256!(state, _val);
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
@@ -96,7 +96,7 @@ pub fn mload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let index = as_usize_or_fail!(index);
 	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
 	push_h256!(state, value);
-	Control::Continue
+	Control::Continue(1)
 }
 
 /// Support for EIP-5656: MCOPY instruction.
@@ -106,14 +106,14 @@ pub fn mcopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	try_or_fail!(state.memory.resize_offset(max(dst, src), len));
 
 	if len.is_zero() {
-		return Control::Continue;
+		return Control::Continue(1);
 	}
 
 	let dst = as_usize_or_fail!(dst);
 	let src = as_usize_or_fail!(src);
 	let len = as_usize_or_fail!(len);
 	state.memory.copy(dst, src, len);
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
@@ -123,7 +123,7 @@ pub fn mstore<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
 	let index = as_usize_or_fail!(index);
 	match state.memory.set(index, &value[..], Some(32)) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }
@@ -135,7 +135,7 @@ pub fn mstore8<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let index = as_usize_or_fail!(index);
 	let value = (value.low_u32() & 0xff) as u8;
 	match state.memory.set(index, &[value], Some(1)) {
-		Ok(()) => Control::Continue,
+		Ok(()) => Control::Continue(1),
 		Err(e) => Control::Exit(e.into()),
 	}
 }
@@ -154,7 +154,7 @@ pub fn jumpi<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_h256!(state, value);
 
 	if value == H256::zero() {
-		Control::Continue
+		Control::Continue(1)
 	} else {
 		let dest = as_usize_or_fail!(dest, ExitException::InvalidJump);
 		Control::Jump(dest)
@@ -164,13 +164,13 @@ pub fn jumpi<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 #[inline]
 pub fn pc<S, Tr>(state: &mut Machine<S>, position: usize) -> Control<Tr> {
 	push_u256!(state, U256::from(position));
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
 pub fn msize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	push_u256!(state, state.memory.effective_len());
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
@@ -182,7 +182,7 @@ pub fn push<S, Tr>(state: &mut Machine<S>, n: usize, position: usize) -> Control
 
 	let result = H256(val);
 	push_h256!(state, result);
-	Control::ContinueN(1 + n)
+	Control::Continue(1 + n)
 }
 
 #[inline]
@@ -192,7 +192,7 @@ pub fn dup<S, Tr>(state: &mut Machine<S>, n: usize) -> Control<Tr> {
 		Err(e) => return Control::Exit(e.into()),
 	};
 	push_u256!(state, value);
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
@@ -213,7 +213,7 @@ pub fn swap<S, Tr>(state: &mut Machine<S>, n: usize) -> Control<Tr> {
 		Ok(()) => (),
 		Err(e) => return Control::Exit(e.into()),
 	}
-	Control::Continue
+	Control::Continue(1)
 }
 
 #[inline]
