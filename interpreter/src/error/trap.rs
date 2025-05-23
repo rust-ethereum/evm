@@ -327,7 +327,7 @@ impl CallTrapData {
 	pub fn has_value(&self) -> bool {
 		self.transfer
 			.as_ref()
-			.map_or(false, |t| t.value != U256::zero())
+			.is_some_and(|t| t.value != U256::zero())
 	}
 }
 
@@ -370,7 +370,7 @@ impl CreateScheme {
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(caller);
 				stream.append(&nonce);
-				H256::from_slice(Keccak256::digest(&stream.out()).as_slice()).into()
+				H256::from_slice(Keccak256::digest(stream.out()).as_slice()).into()
 			}
 		}
 	}

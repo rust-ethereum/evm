@@ -29,7 +29,7 @@ pub fn codecopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let code = &state.code;
 
 	match stack.perform_pop3_push0(|memory_offset, code_offset, len| {
-		memory.copy_large(*memory_offset, *code_offset, *len, &code)?;
+		memory.copy_large(*memory_offset, *code_offset, *len, code)?;
 		Ok(((), ()))
 	}) {
 		Ok(()) => Control::Continue,

@@ -65,8 +65,8 @@ impl Memory {
 		self.effective_len = U256::zero();
 	}
 
-	/// Resize the memory, making it cover the memory region of `offset..(offset
-	/// + len)`, with 32 bytes as the step. If the length is zero, this function
+	/// Resize the memory, making it cover the memory region of `offset..(offset + len)`,
+	/// with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitException> {
 		if len == U256::zero() {
