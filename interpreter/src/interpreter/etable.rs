@@ -150,7 +150,7 @@ where
 				self.position = position + p;
 			}
 			Control::NextTable(_) => {
-				return Err(Capture::Exit(ExitFatal::Unfinished.into()));
+				return Err(Capture::Exit(ExitFatal::UnknownEtable.into()));
 			}
 			Control::Exit(e) => {
 				self.position = self.code.len();
