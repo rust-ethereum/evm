@@ -3,6 +3,8 @@ use alloc::vec::Vec;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
+use crate::utils::u256_to_h256;
+
 use crate::{
 	error::{ExitException, ExitFatal, ExitSucceed},
 	etable::Control,
@@ -24,7 +26,7 @@ pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr>
 	};
 
 	let ret = Keccak256::digest(data.as_slice());
-	push!(machine, H256::from_slice(ret.as_slice()));
+	push_h256!(machine, H256::from_slice(ret.as_slice()));
 
 	Control::Continue
 }
@@ -40,7 +42,7 @@ pub fn chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 
 pub fn address<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	let ret = H256::from(machine.state.as_ref().context.address);
-	push!(machine, ret);
+	push_h256!(machine, ret);
 
 	Control::Continue
 }
@@ -49,7 +51,7 @@ pub fn balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, address);
+	pop_h256!(machine, address);
 	push_u256!(machine, handler.balance(address.into()));
 
 	Control::Continue
@@ -72,14 +74,14 @@ pub fn origin<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	_handler: &H,
 ) -> Control<Tr> {
 	let ret = H256::from(machine.state.as_ref().transaction_context.origin);
-	push!(machine, ret);
+	push_h256!(machine, ret);
 
 	Control::Continue
 }
 
 pub fn caller<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	let ret = H256::from(machine.state.as_ref().context.caller);
-	push!(machine, ret);
+	push_h256!(machine, ret);
 
 	Control::Continue
 }
@@ -92,7 +94,7 @@ pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Contro
 		.context
 		.apparent_value
 		.to_big_endian(&mut ret[..]);
-	push!(machine, ret);
+	push_h256!(machine, ret);
 
 	Control::Continue
 }
@@ -108,7 +110,7 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 		.transaction_context
 		.gas_price
 		.to_big_endian(&mut ret[..]);
-	push!(machine, ret);
+	push_h256!(machine, ret);
 
 	Control::Continue
 }
@@ -119,7 +121,7 @@ pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 ) -> Control<Tr> {
 	let mut ret = H256::default();
 	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
-	push!(machine, ret);
+	push_h256!(machine, ret);
 
 	Control::Continue
 }
@@ -128,7 +130,7 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, address);
+	pop_h256!(machine, address);
 	let code_size = handler.code_size(address.into());
 	push_u256!(machine, code_size);
 
@@ -139,9 +141,9 @@ pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, address);
+	pop_h256!(machine, address);
 	let code_hash = handler.code_hash(address.into());
-	push!(machine, code_hash);
+	push_h256!(machine, code_hash);
 
 	Control::Continue
 }
@@ -150,7 +152,7 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, address);
+	pop_h256!(machine, address);
 	pop_u256!(machine, memory_offset, code_offset, len);
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 
@@ -199,7 +201,7 @@ pub fn blockhash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend,
 	handler: &H,
 ) -> Control<Tr> {
 	pop_u256!(machine, number);
-	push!(machine, handler.block_hash(number));
+	push_h256!(machine, handler.block_hash(number));
 
 	Control::Continue
 }
@@ -208,7 +210,7 @@ pub fn coinbase<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
-	push!(machine, handler.block_coinbase().into());
+	push_h256!(machine, handler.block_coinbase().into());
 	Control::Continue
 }
 
@@ -241,7 +243,7 @@ pub fn prevrandao<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend
 	handler: &H,
 ) -> Control<Tr> {
 	if let Some(rand) = handler.block_randomness() {
-		push!(machine, rand);
+		push_h256!(machine, rand);
 		Control::Continue
 	} else {
 		difficulty(machine, handler)
@@ -260,9 +262,9 @@ pub fn sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, index);
+	pop_h256!(machine, index);
 	let value = handler.storage(machine.state.as_ref().context.address, index);
-	push!(machine, value);
+	push_h256!(machine, value);
 
 	Control::Continue
 }
@@ -271,7 +273,7 @@ pub fn sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, index, value);
+	pop_h256!(machine, index, value);
 
 	match handler.set_storage(machine.state.as_ref().context.address, index, value) {
 		Ok(()) => Control::Continue,
@@ -292,9 +294,9 @@ pub fn tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, index);
+	pop_h256!(machine, index);
 	let value = handler.transient_storage(machine.state.as_ref().context.address, index);
-	push!(machine, value);
+	push_h256!(machine, value);
 
 	Control::Continue
 }
@@ -303,7 +305,7 @@ pub fn tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
-	pop!(machine, index, value);
+	pop_h256!(machine, index, value);
 	match handler.set_transient_storage(machine.state.as_ref().context.address, index, value) {
 		Ok(()) => Control::Continue,
 		Err(e) => Control::Exit(e.into()),
@@ -331,7 +333,7 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	for _ in 0..(n as usize) {
 		match machine.stack.pop() {
 			Ok(value) => {
-				topics.push(value);
+				topics.push(u256_to_h256(value));
 			}
 			Err(e) => return Control::Exit(e.into()),
 		}
@@ -358,7 +360,7 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 
 		handler.transfer(Transfer {
 			source: address,
-			target: (*target).into(),
+			target: u256_to_h256(*target).into(),
 			value: balance,
 		})?;
 

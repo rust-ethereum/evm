@@ -254,7 +254,7 @@ where
 				match invoker.enter_substack(trap, &mut machine, backend, initial_depth + 1) {
 					Capture::Exit(Ok((trap_data, InvokerControl::Enter(sub_machine)))) => {
 						let (sub_result, sub_machine) = if heap_depth
-							.map_or(false, |hd| initial_depth + 1 >= hd)
+							.is_some_and(|hd| initial_depth + 1 >= hd)
 						{
 							match CallStack::new(sub_machine, initial_depth + 1, backend, invoker)
 								.run()
