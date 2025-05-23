@@ -14,7 +14,7 @@ use crate::{
 	interpreter::Interpreter,
 	machine::{Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
-	utils::{h256_to_u256, u256_to_usize},
+	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
 };
 
 pub trait TrapConstruct<T> {
@@ -132,20 +132,15 @@ impl CallTrapData {
 		scheme: CallScheme,
 		memory: &mut Memory,
 		state: &mut S,
-		gas: &H256,
-		to: &H256,
-		value: Option<&H256>,
-		in_offset: &H256,
-		in_len: &H256,
-		out_offset: &H256,
-		out_len: &H256,
+		gas: U256,
+		to: H256,
+		value: Option<U256>,
+		in_offset: U256,
+		in_len: U256,
+		out_offset: U256,
+		out_len: U256,
 	) -> Result<((), Self), ExitError> {
-		let gas = h256_to_u256(*gas);
-		let value = value.map_or(U256::zero(), |v| h256_to_u256(*v));
-		let in_offset = h256_to_u256(*in_offset);
-		let in_len = h256_to_u256(*in_len);
-		let out_offset = h256_to_u256(*out_offset);
-		let out_len = h256_to_u256(*out_len);
+		let value = value.unwrap_or(U256::zero());
 
 		let in_end = in_offset
 			.checked_add(in_len)
@@ -168,7 +163,7 @@ impl CallTrapData {
 
 		let context = match scheme {
 			CallScheme::Call | CallScheme::StaticCall => Context {
-				address: (*to).into(),
+				address: to.into(),
 				caller: state.as_ref().context.address,
 				apparent_value: value,
 			},
@@ -187,7 +182,7 @@ impl CallTrapData {
 		let transfer = if scheme == CallScheme::Call {
 			Some(Transfer {
 				source: state.as_ref().context.address,
-				target: (*to).into(),
+				target: to.into(),
 				value,
 			})
 		} else if scheme == CallScheme::CallCode {
@@ -205,7 +200,7 @@ impl CallTrapData {
 		Ok((
 			(),
 			Self {
-				target: (*to).into(),
+				target: to.into(),
 				transfer,
 				input,
 				gas,
@@ -232,21 +227,29 @@ impl CallTrapData {
 						scheme,
 						memory,
 						state,
-						gas,
-						to,
-						Some(value),
-						in_offset,
-						in_len,
-						out_offset,
-						out_len,
+						*gas,
+						u256_to_h256(*to),
+						Some(*value),
+						*in_offset,
+						*in_len,
+						*out_offset,
+						*out_len,
 					)
 				},
 			),
 			CallScheme::DelegateCall | CallScheme::StaticCall => {
 				stack.perform_pop6_push0(|gas, to, in_offset, in_len, out_offset, out_len| {
 					Self::new_from_params(
-						scheme, memory, state, gas, to, None, in_offset, in_len, out_offset,
-						out_len,
+						scheme,
+						memory,
+						state,
+						*gas,
+						u256_to_h256(*to),
+						None,
+						*in_offset,
+						*in_len,
+						*out_offset,
+						*out_len,
 					)
 				})
 			}
@@ -274,21 +277,19 @@ impl CallTrapData {
 					&retbuf[..],
 				) {
 					Ok(()) => {
-						let mut value = H256::default();
-						U256::one().to_big_endian(&mut value[..]);
-						interpreter.machine_mut().stack.push(value)?;
+						interpreter.machine_mut().stack.push(U256::one())?;
 
 						Ok(())
 					}
 					Err(_) => {
-						interpreter.machine_mut().stack.push(H256::default())?;
+						interpreter.machine_mut().stack.push(U256::zero())?;
 
 						Ok(())
 					}
 				}
 			}
 			Err(ExitError::Reverted) => {
-				interpreter.machine_mut().stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(U256::zero())?;
 
 				let _ = interpreter.machine_mut().memory.copy_large(
 					out_offset,
@@ -300,12 +301,12 @@ impl CallTrapData {
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				interpreter.machine_mut().stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(U256::zero())?;
 
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				interpreter.machine_mut().stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(U256::zero())?;
 
 				Err(e.into())
 			}
@@ -399,14 +400,10 @@ impl CreateTrapData {
 		let state = &mut machine.state;
 
 		stack.perform_pop3_push0(|value, code_offset, code_len| {
-			let value = h256_to_u256(*value);
-			let code_offset = h256_to_u256(*code_offset);
-			let code_len = h256_to_u256(*code_len);
-
-			let code_offset_len = if code_len == U256::zero() {
+			let code_offset_len = if code_len == &U256::zero() {
 				None
 			} else {
-				Some((u256_to_usize(code_offset)?, u256_to_usize(code_len)?))
+				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
 
 			let code = code_offset_len
@@ -423,7 +420,7 @@ impl CreateTrapData {
 				(),
 				Self {
 					scheme,
-					value,
+					value: *value,
 					code,
 				},
 			))
@@ -438,14 +435,10 @@ impl CreateTrapData {
 		let state = &mut machine.state;
 
 		stack.perform_pop4_push0(|value, code_offset, code_len, salt| {
-			let value = h256_to_u256(*value);
-			let code_offset = h256_to_u256(*code_offset);
-			let code_len = h256_to_u256(*code_len);
-
-			let code_offset_len = if code_len == U256::zero() {
+			let code_offset_len = if code_len == &U256::zero() {
 				None
 			} else {
-				Some((u256_to_usize(code_offset)?, u256_to_usize(code_len)?))
+				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
 
 			let code = code_offset_len
@@ -456,7 +449,7 @@ impl CreateTrapData {
 
 			let scheme = CreateScheme::Create2 {
 				caller: state.as_ref().context.address,
-				salt: *salt,
+				salt: u256_to_h256(*salt),
 				code_hash,
 			};
 
@@ -466,7 +459,7 @@ impl CreateTrapData {
 				(),
 				Self {
 					scheme,
-					value,
+					value: *value,
 					code,
 				},
 			))
@@ -484,19 +477,22 @@ impl CreateTrapData {
 	{
 		let ret = match reason {
 			Ok(address) => {
-				interpreter.machine_mut().stack.push(address.into())?;
+				interpreter
+					.machine_mut()
+					.stack
+					.push(h256_to_u256(address.into()))?;
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {
-				interpreter.machine_mut().stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(U256::zero())?;
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				interpreter.machine_mut().stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(U256::zero())?;
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				interpreter.machine_mut().stack.push(H256::default())?;
+				interpreter.machine_mut().stack.push(U256::zero())?;
 				Err(e.into())
 			}
 		};
