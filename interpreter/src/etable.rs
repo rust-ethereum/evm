@@ -4,13 +4,15 @@ use core::{
 };
 
 use crate::{
-	error::{CallCreateTrap, ExitResult, TrapConstruct},
+	error::{CallCreateTrap, ExitFatal, ExitResult, TrapConstruct},
 	eval::*,
 	machine::Machine,
 	opcode::Opcode,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
 };
 
+/// An etable "set" that can be evaluated. This is the generic trait to support
+/// all types of dispatching strategies (via `match` or an actual etable array).
 pub trait EtableSet {
 	type State;
 	type Handle;
@@ -62,9 +64,70 @@ where
 	) -> Control<Tr> {
 		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
 
-		if matches!(ret, Control::Continue) {
-			ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
+		match ret {
+			Control::NextTable(n) => {
+				if n == 0 {
+					ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
+				} else {
+					ret = Control::Exit(ExitFatal::UnknownEtable.into());
+				}
+			}
+			_ => (),
 		}
+
+		if matches!(ret, Control::NextTable(0)) {}
+
+		ret
+	}
+}
+
+impl<S, H, Tr, F1, F2, F3, const F3N: usize> EtableSet
+	for (
+		Etable<S, H, Tr, F1>,
+		Etable<S, H, Tr, F2>,
+		[Etable<S, H, Tr, F3>; F3N],
+	)
+where
+	F1: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	F2: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	F3: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(
+		&self,
+		machine: &mut Machine<S>,
+		handle: &mut H,
+		opcode: Opcode,
+		position: usize,
+	) -> Control<Tr> {
+		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
+
+		match ret {
+			Control::NextTable(n) => {
+				if n == 0 {
+					ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
+				} else {
+					ret = Control::Exit(ExitFatal::UnknownEtable.into());
+				}
+			}
+			_ => (),
+		}
+
+		match ret {
+			Control::NextTable(n) => {
+				if n < self.2.len() {
+					ret = self.2[n][opcode.as_usize()](machine, handle, opcode, position);
+				} else {
+					ret = Control::Exit(ExitFatal::UnknownEtable.into());
+				}
+			}
+			_ => (),
+		}
+
+		if matches!(ret, Control::NextTable(0)) {}
 
 		ret
 	}
@@ -332,8 +395,8 @@ where
 /// Control state.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control<Trap> {
-	Continue,
-	ContinueN(usize),
+	NextTable(usize),
+	Continue(usize),
 	Exit(ExitResult),
 	Jump(usize),
 	Trap(Trap),

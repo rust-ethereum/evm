@@ -146,11 +146,11 @@ where
 			.eval(&mut self.machine, handle, opcode, self.position);
 
 		match control {
-			Control::Continue => {
-				self.position += 1;
-			}
-			Control::ContinueN(p) => {
+			Control::Continue(p) => {
 				self.position = position + p;
+			}
+			Control::NextTable(_) => {
+				return Err(Capture::Exit(ExitFatal::Unfinished.into()));
 			}
 			Control::Exit(e) => {
 				self.position = self.code.len();
