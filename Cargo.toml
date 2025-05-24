@@ -4,6 +4,8 @@ members = [
 	"jsontests",
 	"precompile",
 	"tracer",
+
+	"features/evm64",
 ]
 resolver = "2"
 
