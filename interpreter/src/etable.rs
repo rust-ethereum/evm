@@ -18,11 +18,15 @@ pub trait EtableSet {
 	type Handle;
 	type Trap;
 
+	/// Evaluate the etable.
+	///
+	/// ### Safety
+	///
+	/// The interpreter guarantee that the byte at `position` exists.
 	fn eval(
 		&self,
 		machine: &mut Machine<Self::State>,
 		handle: &mut Self::Handle,
-		opcode: Opcode,
 		position: usize,
 	) -> Control<Self::Trap>;
 }
@@ -35,13 +39,9 @@ where
 	type Handle = H;
 	type Trap = Tr;
 
-	fn eval(
-		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
-		opcode: Opcode,
-		position: usize,
-	) -> Control<Tr> {
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let opcode = Opcode(machine.code[position]);
+
 		self[opcode.as_usize()](machine, handle, opcode, position)
 	}
 }
@@ -59,17 +59,11 @@ where
 	type Handle = H;
 	type Trap = Tr;
 
-	fn eval(
-		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
-		opcode: Opcode,
-		position: usize,
-	) -> Control<Tr> {
-		let ret1 = self.0.eval(machine, handle, opcode, position);
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let ret1 = self.0.eval(machine, handle, position);
 
 		if let Control::NoAction = ret1 {
-			self.1.eval(machine, handle, opcode, position)
+			self.1.eval(machine, handle, position)
 		} else {
 			ret1
 		}
@@ -89,16 +83,10 @@ where
 	type Handle = H;
 	type Trap = Tr;
 
-	fn eval(
-		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
-		opcode: Opcode,
-		position: usize,
-	) -> Control<Tr> {
-		let _ = self.0.eval(machine, handle, opcode, position);
-		let ret = self.1.eval(machine, handle, opcode, position);
-		let _ = self.2.eval(machine, handle, opcode, position);
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let _ = self.0.eval(machine, handle, position);
+		let ret = self.1.eval(machine, handle, position);
+		let _ = self.2.eval(machine, handle, position);
 
 		ret
 	}
