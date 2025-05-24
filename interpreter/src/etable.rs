@@ -33,16 +33,16 @@ pub trait EtableSet {
 
 impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
 where
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
 	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
-		let opcode = Opcode(machine.code[position]);
+		let opcode = Opcode(machine.code()[position]);
 
-		self[opcode.as_usize()](machine, handle, opcode, position)
+		self[opcode.as_usize()](machine, handle, position)
 	}
 }
 
@@ -93,7 +93,47 @@ where
 }
 
 /// Evaluation function type.
-pub type Efn<S, H, Tr> = fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>;
+pub type Efn<S, H, Tr> = fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>;
+
+/// Etable with only one function.
+pub struct Single<S, H, Tr, F = Efn<S, H, Tr>>(F, PhantomData<(S, H, Tr)>);
+
+unsafe impl<S, H, Tr, F: Send> Send for Single<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for Single<S, H, Tr, F> {}
+
+impl<S, H, Tr, F> Deref for Single<S, H, Tr, F> {
+	type Target = F;
+
+	fn deref(&self) -> &F {
+		&self.0
+	}
+}
+
+impl<S, H, Tr, F> DerefMut for Single<S, H, Tr, F> {
+	fn deref_mut(&mut self) -> &mut F {
+		&mut self.0
+	}
+}
+
+impl<S, H, Tr, F> Single<S, H, Tr, F> {
+	/// Create a new single Etable.
+	pub fn new(single: F) -> Self {
+		Self(single, PhantomData)
+	}
+}
+
+impl<S, H, Tr, F> EtableSet for Single<S, H, Tr, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		self.0(machine, handle, position)
+	}
+}
 
 /// The evaluation table for the EVM.
 pub struct Etable<S, H, Tr, F = Efn<S, H, Tr>>([F; 256], PhantomData<(S, H, Tr)>);
@@ -115,22 +155,24 @@ impl<S, H, Tr, F> DerefMut for Etable<S, H, Tr, F> {
 	}
 }
 
+impl<S, H, Tr, F> From<Single<S, H, Tr, F>> for Etable<S, H, Tr, F>
+where
+	F: Copy,
+{
+	fn from(single: Single<S, H, Tr, F>) -> Self {
+		Self([single.0; 256], PhantomData)
+	}
+}
+
 impl<S, H, Tr, F> Etable<S, H, Tr, F>
 where
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
-	pub const fn single(f: F) -> Self
-	where
-		F: Copy,
-	{
-		Self([f; 256], PhantomData)
-	}
-
 	/// Wrap to create a new Etable.
 	pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, Tr, FR>
 	where
 		FW: Fn(F, Opcode) -> FR,
-		FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+		FR: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 	{
 		let mut current_opcode = Opcode(0);
 		Etable(

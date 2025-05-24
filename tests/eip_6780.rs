@@ -1,7 +1,10 @@
 mod mock;
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
-	interpreter::{error::ExitError, etable::Chained},
+	interpreter::{
+		error::ExitError,
+		etable::{Chained, Single},
+	},
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
 };
 use mock::{MockAccount, MockBackend};
@@ -15,7 +18,7 @@ fn transact(
 	args: TransactArgs,
 	overlayed_backend: &mut OverlayedBackend<MockBackend>,
 ) -> Result<TransactValue, ExitError> {
-	let gas_etable = Etable::single(evm::standard::eval_gasometer);
+	let gas_etable = Single::new(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
 	let etable = Chained(gas_etable, exec_etable);
 	let resolver = EtableResolver::new(config, &(), &etable);

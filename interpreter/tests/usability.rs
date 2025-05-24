@@ -22,10 +22,11 @@ fn etable_wrap() {
 	let data = hex::decode(DATA1).unwrap();
 
 	let wrapped_etable = Etable::<_, _, Opcode>::core().wrap(|f, opcode_t| {
-		move |machine, handle, opcode, position| {
+		move |machine, handle, position| {
+			let opcode = Opcode(machine.code()[position]);
 			assert_eq!(opcode_t, opcode);
 			println!("opcode: {:?}", opcode);
-			f(machine, handle, opcode, position)
+			f(machine, handle, position)
 		}
 	});
 
@@ -43,15 +44,17 @@ fn etable_wrap2() {
 	let data = hex::decode(DATA1).unwrap();
 
 	let wrapped_etable = Etable::core().wrap(
-		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), Opcode, usize) -> Control<Opcode>> {
+		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), usize) -> Control<Opcode>> {
 			if opcode_t != Opcode(0x50) {
-				Box::new(move |machine, handle, opcode, position| {
+				Box::new(move |machine, handle, position| {
+					let opcode = Opcode(machine.code()[position]);
 					assert_eq!(opcode_t, opcode);
 					println!("opcode: {:?}", opcode);
-					f(machine, handle, opcode, position)
+					f(machine, handle, position)
 				})
 			} else {
-				Box::new(|_machine, _handle, opcode, _position| {
+				Box::new(|machine, _handle, position| {
+					let opcode = Opcode(machine.code()[position]);
 					println!("disabled!");
 					Control::Trap(opcode)
 				})
