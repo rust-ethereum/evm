@@ -76,6 +76,34 @@ where
 	}
 }
 
+/// A tracing Etable, with pre and post actions.
+pub struct Tracing<EPre, E, EPost>(pub EPre, pub E, pub EPost);
+
+impl<S, H, Tr, EPre, E, EPost> EtableSet for Tracing<EPre, E, EPost>
+where
+	EPre: EtableSet<State = S, Handle = H, Trap = Tr>,
+	E: EtableSet<State = S, Handle = H, Trap = Tr>,
+	EPost: EtableSet<State = S, Handle = H, Trap = Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(
+		&self,
+		machine: &mut Machine<S>,
+		handle: &mut H,
+		opcode: Opcode,
+		position: usize,
+	) -> Control<Tr> {
+		let _ = self.0.eval(machine, handle, opcode, position);
+		let ret = self.1.eval(machine, handle, opcode, position);
+		let _ = self.2.eval(machine, handle, opcode, position);
+
+		ret
+	}
+}
+
 /// Evaluation function type.
 pub type Efn<S, H, Tr> = fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>;
 
