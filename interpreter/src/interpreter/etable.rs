@@ -140,17 +140,12 @@ where
 			return Err(Capture::Exit(ExitFatal::AlreadyExited.into()));
 		}
 
-		let opcode = Opcode(self.code[position]);
-		let control = self
-			.etable
-			.eval(&mut self.machine, handle, opcode, self.position);
+		let control = self.etable.eval(&mut self.machine, handle, self.position);
 
 		match control {
+			Control::NoAction => (),
 			Control::Continue(p) => {
 				self.position = position + p;
-			}
-			Control::NextEtable(_) => {
-				return Err(Capture::Exit(ExitFatal::UnknownEtable.into()));
 			}
 			Control::Exit(e) => {
 				self.position = self.code.len();

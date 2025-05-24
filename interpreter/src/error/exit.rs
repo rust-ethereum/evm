@@ -161,8 +161,6 @@ pub enum ExitFatal {
 	AlreadyExited,
 	/// Unfinished execution.
 	Unfinished,
-	/// Unknown etable, indication of incorrect EVM config.
-	UnknownEtable,
 
 	/// Other fatal errors.
 	Other(Cow<'static, str>),

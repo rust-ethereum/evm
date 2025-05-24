@@ -209,15 +209,14 @@ impl<'config> GasometerState<'config> {
 pub fn eval<'config, S, H, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
-	opcode: Opcode,
 	position: usize,
 ) -> Control<Tr>
 where
 	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
 	H: RuntimeBackend,
 {
-	match eval_to_result(machine, handler, opcode, position) {
-		Ok(()) => Control::NextEtable(0),
+	match eval_to_result(machine, handler, position) {
+		Ok(()) => Control::NoAction,
 		Err(err) => Control::Exit(Err(err)),
 	}
 }
@@ -225,16 +224,13 @@ where
 fn eval_to_result<'config, S, H>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
-	opcode: Opcode,
-	_position: usize,
+	position: usize,
 ) -> Result<(), ExitError>
 where
 	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
 	H: RuntimeBackend,
 {
-	if machine.code().is_empty() {
-		return Ok(());
-	}
+	let opcode = Opcode(machine.code()[position]);
 
 	let address = AsRef::<RuntimeState>::as_ref(&machine.state)
 		.context
