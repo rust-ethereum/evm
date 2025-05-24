@@ -4,7 +4,7 @@ use core::{
 };
 
 use crate::{
-	error::{CallCreateTrap, ExitResult, TrapConstruct},
+	error::{CallCreateTrap, ExitException, ExitResult, TrapConstruct},
 	eval::*,
 	machine::Machine,
 	opcode::Opcode,
@@ -29,21 +29,6 @@ pub trait EtableSet {
 		handle: &mut Self::Handle,
 		position: usize,
 	) -> Control<Self::Trap>;
-}
-
-impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
-where
-	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
-{
-	type State = S;
-	type Handle = H;
-	type Trap = Tr;
-
-	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
-		let opcode = Opcode(machine.code()[position]);
-
-		self[opcode.as_usize()](machine, handle, position)
-	}
 }
 
 /// A chained Etable, stopping at the first if it does not return
@@ -135,6 +120,74 @@ where
 	}
 }
 
+/// Nested evaluation function.
+pub enum MultiEfn<S, H, Tr, F = Efn<S, H, Tr>> {
+	/// Leaf function.
+	Leaf(F),
+	/// Node function.
+	Node(Box<MultiEtable<S, H, Tr, F>>),
+}
+
+unsafe impl<S, H, Tr, F: Send> Send for MultiEfn<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for MultiEfn<S, H, Tr, F> {}
+
+/// Nested evaluation table.
+pub struct MultiEtable<S, H, Tr, F = Efn<S, H, Tr>>(
+	[MultiEfn<S, H, Tr, F>; 256],
+	PhantomData<(S, H, Tr)>,
+);
+
+unsafe impl<S, H, Tr, F: Send> Send for MultiEtable<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for MultiEtable<S, H, Tr, F> {}
+
+impl<S, H, Tr, F> Deref for MultiEtable<S, H, Tr, F> {
+	type Target = [MultiEfn<S, H, Tr, F>; 256];
+
+	fn deref(&self) -> &[MultiEfn<S, H, Tr, F>; 256] {
+		&self.0
+	}
+}
+
+impl<S, H, Tr, F> DerefMut for MultiEtable<S, H, Tr, F> {
+	fn deref_mut(&mut self) -> &mut [MultiEfn<S, H, Tr, F>; 256] {
+		&mut self.0
+	}
+}
+
+impl<S, H, Tr, F> From<Etable<S, H, Tr, F>> for MultiEtable<S, H, Tr, F> {
+	fn from(etable: Etable<S, H, Tr, F>) -> Self {
+		Self(etable.0.map(|v| MultiEfn::Leaf(v)), PhantomData)
+	}
+}
+
+impl<S, H, Tr, F> EtableSet for MultiEtable<S, H, Tr, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let opcode = Opcode(machine.code()[position]);
+
+		match &self[opcode.as_usize()] {
+			MultiEfn::Leaf(f) => f(machine, handle, position),
+			MultiEfn::Node(n) => {
+				let nextpos = position + 1;
+				if nextpos >= machine.code.len() {
+					return Control::Exit(ExitException::PCUnderflow.into());
+				}
+
+				match n.eval(machine, handle, nextpos) {
+					Control::Continue(c) => Control::Continue(c + 1),
+					ctrl => ctrl,
+				}
+			}
+		}
+	}
+}
+
 /// The evaluation table for the EVM.
 pub struct Etable<S, H, Tr, F = Efn<S, H, Tr>>([F; 256], PhantomData<(S, H, Tr)>);
 
@@ -161,6 +214,21 @@ where
 {
 	fn from(single: Single<S, H, Tr, F>) -> Self {
 		Self([single.0; 256], PhantomData)
+	}
+}
+
+impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let opcode = Opcode(machine.code()[position]);
+
+		self[opcode.as_usize()](machine, handle, position)
 	}
 }
 

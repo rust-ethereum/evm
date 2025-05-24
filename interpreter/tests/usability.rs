@@ -1,6 +1,6 @@
 use evm_interpreter::{
 	error::{CallCreateTrap, Capture, ExitError, ExitSucceed},
-	etable::{Control, Etable},
+	etable::{Control, Etable, MultiEfn, MultiEtable},
 	machine::Machine,
 	opcode::Opcode,
 	runtime::{
@@ -230,6 +230,61 @@ fn etable_runtime() {
 		},
 	);
 	let mut vm = EtableInterpreter::new(machine, &RUNTIME_ETABLE);
+
+	let res = vm.run(&mut handler).exit().unwrap();
+	assert_eq!(res, Ok(ExitSucceed::Returned));
+	assert_eq!(vm.retval, hex::decode(RET1).unwrap());
+}
+
+#[test]
+fn etable_multi() {
+	let prefix = Opcode(0xc1);
+	let orig_code = hex::decode("600d60005260206000f3").unwrap();
+	let mut code = Vec::new();
+	let mut skip = 0;
+	for c in orig_code {
+		if skip > 0 {
+			code.push(c);
+			skip -= 1;
+		} else {
+			code.push(prefix.0);
+			code.push(c);
+			if let Some(p) = Opcode(c).is_push() {
+				skip += p as usize;
+			}
+		}
+	}
+
+	let data = hex::decode(DATA1).unwrap();
+	let mut handler = UnimplementedHandler;
+
+	let etable: Etable<RuntimeState, UnimplementedHandler, CallCreateTrap> = Etable::runtime();
+	let mut multi_etable: MultiEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+		etable.into();
+	let prefix_etable =
+		MultiEtable::from(Etable::<RuntimeState, UnimplementedHandler, CallCreateTrap>::runtime());
+	multi_etable[prefix.as_usize()] = MultiEfn::Node(Box::new(prefix_etable));
+
+	let machine = Machine::new(
+		Rc::new(code),
+		Rc::new(data),
+		1024,
+		10000,
+		RuntimeState {
+			context: Context {
+				address: H160::default(),
+				caller: H160::default(),
+				apparent_value: U256::default(),
+			},
+			transaction_context: TransactionContext {
+				gas_price: U256::default(),
+				origin: H160::default(),
+			}
+			.into(),
+			retbuf: Vec::new(),
+		},
+	);
+	let mut vm = EtableInterpreter::new(machine, &multi_etable);
 
 	let res = vm.run(&mut handler).exit().unwrap();
 	assert_eq!(res, Ok(ExitSucceed::Returned));
