@@ -6,7 +6,9 @@ use std::{
 
 use evm::{
 	backend::OverlayedBackend,
-	interpreter::{error::Capture, runtime::GasState, utils::u256_to_h256, Interpreter},
+	interpreter::{
+		error::Capture, etable::Chained, runtime::GasState, utils::u256_to_h256, Interpreter,
+	},
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
 };
 use evm_precompile::StandardPrecompileSet;
@@ -152,7 +154,7 @@ pub fn run_test(
 
 	let gas_etable = Etable::single(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
-	let etable = (gas_etable, exec_etable);
+	let etable = Chained(gas_etable, exec_etable);
 	let precompiles = StandardPrecompileSet::new(&config);
 	let resolver = EtableResolver::new(&config, &precompiles, &etable);
 	let invoker = Invoker::new(&config, &resolver);

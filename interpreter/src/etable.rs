@@ -4,7 +4,7 @@ use core::{
 };
 
 use crate::{
-	error::{CallCreateTrap, ExitFatal, ExitResult, TrapConstruct},
+	error::{CallCreateTrap, ExitResult, TrapConstruct},
 	eval::*,
 	machine::Machine,
 	opcode::Opcode,
@@ -46,10 +46,14 @@ where
 	}
 }
 
-impl<S, H, Tr, F1, F2> EtableSet for (Etable<S, H, Tr, F1>, Etable<S, H, Tr, F2>)
+/// A chained Etable, stopping at the first if it does not return
+/// `Control::NoAction`.
+pub struct Chained<E1, E2>(pub E1, pub E2);
+
+impl<S, H, Tr, E1, E2> EtableSet for Chained<E1, E2>
 where
-	F1: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	F2: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	E1: EtableSet<State = S, Handle = H, Trap = Tr>,
+	E2: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	type State = S;
 	type Handle = H;
@@ -62,61 +66,13 @@ where
 		opcode: Opcode,
 		position: usize,
 	) -> Control<Tr> {
-		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
+		let ret1 = self.0.eval(machine, handle, opcode, position);
 
-		if let Control::NextEtable(n) = ret {
-			if n == 0 {
-				ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
-			} else {
-				ret = Control::Exit(ExitFatal::UnknownEtable.into());
-			}
+		if let Control::NoAction = ret1 {
+			self.1.eval(machine, handle, opcode, position)
+		} else {
+			ret1
 		}
-
-		ret
-	}
-}
-
-impl<S, H, Tr, F1, F2, F3, const F3N: usize> EtableSet
-	for (
-		Etable<S, H, Tr, F1>,
-		Etable<S, H, Tr, F2>,
-		[Etable<S, H, Tr, F3>; F3N],
-	)
-where
-	F1: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	F2: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	F3: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-{
-	type State = S;
-	type Handle = H;
-	type Trap = Tr;
-
-	fn eval(
-		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
-		opcode: Opcode,
-		position: usize,
-	) -> Control<Tr> {
-		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
-
-		if let Control::NextEtable(n) = ret {
-			if n == 0 {
-				ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
-			} else {
-				ret = Control::Exit(ExitFatal::UnknownEtable.into());
-			}
-		}
-
-		if let Control::NextEtable(n) = ret {
-			if n < self.2.len() {
-				ret = self.2[n][opcode.as_usize()](machine, handle, opcode, position);
-			} else {
-				ret = Control::Exit(ExitFatal::UnknownEtable.into());
-			}
-		}
-
-		ret
 	}
 }
 
@@ -382,8 +338,8 @@ where
 /// Control state.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control<Trap> {
-	/// Hand off control to the next etable.
-	NextEtable(usize),
+	/// No action.
+	NoAction,
 	/// Continue the execution, increase the PC by N.
 	Continue(usize),
 	/// Exit the execution.
