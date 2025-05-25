@@ -9,4 +9,13 @@ repository = { workspace = true }
 keywords = { workspace = true }
 
 [dependencies]
-evm = { path = "../.." }
+primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
+
+evm = { path = "../..", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"primitive-types/std",
+	"evm/std",
+]
