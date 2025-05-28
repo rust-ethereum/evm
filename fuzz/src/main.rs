@@ -25,6 +25,7 @@ use std::alloc::System;
 use backend::MockBackend;
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
+	interpreter::etable::{Chained, Single},
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
 };
 use evm_interpreter::error::ExitError;
@@ -70,7 +71,6 @@ fn main() {
 		);
 
 		// CREATE
-		let now = std::time::Instant::now();
 		let args = TransactArgs::Create {
 			caller: H160::from_low_u64_be(1),
 			value: U256::zero(),
@@ -90,7 +90,11 @@ fn main() {
 			gas_price,
 			gas_limit,
 		);
-		let Ok(TransactValue::Create { succeed, address }) = deployed else {
+		let Ok(TransactValue::Create {
+			succeed: _succeed,
+			address,
+		}) = deployed
+		else {
 			return;
 		};
 		let args = TransactArgs::Create {
@@ -103,7 +107,7 @@ fn main() {
 			access_list: vec![],
 		};
 		// CREATE SECOND CONTRACT
-		let (deployed, backend, new_balance, _memory_alloc, _storage_alloc) = fuzz_transact(
+		let (_deployed, backend, new_balance, _memory_alloc, _storage_alloc) = fuzz_transact(
 			user_address,
 			args,
 			&config,
@@ -123,7 +127,7 @@ fn main() {
 			gas_price,
 			access_list: vec![],
 		};
-		let (result, backend, new_balance, memory_alloc, storage_alloc) = fuzz_transact(
+		let (_result, _backend, _new_balance, _memory_alloc, _storage_alloc) = fuzz_transact(
 			user_address,
 			args,
 			&config,
@@ -137,7 +141,7 @@ fn main() {
 }
 fn assert_no_mint(backend: &MockBackend, initial_balance: U256) -> U256 {
 	let mut total = U256::zero();
-	for (k, v) in backend.state.iter() {
+	for (_k, v) in backend.state.iter() {
 		total += v.balance;
 	}
 	debug_assert!(total <= initial_balance);
@@ -149,9 +153,9 @@ fn inner_transact(
 	args: TransactArgs,
 	overlayed_backend: &mut OverlayedBackend<MockBackend>,
 ) -> (Result<TransactValue, ExitError>, usize, usize) {
-	let gas_etable = Etable::single(evm::standard::eval_gasometer);
+	let gas_etable = Single::new(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
-	let etable = (gas_etable, exec_etable);
+	let etable = Chained(gas_etable, exec_etable);
 	let resolver = EtableResolver::new(config, &(), &etable);
 	let invoker = Invoker::new(config, &resolver);
 
