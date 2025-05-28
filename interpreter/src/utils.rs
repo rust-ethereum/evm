@@ -5,7 +5,7 @@ use core::{
 	ops::{Div, Rem},
 };
 
-use primitive_types::{H256, U256};
+use primitive_types::{H160, H256, U256};
 
 use crate::error::{ExitError, ExitFatal};
 
@@ -21,6 +21,12 @@ pub fn u256_to_h256(v: U256) -> H256 {
 #[must_use]
 pub fn h256_to_u256(v: H256) -> U256 {
 	U256::from_big_endian(&v[..])
+}
+
+/// Convert [U256] into [H160]
+#[must_use]
+pub fn u256_to_h160(v: U256) -> H160 {
+	u256_to_h256(v).into()
 }
 
 /// Convert [U256] to [usize].

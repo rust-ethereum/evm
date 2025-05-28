@@ -11,6 +11,7 @@ use evm_interpreter::{
 	machine::{Machine, Stack},
 	opcode::Opcode,
 	runtime::{RuntimeBackend, RuntimeState},
+	utils::{u256_to_h160, u256_to_h256},
 };
 use primitive_types::{H160, H256, U256};
 
@@ -208,15 +209,14 @@ impl<'config> GasometerState<'config> {
 pub fn eval<'config, S, H, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
-	opcode: Opcode,
 	position: usize,
 ) -> Control<Tr>
 where
 	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
 	H: RuntimeBackend,
 {
-	match eval_to_result(machine, handler, opcode, position) {
-		Ok(()) => Control::Continue,
+	match eval_to_result(machine, handler, position) {
+		Ok(()) => Control::NoAction,
 		Err(err) => Control::Exit(Err(err)),
 	}
 }
@@ -224,16 +224,13 @@ where
 fn eval_to_result<'config, S, H>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
-	opcode: Opcode,
-	_position: usize,
+	position: usize,
 ) -> Result<(), ExitError>
 where
 	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
 	H: RuntimeBackend,
 {
-	if machine.code().is_empty() {
-		return Ok(());
-	}
+	let opcode = Opcode(machine.code()[position]);
 
 	let address = AsRef::<RuntimeState>::as_ref(&machine.state)
 		.context
@@ -306,7 +303,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
-			let target = stack.peek(0)?.into();
+			let target = u256_to_h160(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -315,7 +312,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::ExtCodeSize { target_is_cold }
 		}
 		Opcode::BALANCE => {
-			let target = stack.peek(0)?.into();
+			let target = u256_to_h160(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -326,7 +323,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.has_ext_code_hash => {
-			let target = stack.peek(0)?.into();
+			let target = u256_to_h160(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -337,37 +334,37 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
 
 		Opcode::CALLCODE => {
-			let target = stack.peek(1)?.into();
+			let target = u256_to_h160(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
 			handler.mark_hot(target, None);
 
 			GasCost::CallCode {
-				value: U256::from_big_endian(&stack.peek(2)?[..]),
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				value: stack.peek(2)?,
+				gas: stack.peek(0)?,
 				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
 		}
 		Opcode::STATICCALL => {
-			let target = stack.peek(1)?.into();
+			let target = u256_to_h160(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
 			handler.mark_hot(target, None);
 
 			GasCost::StaticCall {
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				gas: stack.peek(0)?,
 				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
 		}
 		Opcode::SHA3 => GasCost::Sha3 {
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::EXTCODECOPY => {
-			let target = stack.peek(0)?.into();
+			let target = u256_to_h160(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -375,20 +372,20 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			GasCost::ExtCodeCopy {
 				target_is_cold,
-				len: U256::from_big_endian(&stack.peek(3)?[..]),
+				len: stack.peek(3)?,
 			}
 		}
 		Opcode::MCOPY if config.eip_5656_enabled => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::EXP => GasCost::Exp {
-			power: U256::from_big_endian(&stack.peek(1)?[..]),
+			power: stack.peek(1)?,
 		},
 		Opcode::SLOAD => {
-			let index = stack.peek(0)?;
+			let index = u256_to_h256(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
@@ -399,14 +396,14 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::TLOAD if config.eip_1153_enabled => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.has_delegate_call => {
-			let target = stack.peek(1)?.into();
+			let target = u256_to_h160(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
 			handler.mark_hot(target, None);
 
 			GasCost::DelegateCall {
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				gas: stack.peek(0)?,
 				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
@@ -415,13 +412,13 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
 		Opcode::RETURNDATACOPY if config.has_return_data => GasCost::VeryLowCopy {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode),
 
 		Opcode::SSTORE if !is_static => {
-			let index = stack.peek(0)?;
-			let value = stack.peek(1)?;
+			let index = u256_to_h256(stack.peek(0)?);
+			let value = u256_to_h256(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
@@ -437,30 +434,30 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::TSTORE if !is_static && config.eip_1153_enabled => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG1 if !is_static => GasCost::Log {
 			n: 1,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG2 if !is_static => GasCost::Log {
 			n: 2,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG3 if !is_static => GasCost::Log {
 			n: 3,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::LOG4 if !is_static => GasCost::Log {
 			n: 4,
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			len: stack.peek(1)?,
 		},
 		Opcode::CREATE if !is_static => GasCost::Create,
 		Opcode::CREATE2 if !is_static && config.has_create2 => GasCost::Create2 {
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			len: stack.peek(2)?,
 		},
 		Opcode::SUICIDE if !is_static => {
-			let target = stack.peek(0)?.into();
+			let target = u256_to_h160(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -473,19 +470,16 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				already_removed: handler.deleted(address),
 			}
 		}
-		Opcode::CALL
-			if !is_static
-				|| (is_static && U256::from_big_endian(&stack.peek(2)?[..]) == U256::zero()) =>
-		{
-			let target = stack.peek(1)?.into();
+		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::zero()) => {
+			let target = u256_to_h160(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
 			handler.mark_hot(target, None);
 
 			GasCost::Call {
-				value: U256::from_big_endian(&stack.peek(2)?[..]),
-				gas: U256::from_big_endian(&stack.peek(0)?[..]),
+				value: stack.peek(2)?,
+				gas: stack.peek(0)?,
 				target_is_cold,
 				target_exists: { handler.exists(target) },
 			}
@@ -505,64 +499,64 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		| Opcode::LOG2
 		| Opcode::LOG3
 		| Opcode::LOG4 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from_big_endian(&stack.peek(1)?[..]),
+			offset: stack.peek(0)?,
+			len: stack.peek(1)?,
 		}),
 
 		Opcode::MCOPY => {
-			let top0 = U256::from_big_endian(&stack.peek(0)?[..]);
-			let top1 = U256::from_big_endian(&stack.peek(1)?[..]);
+			let top0 = stack.peek(0)?;
+			let top1 = stack.peek(1)?;
 			let offset = top0.max(top1);
 			Some(MemoryCost {
 				offset,
-				len: U256::from_big_endian(&stack.peek(2)?[..]),
+				len: stack.peek(2)?,
 			})
 		}
 
 		Opcode::CODECOPY | Opcode::CALLDATACOPY | Opcode::RETURNDATACOPY => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			offset: stack.peek(0)?,
+			len: stack.peek(2)?,
 		}),
 
 		Opcode::EXTCODECOPY => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(1)?[..]),
-			len: U256::from_big_endian(&stack.peek(3)?[..]),
+			offset: stack.peek(1)?,
+			len: stack.peek(3)?,
 		}),
 
 		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			offset: stack.peek(0)?,
 			len: U256::from(32),
 		}),
 
 		Opcode::MSTORE8 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(0)?[..]),
+			offset: stack.peek(0)?,
 			len: U256::from(1),
 		}),
 
 		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
-			offset: U256::from_big_endian(&stack.peek(1)?[..]),
-			len: U256::from_big_endian(&stack.peek(2)?[..]),
+			offset: stack.peek(1)?,
+			len: stack.peek(2)?,
 		}),
 
 		Opcode::CALL | Opcode::CALLCODE => Some(
 			MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(3)?[..]),
-				len: U256::from_big_endian(&stack.peek(4)?[..]),
+				offset: stack.peek(3)?,
+				len: stack.peek(4)?,
 			}
 			.join(MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(5)?[..]),
-				len: U256::from_big_endian(&stack.peek(6)?[..]),
+				offset: stack.peek(5)?,
+				len: stack.peek(6)?,
 			}),
 		),
 
 		Opcode::DELEGATECALL | Opcode::STATICCALL => Some(
 			MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(2)?[..]),
-				len: U256::from_big_endian(&stack.peek(3)?[..]),
+				offset: stack.peek(2)?,
+				len: stack.peek(3)?,
 			}
 			.join(MemoryCost {
-				offset: U256::from_big_endian(&stack.peek(4)?[..]),
-				len: U256::from_big_endian(&stack.peek(5)?[..]),
+				offset: stack.peek(4)?,
+				len: stack.peek(5)?,
 			}),
 		),
 

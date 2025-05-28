@@ -1,0 +1,21 @@
+[package]
+name = "evm-feature-evm64"
+version = "0.0.0-dev"
+edition = { workspace = true }
+rust-version = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+keywords = { workspace = true }
+
+[dependencies]
+primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
+
+evm = { path = "../..", default-features = false }
+
+[features]
+default = ["std"]
+std = [
+	"primitive-types/std",
+	"evm/std",
+]

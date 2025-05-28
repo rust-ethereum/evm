@@ -108,7 +108,7 @@ impl RuntimeBaseBackend for MockBackend {
 	}
 
 	fn exists(&self, address: H160) -> bool {
-		self.state.get(&address).is_some()
+		self.state.contains_key(&address)
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {

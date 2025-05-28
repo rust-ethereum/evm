@@ -1,77 +1,193 @@
+use alloc::boxed::Box;
 use core::{
 	marker::PhantomData,
 	ops::{Deref, DerefMut},
 };
 
 use crate::{
-	error::{CallCreateTrap, ExitResult, TrapConstruct},
+	error::{CallCreateTrap, ExitException, ExitResult, TrapConstruct},
 	eval::*,
 	machine::Machine,
 	opcode::Opcode,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
 };
 
+/// An etable "set" that can be evaluated. This is the generic trait to support
+/// all types of dispatching strategies (via `match` or an actual etable array).
 pub trait EtableSet {
 	type State;
 	type Handle;
 	type Trap;
 
+	/// Evaluate the etable.
+	///
+	/// ### Safety
+	///
+	/// The interpreter guarantee that the byte at `position` exists.
 	fn eval(
 		&self,
 		machine: &mut Machine<Self::State>,
 		handle: &mut Self::Handle,
-		opcode: Opcode,
 		position: usize,
 	) -> Control<Self::Trap>;
 }
 
-impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
+/// A chained Etable, stopping at the first if it does not return
+/// `Control::NoAction`.
+pub struct Chained<E1, E2>(pub E1, pub E2);
+
+impl<S, H, Tr, E1, E2> EtableSet for Chained<E1, E2>
 where
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	E1: EtableSet<State = S, Handle = H, Trap = Tr>,
+	E2: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	type State = S;
 	type Handle = H;
 	type Trap = Tr;
 
-	fn eval(
-		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
-		opcode: Opcode,
-		position: usize,
-	) -> Control<Tr> {
-		self[opcode.as_usize()](machine, handle, opcode, position)
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let ret1 = self.0.eval(machine, handle, position);
+
+		if let Control::NoAction = ret1 {
+			self.1.eval(machine, handle, position)
+		} else {
+			ret1
+		}
 	}
 }
 
-impl<S, H, Tr, F1, F2> EtableSet for (Etable<S, H, Tr, F1>, Etable<S, H, Tr, F2>)
+/// A tracing Etable, with pre and post actions.
+pub struct Tracing<EPre, E, EPost>(pub EPre, pub E, pub EPost);
+
+impl<S, H, Tr, EPre, E, EPost> EtableSet for Tracing<EPre, E, EPost>
 where
-	F1: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
-	F2: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	EPre: EtableSet<State = S, Handle = H, Trap = Tr>,
+	E: EtableSet<State = S, Handle = H, Trap = Tr>,
+	EPost: EtableSet<State = S, Handle = H, Trap = Tr>,
 {
 	type State = S;
 	type Handle = H;
 	type Trap = Tr;
 
-	fn eval(
-		&self,
-		machine: &mut Machine<S>,
-		handle: &mut H,
-		opcode: Opcode,
-		position: usize,
-	) -> Control<Tr> {
-		let mut ret = self.0[opcode.as_usize()](machine, handle, opcode, position);
-
-		if matches!(ret, Control::Continue) {
-			ret = self.1[opcode.as_usize()](machine, handle, opcode, position);
-		}
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let _ = self.0.eval(machine, handle, position);
+		let ret = self.1.eval(machine, handle, position);
+		let _ = self.2.eval(machine, handle, position);
 
 		ret
 	}
 }
 
 /// Evaluation function type.
-pub type Efn<S, H, Tr> = fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>;
+pub type Efn<S, H, Tr> = fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>;
+
+/// Etable with only one function.
+pub struct Single<S, H, Tr, F = Efn<S, H, Tr>>(F, PhantomData<(S, H, Tr)>);
+
+unsafe impl<S, H, Tr, F: Send> Send for Single<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for Single<S, H, Tr, F> {}
+
+impl<S, H, Tr, F> Deref for Single<S, H, Tr, F> {
+	type Target = F;
+
+	fn deref(&self) -> &F {
+		&self.0
+	}
+}
+
+impl<S, H, Tr, F> DerefMut for Single<S, H, Tr, F> {
+	fn deref_mut(&mut self) -> &mut F {
+		&mut self.0
+	}
+}
+
+impl<S, H, Tr, F> Single<S, H, Tr, F> {
+	/// Create a new single Etable.
+	pub fn new(single: F) -> Self {
+		Self(single, PhantomData)
+	}
+}
+
+impl<S, H, Tr, F> EtableSet for Single<S, H, Tr, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		self.0(machine, handle, position)
+	}
+}
+
+/// Nested evaluation function.
+pub enum MultiEfn<S, H, Tr, F = Efn<S, H, Tr>> {
+	/// Leaf function.
+	Leaf(F),
+	/// Node function.
+	Node(Box<MultiEtable<S, H, Tr, F>>),
+}
+
+unsafe impl<S, H, Tr, F: Send> Send for MultiEfn<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for MultiEfn<S, H, Tr, F> {}
+
+/// Nested evaluation table.
+pub struct MultiEtable<S, H, Tr, F = Efn<S, H, Tr>>(
+	[MultiEfn<S, H, Tr, F>; 256],
+	PhantomData<(S, H, Tr)>,
+);
+
+unsafe impl<S, H, Tr, F: Send> Send for MultiEtable<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for MultiEtable<S, H, Tr, F> {}
+
+impl<S, H, Tr, F> Deref for MultiEtable<S, H, Tr, F> {
+	type Target = [MultiEfn<S, H, Tr, F>; 256];
+
+	fn deref(&self) -> &[MultiEfn<S, H, Tr, F>; 256] {
+		&self.0
+	}
+}
+
+impl<S, H, Tr, F> DerefMut for MultiEtable<S, H, Tr, F> {
+	fn deref_mut(&mut self) -> &mut [MultiEfn<S, H, Tr, F>; 256] {
+		&mut self.0
+	}
+}
+
+impl<S, H, Tr, F> From<Etable<S, H, Tr, F>> for MultiEtable<S, H, Tr, F> {
+	fn from(etable: Etable<S, H, Tr, F>) -> Self {
+		Self(etable.0.map(|v| MultiEfn::Leaf(v)), PhantomData)
+	}
+}
+
+impl<S, H, Tr, F> EtableSet for MultiEtable<S, H, Tr, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let opcode = Opcode(machine.code()[position]);
+
+		match &self[opcode.as_usize()] {
+			MultiEfn::Leaf(f) => f(machine, handle, position),
+			MultiEfn::Node(n) => {
+				let nextpos = position + 1;
+				if nextpos >= machine.code.len() {
+					return Control::Exit(ExitException::PCUnderflow.into());
+				}
+
+				match n.eval(machine, handle, nextpos) {
+					Control::Continue(c) => Control::Continue(c + 1),
+					ctrl => ctrl,
+				}
+			}
+		}
+	}
+}
 
 /// The evaluation table for the EVM.
 pub struct Etable<S, H, Tr, F = Efn<S, H, Tr>>([F; 256], PhantomData<(S, H, Tr)>);
@@ -93,22 +209,39 @@ impl<S, H, Tr, F> DerefMut for Etable<S, H, Tr, F> {
 	}
 }
 
+impl<S, H, Tr, F> From<Single<S, H, Tr, F>> for Etable<S, H, Tr, F>
+where
+	F: Copy,
+{
+	fn from(single: Single<S, H, Tr, F>) -> Self {
+		Self([single.0; 256], PhantomData)
+	}
+}
+
+impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
+where
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
+{
+	type State = S;
+	type Handle = H;
+	type Trap = Tr;
+
+	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
+		let opcode = Opcode(machine.code()[position]);
+
+		self[opcode.as_usize()](machine, handle, position)
+	}
+}
+
 impl<S, H, Tr, F> Etable<S, H, Tr, F>
 where
-	F: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
-	pub const fn single(f: F) -> Self
-	where
-		F: Copy,
-	{
-		Self([f; 256], PhantomData)
-	}
-
 	/// Wrap to create a new Etable.
 	pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, Tr, FR>
 	where
 		FW: Fn(F, Opcode) -> FR,
-		FR: Fn(&mut Machine<S>, &mut H, Opcode, usize) -> Control<Tr>,
+		FR: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 	{
 		let mut current_opcode = Opcode(0);
 		Etable(
@@ -332,9 +465,14 @@ where
 /// Control state.
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Control<Trap> {
-	Continue,
-	ContinueN(usize),
+	/// No action.
+	NoAction,
+	/// Continue the execution, increase the PC by N.
+	Continue(usize),
+	/// Exit the execution.
 	Exit(ExitResult),
+	/// Jump to the specified PC.
 	Jump(usize),
+	/// Trapping the execution with the possibility to resume.
 	Trap(Trap),
 }
