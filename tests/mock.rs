@@ -1,8 +1,9 @@
 extern crate evm;
 
+use std::collections::BTreeMap;
+
 use evm::backend::{OverlayedChangeSet, RuntimeBaseBackend, RuntimeEnvironment};
 use primitive_types::{H160, H256, U256};
-use std::collections::BTreeMap;
 
 #[derive(Default, Clone, Debug)]
 pub struct MockAccount {
