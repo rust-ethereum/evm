@@ -290,6 +290,8 @@ pub struct Config {
 	pub estimate: bool,
 	/// Has EIP-6780. See [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
 	pub has_eip_6780: bool,
+	/// Has EIP-7702. See [EIP-7702](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7702.md)
+	pub has_eip_7702: bool,
 }
 
 impl Config {
@@ -345,6 +347,7 @@ impl Config {
 			has_push0: false,
 			estimate: false,
 			has_eip_6780: false,
+			has_eip_7702: false,
 		}
 	}
 
@@ -400,6 +403,7 @@ impl Config {
 			has_push0: false,
 			estimate: false,
 			has_eip_6780: false,
+			has_eip_7702: false,
 		}
 	}
 
@@ -428,6 +432,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::cancun())
 	}
 
+	/// Pectra hard fork configuration.
+	pub const fn pectra() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::pectra())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -440,6 +449,7 @@ impl Config {
 			warm_coinbase_address,
 			max_initcode_size,
 			has_eip_6780,
+			has_eip_7702,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -504,6 +514,7 @@ impl Config {
 			has_push0,
 			estimate: false,
 			has_eip_6780,
+			has_eip_7702,
 		}
 	}
 }
@@ -521,6 +532,7 @@ struct DerivedConfigInputs {
 	warm_coinbase_address: bool,
 	max_initcode_size: Option<usize>,
 	has_eip_6780: bool,
+	has_eip_7702: bool,
 }
 
 impl DerivedConfigInputs {
@@ -536,6 +548,7 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: false,
 			max_initcode_size: None,
 			has_eip_6780: false,
+			has_eip_7702: false,
 		}
 	}
 
@@ -551,6 +564,7 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: false,
 			max_initcode_size: None,
 			has_eip_6780: false,
+			has_eip_7702: false,
 		}
 	}
 
@@ -566,6 +580,7 @@ impl DerivedConfigInputs {
 			warm_coinbase_address: false,
 			max_initcode_size: None,
 			has_eip_6780: false,
+			has_eip_7702: false,
 		}
 	}
 
@@ -582,6 +597,7 @@ impl DerivedConfigInputs {
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
 			has_eip_6780: false,
+			has_eip_7702: false,
 		}
 	}
 
@@ -598,6 +614,25 @@ impl DerivedConfigInputs {
 			// 2 * 24576 as per EIP-3860
 			max_initcode_size: Some(0xC000),
 			has_eip_6780: true,
+			has_eip_7702: false,
+		}
+	}
+
+	/// Pectra hard fork configuration.
+	const fn pectra() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			// 2 * 24576 as per EIP-3860
+			max_initcode_size: Some(0xC000),
+			has_eip_6780: true,
+			has_eip_7702: true,
 		}
 	}
 }
