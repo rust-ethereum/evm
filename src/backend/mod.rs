@@ -39,6 +39,8 @@ pub enum Apply<I> {
 		/// Whether storage should be wiped empty before applying the storage
 		/// iterator.
 		reset_storage: bool,
+		/// Delegation indicator (EIP-7702). `None` means leaving it unchanged.
+		delegation: Option<Option<H160>>,
 	},
 	/// Delete address.
 	Delete {
@@ -85,6 +87,8 @@ pub trait Backend {
 	fn transient_storage(&self, address: H160, index: H256) -> H256;
 	/// Get original storage value of address at index, if available.
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256>;
+	/// Get delegation indicator for address (EIP-7702).
+	fn delegation(&self, address: H160) -> Option<H160>;
 }
 
 /// EVM backend that can apply changes.

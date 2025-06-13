@@ -54,6 +54,8 @@ pub struct MemoryAccount {
 	pub storage: BTreeMap<H256, H256>,
 	/// Account code.
 	pub code: Vec<u8>,
+	/// Delegation indicator (EIP-7702).
+	pub delegation: Option<H160>,
 }
 
 /// Memory backend, storing all state values in a `BTreeMap` in memory.
@@ -170,6 +172,10 @@ impl<'vicinity> Backend for MemoryBackend<'vicinity> {
 	fn original_storage(&self, address: H160, index: H256) -> Option<H256> {
 		Some(self.storage(address, index))
 	}
+
+	fn delegation(&self, address: H160) -> Option<H160> {
+		self.state.get(&address).and_then(|v| v.delegation)
+	}
 }
 
 impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
@@ -187,6 +193,7 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 					code,
 					storage,
 					reset_storage,
+					delegation,
 				} => {
 					let is_empty = {
 						let account = self.state.entry(address).or_insert_with(Default::default);
@@ -194,6 +201,9 @@ impl<'vicinity> ApplyBackend for MemoryBackend<'vicinity> {
 						account.nonce = basic.nonce;
 						if let Some(code) = code {
 							account.code = code;
+						}
+						if let Some(delegation) = delegation {
+							account.delegation = delegation;
 						}
 
 						if reset_storage {
