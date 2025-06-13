@@ -881,6 +881,10 @@ impl<'config> Inner<'config> {
 
 			GasCost::TLoad => costs::tload_cost(self.config)?,
 			GasCost::TStore => costs::tstore_cost(self.config)?,
+			GasCost::Auth {
+				empty_account,
+				target_is_cold,
+			} => costs::auth_cost(empty_account, target_is_cold, self.config),
 
 			GasCost::Sha3 { len } => costs::sha3_cost(len)?,
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
@@ -1072,6 +1076,13 @@ pub enum GasCost {
 	TLoad,
 	/// Gas cost for `TSTORE`.
 	TStore,
+	/// Gas cost for EIP-7702 authorization.
+	Auth {
+		/// True if the account is empty
+		empty_account: bool,
+		/// True if target has not been previously accessed in this transaction
+		target_is_cold: bool,
+	},
 }
 
 /// Storage opcode will access. Used for tracking accessed storage (EIP-2929).

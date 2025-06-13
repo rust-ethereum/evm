@@ -253,6 +253,20 @@ pub fn tstore_cost(config: &Config) -> Result<u64, ExitError> {
 	Ok(config.gas_storage_read_warm)
 }
 
+pub fn auth_cost(empty_account: bool, is_cold: bool, config: &Config) -> u64 {
+	let mut cost = crate::consts::PER_AUTH_BASE_COST;
+
+	if empty_account {
+		cost += crate::consts::PER_EMPTY_ACCOUNT_COST;
+	}
+
+	if is_cold {
+		cost += config.gas_account_access_cold;
+	}
+
+	cost
+}
+
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
 	let eip161 = !config.empty_considered_exists;
 	let should_charge_topup = if eip161 {

@@ -19,3 +19,7 @@ pub const G_SHA3WORD: u64 = 6;
 pub const G_COPY: u64 = 3;
 pub const G_BLOCKHASH: u64 = 20;
 pub const G_CODEDEPOSIT: u64 = 200;
+
+// EIP-7702 gas constants
+pub const PER_AUTH_BASE_COST: u64 = 12500;
+pub const PER_EMPTY_ACCOUNT_COST: u64 = 25000;
