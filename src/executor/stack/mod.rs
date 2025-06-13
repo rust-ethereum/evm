@@ -8,7 +8,7 @@ mod precompile;
 mod tagged_runtime;
 
 pub use self::executor::{
-	Accessed, StackExecutor, StackExitKind, StackState, StackSubstateMetadata,
+	Accessed, Authorization, StackExecutor, StackExitKind, StackState, StackSubstateMetadata,
 };
 pub use self::memory::{MemoryStackAccount, MemoryStackState, MemoryStackSubstate};
 pub use self::precompile::{

@@ -24,6 +24,7 @@ pub struct MemoryStackSubstate<'config> {
 	accounts: BTreeMap<H160, MemoryStackAccount>,
 	storages: BTreeMap<(H160, H256), H256>,
 	transient_storage: BTreeMap<(H160, H256), H256>,
+	delegations: BTreeMap<H160, Option<H160>>,
 	deletes: BTreeSet<H160>,
 	creates: BTreeSet<H160>,
 }
@@ -37,6 +38,7 @@ impl<'config> MemoryStackSubstate<'config> {
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			transient_storage: BTreeMap::new(),
+			delegations: BTreeMap::new(),
 			deletes: BTreeSet::new(),
 			creates: BTreeSet::new(),
 		}
@@ -103,6 +105,7 @@ impl<'config> MemoryStackSubstate<'config> {
 					code: account.code.clone(),
 					storage,
 					reset_storage: account.reset,
+					delegation: None,
 				}
 			};
 
@@ -124,6 +127,7 @@ impl<'config> MemoryStackSubstate<'config> {
 			accounts: BTreeMap::new(),
 			storages: BTreeMap::new(),
 			transient_storage: BTreeMap::new(),
+			delegations: BTreeMap::new(),
 			deletes: BTreeSet::new(),
 			creates: BTreeSet::new(),
 		};
@@ -158,6 +162,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.accounts.append(&mut exited.accounts);
 		self.storages.append(&mut exited.storages);
 		self.transient_storage.append(&mut exited.transient_storage);
+		self.delegations.append(&mut exited.delegations);
 		self.deletes.append(&mut exited.deletes);
 
 		Ok(())
@@ -263,6 +268,16 @@ impl<'config> MemoryStackSubstate<'config> {
 		}
 	}
 
+	pub fn known_delegation(&self, address: H160) -> Option<Option<H160>> {
+		if let Some(delegation) = self.delegations.get(&address) {
+			Some(*delegation)
+		} else if let Some(parent) = self.parent.as_ref() {
+			parent.known_delegation(address)
+		} else {
+			None
+		}
+	}
+
 	pub fn is_cold(&self, address: H160) -> bool {
 		self.recursive_is_cold(&|a| a.accessed_addresses.contains(&address))
 	}
@@ -345,6 +360,10 @@ impl<'config> MemoryStackSubstate<'config> {
 
 	pub fn set_transient_storage(&mut self, address: H160, key: H256, value: H256) {
 		self.transient_storage.insert((address, key), value);
+	}
+
+	pub fn set_delegation(&mut self, address: H160, target: Option<H160>) {
+		self.delegations.insert(address, target);
 	}
 
 	pub fn reset_storage<B: Backend>(&mut self, address: H160, backend: &B) {
@@ -513,6 +532,12 @@ impl<'backend, 'config, B: Backend> Backend for MemoryStackState<'backend, 'conf
 
 		self.backend.original_storage(address, key)
 	}
+
+	fn delegation(&self, address: H160) -> Option<H160> {
+		self.substate
+			.known_delegation(address)
+			.unwrap_or_else(|| self.backend.delegation(address))
+	}
 }
 
 impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'backend, 'config, B> {
@@ -576,6 +601,10 @@ impl<'backend, 'config, B: Backend> StackState<'config> for MemoryStackState<'ba
 
 	fn set_transient_storage(&mut self, address: H160, key: H256, value: H256) {
 		self.substate.set_transient_storage(address, key, value)
+	}
+
+	fn set_delegation(&mut self, address: H160, target: Option<H160>) {
+		self.substate.set_delegation(address, target)
 	}
 
 	fn reset_storage(&mut self, address: H160) {

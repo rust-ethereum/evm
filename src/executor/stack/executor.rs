@@ -16,6 +16,19 @@ use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
+/// EIP-7702 authorization tuple
+#[derive(Clone, Debug)]
+pub struct Authorization {
+	/// Chain ID
+	pub chain_id: U256,
+	/// Address to delegate to
+	pub address: H160,
+	/// Nonce for the authorization
+	pub nonce: U256,
+	/// Address that authorized this delegation (recovered from signature)
+	pub authorizing_address: H160,
+}
+
 macro_rules! emit_exit {
 	($reason:expr) => {{
 		let reason = $reason;
@@ -208,6 +221,7 @@ pub trait StackState<'config>: Backend {
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError>;
 	fn set_storage(&mut self, address: H160, key: H256, value: H256);
 	fn set_transient_storage(&mut self, address: H160, key: H256, value: H256);
+	fn set_delegation(&mut self, address: H160, target: Option<H160>);
 	fn reset_storage(&mut self, address: H160);
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>);
 	fn set_deleted(&mut self, address: H160);
@@ -296,6 +310,45 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 	pub fn state(&self) -> &S {
 		&self.state
+	}
+
+	/// Process EIP-7702 authorization list.
+	/// This should be called before transaction execution to set up delegation indicators.
+	/// The authorizing addresses should already be recovered from signatures by the caller.
+	pub fn process_authorizations(
+		&mut self,
+		authorizations: &[Authorization],
+	) -> Result<(), ExitError> {
+		if !self.config.has_eip_7702 {
+			return Ok(());
+		}
+
+		for auth in authorizations {
+			// Verify chain ID (if not zero, must match current chain)
+			if !auth.chain_id.is_zero() && auth.chain_id != self.state.chain_id() {
+				continue; // Skip authorizations for other chains
+			}
+
+			let authorizing_address = auth.authorizing_address;
+
+			// Verify nonce matches current account nonce
+			let current_nonce = self.state.basic(authorizing_address).nonce;
+			if auth.nonce == current_nonce {
+				// Set delegation indicator to 0xef0100 + auth.address
+				let mut delegation_code = vec![0xef, 0x01, 0x00];
+				delegation_code.extend_from_slice(auth.address.as_bytes());
+
+				// Set the delegation in the state
+				self.state
+					.set_delegation(authorizing_address, Some(auth.address));
+				self.state.set_code(authorizing_address, delegation_code);
+
+				// Increment nonce
+				self.state.inc_nonce(authorizing_address)?;
+			}
+		}
+
+		Ok(())
 	}
 
 	pub fn state_mut(&mut self) -> &mut S {
@@ -1147,7 +1200,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
-		self.state.code_size(address)
+		// EIP-7702: For code size, we need to get the delegated code size
+		let code = self.code(address);
+		U256::from(code.len())
 	}
 
 	fn code_hash(&self, address: H160) -> H256 {
@@ -1155,11 +1210,37 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 			return H256::default();
 		}
 
-		self.state.code_hash(address)
+		// EIP-7702: For code hash, we need to get the hash of the delegated code
+		let code = self.code(address);
+		if code.is_empty() {
+			H256::default()
+		} else {
+			use sha3::{Digest, Keccak256};
+			H256::from_slice(&Keccak256::digest(&code))
+		}
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
-		self.state.code(address)
+		let code = self.state.code(address);
+
+		// EIP-7702: Check for delegation indicator
+		if self.config.has_eip_7702 {
+			if let Some(delegation_target) = self.state.delegation(address) {
+				// If there's a delegation, return the code from the delegated address
+				return self.state.code(delegation_target);
+			}
+
+			// Check if the code itself contains a delegation indicator (0xef0100 + address)
+			if code.len() >= 23 && code[0] == 0xef && code[1] == 0x01 && code[2] == 0x00 {
+				// Extract the address from the delegation indicator
+				let mut addr_bytes = [0u8; 20];
+				addr_bytes.copy_from_slice(&code[3..23]);
+				let delegation_address = H160::from(addr_bytes);
+				return self.state.code(delegation_address);
+			}
+		}
+
+		code
 	}
 
 	fn storage(&self, address: H160, index: H256) -> H256 {
@@ -1174,6 +1255,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		self.state
 			.original_storage(address, index)
 			.unwrap_or_default()
+	}
+
+	fn delegation(&self, address: H160) -> Option<H160> {
+		self.state.delegation(address)
 	}
 
 	fn exists(&self, address: H160) -> bool {
@@ -1264,6 +1349,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Handler
 		value: H256,
 	) -> Result<(), ExitError> {
 		self.state.set_transient_storage(address, index, value);
+		Ok(())
+	}
+
+	fn set_delegation(&mut self, address: H160, target: Option<H160>) -> Result<(), ExitError> {
+		self.state.set_delegation(address, target);
 		Ok(())
 	}
 
@@ -1594,5 +1684,506 @@ impl<'inner, 'config, 'precompiles, S: StackState<'config>, P: PrecompileSet> Pr
 	/// Retreive the gas limit of this call.
 	fn gas_limit(&self) -> Option<u64> {
 		self.gas_limit
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::backend::{MemoryBackend, MemoryVicinity};
+	use crate::executor::stack::{MemoryStackState, StackSubstateMetadata};
+	use crate::{Config, Handler};
+	use primitive_types::{H160, U256};
+	use std::collections::BTreeMap;
+
+	#[test]
+	fn test_eip7702_delegation() {
+		// Create a test environment with EIP-7702 enabled
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		// Test addresses
+		let authorizing_address = H160::from_low_u64_be(1);
+		let delegate_address = H160::from_low_u64_be(2);
+
+		// Set some actual code on the delegate address
+		let delegate_code = vec![0x60, 0x01, 0x60, 0x01, 0x01]; // Simple bytecode
+		executor
+			.state_mut()
+			.set_code(delegate_address, delegate_code.clone());
+
+		// For testing, directly set up delegation without going through authorization processing
+		// since signature recovery is the responsibility of frontier
+		executor
+			.state_mut()
+			.set_delegation(authorizing_address, Some(delegate_address));
+
+		// Set delegation code manually (this is what's stored in the authorizing account)
+		let mut delegation_code = vec![0xef, 0x01, 0x00];
+		delegation_code.extend_from_slice(delegate_address.as_bytes());
+		executor
+			.state_mut()
+			.set_code(authorizing_address, delegation_code.clone());
+
+		// Check that delegation was set
+		let delegation = executor.delegation(authorizing_address);
+		assert_eq!(delegation, Some(delegate_address));
+
+		// According to EIP-7702, calling code() should return the delegate's code, not the delegation indicator
+		let code = executor.code(authorizing_address);
+		assert_eq!(
+			code, delegate_code,
+			"Should return delegate's code, not delegation indicator"
+		);
+	}
+
+	#[test]
+	fn test_eip7702_delegation_code_resolution() {
+		// Create a test environment with EIP-7702 enabled
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		// Test addresses
+		let authorizing_address = H160::from_low_u64_be(1);
+		let delegate_address = H160::from_low_u64_be(2);
+
+		// Set some code on the delegate address
+		let delegate_code = vec![0x60, 0x01, 0x60, 0x01, 0x01]; // Simple bytecode
+		executor
+			.state_mut()
+			.set_code(delegate_address, delegate_code.clone());
+
+		// Create delegation indicator code manually (0xef0100 + address)
+		let mut delegation_code = vec![0xef, 0x01, 0x00];
+		delegation_code.extend_from_slice(delegate_address.as_bytes());
+		executor
+			.state_mut()
+			.set_code(authorizing_address, delegation_code);
+
+		// When getting code from authorizing_address, it should return the delegate's code
+		let resolved_code = executor.code(authorizing_address);
+		assert_eq!(resolved_code, delegate_code);
+
+		// Code size should also be resolved
+		let code_size = executor.code_size(authorizing_address);
+		assert_eq!(code_size, U256::from(delegate_code.len()));
+	}
+
+	#[test]
+	fn test_eip7702_disabled() {
+		// Create a test environment without EIP-7702
+		let config = Config::cancun(); // Use Cancun config which doesn't have EIP-7702
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		// Test addresses
+		let authorizing_address = H160::from_low_u64_be(999);
+		let delegate_address = H160::from_low_u64_be(2);
+
+		// Create an authorization
+		let authorization = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		// Process the authorization - should succeed but not set any delegation since EIP-7702 is disabled
+		let result = executor.process_authorizations(&[authorization]);
+		assert!(
+			result.is_ok(),
+			"Authorization processing should succeed when EIP-7702 is disabled"
+		);
+
+		// Verify no delegation was set
+		let delegation = executor.delegation(authorizing_address);
+		assert_eq!(
+			delegation, None,
+			"No delegation should be set when EIP-7702 is disabled"
+		);
+	}
+
+	#[test]
+	fn test_eip7702_authorization_processing() {
+		// Create a test environment with EIP-7702 enabled
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		// Test addresses
+		let authorizing_address = H160::from_low_u64_be(1);
+		let delegate_address = H160::from_low_u64_be(2);
+
+		// Set some code on the delegate address so it can be retrieved
+		let delegate_code = vec![0x60, 0x01, 0x60, 0x01, 0x01]; // Simple bytecode
+		executor
+			.state_mut()
+			.set_code(delegate_address, delegate_code.clone());
+
+		// Create an authorization
+		let authorization = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		// Process the authorization
+		let result = executor.process_authorizations(&[authorization]);
+		assert!(result.is_ok(), "Authorization processing should succeed");
+
+		// Check that delegation was set for the authorizing address
+		let delegation = executor.delegation(authorizing_address);
+		assert_eq!(
+			delegation,
+			Some(delegate_address),
+			"Delegation should be set for the authorizing address"
+		);
+
+		// Check that the delegation code resolution works (should return delegate's code)
+		let code = executor.code(authorizing_address);
+		assert_eq!(
+			code, delegate_code,
+			"Should return delegate's code when delegation is set"
+		);
+
+		// Check that nonce was incremented for the authorizing address
+		let basic = executor.state().basic(authorizing_address);
+		assert_eq!(
+			basic.nonce,
+			U256::one(),
+			"Nonce should be incremented for the authorizing address"
+		);
+	}
+
+	#[test]
+	fn test_eip7702_authorization_with_different_chain_ids() {
+		// Test that authorizations for different chain IDs are handled correctly
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::from(5), // Goerli chain ID
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		let authorizing_address = H160::from_low_u64_be(1);
+		let delegate_address = H160::from_low_u64_be(2);
+
+		// Create authorizations for different chain IDs
+		let valid_auth = Authorization {
+			chain_id: U256::from(5), // Matches vicinity chain_id
+			address: delegate_address,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		let invalid_auth = Authorization {
+			chain_id: U256::from(1), // Different chain_id
+			address: delegate_address,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		let zero_chain_auth = Authorization {
+			chain_id: U256::zero(), // Zero chain_id (should be accepted)
+			address: delegate_address,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		// Process authorizations
+		let result = executor.process_authorizations(&[valid_auth, invalid_auth, zero_chain_auth]);
+		assert!(result.is_ok(), "Authorization processing should succeed");
+
+		// Check that delegation was set for the valid authorizations
+		let delegation = executor.delegation(authorizing_address);
+		assert_eq!(
+			delegation,
+			Some(delegate_address),
+			"Delegation should be set for valid authorizations"
+		);
+	}
+
+	#[test]
+	fn test_eip7702_authorization_with_wrong_nonce() {
+		// Test that authorization with wrong nonce is ignored
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		let authorizing_address = H160::from_low_u64_be(1);
+		let delegate_address = H160::from_low_u64_be(2);
+
+		// Set initial nonce to 5 for the authorizing address
+		executor.state_mut().inc_nonce(authorizing_address).unwrap();
+		executor.state_mut().inc_nonce(authorizing_address).unwrap();
+		executor.state_mut().inc_nonce(authorizing_address).unwrap();
+		executor.state_mut().inc_nonce(authorizing_address).unwrap();
+		executor.state_mut().inc_nonce(authorizing_address).unwrap();
+
+		// Create authorization with wrong nonce (0 instead of 5)
+		let wrong_nonce_auth = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address,
+			nonce: U256::zero(), // Wrong nonce
+			authorizing_address,
+		};
+
+		// Create authorization with correct nonce (5)
+		let correct_nonce_auth = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address,
+			nonce: U256::from(5), // Correct nonce
+			authorizing_address,
+		};
+
+		// Process authorizations
+		let result = executor.process_authorizations(&[wrong_nonce_auth, correct_nonce_auth]);
+		assert!(result.is_ok(), "Authorization processing should succeed");
+
+		// Check that only the correct nonce authorization was processed
+		let delegation = executor.delegation(authorizing_address);
+		assert_eq!(
+			delegation,
+			Some(delegate_address),
+			"Delegation should be set for correct nonce authorization"
+		);
+
+		// Check that nonce was incremented from 5 to 6
+		let basic = executor.state().basic(authorizing_address);
+		assert_eq!(
+			basic.nonce,
+			U256::from(6),
+			"Nonce should be incremented to 6"
+		);
+	}
+
+	#[test]
+	fn test_eip7702_authorization_validation() {
+		// Test authorization processing validation
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		let delegate_address = H160::from_low_u64_be(2);
+		let authorizing_address = H160::from_low_u64_be(1);
+
+		// Create a valid authorization (signature recovery would happen at higher level)
+		let valid_auth = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		// This should succeed since signature validation would be done at higher level
+		let result = executor.process_authorizations(&[valid_auth]);
+		assert!(result.is_ok(), "Should process valid authorization");
+	}
+
+	#[test]
+	fn test_eip7702_multiple_authorizations_same_address() {
+		// Test multiple authorizations from the same address
+		let config = Config::pectra();
+
+		let vicinity = MemoryVicinity {
+			gas_price: U256::zero(),
+			origin: H160::default(),
+			chain_id: U256::one(),
+			block_hashes: vec![],
+			block_number: U256::zero(),
+			block_coinbase: H160::default(),
+			block_timestamp: U256::zero(),
+			block_difficulty: U256::zero(),
+			block_gas_limit: U256::from(10_000_000u64),
+			block_base_fee_per_gas: U256::zero(),
+			block_randomness: None,
+		};
+
+		let mut backend = MemoryBackend::new(&vicinity, BTreeMap::new());
+		let metadata = StackSubstateMetadata::new(u64::MAX, &config);
+		let state = MemoryStackState::new(metadata, &mut backend);
+		let precompiles = ();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		let authorizing_address = H160::from_low_u64_be(1);
+
+		let delegate_address_1 = H160::from_low_u64_be(2);
+		let delegate_address_2 = H160::from_low_u64_be(3);
+
+		// Set code on delegate addresses
+		let delegate_code_1 = vec![0x60, 0x01];
+		let delegate_code_2 = vec![0x60, 0x02];
+		executor
+			.state_mut()
+			.set_code(delegate_address_1, delegate_code_1.clone());
+		executor
+			.state_mut()
+			.set_code(delegate_address_2, delegate_code_2.clone());
+
+		// Create first authorization (nonce 0)
+		let auth1 = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address_1,
+			nonce: U256::zero(),
+			authorizing_address,
+		};
+
+		// Create second authorization (nonce 1)
+		let auth2 = Authorization {
+			chain_id: U256::one(),
+			address: delegate_address_2,
+			nonce: U256::one(),
+			authorizing_address,
+		};
+
+		// Process first authorization
+		let result1 = executor.process_authorizations(&[auth1]);
+		assert!(result1.is_ok(), "First authorization should succeed");
+
+		// Check first delegation
+		let delegation_1 = executor.delegation(authorizing_address);
+		assert_eq!(delegation_1, Some(delegate_address_1));
+		let code_1 = executor.code(authorizing_address);
+		assert_eq!(code_1, delegate_code_1);
+
+		// Process second authorization
+		let result2 = executor.process_authorizations(&[auth2]);
+		assert!(result2.is_ok(), "Second authorization should succeed");
+
+		// Check that delegation was updated to second address
+		let delegation_2 = executor.delegation(authorizing_address);
+		assert_eq!(delegation_2, Some(delegate_address_2));
+		let code_2 = executor.code(authorizing_address);
+		assert_eq!(code_2, delegate_code_2);
+
+		// Check that nonce was incremented twice
+		let basic = executor.state().basic(authorizing_address);
+		assert_eq!(basic.nonce, U256::from(2));
 	}
 }
