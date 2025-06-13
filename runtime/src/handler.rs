@@ -40,6 +40,8 @@ pub trait Handler {
 
 	/// Get original storage value of address at index.
 	fn original_storage(&self, address: H160, index: H256) -> H256;
+	/// Get delegation indicator for address (EIP-7702).
+	fn delegation(&self, address: H160) -> Option<H160>;
 
 	/// Get the gas left value.
 	fn gas_left(&self) -> U256;
@@ -87,6 +89,8 @@ pub trait Handler {
 		index: H256,
 		value: H256,
 	) -> Result<(), ExitError>;
+	/// Set delegation indicator for address (EIP-7702).
+	fn set_delegation(&mut self, address: H160, target: Option<H160>) -> Result<(), ExitError>;
 	/// Create a log owned by address with given topics and data.
 	fn log(&mut self, address: H160, topics: Vec<H256>, data: Vec<u8>) -> Result<(), ExitError>;
 	/// Mark an address to be deleted, with funds transferred to target.
