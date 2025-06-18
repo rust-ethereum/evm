@@ -509,6 +509,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute a `CREATE2` transaction.
+	#[allow(clippy::too_many_arguments)]
 	pub fn transact_create2(
 		&mut self,
 		caller: H160,
@@ -575,6 +576,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 	/// Execute a `CREATE` transaction that force the contract address
 	#[cfg(feature = "allow_explicit_address")]
+	#[allow(clippy::too_many_arguments)]
 	pub fn transact_create_force_address(
 		&mut self,
 		caller: H160,
@@ -620,7 +622,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
-				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs, None);
 				emit_exit!(s, v)
 			}
 		}
@@ -636,6 +638,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	/// Takes in an additional `authorization_list` parameter for EIP-7702 which was
 	/// introduced in the Ethereum Pectra hard fork. If you do not wish to use
 	/// this functionality, just pass in an empty vector.
+	#[allow(clippy::too_many_arguments)]
 	pub fn transact_call(
 		&mut self,
 		caller: H160,
@@ -783,7 +786,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	) {
 		for authorization in authorization_list {
 			// Validate the authorization
-			if let Err(_) = authorization.validate(self.chain_id()) {
+			if authorization.validate(self.chain_id()).is_err() {
 				continue; // Skip invalid authorizations
 			}
 
@@ -802,10 +805,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			let is_empty_account = account.nonce == U256::zero()
 				&& account.balance == U256::zero()
 				&& self.state.code_size(authorization.authorizing_address) == U256::zero();
-			
+
 			if !is_empty_account {
 				// Issue refund for this non-empty account
-				let refund_amount = self.config.gas_per_empty_account_cost - self.config.gas_auth_base_cost;
+				let refund_amount =
+					self.config.gas_per_empty_account_cost - self.config.gas_auth_base_cost;
 				let _ = self
 					.state
 					.metadata_mut()
@@ -1050,7 +1054,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		// EIP-7702: Get execution code, following delegations if enabled
 		let code = self.code(code_address);
 		let execution_code = if self.config.has_eip_7702 {
-			self.delegated_code(code_address).unwrap_or_else(|| code)
+			self.delegated_code(code_address).unwrap_or(code)
 		} else {
 			code
 		};

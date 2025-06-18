@@ -589,8 +589,8 @@ fn test_eip7702_transaction_cost_empty_account() {
 		target_address,
 		U256::zero(),
 		Vec::new(),
-		100_000, // gas limit
-		Vec::new(), // access list
+		100_000,             // gas limit
+		Vec::new(),          // access list
 		vec![authorization], // authorization list with one empty account
 	);
 
@@ -683,8 +683,8 @@ fn test_eip7702_transaction_cost_non_empty_account() {
 		target_address,
 		U256::zero(),
 		Vec::new(),
-		100_000, // gas limit
-		Vec::new(), // access list
+		100_000,             // gas limit
+		Vec::new(),          // access list
 		vec![authorization], // authorization list with one non-empty account
 	);
 
@@ -790,8 +790,8 @@ fn test_eip7702_transaction_cost_mixed_accounts() {
 		target_address,
 		U256::zero(),
 		Vec::new(),
-		100_000, // gas limit
-		Vec::new(), // access list
+		100_000,                          // gas limit
+		Vec::new(),                       // access list
 		vec![auth_empty, auth_non_empty], // mixed authorization list
 	);
 
@@ -800,7 +800,7 @@ fn test_eip7702_transaction_cost_mixed_accounts() {
 	// Calculate expected gas usage
 	// Base transaction cost: 21000
 	// Auth 1 (empty): 25000 (no refund)
-	// Auth 2 (non-empty): 25000 - 12500 refund = 12500  
+	// Auth 2 (non-empty): 25000 - 12500 refund = 12500
 	// Total: 21000 + 25000 + 12500 = 58500
 	let gas_used = executor.used_gas();
 	assert_eq!(gas_used, 58500);
