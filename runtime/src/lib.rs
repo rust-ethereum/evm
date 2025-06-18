@@ -244,6 +244,10 @@ pub struct Config {
 	pub disallow_executable_format: bool,
 	/// EIP-3651
 	pub warm_coinbase_address: bool,
+	/// EIP-7702: Gas cost for processing each authorization tuple
+	pub gas_auth_base_cost: u64,
+	/// EIP-7702: Gas cost per empty account in authorization list
+	pub gas_per_empty_account_cost: u64,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -354,6 +358,8 @@ impl Config {
 			estimate: false,
 			has_eip_6780: false,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -412,6 +418,8 @@ impl Config {
 			estimate: false,
 			has_eip_6780: false,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -460,6 +468,8 @@ impl Config {
 			has_tloadstore,
 			has_mcopy,
 			has_eip_7702,
+			gas_auth_base_cost,
+			gas_per_empty_account_cost,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -527,6 +537,8 @@ impl Config {
 			has_tloadstore,
 			has_mcopy,
 			has_eip_7702,
+			gas_auth_base_cost,
+			gas_per_empty_account_cost,
 		}
 	}
 }
@@ -547,6 +559,8 @@ struct DerivedConfigInputs {
 	has_tloadstore: bool,
 	has_mcopy: bool,
 	has_eip_7702: bool,
+	gas_auth_base_cost: u64,
+	gas_per_empty_account_cost: u64,
 }
 
 impl DerivedConfigInputs {
@@ -565,6 +579,8 @@ impl DerivedConfigInputs {
 			has_tloadstore: false,
 			has_mcopy: false,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -583,6 +599,8 @@ impl DerivedConfigInputs {
 			has_tloadstore: false,
 			has_mcopy: false,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -601,6 +619,8 @@ impl DerivedConfigInputs {
 			has_tloadstore: false,
 			has_mcopy: false,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -620,6 +640,8 @@ impl DerivedConfigInputs {
 			has_tloadstore: false,
 			has_mcopy: false,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -639,6 +661,8 @@ impl DerivedConfigInputs {
 			has_tloadstore: true,
 			has_mcopy: true,
 			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -659,6 +683,10 @@ impl DerivedConfigInputs {
 			has_tloadstore: true,
 			has_mcopy: true,
 			has_eip_7702: true,
+			// PER_AUTH_BASE_COST from EIP-7702
+			gas_auth_base_cost: 12500,
+			// PER_EMPTY_ACCOUNT_COST from EIP-7702
+			gas_per_empty_account_cost: 25000,
 		}
 	}
 }

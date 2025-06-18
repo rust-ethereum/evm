@@ -430,8 +430,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self,
 		init_code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
+		authorization_list: &[evm_core::Authorization],
 	) -> Result<(), ExitError> {
-		let transaction_cost = gasometer::create_transaction_cost(init_code, access_list);
+		let transaction_cost =
+			gasometer::create_transaction_cost(init_code, access_list, authorization_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		gasometer.record_transaction(transaction_cost)
 	}
@@ -460,6 +462,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		authorization_list: Vec<evm_core::Authorization>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
 			caller,
@@ -476,10 +479,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+		if let Err(e) =
+			self.record_create_transaction_cost(&init_code, &access_list, &authorization_list)
+		{
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
+
+		if self.config.has_eip_7702 {
+			self.initialize_with_authorization_list(authorization_list);
+		}
 
 		match self.create_inner(
 			caller,
@@ -508,6 +517,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		salt: H256,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		authorization_list: Vec<evm_core::Authorization>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		if let Some(limit) = self.config.max_initcode_size {
 			if init_code.len() > limit {
@@ -530,10 +540,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}),
 		});
 
-		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+		if let Err(e) =
+			self.record_create_transaction_cost(&init_code, &access_list, &authorization_list)
+		{
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
+
+		if self.config.has_eip_7702 {
+			self.initialize_with_authorization_list(authorization_list);
+		}
 
 		match self.create_inner(
 			caller,
@@ -566,6 +582,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		authorization_list: Vec<evm_core::Authorization>, // See EIP-7702
 		contract_address: H160,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
@@ -583,10 +600,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+		if let Err(e) =
+			self.record_create_transaction_cost(&init_code, &access_list, &authorization_list)
+		{
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
+		self.initialize_with_authorization_list(authorization_list);
 
 		match self.create_inner(
 			caller,
@@ -612,6 +632,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	/// Takes in an additional `access_list` parameter for EIP-2930 which was
 	/// introduced in the Ethereum Berlin hard fork. If you do not wish to use
 	/// this functionality, just pass in an empty vector.
+	///
+	/// Takes in an additional `authorization_list` parameter for EIP-7702 which was
+	/// introduced in the Ethereum Pectra hard fork. If you do not wish to use
+	/// this functionality, just pass in an empty vector.
 	pub fn transact_call(
 		&mut self,
 		caller: H160,
@@ -620,6 +644,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		data: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: Vec<evm_core::Authorization>,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCall {
 			caller,
@@ -629,7 +654,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 		});
 
-		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
+		let transaction_cost =
+			gasometer::call_transaction_cost(&data, &access_list, &authorization_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
@@ -651,6 +677,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			self.initialize_with_access_list(access_list);
 		}
+
+		if self.config.has_eip_7702 {
+			self.initialize_with_authorization_list(authorization_list);
+		}
+
 		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
 			return (e.into(), Vec::new());
 		}
@@ -742,6 +773,70 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			.into_iter()
 			.flat_map(|(address, keys)| keys.into_iter().map(move |key| (address, key)));
 		self.state.metadata_mut().access_storages(storage_keys);
+	}
+
+	/// Initialize the state with EIP-7702 authorization list
+	/// This processes the authorization tuples and applies delegations as specified
+	pub fn initialize_with_authorization_list(
+		&mut self,
+		authorization_list: Vec<evm_core::Authorization>,
+	) {
+		for authorization in authorization_list {
+			// Validate the authorization
+			if let Err(_) = authorization.validate(self.chain_id()) {
+				continue; // Skip invalid authorizations
+			}
+
+			// Get the current nonce of the authorizing account
+			let account_nonce = self.state.basic(authorization.authorizing_address).nonce;
+
+			// Check if the nonce matches
+			if account_nonce != authorization.nonce {
+				continue; // Skip if nonce doesn't match
+			}
+
+			// Check if the authorizing address is non-empty and apply refund
+			// Per EIP-7702: Initially all auths are charged PER_EMPTY_ACCOUNT_COST,
+			// then non-empty accounts get refunded (PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST)
+			let account = self.state.basic(authorization.authorizing_address);
+			let is_empty_account = account.nonce == U256::zero()
+				&& account.balance == U256::zero()
+				&& self.state.code_size(authorization.authorizing_address) == U256::zero();
+			
+			if !is_empty_account {
+				// Issue refund for this non-empty account
+				let refund_amount = self.config.gas_per_empty_account_cost - self.config.gas_auth_base_cost;
+				let _ = self
+					.state
+					.metadata_mut()
+					.gasometer
+					.record_refund(refund_amount as i64);
+			}
+
+			// Create the delegation designator
+			let delegation_designator =
+				evm_core::create_delegation_designator(authorization.address);
+
+			// Set the delegation code for the authorizing account
+			let _ = self.state.set_code(
+				authorization.authorizing_address,
+				delegation_designator,
+				None,
+			);
+
+			// Increment the nonce of the authorizing account
+			let _ = self.state.inc_nonce(authorization.authorizing_address);
+
+			// Mark the addresses as accessed for EIP-2929
+			if self.config.increase_state_access_gas {
+				self.state
+					.metadata_mut()
+					.access_address(authorization.authorizing_address);
+				self.state
+					.metadata_mut()
+					.access_address(authorization.address);
+			}
+		}
 	}
 
 	fn create_inner(
