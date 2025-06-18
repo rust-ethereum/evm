@@ -33,6 +33,12 @@ pub trait Handler {
 	fn code_hash(&self, address: H160) -> H256;
 	/// Get code of address.
 	fn code(&self, address: H160) -> Vec<u8>;
+	/// Get code of address, following EIP-7702 delegations if enabled.
+	fn delegated_code(&self, address: H160) -> Option<Vec<u8>> {
+		let code = self.code(address);
+		evm_core::extract_delegation_address(&code)
+			.map(|delegated_address| self.code(delegated_address))
+	}
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;
 	/// Get transient storage value of address at index.

@@ -94,6 +94,7 @@ pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 	{
 		return Control::Exit(e.into());
 	}
+	// EIP-7702: EXTCODESIZE does NOT follow delegations
 	let code_size = handler.code_size(address.into());
 	push_u256!(runtime, code_size);
 
@@ -107,6 +108,7 @@ pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 	{
 		return Control::Exit(e.into());
 	}
+	// EIP-7702: EXTCODEHASH does NOT follow delegations
 	let code_hash = handler.code_hash(address.into());
 	push!(runtime, code_hash);
 
@@ -127,6 +129,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 	{
 		return Control::Exit(e.into());
 	}
+	// EIP-7702: EXTCODECOPY does NOT follow delegations
 	let code = handler.code(address.into());
 	match runtime
 		.machine
@@ -302,6 +305,36 @@ pub fn suicide<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Control<H>
 	}
 
 	Control::Exit(ExitSucceed::Suicided.into())
+}
+
+/// EIP-7702: CODESIZE that applies delegation logic on demand
+pub fn codesize<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	// Get the code for the current context address
+	let code = handler.code(runtime.context.address);
+	let size = U256::from(code.len());
+	push_u256!(runtime, size);
+	Control::Continue
+}
+
+/// EIP-7702: CODECOPY that applies delegation logic on demand  
+pub fn codecopy<H: Handler>(runtime: &mut Runtime, handler: &H) -> Control<H> {
+	pop_u256!(runtime, memory_offset, code_offset, len);
+
+	try_or_fail!(runtime
+		.machine
+		.memory_mut()
+		.resize_offset(memory_offset, len));
+
+	// Get the code for the current context address
+	let code = handler.code(runtime.context.address);
+	match runtime
+		.machine
+		.memory_mut()
+		.copy_large(memory_offset, code_offset, len, &code)
+	{
+		Ok(()) => Control::Continue,
+		Err(e) => Control::Exit(e.into()),
+	}
 }
 
 pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut H) -> Control<H> {

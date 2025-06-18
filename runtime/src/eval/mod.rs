@@ -61,6 +61,9 @@ pub fn eval<H: Handler>(state: &mut Runtime, opcode: Opcode, handler: &mut H) ->
 		Opcode::STATICCALL => system::call(state, CallScheme::StaticCall, handler),
 		Opcode::CHAINID => system::chainid(state, handler),
 		Opcode::BASEFEE => system::base_fee(state, handler),
+		// EIP-7702: Handle CODESIZE and CODECOPY with delegation support
+		Opcode::CODESIZE => system::codesize(state, handler),
+		Opcode::CODECOPY => system::codecopy(state, handler),
 		_ => handle_other(state, opcode, handler),
 	}
 }

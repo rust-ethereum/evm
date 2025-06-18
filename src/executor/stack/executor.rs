@@ -951,7 +951,15 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			let _ = self.exit_substate(StackExitKind::Failed);
 			return Capture::Exit((ExitReason::Error(e), Vec::new()));
 		}
+
+		// EIP-7702: Get execution code, following delegations if enabled
 		let code = self.code(code_address);
+		let execution_code = if self.config.has_eip_7702 {
+			self.delegated_code(code_address).unwrap_or_else(|| code)
+		} else {
+			code
+		};
+
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -1017,7 +1025,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		let runtime = Runtime::new(
-			Rc::new(code),
+			Rc::new(execution_code),
 			Rc::new(input),
 			context,
 			self.config.stack_limit,
@@ -1160,6 +1168,8 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
+		// EIP-7702: EXTCODESIZE does NOT follow delegations
+		// Return the actual code size at the address, including delegation designators
 		self.state.code_size(address)
 	}
 
@@ -1168,10 +1178,14 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
 			return H256::default();
 		}
 
+		// EIP-7702: EXTCODEHASH does NOT follow delegations
+		// Return the hash of the actual code at the address, including delegation designators
 		self.state.code_hash(address)
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
+		// EIP-7702: EXTCODECOPY does NOT follow delegations
+		// Return the actual code at the address, including delegation designators
 		self.state.code(address)
 	}
 
