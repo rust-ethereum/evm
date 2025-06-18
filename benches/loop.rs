@@ -56,8 +56,8 @@ fn run_loop_contract() {
 			.unwrap(),
 		// hex::decode("0f14a4060000000000000000000000000000000000000000000000000000000000002ee0").unwrap(),
 		u64::MAX,
-		Vec::new(),    // access_list
-		Vec::new(),    // authorization_list
+		Vec::new(), // access_list
+		Vec::new(), // authorization_list
 	);
 }
 
