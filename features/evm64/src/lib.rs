@@ -5,8 +5,6 @@
 pub mod eval;
 mod gasometer;
 
-pub use crate::gasometer::eval as eval_gasometer;
-
 use evm::{
 	interpreter::{
 		etable::{Etable, MultiEfn, MultiEtable, Single},
@@ -14,6 +12,8 @@ use evm::{
 	},
 	standard::GasometerState,
 };
+
+pub use crate::gasometer::eval as eval_gasometer;
 
 pub const OPCODE_EVM64_MODE: Opcode = Opcode(0xc0);
 
