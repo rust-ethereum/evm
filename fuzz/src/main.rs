@@ -22,6 +22,7 @@
 
 mod backend;
 mod grammar;
+#[cfg(not(feature = "fuzzing"))]
 use std::alloc::System;
 
 use backend::MockBackend;
