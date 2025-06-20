@@ -34,48 +34,6 @@ pub const EIP_7702_DELEGATION_PREFIX: &[u8] = &[0xef, 0x01, 0x00];
 /// EIP-7702 delegation designator full length (prefix + address)
 pub const EIP_7702_DELEGATION_SIZE: usize = 23; // 3 bytes prefix + 20 bytes address
 
-/// EIP-7702 Authorization tuple
-///
-/// Note: This struct assumes signature validation and recovery are handled externally.
-/// The `authorizing_address` field contains the recovered signer address.
-#[derive(Clone, Debug)]
-#[cfg_attr(
-	feature = "with-codec",
-	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
-)]
-#[cfg_attr(feature = "with-serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Authorization {
-	pub chain_id: U256,
-	pub address: H160,
-	pub nonce: U256,
-	/// Address that authorized this delegation (recovered from signature)
-	pub authorizing_address: H160,
-}
-
-impl Authorization {
-	/// Validate authorization constraints (signature validation is handled externally)
-	pub fn validate(&self, current_chain_id: U256) -> Result<(), AuthorizationError> {
-		// Chain ID must be 0 or current chain ID
-		if self.chain_id != U256::zero() && self.chain_id != current_chain_id {
-			return Err(AuthorizationError::InvalidChainId);
-		}
-
-		// Nonce must be < 2^64
-		if self.nonce >= U256::from(1u128 << 64) {
-			return Err(AuthorizationError::NonceOverflow);
-		}
-
-		Ok(())
-	}
-}
-
-/// Authorization validation errors
-#[derive(Clone, Debug)]
-pub enum AuthorizationError {
-	InvalidChainId,
-	NonceOverflow,
-}
-
 /// Core execution layer for EVM.
 pub struct Machine {
 	/// Program data.
@@ -279,27 +237,5 @@ mod tests {
 		let regular_code = vec![0x60, 0x00]; // PUSH1 0
 		assert!(!is_delegation_designator(&regular_code));
 		assert_eq!(extract_delegation_address(&regular_code), None);
-	}
-
-	#[test]
-	fn test_authorization_validation() {
-		let authorizing_address = H160::from_slice(&[5u8; 20]);
-		let auth = Authorization {
-			chain_id: U256::from(1),
-			address: H160::zero(),
-			nonce: U256::from(42),
-			authorizing_address,
-		};
-
-		// Test valid chain ID
-		let result = auth.validate(U256::from(1));
-		assert!(result.is_ok());
-
-		// Test invalid chain ID
-		let result = auth.validate(U256::from(2));
-		assert!(matches!(
-			result.err(),
-			Some(AuthorizationError::InvalidChainId)
-		));
 	}
 }

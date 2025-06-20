@@ -335,7 +335,7 @@ impl<'config> Gasometer<'config> {
 pub fn call_transaction_cost(
 	data: &[u8],
 	access_list: &[(H160, Vec<H256>)],
-	authorization_list: &[evm_core::Authorization],
+	authorization_list: &[(U256, H160, U256, H160)],
 ) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
@@ -358,7 +358,7 @@ pub fn call_transaction_cost(
 pub fn create_transaction_cost(
 	data: &[u8],
 	access_list: &[(H160, Vec<H256>)],
-	authorization_list: &[evm_core::Authorization],
+	authorization_list: &[(U256, H160, U256, H160)],
 ) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;

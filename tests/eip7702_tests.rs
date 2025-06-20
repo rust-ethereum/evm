@@ -576,12 +576,12 @@ fn test_eip7702_transaction_cost_empty_account() {
 		evm::executor::stack::StackExecutor::new_with_precompiles(state, &config, &precompiles);
 
 	// Create authorization for empty account
-	let authorization = evm_core::Authorization {
-		chain_id: U256::from(1),
-		address: implementation_address,
-		nonce: U256::zero(),
-		authorizing_address: empty_authorizing_address,
-	};
+	let authorization = (
+		U256::from(1),
+		implementation_address,
+		U256::zero(),
+		empty_authorizing_address,
+	);
 
 	// Execute a transaction with authorization list
 	let (exit_reason, _return_data) = executor.transact_call(
@@ -670,12 +670,12 @@ fn test_eip7702_transaction_cost_non_empty_account() {
 		evm::executor::stack::StackExecutor::new_with_precompiles(state, &config, &precompiles);
 
 	// Create authorization for non-empty account
-	let authorization = evm_core::Authorization {
-		chain_id: U256::from(1),
-		address: implementation_address,
-		nonce: U256::zero(),
-		authorizing_address: non_empty_authorizing_address,
-	};
+	let authorization = (
+		U256::from(1),
+		implementation_address,
+		U256::zero(),
+		non_empty_authorizing_address,
+	);
 
 	// Execute a transaction with authorization list
 	let (exit_reason, _return_data) = executor.transact_call(
@@ -770,19 +770,19 @@ fn test_eip7702_transaction_cost_mixed_accounts() {
 		evm::executor::stack::StackExecutor::new_with_precompiles(state, &config, &precompiles);
 
 	// Create authorizations for both empty and non-empty accounts
-	let auth_empty = evm_core::Authorization {
-		chain_id: U256::from(1),
-		address: implementation_address,
-		nonce: U256::zero(),
-		authorizing_address: empty_authorizing_address,
-	};
+	let auth_empty = (
+		U256::from(1),
+		implementation_address,
+		U256::zero(),
+		empty_authorizing_address,
+	);
 
-	let auth_non_empty = evm_core::Authorization {
-		chain_id: U256::from(1),
-		address: implementation_address,
-		nonce: U256::zero(),
-		authorizing_address: non_empty_authorizing_address,
-	};
+	let auth_non_empty = (
+		U256::from(1),
+		implementation_address,
+		U256::zero(),
+		non_empty_authorizing_address,
+	);
 
 	// Execute a transaction with mixed authorization list
 	let (exit_reason, _return_data) = executor.transact_call(

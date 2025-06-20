@@ -430,7 +430,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self,
 		init_code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		authorization_list: &[evm_core::Authorization],
+		authorization_list: &[(U256, H160, U256, H160)],
 	) -> Result<(), ExitError> {
 		let transaction_cost =
 			gasometer::create_transaction_cost(init_code, access_list, authorization_list);
@@ -462,7 +462,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-		authorization_list: Vec<evm_core::Authorization>, // See EIP-7702
+		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
 			caller,
@@ -518,7 +518,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		salt: H256,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-		authorization_list: Vec<evm_core::Authorization>, // See EIP-7702
+		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		if let Some(limit) = self.config.max_initcode_size {
 			if init_code.len() > limit {
@@ -584,7 +584,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-		authorization_list: Vec<evm_core::Authorization>, // See EIP-7702
+		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
 		contract_address: H160,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
@@ -647,7 +647,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		data: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>,
-		authorization_list: Vec<evm_core::Authorization>,
+		authorization_list: Vec<(U256, H160, U256, H160)>,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCall {
 			caller,
@@ -782,29 +782,36 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	/// This processes the authorization tuples and applies delegations as specified
 	pub fn initialize_with_authorization_list(
 		&mut self,
-		authorization_list: Vec<evm_core::Authorization>,
+		authorization_list: Vec<(U256, H160, U256, H160)>,
 	) {
 		for authorization in authorization_list {
-			// Validate the authorization
-			if authorization.validate(self.chain_id()).is_err() {
-				continue; // Skip invalid authorizations
+			let (chain_id, delegation_address, nonce, authorizing_address) = authorization;
+
+			// Chain ID must be 0 or current chain ID
+			if chain_id != U256::zero() && chain_id != self.chain_id() {
+				continue;
+			}
+
+			// Nonce must be < 2^64
+			if nonce >= U256::from(1u128 << 64) {
+				continue;
 			}
 
 			// Get the current nonce of the authorizing account
-			let account_nonce = self.state.basic(authorization.authorizing_address).nonce;
+			let account_nonce = self.state.basic(authorizing_address).nonce;
 
 			// Check if the nonce matches
-			if account_nonce != authorization.nonce {
+			if account_nonce != nonce {
 				continue; // Skip if nonce doesn't match
 			}
 
 			// Check if the authorizing address is non-empty and apply refund
 			// Per EIP-7702: Initially all auths are charged PER_EMPTY_ACCOUNT_COST,
 			// then non-empty accounts get refunded (PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST)
-			let account = self.state.basic(authorization.authorizing_address);
+			let account = self.state.basic(authorizing_address);
 			let is_empty_account = account.nonce == U256::zero()
 				&& account.balance == U256::zero()
-				&& self.state.code_size(authorization.authorizing_address) == U256::zero();
+				&& self.state.code_size(authorizing_address) == U256::zero();
 
 			if !is_empty_account {
 				// Issue refund for this non-empty account
@@ -818,27 +825,22 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 
 			// Create the delegation designator
-			let delegation_designator =
-				evm_core::create_delegation_designator(authorization.address);
+			let delegation_designator = evm_core::create_delegation_designator(delegation_address);
 
 			// Set the delegation code for the authorizing account
-			let _ = self.state.set_code(
-				authorization.authorizing_address,
-				delegation_designator,
-				None,
-			);
+			let _ = self
+				.state
+				.set_code(authorizing_address, delegation_designator, None);
 
 			// Increment the nonce of the authorizing account
-			let _ = self.state.inc_nonce(authorization.authorizing_address);
+			let _ = self.state.inc_nonce(authorizing_address);
 
 			// Mark the addresses as accessed for EIP-2929
 			if self.config.increase_state_access_gas {
 				self.state
 					.metadata_mut()
-					.access_address(authorization.authorizing_address);
-				self.state
-					.metadata_mut()
-					.access_address(authorization.address);
+					.access_address(authorizing_address);
+				self.state.metadata_mut().access_address(delegation_address);
 			}
 		}
 	}
