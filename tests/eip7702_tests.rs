@@ -1,7 +1,7 @@
 use evm::{
 	backend::{Backend, MemoryBackend},
 	executor::stack::StackExecutor,
-	Config, ExitReason, Handler,
+	Config, ExitError, ExitReason, Handler,
 };
 use primitive_types::{H160, H256, U256};
 use std::collections::BTreeMap;
@@ -1739,4 +1739,135 @@ fn test_eip7702_staticcall_read_only_operations() {
 
 	// STATICCALL should follow delegation and return 0x42
 	assert_eq!(return_data[31], 0x42);
+}
+
+#[test]
+fn test_eip7702_delegation_chain_violation() {
+	// According to EIP-7702: "clients must retrieve only the first code and then stop following the delegation chain"
+
+	let caller = H160::from_slice(&[1u8; 20]);
+	let first_delegating_address = H160::from_slice(&[2u8; 20]);
+	let second_delegating_address = H160::from_slice(&[3u8; 20]);
+	let final_implementation_address = H160::from_slice(&[4u8; 20]);
+
+	// Create a proper delegation chain: first -> second -> final
+	let first_delegation_designator =
+		evm_core::create_delegation_designator(second_delegating_address);
+	let second_delegation_designator =
+		evm_core::create_delegation_designator(final_implementation_address);
+
+	// Final implementation returns 0x42
+	let final_implementation_code = vec![
+		0x60, 0x42, // PUSH1 0x42
+		0x60, 0x00, // PUSH1 0x00
+		0x52, // MSTORE
+		0x60, 0x20, // PUSH1 0x20
+		0x60, 0x00, // PUSH1 0x00
+		0xf3, // RETURN
+	];
+
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	// Set up caller
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Set up first delegating address (delegates to second)
+	state.insert(
+		first_delegating_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: first_delegation_designator,
+		},
+	);
+
+	// Set up second delegating address with DELEGATION DESIGNATOR (not implementation code)
+	// This is the key: the second address contains a delegation designator, not actual code
+	state.insert(
+		second_delegating_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: second_delegation_designator, // This should be executed as code, NOT followed
+		},
+	);
+
+	// Set up final implementation (should NOT be reached if EIP-7702 is properly implemented)
+	state.insert(
+		final_implementation_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: final_implementation_code,
+		},
+	);
+
+	let vicinity = evm::backend::MemoryVicinity {
+		gas_price: U256::from(1),
+		origin: H160::default(),
+		block_hashes: Vec::new(),
+		block_number: U256::zero(),
+		block_coinbase: H160::default(),
+		block_timestamp: U256::zero(),
+		block_difficulty: U256::zero(),
+		block_randomness: None,
+		block_gas_limit: U256::from(10000000),
+		block_base_fee_per_gas: U256::from(7),
+		chain_id: U256::from(1),
+	};
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// Call the first delegating address
+	let (exit_reason, return_data) = executor.transact_call(
+		caller,
+		first_delegating_address,
+		U256::zero(),
+		Vec::new(),
+		1000000,
+		Vec::new(),
+		Vec::new(),
+	);
+
+	println!("Exit reason: {:?}", exit_reason);
+	println!("Return data: {:?}", return_data);
+
+	// According to EIP-7702, this should attempt to execute the second delegation designator as code
+	// Since delegation designator bytes (0xef0100 + address) are not valid EVM bytecode,
+	// this should result in an InvalidCode error, NOT success with 0x42
+
+	match exit_reason {
+		ExitReason::Error(ExitError::InvalidCode(_)) => {
+			// This is CORRECT EIP-7702 behavior - delegation chain was properly stopped
+			println!("✓ CORRECT: Delegation chain properly stopped, invalid code executed");
+		}
+		ExitReason::Succeed(_) => {
+			if return_data.len() == 32 && return_data[31] == 0x42 {
+				// This indicates the implementation INCORRECTLY followed the delegation chain
+				// to the final implementation instead of executing the second delegation designator as code
+				panic!("❌ BUG DETECTED: Implementation incorrectly followed delegation chain to final implementation (returned 0x42). Should have executed second delegation designator as invalid code.");
+			} else {
+				println!("Succeeded with unexpected return data: {:?}", return_data);
+			}
+		}
+		_ => {
+			println!("Got unexpected exit reason: {:?}", exit_reason);
+		}
+	}
 }
