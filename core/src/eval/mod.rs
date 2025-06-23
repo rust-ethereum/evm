@@ -120,6 +120,14 @@ fn eval_sar(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
 	op2_u256_fn!(state, self::bitwise::sar)
 }
 
+fn eval_codesize(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
+	self::misc::codesize(state)
+}
+
+fn eval_codecopy(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
+	self::misc::codecopy(state)
+}
+
 fn eval_calldataload(state: &mut Machine, _opcode: Opcode, _position: usize) -> Control {
 	self::misc::calldataload(state)
 }
@@ -479,8 +487,8 @@ pub fn eval(state: &mut Machine, opcode: Opcode, position: usize) -> Control {
 		table[Opcode::SHL.as_usize()] = eval_shl as _;
 		table[Opcode::SHR.as_usize()] = eval_shr as _;
 		table[Opcode::SAR.as_usize()] = eval_sar as _;
-		table[Opcode::CODESIZE.as_usize()] = eval_external as _;
-		table[Opcode::CODECOPY.as_usize()] = eval_external as _;
+		table[Opcode::CODESIZE.as_usize()] = eval_codesize as _;
+		table[Opcode::CODECOPY.as_usize()] = eval_codecopy as _;
 		table[Opcode::CALLDATALOAD.as_usize()] = eval_calldataload as _;
 		table[Opcode::CALLDATASIZE.as_usize()] = eval_calldatasize as _;
 		table[Opcode::CALLDATACOPY.as_usize()] = eval_calldatacopy as _;

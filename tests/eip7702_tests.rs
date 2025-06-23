@@ -280,7 +280,7 @@ fn test_eip7702_extcodehash_does_not_follow_delegation() {
 }
 
 #[test]
-fn test_eip7702_codesize_returns_delegator_size() {
+fn test_eip7702_codesize_returns_delegated_code_size() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let delegating_address = H160::from_slice(&[1u8; 20]);
 
@@ -359,12 +359,12 @@ fn test_eip7702_codesize_returns_delegator_size() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Returned));
 	assert_eq!(return_data.len(), 32);
 
-	// CODESIZE should return 23 (the size of the delegation designator) according to EIP-7702
-	assert_eq!(return_data[31], 23);
+	// CODESIZE should follow the delegation designator according to EIP-7702
+	assert_eq!(return_data[31], 9);
 }
 
 #[test]
-fn test_eip7702_codecopy_copies_delegator_code() {
+fn test_eip7702_codecopy_copies_delegated_code() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let delegating_address = H160::from_slice(&[1u8; 20]);
 
@@ -395,7 +395,7 @@ fn test_eip7702_codecopy_copies_delegator_code() {
 			nonce: U256::zero(),
 			balance: U256::zero(),
 			storage: BTreeMap::new(),
-			code: delegating_code,
+			code: delegating_code.clone(),
 		},
 	);
 
@@ -445,7 +445,7 @@ fn test_eip7702_codecopy_copies_delegator_code() {
 	assert_eq!(return_data.len(), 23);
 
 	// CODECOPY should return the delegation designator according to EIP-7702
-	assert_eq!(&return_data[..], &delegation_designator[..]);
+	assert_eq!(&return_data[..12], &delegating_code[..]);
 }
 
 #[test]

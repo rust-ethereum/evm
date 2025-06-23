@@ -4,6 +4,29 @@ use core::cmp::{max, min};
 use primitive_types::{H256, U256};
 
 #[inline]
+pub fn codesize(state: &mut Machine) -> Control {
+	let size = U256::from(state.code.len());
+	trace_op!("CodeSize: {}", size);
+	push_u256!(state, size);
+	Control::Continue(1)
+}
+
+#[inline]
+pub fn codecopy(state: &mut Machine) -> Control {
+	pop_u256!(state, memory_offset, code_offset, len);
+	trace_op!("CodeCopy: {}", len);
+
+	try_or_fail!(state.memory.resize_offset(memory_offset, len));
+	match state
+		.memory
+		.copy_large(memory_offset, code_offset, len, &state.code)
+	{
+		Ok(()) => Control::Continue(1),
+		Err(e) => Control::Exit(e.into()),
+	}
+}
+
+#[inline]
 pub fn calldataload(state: &mut Machine) -> Control {
 	pop_u256!(state, index);
 
