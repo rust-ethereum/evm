@@ -805,3 +805,110 @@ fn test_eip7702_transaction_cost_mixed_accounts() {
 	let gas_used = executor.used_gas();
 	assert_eq!(gas_used, 58500);
 }
+
+#[test]
+fn test_eip7702_call_follows_delegation() {
+	// Test that CALL follows delegation and executes delegated code
+	let caller = H160::from_slice(&[1u8; 20]);
+	let implementation_address = H160::from_slice(&[2u8; 20]);
+	let delegating_address = H160::from_slice(&[3u8; 20]);
+
+	// Create implementation code that returns a specific value
+	let implementation_code = vec![
+		0x60, 0x42, // PUSH1 0x42
+		0x60, 0x00, // PUSH1 0x00
+		0x52, // MSTORE
+		0x60, 0x20, // PUSH1 0x20
+		0x60, 0x00, // PUSH1 0x00
+		0xf3, // RETURN
+	];
+
+	// Create caller code that calls the delegating address
+	let caller_code = vec![
+		0x60, 0x20, // PUSH1 0x20 (retSize)
+		0x60, 0x00, // PUSH1 0x00 (retOffset)
+		0x60, 0x00, // PUSH1 0x00 (argsSize)
+		0x60, 0x00, // PUSH1 0x00 (argsOffset)
+		0x60, 0x00, // PUSH1 0x00 (value)
+		0x73, // PUSH20
+		3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, // delegating_address
+		0x61, 0xff, 0xff, // PUSH2 0xffff (gas)
+		0xf1, // CALL
+		0x60, 0x20, // PUSH1 0x20
+		0x60, 0x00, // PUSH1 0x00
+		0xf3, // RETURN
+	];
+
+	let delegation_designator = evm_core::create_delegation_designator(implementation_address);
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	// Set up caller contract
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: caller_code,
+		},
+	);
+
+	// Set up implementation contract
+	state.insert(
+		implementation_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: implementation_code,
+		},
+	);
+
+	// Set up delegating account with delegation designator
+	state.insert(
+		delegating_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: delegation_designator,
+		},
+	);
+
+	let vicinity = evm::backend::MemoryVicinity {
+		gas_price: U256::from(1),
+		origin: H160::default(),
+		block_hashes: Vec::new(),
+		block_number: U256::zero(),
+		block_coinbase: H160::default(),
+		block_timestamp: U256::zero(),
+		block_difficulty: U256::zero(),
+		block_randomness: None,
+		block_gas_limit: U256::from(10000000),
+		block_base_fee_per_gas: U256::from(7),
+		chain_id: U256::from(1),
+	};
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// Execute the caller contract
+	let (exit_reason, return_data) = executor.transact_call(
+		H160::default(),
+		caller,
+		U256::zero(),
+		Vec::new(),
+		1000000,
+		Vec::new(),
+		Vec::new(),
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Returned));
+	assert_eq!(return_data.len(), 32);
+	// CALL should follow delegation and return 0x42 from implementation
+	assert_eq!(return_data[31], 0x42);
+}
