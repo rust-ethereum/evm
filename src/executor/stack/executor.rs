@@ -1054,11 +1054,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		// EIP-7702: Get execution code, following delegations if enabled
-		let code = self.code(code_address);
-		let execution_code = if self.config.has_eip_7702 {
-			self.delegated_code(code_address).unwrap_or(code)
+		let code = if self.config.has_eip_7702 {
+			self.delegated_code(code_address)
+				.unwrap_or_else(|| self.code(code_address))
 		} else {
-			code
+			self.code(code_address)
 		};
 
 		if let Some(depth) = self.state.metadata().depth {
@@ -1126,7 +1126,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		let runtime = Runtime::new(
-			Rc::new(execution_code),
+			Rc::new(code),
 			Rc::new(input),
 			context,
 			self.config.stack_limit,
