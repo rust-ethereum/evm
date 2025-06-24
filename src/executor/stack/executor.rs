@@ -824,13 +824,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					.record_refund(refund_amount as i64);
 			}
 
-			// Create the delegation designator
-			let delegation_designator = evm_core::create_delegation_designator(delegation_address);
-
-			// Set the delegation code for the authorizing account
-			let _ = self
-				.state
-				.set_code(authorizing_address, delegation_designator, None);
+			// Set account code: clear if delegating to zero address, otherwise set delegation designator
+			let code = if delegation_address == H160::zero() {
+				Vec::new()
+			} else {
+				evm_core::create_delegation_designator(delegation_address)
+			};
+			let _ = self.state.set_code(authorizing_address, code, None);
 
 			// Increment the nonce of the authorizing account
 			let _ = self.state.inc_nonce(authorizing_address);

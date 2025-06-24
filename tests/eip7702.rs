@@ -1871,3 +1871,300 @@ fn test_eip7702_delegation_chain_violation() {
 		}
 	}
 }
+
+#[test]
+fn test_eip7702_zero_address_clears_code() {
+	// Test that delegation to zero address clears the account's code
+	let caller = H160::from_slice(&[1u8; 20]);
+	let authorizing_address = H160::from_slice(&[2u8; 20]);
+	let target_address = H160::from_slice(&[3u8; 20]);
+
+	// Create some initial code for the authorizing address
+	let initial_code = vec![
+		0x60, 0x42, // PUSH1 0x42
+		0x60, 0x00, // PUSH1 0x00
+		0x52, // MSTORE
+		0x60, 0x20, // PUSH1 0x20
+		0x60, 0x00, // PUSH1 0x00
+		0xf3, // RETURN
+	];
+
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	// Set up caller with balance
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Set up authorizing address with initial code
+	state.insert(
+		authorizing_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: initial_code.clone(),
+		},
+	);
+
+	let vicinity = evm::backend::MemoryVicinity {
+		gas_price: U256::from(1),
+		origin: H160::default(),
+		block_hashes: Vec::new(),
+		block_number: U256::zero(),
+		block_coinbase: H160::default(),
+		block_timestamp: U256::zero(),
+		block_difficulty: U256::zero(),
+		block_randomness: None,
+		block_gas_limit: U256::from(10000000),
+		block_base_fee_per_gas: U256::from(7),
+		chain_id: U256::from(1),
+	};
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// Verify initial code exists
+	assert_eq!(executor.code(authorizing_address), initial_code);
+
+	// Create authorization to zero address
+	let authorization = (
+		U256::from(1),       // chain_id
+		H160::zero(),        // delegation_address (zero address)
+		U256::zero(),        // nonce
+		authorizing_address, // authorizing_address
+	);
+
+	// Execute a transaction with authorization to zero address
+	let (exit_reason, _return_data) = executor.transact_call(
+		caller,
+		target_address,
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		vec![authorization],
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+
+	// Verify the code has been cleared
+	let final_code = executor.code(authorizing_address);
+	assert_eq!(
+		final_code.len(),
+		0,
+		"Code should be cleared when delegating to zero address"
+	);
+
+	// Verify the account still exists (balance unchanged)
+	let account = executor.state().basic(authorizing_address);
+	assert_eq!(account.balance, U256::from(1000));
+	assert_eq!(account.nonce, U256::from(1)); // Nonce should be incremented
+}
+
+#[test]
+fn test_eip7702_zero_address_with_existing_delegation() {
+	// Test clearing an existing delegation by delegating to zero address
+	let caller = H160::from_slice(&[1u8; 20]);
+	let authorizing_address = H160::from_slice(&[2u8; 20]);
+	let implementation_address = H160::from_slice(&[3u8; 20]);
+	let target_address = H160::from_slice(&[4u8; 20]);
+
+	// Create initial delegation designator
+	let initial_delegation = evm_core::create_delegation_designator(implementation_address);
+
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	// Set up caller with balance
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Set up authorizing address with existing delegation
+	state.insert(
+		authorizing_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: initial_delegation.clone(),
+		},
+	);
+
+	// Set up implementation
+	state.insert(
+		implementation_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: vec![0x60, 0x42, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3],
+		},
+	);
+
+	let vicinity = evm::backend::MemoryVicinity {
+		gas_price: U256::from(1),
+		origin: H160::default(),
+		block_hashes: Vec::new(),
+		block_number: U256::zero(),
+		block_coinbase: H160::default(),
+		block_timestamp: U256::zero(),
+		block_difficulty: U256::zero(),
+		block_randomness: None,
+		block_gas_limit: U256::from(10000000),
+		block_base_fee_per_gas: U256::from(7),
+		chain_id: U256::from(1),
+	};
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// Verify initial delegation exists
+	assert_eq!(executor.code(authorizing_address), initial_delegation);
+	assert!(evm_core::is_delegation_designator(
+		&executor.code(authorizing_address)
+	));
+
+	// Create authorization to zero address to clear delegation
+	let authorization = (
+		U256::from(1),       // chain_id
+		H160::zero(),        // delegation_address (zero address)
+		U256::zero(),        // nonce
+		authorizing_address, // authorizing_address
+	);
+
+	// Execute a transaction with authorization to zero address
+	let (exit_reason, _return_data) = executor.transact_call(
+		caller,
+		target_address,
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		vec![authorization],
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+
+	// Verify the delegation has been cleared
+	let final_code = executor.code(authorizing_address);
+	assert_eq!(
+		final_code.len(),
+		0,
+		"Delegation should be cleared when delegating to zero address"
+	);
+	assert!(!evm_core::is_delegation_designator(&final_code));
+}
+
+#[test]
+fn test_eip7702_zero_address_gas_costs() {
+	// Test that gas costs are correctly applied for zero address delegation
+	let caller = H160::from_slice(&[1u8; 20]);
+	let empty_authorizing_address = H160::from_slice(&[2u8; 20]);
+	let non_empty_authorizing_address = H160::from_slice(&[3u8; 20]);
+	let target_address = H160::from_slice(&[4u8; 20]);
+
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	// Set up caller with balance
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Leave empty_authorizing_address uninitialized (empty account)
+
+	// Set up non-empty account
+	state.insert(
+		non_empty_authorizing_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	let vicinity = evm::backend::MemoryVicinity {
+		gas_price: U256::from(1),
+		origin: H160::default(),
+		block_hashes: Vec::new(),
+		block_number: U256::zero(),
+		block_coinbase: H160::default(),
+		block_timestamp: U256::zero(),
+		block_difficulty: U256::zero(),
+		block_randomness: None,
+		block_gas_limit: U256::from(10000000),
+		block_base_fee_per_gas: U256::from(7),
+		chain_id: U256::from(1),
+	};
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// Create authorizations to zero address
+	let auth_empty = (
+		U256::from(1),
+		H160::zero(),
+		U256::zero(),
+		empty_authorizing_address,
+	);
+
+	let auth_non_empty = (
+		U256::from(1),
+		H160::zero(),
+		U256::zero(),
+		non_empty_authorizing_address,
+	);
+
+	// Execute transaction with both authorizations
+	let (exit_reason, _return_data) = executor.transact_call(
+		caller,
+		target_address,
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		vec![auth_empty, auth_non_empty],
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+
+	// Verify both accounts have empty code
+	assert_eq!(executor.code(empty_authorizing_address).len(), 0);
+	assert_eq!(executor.code(non_empty_authorizing_address).len(), 0);
+
+	// Gas costs should still be applied correctly
+	// Base: 21000 + empty: 25000 + non-empty: 12500 = 58500
+	let gas_used = executor.used_gas();
+	assert_eq!(gas_used, 58500);
+}
