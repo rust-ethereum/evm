@@ -806,6 +806,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				continue;
 			}
 
+			// Add authority to accessed_addresses, as defined in EIP-2929
+			if self.config.increase_state_access_gas {
+				self.state
+					.metadata_mut()
+					.access_address(authorizing_address);
+			}
+
 			// Get the current nonce of the authorizing account
 			let account_nonce = self.state.basic(authorizing_address).nonce;
 
@@ -842,15 +849,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			// Increment the nonce of the authorizing account
 			self.state.inc_nonce(authorizing_address)?;
-
-			// Mark the addresses as accessed for EIP-2929
-			if self.config.increase_state_access_gas {
-				self.state
-					.metadata_mut()
-					.access_address(authorizing_address);
-				self.state.metadata_mut().access_address(delegation_address);
-			}
 		}
+
 		Ok(())
 	}
 
