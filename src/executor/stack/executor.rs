@@ -801,8 +801,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				continue;
 			}
 
-			// Nonce must be < 2^64
-			if nonce >= U256::from(1u128 << 64) {
+			// Nonce must be < 2^64 - 1
+			if nonce >= U256::from(2u64).pow(U256::from(64)) - U256::from(1) {
 				continue;
 			}
 
