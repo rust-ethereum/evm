@@ -487,7 +487,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.initialize_with_access_list(access_list);
 
 		if self.config.has_eip_7702 {
-			self.initialize_with_authorization_list(authorization_list);
+			if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+				return emit_exit!(e.into(), Vec::new());
+			}
 		}
 
 		match self.create_inner(
@@ -549,7 +551,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		self.initialize_with_access_list(access_list);
 
 		if self.config.has_eip_7702 {
-			self.initialize_with_authorization_list(authorization_list);
+			if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+				return emit_exit!(e.into(), Vec::new());
+			}
 		}
 
 		match self.create_inner(
@@ -608,7 +612,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
-		self.initialize_with_authorization_list(authorization_list);
+
+		if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+			return emit_exit!(e.into(), Vec::new());
+		}
 
 		match self.create_inner(
 			caller,
@@ -682,7 +689,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		}
 
 		if self.config.has_eip_7702 {
-			self.initialize_with_authorization_list(authorization_list);
+			if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+				return emit_exit!(e.into(), Vec::new());
+			}
 		}
 
 		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
@@ -783,7 +792,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	pub fn initialize_with_authorization_list(
 		&mut self,
 		authorization_list: Vec<(U256, H160, U256, H160)>,
-	) {
+	) -> Result<(), ExitError> {
 		for authorization in authorization_list {
 			let (chain_id, delegation_address, nonce, authorizing_address) = authorization;
 
@@ -817,11 +826,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				// Issue refund for this non-empty account
 				let refund_amount =
 					self.config.gas_per_empty_account_cost - self.config.gas_auth_base_cost;
-				let _ = self
-					.state
+				self.state
 					.metadata_mut()
 					.gasometer
-					.record_refund(refund_amount as i64);
+					.record_refund(refund_amount as i64)?;
 			}
 
 			// Set account code: clear if delegating to zero address, otherwise set delegation designator
@@ -830,10 +838,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			} else {
 				evm_core::create_delegation_designator(delegation_address)
 			};
-			let _ = self.state.set_code(authorizing_address, code, None);
+			self.state.set_code(authorizing_address, code, None)?;
 
 			// Increment the nonce of the authorizing account
-			let _ = self.state.inc_nonce(authorizing_address);
+			self.state.inc_nonce(authorizing_address)?;
 
 			// Mark the addresses as accessed for EIP-2929
 			if self.config.increase_state_access_gas {
@@ -843,6 +851,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				self.state.metadata_mut().access_address(delegation_address);
 			}
 		}
+		Ok(())
 	}
 
 	fn create_inner(
