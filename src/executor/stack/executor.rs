@@ -813,6 +813,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					.access_address(authorizing_address);
 			}
 
+			// Skip if account has existing non-delegation code
+			let existing_code = self.state.code(authorizing_address);
+			if !existing_code.is_empty() && !evm_core::is_delegation_designator(&existing_code) {
+				// Skip if account has non-delegation code
+				continue;
+			}
+
 			// Get the current nonce of the authorizing account
 			let account_nonce = self.state.basic(authorizing_address).nonce;
 
