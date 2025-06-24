@@ -1614,10 +1614,14 @@ fn test_5_2_per_auth_base_cost() {
 
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
-	// Expected: 21000 (base) + 2 * (25000 - 12500) = 21000 + 25000 = 46000
-	// Each non-empty account: 25000 initially, then 12500 refund = 12500 net cost
+	// Expected calculation accounting for EIP-3529 refund cap:
+	// Initial: 21000 (base) + 2 * 25000 (per empty account) = 71000
+	// Refunds: 2 * 12500 = 25000 
+	// Refund cap: 71000 / 5 = 14200 (max_refund_quotient = 5)
+	// Applied refund: min(25000, 14200) = 14200
+	// Final: 71000 - 14200 = 56800
 	let gas_used = executor.used_gas();
-	assert_eq!(gas_used, 46000); // 21000 + 2 * 12500
+	assert_eq!(gas_used, 56800);
 }
 
 #[test]
