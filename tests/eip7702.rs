@@ -3,7 +3,7 @@ use evm::{
 	executor::stack::StackExecutor,
 	Config, ExitError, ExitReason, Handler,
 };
-use primitive_types::{H160, H256, U256};
+use primitive_types::{H160, U256};
 use std::collections::BTreeMap;
 
 // ============================================================================
@@ -1616,7 +1616,7 @@ fn test_5_2_per_auth_base_cost() {
 
 	// Expected calculation accounting for EIP-3529 refund cap:
 	// Initial: 21000 (base) + 2 * 25000 (per empty account) = 71000
-	// Refunds: 2 * 12500 = 25000 
+	// Refunds: 2 * 12500 = 25000
 	// Refund cap: 71000 / 5 = 14200 (max_refund_quotient = 5)
 	// Applied refund: min(25000, 14200) = 14200
 	// Final: 71000 - 14200 = 56800
@@ -2360,7 +2360,7 @@ fn test_9_2_delegation_chain() {
 	assert_eq!(executor.code(account_b), delegation_b_to_c);
 
 	// Now call A - it should delegate to B, and B should execute its own delegation code (not follow chain to C)
-	let (call_exit_reason, return_data) = executor.transact_call(
+	let (call_exit_reason, _return_data) = executor.transact_call(
 		caller,
 		account_a,
 		U256::zero(),
