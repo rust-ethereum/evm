@@ -1863,9 +1863,11 @@ fn test_5_5_invalid_authorization_gas() {
 	assert_eq!(executor.code(authorizing), Vec::<u8>::new());
 
 	// Gas should still be consumed for processing the authorization
+	// NOTE: Gas cost for this invalid authorization is 25000 since it's skipped
+	// before processing the refund.
 	let gas_used = executor.used_gas();
-	// Expected: 21000 (base) + 25000 initially - 12500 refund = 33500
-	assert_eq!(gas_used, 33500);
+	// Expected: 21000 (base) + 25000 initially = 46000
+	assert_eq!(gas_used, 46000);
 }
 
 // ============================================================================
