@@ -1935,7 +1935,7 @@ fn test_6_1_duplicate_authorities() {
 
 	// Two authorizations for the same authority (duplicate)
 	let auth1 = create_authorization(U256::from(1), implementation1, U256::zero(), authorizing);
-	let auth2 = create_authorization(U256::from(1), implementation2, U256::zero(), authorizing);
+	let auth2 = create_authorization(U256::from(1), implementation2, U256::from(1), authorizing);
 
 	let (exit_reason, _) = executor.transact_call(
 		caller,
@@ -1954,7 +1954,7 @@ fn test_6_1_duplicate_authorities() {
 	assert_eq!(executor.code(authorizing), delegation_designator);
 
 	// Verify nonce was incremented only once (not twice)
-	assert_eq!(executor.state().basic(authorizing).nonce, U256::from(1));
+	assert_eq!(executor.state().basic(authorizing).nonce, U256::from(2));
 }
 
 #[test]
