@@ -1460,9 +1460,177 @@ fn test_4_5_code_execution_redirection() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Returned));
 	assert_eq!(return_data.len(), 32);
 	assert_eq!(return_data[31], 0x42); // Should return the value from implementation
-} // ============================================================================
-  // Gas Cost Tests (Section 5)
-  // ============================================================================
+}
+
+#[test]
+fn test_4_6_code_reading_operations_during_delegation() {
+	// Test: Call CODESIZE and CODECOPY from within delegated execution context
+	// Expected: CODESIZE returns actual code size (not 23), CODECOPY copies actual code (not delegation indicator)
+	// Comparison: EXTCODESIZE returns 23, EXTCODECOPY copies delegation indicator
+	// Verification: Different results based on execution context (inside vs outside)
+
+	let caller = H160::from_slice(&[1u8; 20]);
+	let implementation_address = H160::from_slice(&[2u8; 20]);
+	let delegating_address = H160::from_slice(&[3u8; 20]);
+
+	// Create implementation code that:
+	// 1. Calls CODESIZE and stores it
+	// 2. Calls CODECOPY to copy first 10 bytes of its own code
+	// 3. Returns both results
+	let implementation_code = vec![
+		// Get CODESIZE
+		0x38, // CODESIZE
+		0x60, 0x00, // PUSH1 0x00
+		0x52, // MSTORE (store codesize at memory[0])
+		// CODECOPY first 10 bytes to memory[0x20]
+		0x60, 0x0A, // PUSH1 0x0A (length = 10)
+		0x60, 0x00, // PUSH1 0x00 (offset in code)
+		0x60, 0x20, // PUSH1 0x20 (destination in memory)
+		0x39, // CODECOPY
+		// Return 64 bytes (codesize + first 10 bytes of code)
+		0x60, 0x40, // PUSH1 0x40 (return data size)
+		0x60, 0x00, // PUSH1 0x00 (return data offset)
+		0xf3, // RETURN
+	];
+
+	// Also create code to check EXTCODESIZE and EXTCODECOPY
+	let external_checker_code = vec![
+		// Load address from calldata to stack
+		0x60, 0x00, // PUSH1 0x00 (offset)
+		0x35, // CALLDATALOAD (load 32 bytes from calldata[0])
+		// Get EXTCODESIZE of the loaded address
+		0x80, // DUP1 (duplicate address on stack)
+		0x3b, // EXTCODESIZE
+		0x60, 0x00, // PUSH1 0x00
+		0x52, // MSTORE (store extcodesize at memory[0])
+		// Now do EXTCODECOPY
+		// Stack currently has: [address]
+		// EXTCODECOPY pops: address, memory_offset, code_offset, len
+		// So we need to push: len, code_offset, memory_offset, then address will be popped first
+		0x60, 0x1E, // PUSH1 0x1E (length = 30)
+		0x60, 0x00, // PUSH1 0x00 (code offset)
+		0x60, 0x20, // PUSH1 0x20 (memory offset)
+		0x83, // DUP4 (get address from bottom of stack)
+		0x3c, // EXTCODECOPY
+		// Return 64 bytes
+		0x60, 0x40, // PUSH1 0x40
+		0x60, 0x00, // PUSH1 0x00
+		0xf3, // RETURN
+	];
+
+	let delegation_designator = evm_core::create_delegation_designator(implementation_address);
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	// Set up accounts
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: external_checker_code,
+		},
+	);
+
+	state.insert(
+		implementation_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: implementation_code.clone(),
+		},
+	);
+
+	state.insert(
+		delegating_address,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: delegation_designator.clone(),
+		},
+	);
+
+	let vicinity = create_test_vicinity();
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// First, call the delegating address to test CODESIZE/CODECOPY from inside
+	let (exit_reason, return_data) = executor.transact_call(
+		caller,
+		delegating_address,
+		U256::zero(),
+		Vec::new(),
+		1000000,
+		Vec::new(),
+		Vec::new(),
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Returned));
+	assert_eq!(return_data.len(), 64);
+
+	// Extract CODESIZE result (first 32 bytes)
+	let codesize_inside = U256::from_big_endian(&return_data[0..32]);
+	assert_eq!(codesize_inside, U256::from(implementation_code.len()));
+	assert_ne!(codesize_inside, U256::from(23)); // Should NOT be 23
+
+	// Extract CODECOPY result (next 32 bytes, but only first 10 are meaningful)
+	let codecopy_inside = &return_data[32..42];
+	assert_eq!(codecopy_inside, &implementation_code[0..10]); // Should match actual code
+
+	// Now test EXTCODESIZE/EXTCODECOPY from outside
+	// Pass the delegating address in calldata (left-padded to 32 bytes)
+	let mut calldata = vec![0u8; 32];
+	calldata[12..32].copy_from_slice(delegating_address.as_bytes());
+
+	let (exit_reason2, return_data2) = executor.transact_call(
+		H160::from_slice(&[5u8; 20]), // Different caller
+		caller,                       // Call the external checker contract
+		U256::zero(),
+		calldata,
+		1000000,
+		Vec::new(),
+		Vec::new(),
+	);
+
+	assert_eq!(
+		exit_reason2,
+		ExitReason::Succeed(evm::ExitSucceed::Returned)
+	);
+	assert_eq!(return_data2.len(), 64);
+
+	// Extract EXTCODESIZE result
+	let extcodesize = U256::from_big_endian(&return_data2[0..32]);
+
+	// The implementation correctly returns 23 for EXTCODESIZE on delegated accounts
+	assert_eq!(extcodesize, U256::from(23));
+
+	// Extract EXTCODECOPY result
+	let extcodecopy = &return_data2[32..55]; // 23 bytes
+
+	// The implementation should return the delegation designator for EXTCODECOPY
+	assert_eq!(extcodecopy, &delegation_designator[..]);
+
+	// Key verification: The test successfully demonstrates that code reading operations
+	// behave differently based on execution context (inside vs outside):
+	// - CODESIZE (inside): Returns actual implementation code size
+	// - EXTCODESIZE (outside): Returns 23 (delegation indicator size)
+	// - CODECOPY (inside): Copies actual implementation code
+	// - EXTCODECOPY (outside): Copies delegation indicator (0xef0100 || address)
+	//
+	// This confirms EIP-7702 behavior: external code operations see the delegation indicator,
+	// while internal operations see the actual delegated code.
+}
+
+// ============================================================================
+// Gas Cost Tests (Section 5)
+// ============================================================================
 
 #[test]
 fn test_5_1_base_transaction_cost() {
