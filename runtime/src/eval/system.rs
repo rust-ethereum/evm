@@ -94,6 +94,7 @@ pub fn extcodesize<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 	{
 		return Control::Exit(e.into());
 	}
+	// EIP-7702: EXTCODESIZE does NOT follow delegations
 	let code_size = handler.code_size(address.into());
 	push_u256!(runtime, code_size);
 
@@ -107,6 +108,7 @@ pub fn extcodehash<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 	{
 		return Control::Exit(e.into());
 	}
+	// EIP-7702: EXTCODEHASH does NOT follow delegations
 	let code_hash = handler.code_hash(address.into());
 	push!(runtime, code_hash);
 
@@ -127,6 +129,7 @@ pub fn extcodecopy<H: Handler>(runtime: &mut Runtime, handler: &mut H) -> Contro
 	{
 		return Control::Exit(e.into());
 	}
+	// EIP-7702: EXTCODECOPY does NOT follow delegations
 	let code = handler.code(address.into());
 	match runtime
 		.machine

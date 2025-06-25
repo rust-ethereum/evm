@@ -10,4 +10,6 @@ pub enum ExternalOperation {
 	IsEmpty,
 	/// Writing to storage (Number of bytes written).
 	Write(U256),
+	/// Resolving EIP-7702 delegation (target address).
+	DelegationResolution(H160),
 }

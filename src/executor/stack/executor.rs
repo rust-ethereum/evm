@@ -430,8 +430,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self,
 		init_code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
+		authorization_list: &[(U256, H160, U256, H160)],
 	) -> Result<(), ExitError> {
-		let transaction_cost = gasometer::create_transaction_cost(init_code, access_list);
+		let transaction_cost =
+			gasometer::create_transaction_cost(init_code, access_list, authorization_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		gasometer.record_transaction(transaction_cost)
 	}
@@ -460,6 +462,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
 			caller,
@@ -476,10 +479,18 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+		if let Err(e) =
+			self.record_create_transaction_cost(&init_code, &access_list, &authorization_list)
+		{
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
+
+		if self.config.has_eip_7702 {
+			if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+				return emit_exit!(e.into(), Vec::new());
+			}
+		}
 
 		match self.create_inner(
 			caller,
@@ -500,6 +511,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	}
 
 	/// Execute a `CREATE2` transaction.
+	#[allow(clippy::too_many_arguments)]
 	pub fn transact_create2(
 		&mut self,
 		caller: H160,
@@ -508,6 +520,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		salt: H256,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		if let Some(limit) = self.config.max_initcode_size {
 			if init_code.len() > limit {
@@ -530,10 +543,18 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}),
 		});
 
-		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+		if let Err(e) =
+			self.record_create_transaction_cost(&init_code, &access_list, &authorization_list)
+		{
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
+
+		if self.config.has_eip_7702 {
+			if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+				return emit_exit!(e.into(), Vec::new());
+			}
+		}
 
 		match self.create_inner(
 			caller,
@@ -559,6 +580,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 	/// Execute a `CREATE` transaction that force the contract address
 	#[cfg(feature = "allow_explicit_address")]
+	#[allow(clippy::too_many_arguments)]
 	pub fn transact_create_force_address(
 		&mut self,
 		caller: H160,
@@ -566,6 +588,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
+		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
 		contract_address: H160,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
@@ -583,10 +606,16 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		if let Err(e) = self.record_create_transaction_cost(&init_code, &access_list) {
+		if let Err(e) =
+			self.record_create_transaction_cost(&init_code, &access_list, &authorization_list)
+		{
 			return emit_exit!(e.into(), Vec::new());
 		}
 		self.initialize_with_access_list(access_list);
+
+		if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+			return emit_exit!(e.into(), Vec::new());
+		}
 
 		match self.create_inner(
 			caller,
@@ -600,7 +629,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
-				let (s, _, v) = self.execute_with_call_stack(&mut cs);
+				let (s, _, v) = self.execute_with_call_stack(&mut cs, None);
 				emit_exit!(s, v)
 			}
 		}
@@ -612,6 +641,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	/// Takes in an additional `access_list` parameter for EIP-2930 which was
 	/// introduced in the Ethereum Berlin hard fork. If you do not wish to use
 	/// this functionality, just pass in an empty vector.
+	///
+	/// Takes in an additional `authorization_list` parameter for EIP-7702 which was
+	/// introduced in the Ethereum Pectra hard fork. If you do not wish to use
+	/// this functionality, just pass in an empty vector.
+	#[allow(clippy::too_many_arguments)]
 	pub fn transact_call(
 		&mut self,
 		caller: H160,
@@ -620,6 +654,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		data: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>,
+		authorization_list: Vec<(U256, H160, U256, H160)>,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCall {
 			caller,
@@ -629,7 +664,8 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			gas_limit,
 		});
 
-		let transaction_cost = gasometer::call_transaction_cost(&data, &access_list);
+		let transaction_cost =
+			gasometer::call_transaction_cost(&data, &access_list, &authorization_list);
 		let gasometer = &mut self.state.metadata_mut().gasometer;
 		match gasometer.record_transaction(transaction_cost) {
 			Ok(()) => (),
@@ -651,6 +687,13 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			self.initialize_with_access_list(access_list);
 		}
+
+		if self.config.has_eip_7702 {
+			if let Err(e) = self.initialize_with_authorization_list(authorization_list) {
+				return emit_exit!(e.into(), Vec::new());
+			}
+		}
+
 		if let Err(e) = self.record_external_operation(crate::ExternalOperation::AccountBasicRead) {
 			return (e.into(), Vec::new());
 		}
@@ -742,6 +785,80 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			.into_iter()
 			.flat_map(|(address, keys)| keys.into_iter().map(move |key| (address, key)));
 		self.state.metadata_mut().access_storages(storage_keys);
+	}
+
+	/// Initialize the state with EIP-7702 authorization list
+	/// This processes the authorization tuples and applies delegations as specified
+	pub fn initialize_with_authorization_list(
+		&mut self,
+		authorization_list: Vec<(U256, H160, U256, H160)>,
+	) -> Result<(), ExitError> {
+		for authorization in authorization_list {
+			let (chain_id, delegation_address, nonce, authorizing_address) = authorization;
+
+			// Chain ID must be 0 or current chain ID
+			if chain_id != U256::zero() && chain_id != self.chain_id() {
+				continue;
+			}
+
+			// Nonce must be < 2^64 - 1
+			if nonce >= U256::from(2u64).pow(U256::from(64)) - U256::from(1) {
+				continue;
+			}
+
+			// Add authority to accessed_addresses, as defined in EIP-2929
+			if self.config.increase_state_access_gas {
+				self.state
+					.metadata_mut()
+					.access_address(authorizing_address);
+			}
+
+			// Skip if account has existing non-delegation code
+			let existing_code = self.state.code(authorizing_address);
+			if !existing_code.is_empty() && !evm_core::is_delegation_designator(&existing_code) {
+				// Skip if account has non-delegation code
+				continue;
+			}
+
+			// Get the current nonce of the authorizing account
+			let account_nonce = self.state.basic(authorizing_address).nonce;
+
+			// Check if the nonce matches
+			if account_nonce != nonce {
+				continue; // Skip if nonce doesn't match
+			}
+
+			// Check if the authorizing address is non-empty and apply refund
+			// Per EIP-7702: Initially all auths are charged PER_EMPTY_ACCOUNT_COST,
+			// then non-empty accounts get refunded (PER_EMPTY_ACCOUNT_COST - PER_AUTH_BASE_COST)
+			let account = self.state.basic(authorizing_address);
+			let is_empty_account = account.nonce == U256::zero()
+				&& account.balance == U256::zero()
+				&& self.state.code_size(authorizing_address) == U256::zero();
+
+			if !is_empty_account {
+				// Issue refund for this non-empty account
+				let refund_amount =
+					self.config.gas_per_empty_account_cost - self.config.gas_auth_base_cost;
+				self.state
+					.metadata_mut()
+					.gasometer
+					.record_refund(refund_amount as i64)?;
+			}
+
+			// Set account code: clear if delegating to zero address, otherwise set delegation designator
+			let code = if delegation_address == H160::zero() {
+				Vec::new()
+			} else {
+				evm_core::create_delegation_designator(delegation_address)
+			};
+			self.state.set_code(authorizing_address, code, None)?;
+
+			// Increment the nonce of the authorizing account
+			self.state.inc_nonce(authorizing_address)?;
+		}
+
+		Ok(())
 	}
 
 	fn create_inner(
@@ -951,7 +1068,15 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			let _ = self.exit_substate(StackExitKind::Failed);
 			return Capture::Exit((ExitReason::Error(e), Vec::new()));
 		}
-		let code = self.code(code_address);
+
+		// EIP-7702: Get execution code, following delegations if enabled
+		let code = if self.config.has_eip_7702 {
+			self.delegated_code(code_address)
+				.unwrap_or_else(|| self.code(code_address))
+		} else {
+			self.code(code_address)
+		};
+
 		if let Some(depth) = self.state.metadata().depth {
 			if depth > self.config.call_stack_limit {
 				let _ = self.exit_substate(StackExitKind::Reverted);
@@ -1160,6 +1285,8 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
 	}
 
 	fn code_size(&self, address: H160) -> U256 {
+		// EIP-7702: EXTCODESIZE does NOT follow delegations
+		// Return the actual code size at the address, including delegation designators
 		self.state.code_size(address)
 	}
 
@@ -1168,10 +1295,14 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
 			return H256::default();
 		}
 
+		// EIP-7702: EXTCODEHASH does NOT follow delegations
+		// Return the hash of the actual code at the address, including delegation designators
 		self.state.code_hash(address)
 	}
 
 	fn code(&self, address: H160) -> Vec<u8> {
+		// EIP-7702: EXTCODECOPY does NOT follow delegations
+		// Return the actual code at the address, including delegation designators
 		self.state.code(address)
 	}
 

@@ -244,6 +244,10 @@ pub struct Config {
 	pub disallow_executable_format: bool,
 	/// EIP-3651
 	pub warm_coinbase_address: bool,
+	/// EIP-7702: Gas cost for processing each authorization tuple
+	pub gas_auth_base_cost: u64,
+	/// EIP-7702: Gas cost per empty account in authorization list
+	pub gas_per_empty_account_cost: u64,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -294,6 +298,8 @@ pub struct Config {
 	pub estimate: bool,
 	/// Has EIP-6780. See [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
 	pub has_eip_6780: bool,
+	/// Has EIP-7702. See [EIP-7702](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7702.md)
+	pub has_eip_7702: bool,
 }
 
 impl Config {
@@ -351,6 +357,9 @@ impl Config {
 			has_mcopy: false,
 			estimate: false,
 			has_eip_6780: false,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -408,6 +417,9 @@ impl Config {
 			has_mcopy: false,
 			estimate: false,
 			has_eip_6780: false,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -436,6 +448,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::cancun())
 	}
 
+	/// Pectra hard fork configuration.
+	pub const fn pectra() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::pectra())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -450,6 +467,9 @@ impl Config {
 			has_eip_6780,
 			has_tloadstore,
 			has_mcopy,
+			has_eip_7702,
+			gas_auth_base_cost,
+			gas_per_empty_account_cost,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -516,6 +536,9 @@ impl Config {
 			has_eip_6780,
 			has_tloadstore,
 			has_mcopy,
+			has_eip_7702,
+			gas_auth_base_cost,
+			gas_per_empty_account_cost,
 		}
 	}
 }
@@ -535,6 +558,9 @@ struct DerivedConfigInputs {
 	has_eip_6780: bool,
 	has_tloadstore: bool,
 	has_mcopy: bool,
+	has_eip_7702: bool,
+	gas_auth_base_cost: u64,
+	gas_per_empty_account_cost: u64,
 }
 
 impl DerivedConfigInputs {
@@ -552,6 +578,9 @@ impl DerivedConfigInputs {
 			has_eip_6780: false,
 			has_tloadstore: false,
 			has_mcopy: false,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -569,6 +598,9 @@ impl DerivedConfigInputs {
 			has_eip_6780: false,
 			has_tloadstore: false,
 			has_mcopy: false,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -586,6 +618,9 @@ impl DerivedConfigInputs {
 			has_eip_6780: false,
 			has_tloadstore: false,
 			has_mcopy: false,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -604,6 +639,9 @@ impl DerivedConfigInputs {
 			has_eip_6780: false,
 			has_tloadstore: false,
 			has_mcopy: false,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
 		}
 	}
 
@@ -622,6 +660,33 @@ impl DerivedConfigInputs {
 			has_eip_6780: true,
 			has_tloadstore: true,
 			has_mcopy: true,
+			has_eip_7702: false,
+			gas_auth_base_cost: 0,
+			gas_per_empty_account_cost: 0,
+		}
+	}
+
+	/// Pectra hard fork configuration.
+	const fn pectra() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			// 2 * 24576 as per EIP-3860
+			max_initcode_size: Some(0xC000),
+			has_eip_6780: true,
+			has_tloadstore: true,
+			has_mcopy: true,
+			has_eip_7702: true,
+			// PER_AUTH_BASE_COST from EIP-7702
+			gas_auth_base_cost: 12500,
+			// PER_EMPTY_ACCOUNT_COST from EIP-7702
+			gas_per_empty_account_cost: 25000,
 		}
 	}
 }

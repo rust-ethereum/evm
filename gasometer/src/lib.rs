@@ -247,23 +247,26 @@ impl<'config> Gasometer<'config> {
 				non_zero_data_len,
 				access_list_address_len,
 				access_list_storage_len,
+				authorization_list_len,
 			} => {
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
 					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
 					+ access_list_address_len as u64 * self.config.gas_access_list_address
-					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key;
+					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
+					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
 
 				log_gas!(
 					self,
-					"Record Call {} [gas_transaction_call: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}]",
+					"Record Call {} [gas_transaction_call: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}, authorization_list_len: {}]",
 					cost,
 					self.config.gas_transaction_call,
 					zero_data_len,
 					non_zero_data_len,
 					access_list_address_len,
-					access_list_storage_len
+					access_list_storage_len,
+					authorization_list_len
 				);
 
 				cost
@@ -274,26 +277,29 @@ impl<'config> Gasometer<'config> {
 				access_list_address_len,
 				access_list_storage_len,
 				initcode_cost,
+				authorization_list_len,
 			} => {
 				let mut cost = self.config.gas_transaction_create
 					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
 					+ access_list_address_len as u64 * self.config.gas_access_list_address
-					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key;
+					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
+					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
 				}
 
 				log_gas!(
 					self,
-					"Record Create {} [gas_transaction_create: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}, initcode_cost: {}]",
+					"Record Create {} [gas_transaction_create: {}, zero_data_len: {}, non_zero_data_len: {}, access_list_address_len: {}, access_list_storage_len: {}, initcode_cost: {}, authorization_list_len: {}]",
 					cost,
 					self.config.gas_transaction_create,
 					zero_data_len,
 					non_zero_data_len,
 					access_list_address_len,
 					access_list_storage_len,
-					initcode_cost
+					initcode_cost,
+					authorization_list_len
 				);
 				cost
 			}
@@ -326,25 +332,40 @@ impl<'config> Gasometer<'config> {
 
 /// Calculate the call transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn call_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+pub fn call_transaction_cost(
+	data: &[u8],
+	access_list: &[(H160, Vec<H256>)],
+	authorization_list: &[(U256, H160, U256, H160)],
+) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
+	// Per EIP-7702: Initially charge PER_EMPTY_ACCOUNT_COST for all authorizations
+	// Non-empty accounts will be refunded later when we have access to account state
+	let authorization_list_len = authorization_list.len();
 
 	TransactionCost::Call {
 		zero_data_len,
 		non_zero_data_len,
 		access_list_address_len,
 		access_list_storage_len,
+		authorization_list_len,
 	}
 }
 
 /// Calculate the create transaction cost.
 #[allow(clippy::naive_bytecount)]
-pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+pub fn create_transaction_cost(
+	data: &[u8],
+	access_list: &[(H160, Vec<H256>)],
+	authorization_list: &[(U256, H160, U256, H160)],
+) -> TransactionCost {
 	let zero_data_len = data.iter().filter(|v| **v == 0).count();
 	let non_zero_data_len = data.len() - zero_data_len;
 	let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
+	// Per EIP-7702: Initially charge PER_EMPTY_ACCOUNT_COST for all authorizations
+	// Non-empty accounts will be refunded later when we have access to account state
+	let authorization_list_len = authorization_list.len();
 	let initcode_cost = init_code_cost(data);
 
 	TransactionCost::Create {
@@ -353,6 +374,7 @@ pub fn create_transaction_cost(data: &[u8], access_list: &[(H160, Vec<H256>)]) -
 		access_list_address_len,
 		access_list_storage_len,
 		initcode_cost,
+		authorization_list_len,
 	}
 }
 
@@ -1110,6 +1132,8 @@ pub enum TransactionCost {
 		access_list_address_len: usize,
 		/// Total number of storage keys in transaction access list (see EIP-2930)
 		access_list_storage_len: usize,
+		/// Number of authorization tuples in transaction (see EIP-7702)
+		authorization_list_len: usize,
 	},
 	/// Create transaction cost.
 	Create {
@@ -1123,6 +1147,8 @@ pub enum TransactionCost {
 		access_list_storage_len: usize,
 		/// Cost of initcode = 2 * ceil(len(initcode) / 32) (see EIP-3860)
 		initcode_cost: u64,
+		/// Number of authorization tuples in transaction (see EIP-7702)
+		authorization_list_len: usize,
 	},
 }
 
