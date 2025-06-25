@@ -1238,10 +1238,6 @@ fn test_4_2_extcodesize_with_delegation() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let delegating_address = H160::from_slice(&[1u8; 20]);
 
-	// This test is already implemented in the original test suite as:
-	// test_eip7702_extcodesize_does_not_follow_delegation()
-	// Verifying that EXTCODESIZE returns 23 (delegation designator size)
-
 	let delegation_designator = evm_core::create_delegation_designator(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
@@ -1616,16 +1612,6 @@ fn test_4_6_code_reading_operations_during_delegation() {
 
 	// The implementation should return the delegation designator for EXTCODECOPY
 	assert_eq!(extcodecopy, &delegation_designator[..]);
-
-	// Key verification: The test successfully demonstrates that code reading operations
-	// behave differently based on execution context (inside vs outside):
-	// - CODESIZE (inside): Returns actual implementation code size
-	// - EXTCODESIZE (outside): Returns 23 (delegation indicator size)
-	// - CODECOPY (inside): Copies actual implementation code
-	// - EXTCODECOPY (outside): Copies delegation indicator (0xef0100 || address)
-	//
-	// This confirms EIP-7702 behavior: external code operations see the delegation indicator,
-	// while internal operations see the actual delegated code.
 }
 
 // ============================================================================
