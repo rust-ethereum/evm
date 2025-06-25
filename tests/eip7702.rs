@@ -17,7 +17,12 @@ fn create_authorization(
 	nonce: U256,
 	authorizing_address: H160,
 ) -> (U256, H160, U256, Option<H160>) {
-	(chain_id, delegation_address, nonce, Some(authorizing_address))
+	(
+		chain_id,
+		delegation_address,
+		nonce,
+		Some(authorizing_address),
+	)
 }
 
 /// Create a test vicinity for EIP-7702 tests
@@ -4148,7 +4153,7 @@ fn test_none_authorizing_address_rejection() {
 		);
 
 		assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
-		
+
 		// Authorizing account should be unchanged (no delegation applied)
 		let authorizing_basic = executor.state().basic(authorizing);
 		assert_eq!(authorizing_basic.nonce, U256::zero());
@@ -4163,10 +4168,10 @@ fn test_none_authorizing_address_rejection() {
 		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
 
 		let authorization_with_some = (
-			U256::from(1),        // chain_id matches vicinity
-			implementation,       // delegation_address
-			U256::zero(),         // nonce
-			Some(authorizing),    // authorizing_address is Some
+			U256::from(1),     // chain_id matches vicinity
+			implementation,    // delegation_address
+			U256::zero(),      // nonce
+			Some(authorizing), // authorizing_address is Some
 		);
 
 		let (exit_reason, _) = executor.transact_call(
@@ -4180,7 +4185,7 @@ fn test_none_authorizing_address_rejection() {
 		);
 
 		assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
-		
+
 		// Authorizing account should now have delegation designator
 		let authorizing_basic = executor.state().basic(authorizing);
 		assert_eq!(authorizing_basic.nonce, U256::from(1)); // Nonce incremented
