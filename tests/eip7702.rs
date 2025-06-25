@@ -16,8 +16,8 @@ fn create_authorization(
 	delegation_address: H160,
 	nonce: U256,
 	authorizing_address: H160,
-) -> (U256, H160, U256, H160) {
-	(chain_id, delegation_address, nonce, authorizing_address)
+) -> (U256, H160, U256, Option<H160>) {
+	(chain_id, delegation_address, nonce, Some(authorizing_address))
 }
 
 /// Create a test vicinity for EIP-7702 tests
