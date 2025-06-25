@@ -2519,7 +2519,10 @@ fn test_9_4_gas_exhaustion() {
 	let vicinity = create_test_vicinity();
 	let mut backend = MemoryBackend::new(&vicinity, state);
 
-	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(
+		20_000, // Insufficient gas
+		&config,
+	);
 	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
 	let precompiles = BTreeMap::new();
 	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
@@ -2533,7 +2536,7 @@ fn test_9_4_gas_exhaustion() {
 		target,
 		U256::zero(),
 		Vec::new(),
-		20_000, // Insufficient gas
+		20_000,
 		Vec::new(),
 		vec![authorization],
 	);
