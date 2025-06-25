@@ -4075,3 +4075,116 @@ fn test_12_2_signature_replay_protection() {
 	// Nonce should still be 1 (no increment from failed authorization)
 	assert_eq!(executor.state().basic(authorizing).nonce, U256::from(1));
 }
+
+#[test]
+fn test_none_authorizing_address_rejection() {
+	// Test: Authorization with None authorizing_address should be skipped
+	// We compare against a valid authorization to show the difference
+	let caller = H160::from_slice(&[1u8; 20]);
+	let implementation = H160::from_slice(&[2u8; 20]);
+	let authorizing = H160::from_slice(&[3u8; 20]);
+	let target = H160::from_slice(&[4u8; 20]);
+
+	let config = Config::pectra();
+
+	let mut state = BTreeMap::new();
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Create implementation account with code
+	state.insert(
+		implementation,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: vec![0x60, 0x42, 0x60, 0x00, 0x52, 0x60, 0x20, 0x60, 0x00, 0xf3],
+		},
+	);
+
+	// Create empty authorizing account (suitable for delegation)
+	state.insert(
+		authorizing,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	let vicinity = create_test_vicinity();
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	// Test 1: Transaction with None authorizing_address
+	{
+		let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+		let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+		let precompiles = BTreeMap::new();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		let authorization_with_none = (
+			U256::from(1),  // chain_id matches vicinity
+			implementation, // delegation_address
+			U256::zero(),   // nonce
+			None,           // authorizing_address is None
+		);
+
+		let (exit_reason, _) = executor.transact_call(
+			caller,
+			target,
+			U256::zero(),
+			Vec::new(),
+			100_000,
+			Vec::new(),
+			vec![authorization_with_none],
+		);
+
+		assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+		
+		// Authorizing account should be unchanged (no delegation applied)
+		let authorizing_basic = executor.state().basic(authorizing);
+		assert_eq!(authorizing_basic.nonce, U256::zero());
+		assert!(executor.code(authorizing).is_empty());
+	}
+
+	// Test 2: Same transaction but with valid authorizing_address for comparison
+	{
+		let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+		let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+		let precompiles = BTreeMap::new();
+		let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+		let authorization_with_some = (
+			U256::from(1),        // chain_id matches vicinity
+			implementation,       // delegation_address
+			U256::zero(),         // nonce
+			Some(authorizing),    // authorizing_address is Some
+		);
+
+		let (exit_reason, _) = executor.transact_call(
+			caller,
+			target,
+			U256::zero(),
+			Vec::new(),
+			100_000,
+			Vec::new(),
+			vec![authorization_with_some],
+		);
+
+		assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+		
+		// Authorizing account should now have delegation designator
+		let authorizing_basic = executor.state().basic(authorizing);
+		assert_eq!(authorizing_basic.nonce, U256::from(1)); // Nonce incremented
+		let expected_delegation = evm_core::create_delegation_designator(implementation);
+		assert_eq!(executor.code(authorizing), expected_delegation);
+	}
+}
