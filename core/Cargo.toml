@@ -1,10 +1,10 @@
 [package]
 name = "evm-core"
-version = "0.42.0"
+version = "0.43.0"
 license = "Apache-2.0"
 authors = ["Wei Tang <hi@that.world>", "Parity Technologies <admin@parity.io>"]
-description = "Portable Ethereum Virtual Machine implementation written in pure Rust."
-repository = "https://github.com/sorpaas/rust-evm"
+description = "Ethereum Virtual Machine"
+repository = "https://github.com/rust-ethereum/evm"
 keywords = ["no_std", "ethereum"]
 edition = "2018"
 
