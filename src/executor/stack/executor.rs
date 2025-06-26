@@ -430,7 +430,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self,
 		init_code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		authorization_list: &[(U256, H160, U256, H160)],
+		authorization_list: &[(U256, H160, U256, Option<H160>)],
 	) -> Result<(), ExitError> {
 		let transaction_cost =
 			gasometer::create_transaction_cost(init_code, access_list, authorization_list);
@@ -462,7 +462,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
 			caller,
@@ -520,7 +520,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		salt: H256,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>, // See EIP-7702
 	) -> (ExitReason, Vec<u8>) {
 		if let Some(limit) = self.config.max_initcode_size {
 			if init_code.len() > limit {
@@ -588,7 +588,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		init_code: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>, // See EIP-2930
-		authorization_list: Vec<(U256, H160, U256, H160)>, // See EIP-7702
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>, // See EIP-7702
 		contract_address: H160,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCreate {
@@ -654,7 +654,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		data: Vec<u8>,
 		gas_limit: u64,
 		access_list: Vec<(H160, Vec<H256>)>,
-		authorization_list: Vec<(U256, H160, U256, H160)>,
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>,
 	) -> (ExitReason, Vec<u8>) {
 		event!(TransactCall {
 			caller,
@@ -791,7 +791,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 	/// This processes the authorization tuples and applies delegations as specified
 	pub fn initialize_with_authorization_list(
 		&mut self,
-		authorization_list: Vec<(U256, H160, U256, H160)>,
+		authorization_list: Vec<(U256, H160, U256, Option<H160>)>,
 	) -> Result<(), ExitError> {
 		for authorization in authorization_list {
 			let (chain_id, delegation_address, nonce, authorizing_address) = authorization;
@@ -805,6 +805,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			if nonce >= U256::from(2u64).pow(U256::from(64)) - U256::from(1) {
 				continue;
 			}
+
+			// Skip if authorizing_address is None
+			let Some(authorizing_address) = authorizing_address else {
+				continue;
+			};
 
 			// Add authority to accessed_addresses, as defined in EIP-2929
 			if self.config.increase_state_access_gas {
