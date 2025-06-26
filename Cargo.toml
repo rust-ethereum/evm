@@ -10,7 +10,7 @@ edition = "2018"
 
 [dependencies]
 auto_impl = "1.0"
-ethereum = { version = "0.16.0", default-features = false }
+ethereum = { version = "0.17.0", default-features = false }
 log = { version = "0.4", default-features = false }
 primitive-types = { version = "0.13", default-features = false, features = ["rlp"] }
 rlp = { version = "0.6", default-features = false }
