@@ -67,6 +67,11 @@ pub enum Event<'a> {
 		is_static: bool,
 		context: &'a Context,
 	},
+	Log {
+		address: H160,
+		topics: &'a [H256],
+		data: &'a [u8],
+	},
 }
 
 // Expose `listener::with` to the crate only.
