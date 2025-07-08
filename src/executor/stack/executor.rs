@@ -1079,8 +1079,19 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 		// EIP-7702: Get execution code, following delegations if enabled
 		let code = if self.config.has_eip_7702 {
+			// Check for delegation and record external operation if needed
+			let original_code = self.code(code_address);
+			if let Some(delegated_address) = evm_core::extract_delegation_address(&original_code) {
+				if let Err(e) = self.record_external_operation(
+					crate::ExternalOperation::DelegationResolution(delegated_address),
+				) {
+					let _ = self.exit_substate(StackExitKind::Failed);
+					return Capture::Exit((ExitReason::Error(e), Vec::new()));
+				}
+			}
+
 			self.delegated_code(code_address)
-				.unwrap_or_else(|| self.code(code_address))
+				.unwrap_or_else(|| original_code)
 		} else {
 			self.code(code_address)
 		};
