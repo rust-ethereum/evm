@@ -1088,10 +1088,11 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 					let _ = self.exit_substate(StackExitKind::Failed);
 					return Capture::Exit((ExitReason::Error(e), Vec::new()));
 				}
-			}
 
-			self.delegated_code(code_address)
-				.unwrap_or_else(|| original_code)
+				self.code(delegated_address)
+			} else {
+				original_code
+			}
 		} else {
 			self.code(code_address)
 		};
