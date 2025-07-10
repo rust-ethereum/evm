@@ -2,9 +2,9 @@ use evm_core::Machine;
 use std::rc::Rc;
 
 fn find_subsequence(haystack: &[u8], needle: &[u8]) -> Option<usize> {
-	return haystack
+	haystack
 		.windows(needle.len())
-		.position(|window| window == needle);
+		.position(|window| window == needle)
 }
 
 fn split_at_delim(sequence: &[u8], delim: &[u8]) -> (Vec<u8>, Vec<u8>) {
