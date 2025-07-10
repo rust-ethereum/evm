@@ -53,16 +53,11 @@ doc:
 bench:
 	cargo bench
 
-# Check for security vulnerabilities
-audit:
-	cargo audit
-
 # Install development dependencies
 dev-deps:
 	@echo "Installing development dependencies..."
 	rustup component add rustfmt
 	rustup component add clippy
-	cargo install cargo-audit
 	cargo install taplo-cli
 
 # Run CI checks locally
