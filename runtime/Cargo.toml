@@ -18,12 +18,5 @@ evm-core = { version = "0.43", path = "../core", default-features = false }
 
 [features]
 default = ["std"]
-std = [
-	"environmental/std",
-	"primitive-types/std",
-	"sha3/std",
-	"evm-core/std",
-]
-tracing = [
-	"environmental",
-]
+std = ["environmental/std", "primitive-types/std", "sha3/std", "evm-core/std"]
+tracing = ["environmental"]

@@ -18,8 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
+    - name: Install taplo
+      run: cargo install taplo-cli
     - name: Rustfmt
       run: cargo fmt --all -- --check
+    - name: TOML fmt
+      run: taplo fmt --check
     - name: Clippy
       run: cargo clippy --all
   build:
