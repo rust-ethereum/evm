@@ -6,6 +6,9 @@ edition = "2018"
 description = "Fuzzer for EVM."
 license = "Apache-2.0"
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(fuzzing)'] }
+
 [dependencies]
 honggfuzz = "0.5"
 
