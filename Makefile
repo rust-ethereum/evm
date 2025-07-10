@@ -5,79 +5,65 @@ all: fmt fmt-toml clippy test
 
 # Build with various feature configurations
 build:
-	@echo "Building with default features..."
-	@cargo build --verbose
-	@echo "Building with tracing feature..."
-	@cargo build --features tracing --verbose
-	@echo "Building with all features..."
-	@cargo build --all-features --verbose
-	@echo "Building with no default features..."
-	@cargo build --no-default-features --verbose
+	cargo build --verbose
+	cargo build --features tracing --verbose
+	cargo build --all-features --verbose
+	cargo build --no-default-features --verbose
 
 # Type check without building
 check:
-	@echo "Checking with default features..."
-	@cargo check --all
-	@echo "Checking with all features..."
-	@cargo check --all --all-features
-	@echo "Checking with no default features..."
-	@cargo check --all --no-default-features
+	cargo check --all
+	cargo check --all --all-features
+	cargo check --all --no-default-features
 
 # Run tests with various feature configurations
 test:
-	@echo "Testing with default features..."
-	@cargo test --verbose
-	@echo "Testing with all features..."
-	@cargo test --all-features --verbose
-	@echo "Testing with no default features..."
-	@cargo test --no-default-features --verbose
+	cargo test --verbose
+	cargo test --all-features --verbose
+	cargo test --no-default-features --verbose
 
 # Format Rust code
 fmt:
-	@cargo fmt --all
+	cargo fmt --all
 
 # Format TOML files
 fmt-toml:
-	@taplo fmt
+	taplo fmt
 
 # Check code formatting (CI mode)
 fmt-check:
-	@cargo fmt --all -- --check
-	@taplo fmt --check
+	cargo fmt --all -- --check
+	taplo fmt --check
 
 # Run clippy linter
 clippy:
-	@echo "Running clippy with default features..."
-	@cargo clippy --all -- -D warnings
-	@echo "Running clippy with all features..."
-	@cargo clippy --all --all-features -- -D warnings
-	@echo "Running clippy with no default features..."
-	@cargo clippy --all --no-default-features -- -D warnings
+	cargo clippy --all -- -D warnings
+	cargo clippy --all --all-features -- -D warnings
+	cargo clippy --all --no-default-features -- -D warnings
 
 # Clean build artifacts
 clean:
-	@cargo clean
+	cargo clean
 
 # Generate and open documentation
 doc:
-	@cargo doc --all-features --open
+	cargo doc --all-features --open
 
 # Run benchmarks
 bench:
-	@echo "Running benchmarks..."
-	@cargo bench
+	cargo bench
 
 # Check for security vulnerabilities
 audit:
-	@cargo audit
+	cargo audit
 
 # Install development dependencies
 dev-deps:
 	@echo "Installing development dependencies..."
-	@rustup component add rustfmt
-	@rustup component add clippy
-	@cargo install cargo-audit
-	@cargo install taplo-cli
+	rustup component add rustfmt
+	rustup component add clippy
+	cargo install cargo-audit
+	cargo install taplo-cli
 
 # Run CI checks locally
 ci: fmt-check clippy test build
