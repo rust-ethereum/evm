@@ -120,7 +120,15 @@ pub fn run_test(
 	}
 
 	let env = InMemoryEnvironment {
-		block_hashes: BTreeMap::new(), // TODO: fill in this field.
+		block_hashes: {
+			let mut block_hashes = BTreeMap::new();
+			// Add the previous block hash to the block_hashes map
+			// In EVM, BLOCKHASH opcode can access hashes of the last 256 blocks
+			if test.env.current_number > U256::zero() {
+				block_hashes.insert(test.env.current_number - U256::one(), test.env.previous_hash);
+			}
+			block_hashes
+		},
 		block_number: test.env.current_number,
 		block_coinbase: test.env.current_coinbase,
 		block_timestamp: test.env.current_timestamp,
@@ -128,7 +136,7 @@ pub fn run_test(
 		block_randomness: Some(test.env.current_random),
 		block_gas_limit: test.env.current_gas_limit,
 		block_base_fee_per_gas: test.transaction.gas_price,
-		chain_id: U256::zero(), // TODO: fill in this field.
+		chain_id: U256::one(), // Standard chain_id for Ethereum tests
 	};
 
 	let state = test
