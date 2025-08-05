@@ -2885,6 +2885,133 @@ fn test_9_6_delegation_to_selfdestruct_contract() {
 	);
 }
 
+#[test]
+fn test_9_7_delegation_to_zero_address() {
+	// Test: Delegate to zero address (0x0000...0000)
+	// Expected: Delegation should be set, but calls execute empty code
+	let caller = H160::from_slice(&[1u8; 20]);
+	let zero_address = H160::default(); // 0x0000...0000
+	let authorizing = H160::from_slice(&[3u8; 20]);
+
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	state.insert(
+		authorizing,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Note: zero address doesn't need to be in state
+
+	// Create test contract with EXTCODESIZE bytecode
+	let extcodesize_bytecode = vec![
+		0x73, // PUSH20
+		// Push authorizing address (20 bytes)
+		authorizing.0[0], authorizing.0[1], authorizing.0[2], authorizing.0[3], authorizing.0[4],
+		authorizing.0[5], authorizing.0[6], authorizing.0[7], authorizing.0[8], authorizing.0[9],
+		authorizing.0[10], authorizing.0[11], authorizing.0[12], authorizing.0[13], authorizing.0[14],
+		authorizing.0[15], authorizing.0[16], authorizing.0[17], authorizing.0[18], authorizing.0[19],
+		0x3B, // EXTCODESIZE
+		0x60, 0x00, // PUSH1 0
+		0x52, // MSTORE
+		0x60, 0x20, // PUSH1 32
+		0x60, 0x00, // PUSH1 0
+		0xF3, // RETURN
+	];
+
+	let test_contract = H160::from_slice(&[4u8; 20]);
+	state.insert(
+		test_contract,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::zero(),
+			storage: BTreeMap::new(),
+			code: extcodesize_bytecode,
+		},
+	);
+
+	let vicinity = create_test_vicinity();
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	let authorization =
+		create_authorization(U256::from(1), zero_address, U256::zero(), authorizing);
+
+	// Set delegation to zero address
+	let (exit_reason, _) = executor.transact_call(
+		caller,
+		H160::from_slice(&[9u8; 20]), // Dummy target
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		vec![authorization],
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+
+	// Verify delegation to zero address clears the code (special case per EIP-7702)
+	// When delegating to 0x0, the account code is cleared instead of setting a delegation designator
+	assert_eq!(executor.code(authorizing), Vec::<u8>::new());
+	
+	// Verify that nonce was still incremented (delegation was processed)
+	assert_eq!(executor.nonce(authorizing), U256::from(1));
+
+	// Now call the delegating address - should execute empty code from zero address
+	let (call_exit_reason, return_data) = executor.transact_call(
+		caller,
+		authorizing,
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		Vec::new(),
+	);
+
+	// Should succeed with empty return data (zero address has no code)
+	assert_eq!(
+		call_exit_reason,
+		ExitReason::Succeed(evm::ExitSucceed::Stopped)
+	);
+	assert_eq!(return_data.len(), 0);
+
+	// Test code reading operations on delegation to zero address
+	// EXTCODESIZE should return 0
+	let (size_exit, size_data) = executor.transact_call(
+		caller,
+		test_contract,
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		Vec::new(),
+	);
+
+	assert_eq!(size_exit, ExitReason::Succeed(evm::ExitSucceed::Returned));
+	assert_eq!(size_data.len(), 32);
+	let code_size = U256::from_big_endian(&size_data);
+	assert_eq!(code_size, U256::zero()); // Zero address has no code
+}
+
 // ============================================================================
 // Executing Operations Tests (Section 5)
 // ============================================================================
