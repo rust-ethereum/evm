@@ -2922,15 +2922,34 @@ fn test_9_7_delegation_to_zero_address() {
 	let extcodesize_bytecode = vec![
 		0x73, // PUSH20
 		// Push authorizing address (20 bytes)
-		authorizing.0[0], authorizing.0[1], authorizing.0[2], authorizing.0[3], authorizing.0[4],
-		authorizing.0[5], authorizing.0[6], authorizing.0[7], authorizing.0[8], authorizing.0[9],
-		authorizing.0[10], authorizing.0[11], authorizing.0[12], authorizing.0[13], authorizing.0[14],
-		authorizing.0[15], authorizing.0[16], authorizing.0[17], authorizing.0[18], authorizing.0[19],
+		authorizing.0[0],
+		authorizing.0[1],
+		authorizing.0[2],
+		authorizing.0[3],
+		authorizing.0[4],
+		authorizing.0[5],
+		authorizing.0[6],
+		authorizing.0[7],
+		authorizing.0[8],
+		authorizing.0[9],
+		authorizing.0[10],
+		authorizing.0[11],
+		authorizing.0[12],
+		authorizing.0[13],
+		authorizing.0[14],
+		authorizing.0[15],
+		authorizing.0[16],
+		authorizing.0[17],
+		authorizing.0[18],
+		authorizing.0[19],
 		0x3B, // EXTCODESIZE
-		0x60, 0x00, // PUSH1 0
+		0x60,
+		0x00, // PUSH1 0
 		0x52, // MSTORE
-		0x60, 0x20, // PUSH1 32
-		0x60, 0x00, // PUSH1 0
+		0x60,
+		0x20, // PUSH1 32
+		0x60,
+		0x00, // PUSH1 0
 		0xF3, // RETURN
 	];
 
@@ -2972,7 +2991,7 @@ fn test_9_7_delegation_to_zero_address() {
 	// Verify delegation to zero address clears the code (special case per EIP-7702)
 	// When delegating to 0x0, the account code is cleared instead of setting a delegation designator
 	assert_eq!(executor.code(authorizing), Vec::<u8>::new());
-	
+
 	// Verify that nonce was still incremented (delegation was processed)
 	assert_eq!(executor.nonce(authorizing), U256::from(1));
 
