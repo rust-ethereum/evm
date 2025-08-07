@@ -517,6 +517,16 @@ where
 				let caller = create_trap_data.scheme.caller();
 				let address = create_trap_data.scheme.address(handler);
 				let code = create_trap_data.code.clone();
+				let value = create_trap_data.value;
+
+				if value != U256::zero() && handler.balance(caller) < value {
+					return Capture::Exit(Err(ExitException::OutOfFund.into()))
+				}
+
+				match handler.inc_nonce(caller) {
+					Ok(()) => (),
+					Err(err) => return Capture::Exit(Err(err)),
+				}
 
 				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
@@ -541,6 +551,7 @@ where
 					self.resolver,
 					code,
 					create_trap_data,
+					address,
 					substate,
 					handler,
 				))
@@ -564,21 +575,26 @@ where
 
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {
-				let retbuf = retval;
+				let mut retbuf = retval;
 				let caller = trap.scheme.caller();
 
-				let result = result.and_then(|_| {
-					routines::deploy_create_code(
-						self.config,
-						address,
-						retbuf.clone(),
-						&mut substate,
-						handler,
-						SetCodeOrigin::Subcall(caller),
-					)?;
+				let result = match result {
+					Ok(_) => {
+						routines::deploy_create_code(
+							self.config,
+							address,
+							retbuf,
+							&mut substate,
+							handler,
+							SetCodeOrigin::Subcall(caller),
+						)?;
 
-					Ok(address)
-				});
+						retbuf = Vec::new();
+
+						Ok(address)
+					},
+					Err(err) => Err(err),
+				};
 
 				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);

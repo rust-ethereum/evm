@@ -131,6 +131,7 @@ pub fn enter_create_substack<H, R>(
 	resolver: &R,
 	code: Vec<u8>,
 	trap_data: CreateTrapData,
+	address: H160,
 	state: R::State,
 	handler: &mut H,
 ) -> Result<
@@ -155,15 +156,12 @@ where
 		} = trap_data.clone();
 
 		let caller = scheme.caller();
-		let address = scheme.address(handler);
 
 		let transfer = Transfer {
 			source: caller,
 			target: address,
 			value,
 		};
-
-		handler.inc_nonce(caller)?;
 
 		let machine = make_enter_create_machine(
 			config, resolver, caller, code, transfer, state, handler,

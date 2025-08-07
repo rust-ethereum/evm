@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, fmt};
+use std::{collections::BTreeMap, fmt, str::FromStr};
 
 use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
@@ -237,10 +237,29 @@ pub struct TestMultiTransaction {
 	pub nonce: U256,
 	pub secret_key: H256,
 	pub sender: H160,
-	#[serde_as(as = "NoneAsEmptyString")]
+	#[serde(serialize_with = "serialize_to", deserialize_with = "deserialize_to")]
 	pub to: Option<H160>,
 	pub value: Vec<U256>,
 	pub access_lists: Option<Vec<Vec<TestAccessListItem>>>,
+}
+
+fn deserialize_to<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error> where D: Deserializer<'de> {
+	let data: String = Deserialize::deserialize(deserializer)?;
+
+	if data == "" {
+		Ok(None)
+	} else {
+		Ok(Some(H160::from_str(&data).map_err(Error::custom)?))
+	}
+}
+
+fn serialize_to<S>(value: &Option<H160>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+	let s = if let Some(v) = value {
+		format!("{:?}", v)
+	} else {
+		"".to_string()
+	};
+	s.serialize(serializer)
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -277,39 +296,11 @@ fn deserialize_hex_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
 	D: Deserializer<'de>,
 {
-	struct HexStrVisitor;
-
-	impl<'de> Visitor<'de> for HexStrVisitor {
-		type Value = Vec<u8>;
-
-		fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
-			write!(f, "a hex encoded string")
-		}
-
-		fn visit_str<E>(self, data: &str) -> Result<Self::Value, E>
-		where
-			E: Error,
-		{
-			if &data[0..2] != "0x" {
-				return Err(Error::custom("should start with 0x"));
-			}
-
-			FromHex::from_hex(&data[2..]).map_err(Error::custom)
-		}
-
-		fn visit_borrowed_str<E>(self, data: &'de str) -> Result<Self::Value, E>
-		where
-			E: Error,
-		{
-			if &data[0..2] != "0x" {
-				return Err(Error::custom("should start with 0x"));
-			}
-
-			FromHex::from_hex(&data[2..]).map_err(Error::custom)
-		}
+	let data = String::deserialize(deserializer)?;
+	if &data[0..2] != "0x" {
+		return Err(Error::custom("should start with 0x"));
 	}
-
-	deserializer.deserialize_str(HexStrVisitor)
+	FromHex::from_hex(&data[2..]).map_err(Error::custom)
 }
 
 fn serialize_hex_bytes<S>(value: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
@@ -318,5 +309,5 @@ where
 {
 	let mut s = "0x".to_string();
 	s.push_str(&hex::encode(value));
-	serializer.serialize_str(&s)
+	s.serialize(serializer)
 }
