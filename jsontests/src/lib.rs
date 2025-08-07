@@ -22,16 +22,36 @@ general_state_tests!(st_attack_test, "stAttackTest", ignore);
 general_state_tests!(st_bad_opcode, "stBadOpcode", ignore);
 general_state_tests!(st_bugs, "stBugs", ignore);
 general_state_tests!(st_call_codes, "stCallCodes", ignore);
-general_state_tests!(st_call_create_call_code_test, "stCallCreateCallCodeTest", ignore);
-general_state_tests!(st_call_delegate_codes_call_code_homestead, "stCallDelegateCodesCallCodeHomestead", ignore);
-general_state_tests!(st_call_delegate_codes_homestead, "stCallDelegateCodesHomestead", ignore);
+general_state_tests!(
+	st_call_create_call_code_test,
+	"stCallCreateCallCodeTest",
+	ignore
+);
+general_state_tests!(
+	st_call_delegate_codes_call_code_homestead,
+	"stCallDelegateCodesCallCodeHomestead",
+	ignore
+);
+general_state_tests!(
+	st_call_delegate_codes_homestead,
+	"stCallDelegateCodesHomestead",
+	ignore
+);
 general_state_tests!(st_chain_id, "stChainId", ignore);
 general_state_tests!(st_code_copy_test, "stCodeCopyTest");
 general_state_tests!(st_code_size_limit, "stCodeSizeLimit", ignore);
 general_state_tests!(st_create2, "stCreate2", ignore);
 general_state_tests!(st_create_test, "stCreateTest", ignore);
-general_state_tests!(st_delegatecall_test_homestead, "stDelegatecallTestHomestead", ignore);
-general_state_tests!(st_eip150_single_code_gas_prices, "stEIP150singleCodeGasPrices", ignore);
+general_state_tests!(
+	st_delegatecall_test_homestead,
+	"stDelegatecallTestHomestead",
+	ignore
+);
+general_state_tests!(
+	st_eip150_single_code_gas_prices,
+	"stEIP150singleCodeGasPrices",
+	ignore
+);
 general_state_tests!(st_eip150_specific, "stEIP150Specific", ignore);
 general_state_tests!(st_eip1559, "stEIP1559", ignore);
 general_state_tests!(st_eip158_specific, "stEIP158Specific", ignore);
@@ -41,13 +61,17 @@ general_state_tests!(st_example, "stExample");
 general_state_tests!(st_ext_code_hash, "stExtCodeHash", ignore);
 general_state_tests!(st_homestead_specific, "stHomesteadSpecific", ignore);
 general_state_tests!(st_init_code_test, "stInitCodeTest", ignore);
-general_state_tests!(st_log_tests,"stLogTests");
-general_state_tests!(st_mem_expanding_eip150_calls, "stMemExpandingEIP150Calls", ignore);
+general_state_tests!(st_log_tests, "stLogTests");
+general_state_tests!(
+	st_mem_expanding_eip150_calls,
+	"stMemExpandingEIP150Calls",
+	ignore
+);
 general_state_tests!(st_memory_stress_test, "stMemoryStressTest");
 general_state_tests!(st_memory_test, "stMemoryTest");
 general_state_tests!(st_non_zero_calls_test, "stNonZeroCallsTest", ignore);
 general_state_tests!(st_precompiled_contracts, "stPreCompiledContracts", ignore);
-general_state_tests!(st_precompiled_contracts2,"stPreCompiledContracts2", ignore);
+general_state_tests!(st_precompiled_contracts2, "stPreCompiledContracts2", ignore);
 general_state_tests!(st_quadratic_complexity_test, "stQuadraticComplexityTest");
 general_state_tests!(st_random, "stRandom", ignore);
 general_state_tests!(st_random2, "stRandom2", ignore);
@@ -61,7 +85,7 @@ general_state_tests!(st_sload_test, "stSLoadTest");
 general_state_tests!(st_solidity_test, "stSolidityTest", ignore);
 general_state_tests!(st_special_test, "stSpecialTest", ignore);
 general_state_tests!(st_sstore_test, "stSStoreTest", ignore);
-general_state_tests!(st_stack_tests,"stStackTests", ignore);
+general_state_tests!(st_stack_tests, "stStackTests", ignore);
 general_state_tests!(st_static_call, "stStaticCall", ignore);
 general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled", ignore);
 general_state_tests!(st_system_operations_test, "stSystemOperationsTest", ignore);
@@ -75,8 +99,14 @@ general_state_tests!(st_zero_knowledge, "stZeroKnowledge");
 general_state_tests!(st_zero_knowledge2, "stZeroKnowledge2");
 
 general_state_tests!(vm_tests_arithmetic_test, "VMTests/vmArithmeticTest");
-general_state_tests!(vm_tests_bitwise_logic_operation, "VMTests/vmBitwiseLogicOperation");
-general_state_tests!(vm_tests_io_and_flow_operations, "VMTests/vmIOandFlowOperations");
+general_state_tests!(
+	vm_tests_bitwise_logic_operation,
+	"VMTests/vmBitwiseLogicOperation"
+);
+general_state_tests!(
+	vm_tests_io_and_flow_operations,
+	"VMTests/vmIOandFlowOperations"
+);
 general_state_tests!(vm_tests_log_test, "VMTests/vmLogTest");
 general_state_tests!(vm_tests_performance, "VMTests/vmPerformance");
 general_state_tests!(vm_tests_tests, "VMTests/vmTests");
