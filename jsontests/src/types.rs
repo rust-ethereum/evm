@@ -314,6 +314,6 @@ where
 	S: Serializer,
 {
 	let mut s = "0x".to_string();
-	s.push_str(&hex::encode(&value));
+	s.push_str(&hex::encode(value));
 	serializer.serialize_str(&s)
 }

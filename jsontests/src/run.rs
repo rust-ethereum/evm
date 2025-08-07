@@ -152,7 +152,6 @@ pub fn run_test(
 				.storage
 				.into_iter()
 				.filter(|(_, value)| *value != H256::default())
-				.map(|(key, value)| (key, value))
 				.collect::<BTreeMap<_, _>>();
 
 			(
