@@ -34,24 +34,11 @@ jobs:
       run: cargo build --all-features
     - name: Run tests
       run: cargo test --verbose
-  jsontests:
+  tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
     - name: Run tests
-      run: |
-        cargo run --release --verbose -p jsontests -- \
-        jsontests/res/ethtests/GeneralStateTests/stArgsZeroOneBalance/ \
-        jsontests/res/ethtests/GeneralStateTests/stCodeCopyTest/ \
-        jsontests/res/ethtests/GeneralStateTests/stExample/ \
-        jsontests/res/ethtests/GeneralStateTests/stSelfBalance \
-        jsontests/res/ethtests/GeneralStateTests/stSLoadTest/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmArithmeticTest/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmBitwiseLogicOperation/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmIOandFlowOperations/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmLogTest/ \
-        jsontests/res/ethtests/GeneralStateTests/VMTests/vmTests/ \
-        jsontests/res/ethtests/GeneralStateTests/stEIP150singleCodeGasPrices/eip2929.json
-
+      run: cargo test --all --release --verbose
