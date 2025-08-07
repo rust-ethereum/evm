@@ -119,7 +119,7 @@ where
 		{
 			return Ok(InvokerControl::DirectExit(InvokerExit {
 				result: r,
-				substate: state,
+				substate: Some(state),
 				retval,
 			}));
 		}

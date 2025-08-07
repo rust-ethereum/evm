@@ -100,7 +100,7 @@ where
 					let machine = machine.deconstruct();
 					let exit = InvokerExit {
 						result: exit,
-						substate: machine.0,
+						substate: Some(machine.0),
 						retval: machine.1,
 					};
 					let feedback_result = self.invoker.exit_substack(
@@ -265,7 +265,7 @@ where
 						let sub_machine = sub_machine.deconstruct();
 						let sub_exit = InvokerExit {
 							result: sub_result,
-							substate: sub_machine.0,
+							substate: Some(sub_machine.0),
 							retval: sub_machine.1,
 						};
 
@@ -356,7 +356,7 @@ where
 						let machine = machine.deconstruct();
 						let exit = InvokerExit {
 							result: ret,
-							substate: machine.0,
+							substate: Some(machine.0),
 							retval: machine.1,
 						};
 						Err(Capture::Exit(call_stack.invoker.finalize_transact(
@@ -473,7 +473,7 @@ where
 					let last_machine = last.machine.deconstruct();
 					let exit = InvokerExit {
 						result: ExitFatal::Unfinished.into(),
-						substate: last_machine.0,
+						substate: Some(last_machine.0),
 						retval: last_machine.1,
 					};
 					let _ = call_stack.invoker.exit_substack(
@@ -494,7 +494,7 @@ where
 				let last_machine = last.machine.deconstruct();
 				let exit = InvokerExit {
 					result: ExitFatal::Unfinished.into(),
-					substate: last_machine.0,
+					substate: Some(last_machine.0),
 					retval: last_machine.1,
 				};
 				let _ = call_stack.invoker.finalize_transact(
@@ -537,7 +537,7 @@ where
 			let machine = machine.deconstruct();
 			let exit = InvokerExit {
 				result: ret,
-				substate: machine.0,
+				substate: Some(machine.0),
 				retval: machine.1,
 			};
 			invoker.finalize_transact(&transact_invoke, exit, backend)

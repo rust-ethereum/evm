@@ -8,7 +8,7 @@ use core::{cmp::min, convert::Infallible};
 use evm_interpreter::{
 	error::{
 		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
-		ExitError, ExitException, ExitSucceed, TrapConsume,
+		ExitError, ExitException, ExitSucceed, TrapConsume, ExitFatal,
 	},
 	opcode::Opcode,
 	runtime::{
@@ -351,10 +351,10 @@ where
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		mut exit: InvokerExit<Self::State>,
+		exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = exit.substate.effective_gas();
+		let left_gas = exit.substate.as_ref().map(|s| s.effective_gas()).unwrap_or_default();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
 			match exit.result {
@@ -362,19 +362,23 @@ where
 					if let Some(address) = invoke.create_address {
 						let retbuf = exit.retval;
 
-						routines::deploy_create_code(
-							self.config,
-							address,
-							retbuf,
-							&mut exit.substate,
-							handler,
-							SetCodeOrigin::Transaction,
-						)?;
+						if let Some(mut substate) = exit.substate {
+							routines::deploy_create_code(
+								self.config,
+								address,
+								retbuf,
+								&mut substate,
+								handler,
+								SetCodeOrigin::Transaction,
+							)?;
 
-						Ok(TransactValue::Create {
-							succeed: result,
-							address,
-						})
+							Ok(TransactValue::Create {
+								succeed: result,
+								address,
+							})
+						} else {
+							Err(ExitFatal::Unfinished.into())
+						}
 					} else {
 						Ok(TransactValue::Call {
 							succeed: result,
@@ -407,7 +411,7 @@ where
 		// Reward coinbase address
 		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
 		// The base fee is always burned.
-		let coinbase_gas_price = if exit.substate.config().eip_1559_enabled {
+		let coinbase_gas_price = if self.config.eip_1559_enabled {
 			invoke
 				.gas_price
 				.saturating_sub(handler.block_base_fee_per_gas())
@@ -549,7 +553,7 @@ where
 	fn exit_substack(
 		&self,
 		trap_data: Self::SubstackInvoke,
-		mut exit: InvokerExit<Self::State>,
+		exit: InvokerExit<Self::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
@@ -564,25 +568,31 @@ where
 				let mut retbuf = exit.retval;
 				let caller = trap.scheme.caller();
 
-				let result = match exit.result {
-					Ok(_) => {
-						routines::deploy_create_code(
-							self.config,
-							address,
-							retbuf,
-							&mut exit.substate,
-							handler,
-							SetCodeOrigin::Subcall(caller),
-						)?;
+				let result = if let Some(mut substate) = exit.substate {
+					let result = match exit.result {
+						Ok(_) => {
+							routines::deploy_create_code(
+								self.config,
+								address,
+								retbuf,
+								&mut substate,
+								handler,
+								SetCodeOrigin::Subcall(caller),
+							)?;
 
-						retbuf = Vec::new();
+							retbuf = Vec::new();
 
-						Ok(address)
-					}
-					Err(err) => Err(err),
+							Ok(address)
+						}
+						Err(err) => Err(err),
+					};
+
+					parent.machine_mut().state.merge(substate, strategy);
+					result
+				} else {
+					Err(ExitFatal::Unfinished.into())
 				};
 
-				parent.machine_mut().state.merge(exit.substate, strategy);
 				handler.pop_substate(strategy);
 
 				trap.feedback(result, retbuf, parent)?;
@@ -592,7 +602,9 @@ where
 			SubstackInvoke::Call { trap } => {
 				let retbuf = exit.retval;
 
-				parent.machine_mut().state.merge(exit.substate, strategy);
+				if let Some(substate) = exit.substate {
+					parent.machine_mut().state.merge(substate, strategy);
+				}
 				handler.pop_substate(strategy);
 
 				trap.feedback(exit.result, retbuf, parent)?;

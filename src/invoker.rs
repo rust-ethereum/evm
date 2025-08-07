@@ -13,7 +13,7 @@ pub enum InvokerControl<I: Interpreter> {
 
 pub struct InvokerExit<S> {
 	pub result: ExitResult,
-	pub substate: S,
+	pub substate: Option<S>,
 	pub retval: Vec<u8>,
 }
 
