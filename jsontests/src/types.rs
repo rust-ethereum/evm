@@ -243,7 +243,10 @@ pub struct TestMultiTransaction {
 	pub access_lists: Option<Vec<Vec<TestAccessListItem>>>,
 }
 
-fn deserialize_to<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error> where D: Deserializer<'de> {
+fn deserialize_to<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error>
+where
+	D: Deserializer<'de>,
+{
 	let data: String = Deserialize::deserialize(deserializer)?;
 
 	if data == "" {
@@ -253,7 +256,10 @@ fn deserialize_to<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error> whe
 	}
 }
 
-fn serialize_to<S>(value: &Option<H160>, serializer: S) -> Result<S::Ok, S::Error> where S: Serializer {
+fn serialize_to<S>(value: &Option<H160>, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
 	let s = if let Some(v) = value {
 		format!("{:?}", v)
 	} else {

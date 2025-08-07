@@ -8,7 +8,7 @@ use core::{cmp::min, convert::Infallible};
 use evm_interpreter::{
 	error::{
 		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
-		ExitError, ExitException, ExitResult, ExitSucceed, TrapConsume,
+		ExitError, ExitException, ExitSucceed, TrapConsume,
 	},
 	opcode::Opcode,
 	runtime::{
@@ -26,7 +26,7 @@ pub use self::{
 };
 use crate::{
 	backend::TransactionalBackend,
-	invoker::{Invoker as InvokerT, InvokerControl},
+	invoker::{Invoker as InvokerT, InvokerControl, InvokerExit},
 	standard::Config,
 	MergeStrategy,
 };
@@ -202,13 +202,7 @@ where
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<
-		(
-			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
-		),
-		ExitError,
-	> {
+	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter>), ExitError> {
 		let caller = args.caller();
 		let gas_price = args.gas_price();
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
@@ -357,23 +351,22 @@ where
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		result: ExitResult,
-		(mut substate, retval): (R::State, Vec<u8>),
+		mut exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = substate.effective_gas();
+		let left_gas = exit.substate.effective_gas();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
-			match result {
+			match exit.result {
 				Ok(result) => {
 					if let Some(address) = invoke.create_address {
-						let retbuf = retval;
+						let retbuf = exit.retval;
 
 						routines::deploy_create_code(
 							self.config,
 							address,
 							retbuf,
-							&mut substate,
+							&mut exit.substate,
 							handler,
 							SetCodeOrigin::Transaction,
 						)?;
@@ -385,7 +378,7 @@ where
 					} else {
 						Ok(TransactValue::Call {
 							succeed: result,
-							retval,
+							retval: exit.retval,
 						})
 					}
 				}
@@ -414,7 +407,7 @@ where
 		// Reward coinbase address
 		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
 		// The base fee is always burned.
-		let coinbase_gas_price = if substate.config().eip_1559_enabled {
+		let coinbase_gas_price = if exit.substate.config().eip_1559_enabled {
 			invoke
 				.gas_price
 				.saturating_sub(handler.block_base_fee_per_gas())
@@ -437,13 +430,7 @@ where
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<
-			(
-				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
-			),
-			ExitError,
-		>,
+		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter>), ExitError>,
 		Self::Interrupt,
 	> {
 		fn l64(gas: U256) -> U256 {
@@ -520,7 +507,7 @@ where
 				let value = create_trap_data.value;
 
 				if value != U256::zero() && handler.balance(caller) < value {
-					return Capture::Exit(Err(ExitException::OutOfFund.into()))
+					return Capture::Exit(Err(ExitException::OutOfFund.into()));
 				}
 
 				match handler.inc_nonce(caller) {
@@ -561,13 +548,12 @@ where
 
 	fn exit_substack(
 		&self,
-		result: ExitResult,
-		(mut substate, retval): (R::State, Vec<u8>),
 		trap_data: Self::SubstackInvoke,
+		mut exit: InvokerExit<Self::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
-		let strategy = match &result {
+		let strategy = match &exit.result {
 			Ok(_) => MergeStrategy::Commit,
 			Err(ExitError::Reverted) => MergeStrategy::Revert,
 			Err(_) => MergeStrategy::Discard,
@@ -575,16 +561,16 @@ where
 
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {
-				let mut retbuf = retval;
+				let mut retbuf = exit.retval;
 				let caller = trap.scheme.caller();
 
-				let result = match result {
+				let result = match exit.result {
 					Ok(_) => {
 						routines::deploy_create_code(
 							self.config,
 							address,
 							retbuf,
-							&mut substate,
+							&mut exit.substate,
 							handler,
 							SetCodeOrigin::Subcall(caller),
 						)?;
@@ -592,11 +578,11 @@ where
 						retbuf = Vec::new();
 
 						Ok(address)
-					},
+					}
 					Err(err) => Err(err),
 				};
 
-				parent.machine_mut().state.merge(substate, strategy);
+				parent.machine_mut().state.merge(exit.substate, strategy);
 				handler.pop_substate(strategy);
 
 				trap.feedback(result, retbuf, parent)?;
@@ -604,12 +590,12 @@ where
 				Ok(())
 			}
 			SubstackInvoke::Call { trap } => {
-				let retbuf = retval;
+				let retbuf = exit.retval;
 
-				parent.machine_mut().state.merge(substate, strategy);
+				parent.machine_mut().state.merge(exit.substate, strategy);
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, parent)?;
+				trap.feedback(exit.result, retbuf, parent)?;
 
 				Ok(())
 			}

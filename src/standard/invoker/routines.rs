@@ -1,7 +1,5 @@
-use alloc::vec::Vec;
-
 use evm_interpreter::{
-	error::{CallTrapData, CreateTrapData, ExitError, ExitException, ExitResult},
+	error::{CallTrapData, CreateTrapData, ExitError, ExitException},
 	opcode::Opcode,
 	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, Transfer},
 };
@@ -23,7 +21,7 @@ pub fn make_enter_call_machine<H, R>(
 	transfer: Option<Transfer>,
 	state: R::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>, ExitError>
+) -> Result<InvokerControl<R::Interpreter>, ExitError>
 where
 	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -47,7 +45,7 @@ pub fn make_enter_create_machine<H, R>(
 	transfer: Transfer,
 	state: R::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>, ExitError>
+) -> Result<InvokerControl<R::Interpreter>, ExitError>
 where
 	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -88,13 +86,7 @@ pub fn enter_call_substack<H, R>(
 	code_address: H160,
 	state: R::State,
 	handler: &mut H,
-) -> Result<
-	(
-		SubstackInvoke,
-		InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
-	),
-	ExitError,
->
+) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter>), ExitError>
 where
 	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -134,13 +126,7 @@ pub fn enter_create_substack<H, R>(
 	address: H160,
 	state: R::State,
 	handler: &mut H,
-) -> Result<
-	(
-		SubstackInvoke,
-		InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
-	),
-	ExitError,
->
+) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter>), ExitError>
 where
 	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -148,7 +134,7 @@ where
 {
 	handler.push_substate();
 
-	let work = || -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, (ExitResult, (R::State, Vec<u8>))>), ExitError> {
+	let work = || -> Result<(SubstackInvoke, InvokerControl<R::Interpreter>), ExitError> {
 		let CreateTrapData {
 			scheme,
 			value,
@@ -163,9 +149,8 @@ where
 			value,
 		};
 
-		let machine = make_enter_create_machine(
-			config, resolver, caller, code, transfer, state, handler,
-		)?;
+		let machine =
+			make_enter_create_machine(config, resolver, caller, code, transfer, state, handler)?;
 
 		Ok((
 			SubstackInvoke::Create {

@@ -1,16 +1,20 @@
-use alloc::vec::Vec;
-
 use evm_interpreter::{
 	error::{Capture, ExitError, ExitResult},
 	Interpreter,
 };
 
 /// Control for an invoker.
-pub enum InvokerControl<VE, VD> {
+pub enum InvokerControl<I: Interpreter> {
 	/// Pushing the call stack.
-	Enter(VE),
+	Enter(I),
 	/// Directly exit, not pushing the call stack.
-	DirectExit(VD),
+	DirectExit(InvokerExit<I::State>),
+}
+
+pub struct InvokerExit<S> {
+	pub result: ExitResult,
+	pub substate: S,
+	pub retval: Vec<u8>,
 }
 
 /// An invoker, responsible for pushing/poping values in the call stack.
@@ -37,20 +41,13 @@ pub trait Invoker<H, Tr> {
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<
-		(
-			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>,
-		),
-		ExitError,
-	>;
+	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter>), ExitError>;
 
 	/// Finalize a transaction.
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		exit: ExitResult,
-		machine: (Self::State, Vec<u8>),
+		exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
 
@@ -63,22 +60,15 @@ pub trait Invoker<H, Tr> {
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<
-			(
-				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>,
-			),
-			ExitError,
-		>,
+		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter>), ExitError>,
 		Self::Interrupt,
 	>;
 
 	/// Exit a sub-layer call stack.
 	fn exit_substack(
 		&self,
-		result: ExitResult,
-		child: (Self::State, Vec<u8>),
 		trap_data: Self::SubstackInvoke,
+		exit: InvokerExit<Self::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError>;

@@ -273,7 +273,10 @@ pub fn run_test(
 
 	if state_root != test.post.hash {
 		if debug {
-			println!("test state root mismatch: {state_root:?} != {:?}", test.post.hash);
+			println!(
+				"test state root mismatch: {state_root:?} != {:?}",
+				test.post.hash
+			);
 
 			for (address, account) in &run_backend.state {
 				println!(
