@@ -121,7 +121,7 @@ pub fn run_test(
 	write_failed: Option<&str>,
 ) -> Result<(), Error> {
 	let config = match test.fork {
-		Fork::Berlin => Config::berlin(),
+		Fork::Istanbul => Config::istanbul(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 
@@ -218,10 +218,11 @@ pub fn run_test(
 				{
 					if let Some(machine) = stepper.last_interpreter() {
 						println!(
-							"pc: {}, opcode: {:?}, gas: 0x{:x}",
+							"pc: {}, opcode: {:?}, gas: 0x{:x}, stack: {:?}",
 							machine.position(),
 							machine.peek_opcode(),
 							machine.machine().state.gas(),
+							machine.machine().stack.data().clone().into_iter().map(|v| format!("0x{v:x}")).collect::<Vec<_>>(),
 						);
 					}
 				}

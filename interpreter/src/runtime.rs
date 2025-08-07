@@ -116,7 +116,12 @@ pub trait RuntimeBaseBackend {
 	}
 	/// Get code hash of address.
 	fn code_hash(&self, address: H160) -> H256 {
-		H256::from_slice(&Keccak256::digest(&self.code(address)[..]))
+		let code = self.code(address);
+		if code.is_empty() {
+			H256::default()
+		} else {
+			H256::from_slice(&Keccak256::digest(&code[..]))
+		}
 	}
 	/// Get code of address.
 	fn code(&self, address: H160) -> Vec<u8>;
