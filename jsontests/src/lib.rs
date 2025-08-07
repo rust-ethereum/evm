@@ -11,7 +11,7 @@ macro_rules! general_state_tests {
 		fn $name() {
 			const JSON_FILENAME: &str = concat!("res/ethtests/GeneralStateTests/", $folder, "/");
 			println!("name: {}", JSON_FILENAME);
-			let tests_status = run::run_single(JSON_FILENAME, false).unwrap();
+			let tests_status = run::run_single(JSON_FILENAME, false, None).unwrap();
 			tests_status.print_total();
 		}
 	}

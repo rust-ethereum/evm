@@ -15,6 +15,9 @@ struct Cli {
 
 	#[arg(short, long, default_value_t = false)]
 	debug: bool,
+
+	#[arg(long)]
+	write_failed: Option<String>,
 }
 
 fn main() -> Result<(), Error> {
@@ -22,7 +25,7 @@ fn main() -> Result<(), Error> {
 
 	let mut tests_status = TestCompletionStatus::default();
 	for filename in cli.filenames {
-		tests_status += run::run_single(&filename, cli.debug)?;
+		tests_status += run::run_single(&filename, cli.debug, cli.write_failed.as_deref())?;
 	}
 	tests_status.print_total();
 

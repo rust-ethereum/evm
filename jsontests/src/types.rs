@@ -1,10 +1,11 @@
 use std::{collections::BTreeMap, fmt};
 
+use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
 use primitive_types::{H160, H256, U256};
 use serde::{
 	de::{Error, Visitor},
-	Deserialize, Deserializer,
+	Deserialize, Deserializer, Serialize, Serializer,
 };
 
 /// Statistic type to gather tests pass completion status
@@ -65,7 +66,7 @@ impl TestCompletionStatus {
 
 /// `TestMulti` represents raw data from `jsontest` data file.
 /// It contains multiple test data for passing tests.
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct TestMulti {
 	#[serde(rename = "_info")]
 	pub info: TestInfo,
@@ -130,7 +131,7 @@ pub struct TestData {
 }
 
 /// `TestInfo` contains information data about test from json file
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestInfo {
 	pub comment: String,
@@ -146,7 +147,7 @@ pub struct TestInfo {
 }
 
 /// `TestEnv` represents Ethereum environment data
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestEnv {
 	pub current_base_fee: U256,
@@ -162,7 +163,7 @@ pub struct TestEnv {
 }
 
 /// Available Ethereum forks for testing
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]
 pub enum Fork {
 	Berlin,
 	Cancun,
@@ -179,7 +180,7 @@ pub enum Fork {
 	Istanbul,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestPostState {
 	pub hash: H256,
@@ -190,29 +191,40 @@ pub struct TestPostState {
 }
 
 /// `TestExpectException` expected Ethereum exception
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[allow(non_camel_case_types)]
 pub enum TestExpectException {
 	TR_TypeNotSupported,
 	TR_IntrinsicGas,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct TestPostStateIndexes {
 	pub data: usize,
 	pub gas: usize,
 	pub value: usize,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct TestPreState {
 	pub balance: U256,
 	pub code: HexBytes,
 	pub nonce: U256,
-	pub storage: BTreeMap<U256, U256>,
+	#[serde(deserialize_with = "deserialize_storage")]
+	pub storage: BTreeMap<H256, H256>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+fn deserialize_storage<'de, D>(deserializer: D) -> Result<BTreeMap<H256, H256>, D::Error>
+where
+	D: Deserializer<'de>,
+{
+	let m: BTreeMap<U256, U256> = Deserialize::deserialize(deserializer)?;
+	Ok(m.into_iter()
+		.map(|(k, v)| (u256_to_h256(k), u256_to_h256(v)))
+		.collect())
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestMultiTransaction {
 	pub data: Vec<HexBytes>,
@@ -228,7 +240,7 @@ pub struct TestMultiTransaction {
 	pub access_lists: Option<Vec<Vec<TestAccessListItem>>>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestAccessListItem {
 	pub address: H160,
@@ -249,8 +261,14 @@ pub struct TestTransaction {
 	pub access_list: Vec<TestAccessListItem>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Deserialize)]
-pub struct HexBytes(#[serde(deserialize_with = "deserialize_hex_bytes")] pub Vec<u8>);
+#[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct HexBytes(
+	#[serde(
+		deserialize_with = "deserialize_hex_bytes",
+		serialize_with = "serialize_hex_bytes"
+	)]
+	pub Vec<u8>,
+);
 
 fn deserialize_hex_bytes<'de, D>(deserializer: D) -> Result<Vec<u8>, D::Error>
 where
@@ -289,4 +307,13 @@ where
 	}
 
 	deserializer.deserialize_str(HexStrVisitor)
+}
+
+fn serialize_hex_bytes<S>(value: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
+where
+	S: Serializer,
+{
+	let mut s = "0x".to_string();
+	s.push_str(&hex::encode(&value));
+	serializer.serialize_str(&s)
 }
