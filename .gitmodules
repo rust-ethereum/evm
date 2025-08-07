@@ -1,3 +1,8 @@
 [submodule "jsontests/res/ethtests"]
 	path = jsontests/res/ethtests
 	url = https://github.com/ethereum/tests
+	shallow = true
+[submodule "jsontests/res/spectests"]
+	path = jsontests/res/spectests
+	url = https://github.com/ethereum/execution-spec-tests
+	shallow = true

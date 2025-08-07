@@ -25,7 +25,7 @@ fn etable_wrap() {
 		move |machine, handle, position| {
 			let opcode = Opcode(machine.code()[position]);
 			assert_eq!(opcode_t, opcode);
-			println!("opcode: {:?}", opcode);
+			println!("opcode: {opcode:?}");
 			f(machine, handle, position)
 		}
 	});
@@ -49,7 +49,7 @@ fn etable_wrap2() {
 				Box::new(move |machine, handle, position| {
 					let opcode = Opcode(machine.code()[position]);
 					assert_eq!(opcode_t, opcode);
-					println!("opcode: {:?}", opcode);
+					println!("opcode: {opcode:?}");
 					f(machine, handle, position)
 				})
 			} else {

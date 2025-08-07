@@ -1,3 +1,1 @@
 hard_tabs = true
-imports_granularity="Crate"
-group_imports = "StdExternalCrate"

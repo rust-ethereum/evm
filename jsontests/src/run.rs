@@ -68,7 +68,7 @@ fn run_file(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> 
 					println!("skipped")
 				}
 				Err(err) => {
-					println!("ERROR: {:?}", err);
+					println!("ERROR: {err:?}");
 					return Err(err);
 				}
 			}
