@@ -372,7 +372,7 @@ impl Substate {
 		if let Some(value) = self.storages.get(&(address, key)) {
 			Some(*value)
 		} else if self.storage_resets.contains(&address) {
-			Some(H256::default())
+			None
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_storage(address, key)
 		} else {

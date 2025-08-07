@@ -116,7 +116,11 @@ pub trait RuntimeBaseBackend {
 	}
 	/// Get code hash of address.
 	fn code_hash(&self, address: H160) -> H256 {
-		H256::from_slice(&Keccak256::digest(&self.code(address)[..]))
+		if !self.is_empty(address) {
+			H256::from_slice(&Keccak256::digest(&self.code(address)[..]))
+		} else {
+			H256::default()
+		}
 	}
 	/// Get code of address.
 	fn code(&self, address: H160) -> Vec<u8>;
@@ -125,8 +129,14 @@ pub trait RuntimeBaseBackend {
 	/// Get transient storage value of address at index.
 	fn transient_storage(&self, address: H160, index: H256) -> H256;
 
-	/// Check whether an address exists.
+	/// Check whether an address exists. Used pre EIP161.
 	fn exists(&self, address: H160) -> bool;
+	/// Check whether an address is empty. Used after EIP161. Note that the meaning is opposite.
+	fn is_empty(&self, address: H160) -> bool {
+		self.balance(address) == U256::zero()
+			&& self.code_size(address) == U256::zero()
+			&& self.nonce(address) == U256::zero()
+	}
 
 	/// Get the current nonce of an account.
 	fn nonce(&self, address: H160) -> U256;

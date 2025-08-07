@@ -58,7 +58,7 @@ general_state_tests!(st_eip158_specific, "stEIP158Specific", ignore);
 general_state_tests!(st_eip2930, "stEIP2930", ignore);
 general_state_tests!(st_eip3607, "stEIP3607", ignore);
 general_state_tests!(st_example, "stExample");
-general_state_tests!(st_ext_code_hash, "stExtCodeHash", ignore);
+general_state_tests!(st_ext_code_hash, "stExtCodeHash");
 general_state_tests!(st_homestead_specific, "stHomesteadSpecific", ignore);
 general_state_tests!(st_init_code_test, "stInitCodeTest", ignore);
 general_state_tests!(st_log_tests, "stLogTests");

@@ -121,7 +121,7 @@ pub fn run_test(
 	write_failed: Option<&str>,
 ) -> Result<(), Error> {
 	let config = match test.fork {
-		Fork::Berlin => Config::berlin(),
+		Fork::Istanbul => Config::istanbul(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 
@@ -173,20 +173,38 @@ pub fn run_test(
 	let precompiles = StandardPrecompileSet::new(&config);
 	let resolver = EtableResolver::new(&config, &precompiles, &etable);
 	let invoker = Invoker::new(&config, &resolver);
-	let args = TransactArgs::Call {
-		caller: test.transaction.sender,
-		address: test.transaction.to,
-		value: test.transaction.value,
-		data: test.transaction.data.clone(),
-		gas_limit: test.transaction.gas_limit,
-		gas_price: test.transaction.gas_price,
-		access_list: test
-			.transaction
-			.access_list
-			.clone()
-			.into_iter()
-			.map(|access| (access.address, access.storage_keys))
-			.collect(),
+	let args = if let Some(to) = test.transaction.to {
+		TransactArgs::Call {
+			caller: test.transaction.sender,
+			address: to,
+			value: test.transaction.value,
+			data: test.transaction.data.clone(),
+			gas_limit: test.transaction.gas_limit,
+			gas_price: test.transaction.gas_price,
+			access_list: test
+				.transaction
+				.access_list
+				.clone()
+				.into_iter()
+				.map(|access| (access.address, access.storage_keys))
+				.collect(),
+		}
+	} else {
+		TransactArgs::Create {
+			caller: test.transaction.sender,
+			value: test.transaction.value,
+			salt: None,
+			init_code: test.transaction.data.clone(),
+			gas_limit: test.transaction.gas_limit,
+			gas_price: test.transaction.gas_price,
+			access_list: test
+				.transaction
+				.access_list
+				.clone()
+				.into_iter()
+				.map(|access| (access.address, access.storage_keys))
+				.collect(),
+		}
 	};
 
 	let initial_accessed = {
@@ -218,10 +236,18 @@ pub fn run_test(
 				{
 					if let Some(machine) = stepper.last_interpreter() {
 						println!(
-							"pc: {}, opcode: {:?}, gas: 0x{:x}",
+							"pc: {}, opcode: {:?}, gas: 0x{:x}, stack: {:?}",
 							machine.position(),
 							machine.peek_opcode(),
 							machine.machine().state.gas(),
+							machine
+								.machine()
+								.stack
+								.data()
+								.clone()
+								.into_iter()
+								.map(|v| format!("0x{v:x}"))
+								.collect::<Vec<_>>(),
 						);
 					}
 				}
