@@ -7,6 +7,7 @@ use serde::{
 	de::{Error, Visitor},
 	Deserialize, Deserializer, Serialize, Serializer,
 };
+use serde_with::{serde_as, NoneAsEmptyString};
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -224,6 +225,7 @@ where
 		.collect())
 }
 
+#[serde_as]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestMultiTransaction {
@@ -235,7 +237,8 @@ pub struct TestMultiTransaction {
 	pub nonce: U256,
 	pub secret_key: H256,
 	pub sender: H160,
-	pub to: H160,
+	#[serde_as(as = "NoneAsEmptyString")]
+	pub to: Option<H160>,
 	pub value: Vec<U256>,
 	pub access_lists: Option<Vec<Vec<TestAccessListItem>>>,
 }
@@ -256,7 +259,7 @@ pub struct TestTransaction {
 	pub nonce: U256,
 	pub secret_key: H256,
 	pub sender: H160,
-	pub to: H160,
+	pub to: Option<H160>,
 	pub value: U256,
 	pub access_list: Vec<TestAccessListItem>,
 }

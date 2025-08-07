@@ -69,7 +69,7 @@ where
 	{
 		return Err(ExitException::CreateCollision.into());
 	}
-	handler.inc_nonce(caller)?;
+
 	if config.create_increase_nonce {
 		handler.inc_nonce(state.as_ref().context.address)?;
 	}
@@ -162,6 +162,8 @@ where
 			target: address,
 			value,
 		};
+
+		handler.inc_nonce(caller)?;
 
 		let machine = make_enter_create_machine(
 			config, resolver, caller, code, transfer, state, handler,

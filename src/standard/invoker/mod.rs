@@ -56,6 +56,7 @@ pub enum SubstackInvoke {
 }
 
 /// Return value of a transaction.
+#[derive(Clone, Debug)]
 pub enum TransactValue {
 	Call {
 		/// The exit result. If we return a value, then it will be an
@@ -210,11 +211,7 @@ where
 	> {
 		let caller = args.caller();
 		let gas_price = args.gas_price();
-
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
-		handler.withdrawal(caller, gas_fee)?;
-
-		handler.inc_nonce(caller)?;
 
 		let address = match &args {
 			TransactArgs::Call { address, .. } => *address,
@@ -239,6 +236,9 @@ where
 			},
 		};
 		let value = args.value();
+
+		handler.inc_nonce(caller)?;
+		handler.withdrawal(caller, gas_fee)?;
 
 		let invoke = TransactInvoke {
 			gas_limit: args.gas_limit(),
