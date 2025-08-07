@@ -231,9 +231,6 @@ where
 		};
 		let value = args.value();
 
-		handler.inc_nonce(caller)?;
-		handler.withdrawal(caller, gas_fee)?;
-
 		let invoke = TransactInvoke {
 			gas_limit: args.gas_limit(),
 			gas_price: args.gas_price(),
@@ -243,6 +240,9 @@ where
 				TransactArgs::Create { .. } => Some(address),
 			},
 		};
+
+		handler.inc_nonce(caller)?;
+		handler.withdrawal(caller, gas_fee)?;
 
 		handler.push_substate();
 
@@ -455,30 +455,41 @@ where
 			Err(err) => return Capture::Exit(Err(err)),
 		};
 
+		let invoke = match trap_data {
+			CallCreateTrapData::Call(call_trap_data) => SubstackInvoke::Call { trap: call_trap_data },
+			CallCreateTrapData::Create(create_trap_data) => {
+				let address = create_trap_data.scheme.address(handler);
+				SubstackInvoke::Create { address, trap: create_trap_data }
+			},
+		};
+
 		let after_gas = if self.config.call_l64_after_gas {
 			l64(machine.machine().state.gas())
 		} else {
 			machine.machine().state.gas()
 		};
-		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
+		let target_gas = match &invoke {
+			SubstackInvoke::Call { trap, .. } => trap.gas,
+			SubstackInvoke::Create { .. } => after_gas,
+		};
 		let gas_limit = min(after_gas, target_gas);
 
 		let call_has_value =
-			matches!(&trap_data, CallCreateTrapData::Call(call) if call.has_value());
+			matches!(&invoke, SubstackInvoke::Call { trap: call_trap_data } if call_trap_data.has_value());
 
 		let is_static = if machine.machine().state.is_static() {
 			true
 		} else {
-			match &trap_data {
-				CallCreateTrapData::Call(CallTrapData { is_static, .. }) => *is_static,
+			match &invoke {
+				SubstackInvoke::Call { trap: CallTrapData { is_static, .. } } => *is_static,
 				_ => false,
 			}
 		};
 
 		let transaction_context = machine.machine().state.as_ref().transaction_context.clone();
 
-		match trap_data {
-			CallCreateTrapData::Call(call_trap_data) => {
+		match invoke {
+			SubstackInvoke::Call { trap: call_trap_data } => {
 				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
 						context: call_trap_data.context.clone(),
@@ -504,9 +515,8 @@ where
 					handler,
 				))
 			}
-			CallCreateTrapData::Create(create_trap_data) => {
+			SubstackInvoke::Create { trap: create_trap_data, address } => {
 				let caller = create_trap_data.scheme.caller();
-				let address = create_trap_data.scheme.address(handler);
 				let code = create_trap_data.code.clone();
 				let value = create_trap_data.value;
 
