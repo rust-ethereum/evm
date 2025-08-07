@@ -8,7 +8,7 @@ use core::{cmp::min, convert::Infallible};
 use evm_interpreter::{
 	error::{
 		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
-		ExitError, ExitException, ExitSucceed, TrapConsume, ExitFatal,
+		ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
 	},
 	opcode::Opcode,
 	runtime::{
@@ -241,8 +241,45 @@ where
 			},
 		};
 
-		handler.inc_nonce(caller)?;
-		handler.withdrawal(caller, gas_fee)?;
+		macro_rules! try_still_enter_substack_prior_substate {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(err) => {
+						handler.push_substate();
+						return Ok((
+							invoke,
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: None,
+								retval: Vec::new(),
+							}),
+						));
+					}
+				}
+			};
+		}
+
+		macro_rules! try_still_enter_substack_post_substate {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(err) => {
+						return Ok((
+							invoke,
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: None,
+								retval: Vec::new(),
+							}),
+						))
+					}
+				}
+			};
+		}
+
+		try_still_enter_substack_prior_substate!(handler.inc_nonce(caller));
+		try_still_enter_substack_prior_substate!(handler.withdrawal(caller, gas_fee));
 
 		handler.push_substate();
 
@@ -266,7 +303,7 @@ where
 			retbuf: Vec::new(),
 		};
 
-		let work = || -> Result<(TransactInvoke, _), ExitError> {
+		let work = || -> Result<_, ExitError> {
 			match args {
 				TransactArgs::Call {
 					caller,
@@ -310,7 +347,7 @@ where
 						handler.mark_hot(address, None);
 					}
 
-					Ok((invoke, machine))
+					Ok(machine)
 				}
 				TransactArgs::Create {
 					caller,
@@ -337,15 +374,13 @@ where
 						handler,
 					)?;
 
-					Ok((invoke, machine))
+					Ok(machine)
 				}
 			}
 		};
 
-		work().map_err(|err| {
-			handler.pop_substate(MergeStrategy::Discard);
-			err
-		})
+		let ctrl = try_still_enter_substack_post_substate!(work());
+		Ok((invoke, ctrl))
 	}
 
 	fn finalize_transact(
@@ -354,7 +389,11 @@ where
 		exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = exit.substate.as_ref().map(|s| s.effective_gas()).unwrap_or_default();
+		let left_gas = exit
+			.substate
+			.as_ref()
+			.map(|s| s.effective_gas())
+			.unwrap_or_default();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
 			match exit.result {
@@ -446,22 +485,46 @@ where
 			Err(interrupt) => return Capture::Trap(interrupt),
 		};
 
-		if depth >= self.config.call_stack_limit {
-			return Capture::Exit(Err(ExitException::CallTooDeep.into()));
-		}
-
 		let trap_data = match CallCreateTrapData::new_from(opcode, machine.machine_mut()) {
 			Ok(trap_data) => trap_data,
 			Err(err) => return Capture::Exit(Err(err)),
 		};
 
 		let invoke = match trap_data {
-			CallCreateTrapData::Call(call_trap_data) => SubstackInvoke::Call { trap: call_trap_data },
+			CallCreateTrapData::Call(call_trap_data) => SubstackInvoke::Call {
+				trap: call_trap_data,
+			},
 			CallCreateTrapData::Create(create_trap_data) => {
 				let address = create_trap_data.scheme.address(handler);
-				SubstackInvoke::Create { address, trap: create_trap_data }
-			},
+				SubstackInvoke::Create {
+					address,
+					trap: create_trap_data,
+				}
+			}
 		};
+
+		macro_rules! try_still_enter_substack {
+			( $e:expr ) => {
+				match $e {
+					Ok(v) => v,
+					Err(err) => {
+						handler.push_substate();
+						return Capture::Exit(Ok((
+							invoke,
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: None,
+								retval: Vec::new(),
+							}),
+						)));
+					}
+				}
+			};
+		}
+
+		if depth >= self.config.call_stack_limit {
+			try_still_enter_substack!(Err(ExitException::CallTooDeep.into()));
+		}
 
 		let after_gas = if self.config.call_l64_after_gas {
 			l64(machine.machine().state.gas())
@@ -474,14 +537,15 @@ where
 		};
 		let gas_limit = min(after_gas, target_gas);
 
-		let call_has_value =
-			matches!(&invoke, SubstackInvoke::Call { trap: call_trap_data } if call_trap_data.has_value());
+		let call_has_value = matches!(&invoke, SubstackInvoke::Call { trap: call_trap_data } if call_trap_data.has_value());
 
 		let is_static = if machine.machine().state.is_static() {
 			true
 		} else {
 			match &invoke {
-				SubstackInvoke::Call { trap: CallTrapData { is_static, .. } } => *is_static,
+				SubstackInvoke::Call {
+					trap: CallTrapData { is_static, .. },
+				} => *is_static,
 				_ => false,
 			}
 		};
@@ -489,7 +553,9 @@ where
 		let transaction_context = machine.machine().state.as_ref().transaction_context.clone();
 
 		match invoke {
-			SubstackInvoke::Call { trap: call_trap_data } => {
+			SubstackInvoke::Call {
+				trap: call_trap_data,
+			} => {
 				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
 						context: call_trap_data.context.clone(),
@@ -501,7 +567,18 @@ where
 					call_has_value,
 				) {
 					Ok(submeter) => submeter,
-					Err(err) => return Capture::Exit(Err(err)),
+					Err(err) => {
+						return Capture::Exit(Ok((
+							SubstackInvoke::Call {
+								trap: call_trap_data,
+							},
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: None,
+								retval: Vec::new(),
+							}),
+						)))
+					}
 				};
 
 				let target = call_trap_data.target;
@@ -515,18 +592,43 @@ where
 					handler,
 				))
 			}
-			SubstackInvoke::Create { trap: create_trap_data, address } => {
+			SubstackInvoke::Create {
+				trap: create_trap_data,
+				address,
+			} => {
 				let caller = create_trap_data.scheme.caller();
 				let code = create_trap_data.code.clone();
 				let value = create_trap_data.value;
 
 				if value != U256::zero() && handler.balance(caller) < value {
-					return Capture::Exit(Err(ExitException::OutOfFund.into()));
+					return Capture::Exit(Ok((
+						SubstackInvoke::Create {
+							trap: create_trap_data,
+							address,
+						},
+						InvokerControl::DirectExit(InvokerExit {
+							result: Err(ExitException::OutOfFund.into()),
+							substate: None,
+							retval: Vec::new(),
+						}),
+					)));
 				}
 
 				match handler.inc_nonce(caller) {
 					Ok(()) => (),
-					Err(err) => return Capture::Exit(Err(err)),
+					Err(err) => {
+						return Capture::Exit(Ok((
+							SubstackInvoke::Create {
+								trap: create_trap_data,
+								address,
+							},
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: None,
+								retval: Vec::new(),
+							}),
+						)));
+					}
 				}
 
 				let substate = match machine.machine_mut().state.substate(
@@ -544,7 +646,19 @@ where
 					call_has_value,
 				) {
 					Ok(submeter) => submeter,
-					Err(err) => return Capture::Exit(Err(err)),
+					Err(err) => {
+						return Capture::Exit(Ok((
+							SubstackInvoke::Create {
+								trap: create_trap_data,
+								address,
+							},
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: None,
+								retval: Vec::new(),
+							}),
+						)));
+					}
 				};
 
 				Capture::Exit(routines::enter_create_substack(
@@ -581,18 +695,23 @@ where
 				let result = if let Some(mut substate) = exit.substate {
 					let result = match exit.result {
 						Ok(_) => {
-							routines::deploy_create_code(
+							match routines::deploy_create_code(
 								self.config,
 								address,
 								retbuf,
 								&mut substate,
 								handler,
 								SetCodeOrigin::Subcall(caller),
-							)?;
-
-							retbuf = Vec::new();
-
-							Ok(address)
+							) {
+								Ok(()) => {
+									retbuf = Vec::new();
+									Ok(address)
+								}
+								Err(err) => {
+									retbuf = Vec::new();
+									Err(err)
+								}
+							}
 						}
 						Err(err) => Err(err),
 					};
@@ -605,9 +724,7 @@ where
 
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, parent)?;
-
-				Ok(())
+				trap.feedback(result, retbuf, parent)
 			}
 			SubstackInvoke::Call { trap } => {
 				let retbuf = exit.retval;
@@ -617,9 +734,7 @@ where
 				}
 				handler.pop_substate(strategy);
 
-				trap.feedback(exit.result, retbuf, parent)?;
-
-				Ok(())
+				trap.feedback(exit.result, retbuf, parent)
 			}
 		}
 	}
