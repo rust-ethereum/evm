@@ -2885,6 +2885,72 @@ fn test_9_6_delegation_to_selfdestruct_contract() {
 	);
 }
 
+#[test]
+fn test_9_7_delegation_to_zero_address() {
+	// Test: First delegation to one address gets cleaned up by delegation to zero address
+	// Expected: Delegation to zero address clears existing delegation
+	let caller = H160::from_slice(&[1u8; 20]);
+	let first_delegation = H160::from_slice(&[2u8; 20]);
+	let zero_address = H160::default();
+	let authorizing = H160::from_slice(&[3u8; 20]);
+
+	let config = Config::pectra();
+	let mut state = BTreeMap::new();
+
+	state.insert(
+		caller,
+		evm::backend::MemoryAccount {
+			nonce: U256::zero(),
+			balance: U256::from(10_000_000),
+			storage: BTreeMap::new(),
+			code: Vec::new(),
+		},
+	);
+
+	// Start with authorizing account that already has a delegation
+	let existing_delegation = evm_core::create_delegation_designator(first_delegation);
+	state.insert(
+		authorizing,
+		evm::backend::MemoryAccount {
+			nonce: U256::from(1), // Already incremented from previous delegation
+			balance: U256::from(1000),
+			storage: BTreeMap::new(),
+			code: existing_delegation.clone(),
+		},
+	);
+
+	let vicinity = create_test_vicinity();
+	let mut backend = MemoryBackend::new(&vicinity, state);
+
+	let metadata = evm::executor::stack::StackSubstateMetadata::new(1000000, &config);
+	let state = evm::executor::stack::MemoryStackState::new(metadata, &mut backend);
+	let precompiles = BTreeMap::new();
+	let mut executor = StackExecutor::new_with_precompiles(state, &config, &precompiles);
+
+	// Verify starting state - account has delegation
+	assert_eq!(executor.code(authorizing), existing_delegation);
+
+	// Delegation to zero address (should clear the existing delegation)
+	let zero_auth = create_authorization(U256::zero(), zero_address, U256::from(1), authorizing);
+	let (exit_reason, _) = executor.transact_call(
+		caller,
+		H160::from_slice(&[9u8; 20]), // Dummy target
+		U256::zero(),
+		Vec::new(),
+		100_000,
+		Vec::new(),
+		vec![zero_auth],
+	);
+
+	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
+
+	// Verify delegation to zero address clears the code
+	assert_eq!(executor.code(authorizing), Vec::<u8>::new());
+
+	// Verify nonce was incremented (delegation was processed)
+	assert_eq!(executor.nonce(authorizing), U256::from(2));
+}
+
 // ============================================================================
 // Executing Operations Tests (Section 5)
 // ============================================================================
