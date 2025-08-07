@@ -240,7 +240,14 @@ pub fn run_test(
 							machine.position(),
 							machine.peek_opcode(),
 							machine.machine().state.gas(),
-							machine.machine().stack.data().clone().into_iter().map(|v| format!("0x{v:x}")).collect::<Vec<_>>(),
+							machine
+								.machine()
+								.stack
+								.data()
+								.clone()
+								.into_iter()
+								.map(|v| format!("0x{v:x}"))
+								.collect::<Vec<_>>(),
 						);
 					}
 				}

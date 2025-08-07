@@ -133,7 +133,9 @@ pub trait RuntimeBaseBackend {
 	fn exists(&self, address: H160) -> bool;
 	/// Check whether an address is empty. Used after EIP161. Note that the meaning is opposite.
 	fn is_empty(&self, address: H160) -> bool {
-		self.balance(address) == U256::zero() && self.code_size(address) == U256::zero() && self.nonce(address) == U256::zero()
+		self.balance(address) == U256::zero()
+			&& self.code_size(address) == U256::zero()
+			&& self.nonce(address) == U256::zero()
 	}
 
 	/// Get the current nonce of an account.
