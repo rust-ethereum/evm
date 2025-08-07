@@ -1,7 +1,7 @@
 use std::{
 	collections::{BTreeMap, BTreeSet},
 	fs::{self, File},
-	io::BufReader,
+	io::{BufReader, BufWriter},
 };
 
 use evm::{
@@ -16,12 +16,15 @@ use evm::{
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
 };
 use evm_precompile::StandardPrecompileSet;
-use primitive_types::U256;
+use primitive_types::{H256, U256};
 
 use crate::{
 	error::{Error, TestError},
 	in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment},
-	types::{Fork, TestCompletionStatus, TestData, TestExpectException, TestMulti},
+	types::{
+		Fork, HexBytes, TestCompletionStatus, TestData, TestExpectException, TestMulti,
+		TestMultiTransaction, TestPostStateIndexes,
+	},
 };
 
 const BASIC_FILE_PATH_TO_TRIM: [&str; 2] = [
@@ -38,7 +41,11 @@ fn get_short_file_name(filename: &str) -> String {
 }
 
 /// Run tests for specific json file with debug flag
-fn run_file(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> {
+fn run_file(
+	filename: &str,
+	debug: bool,
+	write_failed: Option<&str>,
+) -> Result<TestCompletionStatus, Error> {
 	let test_multi: BTreeMap<String, TestMulti> =
 		serde_json::from_reader(BufReader::new(File::open(filename)?))?;
 	let mut tests_status = TestCompletionStatus::default();
@@ -58,7 +65,7 @@ fn run_file(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> 
 					test.fork, short_file_name, test_name, test.index
 				);
 			}
-			match run_test(filename, &test_name, test.clone(), debug) {
+			match run_test(filename, &test_name, test.clone(), debug, write_failed) {
 				Ok(()) => {
 					tests_status.inc_completed();
 					println!("ok")
@@ -84,7 +91,11 @@ fn run_file(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> 
 }
 
 /// Run test for single json file or directory
-pub fn run_single(filename: &str, debug: bool) -> Result<TestCompletionStatus, Error> {
+pub fn run_single(
+	filename: &str,
+	debug: bool,
+	write_failed: Option<&str>,
+) -> Result<TestCompletionStatus, Error> {
 	if fs::metadata(filename)?.is_dir() {
 		let mut tests_status = TestCompletionStatus::default();
 
@@ -92,21 +103,22 @@ pub fn run_single(filename: &str, debug: bool) -> Result<TestCompletionStatus, E
 			let filepath = filename?.path();
 			let filename = filepath.to_str().ok_or(Error::NonUtf8Filename)?;
 			println!("RUM for: {filename}");
-			tests_status += run_file(filename, debug)?;
+			tests_status += run_file(filename, debug, write_failed)?;
 		}
 		tests_status.print_total_for_dir(filename);
 		Ok(tests_status)
 	} else {
-		run_file(filename, debug)
+		run_file(filename, debug, write_failed)
 	}
 }
 
 /// Run single test
 pub fn run_test(
 	_filename: &str,
-	_test_name: &str,
+	test_name: &str,
 	test: TestData,
 	debug: bool,
+	write_failed: Option<&str>,
 ) -> Result<(), Error> {
 	let config = match test.fork {
 		Fork::Berlin => Config::berlin(),
@@ -139,8 +151,7 @@ pub fn run_test(
 			let storage = account
 				.storage
 				.into_iter()
-				.filter(|(_, value)| *value != U256::zero())
-				.map(|(key, value)| (u256_to_h256(key), u256_to_h256(value)))
+				.filter(|(_, value)| *value != H256::default())
 				.collect::<BTreeMap<_, _>>();
 
 			(
@@ -166,12 +177,13 @@ pub fn run_test(
 		caller: test.transaction.sender,
 		address: test.transaction.to,
 		value: test.transaction.value,
-		data: test.transaction.data,
+		data: test.transaction.data.clone(),
 		gas_limit: test.transaction.gas_limit,
 		gas_price: test.transaction.gas_price,
 		access_list: test
 			.transaction
 			.access_list
+			.clone()
 			.into_iter()
 			.map(|access| (access.address, access.storage_keys))
 			.collect(),
@@ -244,6 +256,45 @@ pub fn run_test(
 					hex::encode(&account.code),
 					account.storage
 				);
+			}
+
+			if let Some(failed_file) = write_failed {
+				let mut failed_multi = BTreeMap::new();
+				let mut post_single = test.post.clone();
+				post_single.indexes = TestPostStateIndexes {
+					data: 0,
+					gas: 0,
+					value: 0,
+				};
+				let mut post = BTreeMap::new();
+				post.insert(test.fork, vec![post_single]);
+				failed_multi.insert(
+					test_name,
+					TestMulti {
+						info: test.info,
+						env: test.env,
+						post,
+						pre: test.pre,
+						transaction: TestMultiTransaction {
+							data: vec![HexBytes(test.transaction.data)],
+							gas_limit: vec![test.transaction.gas_limit],
+							gas_price: Some(test.transaction.gas_price),
+							max_fee_per_gas: None,
+							max_priority_fee_per_gas: test.transaction.gas_priority_fee,
+							nonce: test.transaction.nonce,
+							secret_key: test.transaction.secret_key,
+							sender: test.transaction.sender,
+							to: test.transaction.to,
+							value: vec![test.transaction.value],
+							access_lists: Some(vec![test.transaction.access_list]),
+						},
+					},
+				);
+
+				serde_json::to_writer_pretty(
+					BufWriter::new(File::create(failed_file)?),
+					&failed_multi,
+				)?;
 			}
 		}
 
