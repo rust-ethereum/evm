@@ -282,7 +282,11 @@ impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'
 	}
 
 	fn pop_substate(&mut self, strategy: MergeStrategy) -> Result<(), ExitError> {
-		let mut child = self.substate.parent.take().ok_or(ExitError::Fatal(ExitFatal::UnevenSubstate))?;
+		let mut child = self
+			.substate
+			.parent
+			.take()
+			.ok_or(ExitError::Fatal(ExitFatal::UnevenSubstate))?;
 		mem::swap(&mut child, &mut self.substate);
 		let child = child;
 

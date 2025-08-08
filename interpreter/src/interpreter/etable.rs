@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-	error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed},
+	error::{Capture, ExitError, ExitException, ExitResult, ExitSucceed},
 	etable::{Control, EtableSet},
 	interpreter::{valids::Valids, Interpreter, RunInterpreter, StepInterpreter},
 	machine::{Machine, Stack},
