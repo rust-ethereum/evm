@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::convert::Infallible;
 
 use evm_interpreter::{

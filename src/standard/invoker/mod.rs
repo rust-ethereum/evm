@@ -666,12 +666,12 @@ where
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
-		let strategy = dbg!(match &exit.result {
+		let strategy = match &exit.result {
 			Ok(_) => MergeStrategy::Commit,
 			Err(ExitError::Exception(ExitException::OutOfFund)) => MergeStrategy::Revert,
 			Err(ExitError::Reverted) => MergeStrategy::Revert,
 			Err(_) => MergeStrategy::Discard,
-		});
+		};
 
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {

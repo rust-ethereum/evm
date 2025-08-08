@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use evm_interpreter::{
 	error::{Capture, ExitError, ExitResult},
 	Interpreter,

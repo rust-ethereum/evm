@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use evm_interpreter::{
 	error::{CallScheme, CallTrapData, CreateTrapData, ExitError, ExitException},
 	opcode::Opcode,
