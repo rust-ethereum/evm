@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	error::{ExitError, ExitResult},
+	error::{CallScheme, ExitError, ExitResult},
 	etable::EtableSet,
 	machine::Machine,
 	runtime::{RuntimeBackend, RuntimeState},
@@ -9,7 +9,10 @@ use evm_interpreter::{
 };
 use primitive_types::H160;
 
-use crate::{invoker::InvokerControl, standard::Config};
+use crate::{
+	invoker::{InvokerControl, InvokerExit},
+	standard::Config,
+};
 
 /// A code resolver.
 ///
@@ -25,11 +28,12 @@ pub trait Resolver<H> {
 	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
+		scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
 		state: Self::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>, ExitError>;
+	) -> Result<InvokerControl<Self::Interpreter>, ExitError>;
 
 	/// Resolve a create (with the init code).
 	#[allow(clippy::type_complexity)]
@@ -38,7 +42,7 @@ pub trait Resolver<H> {
 		init_code: Vec<u8>,
 		state: Self::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (Self::State, Vec<u8>))>, ExitError>;
+	) -> Result<InvokerControl<Self::Interpreter>, ExitError>;
 }
 
 /// A set of precompiles.
@@ -105,16 +109,21 @@ where
 	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
+		_scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
 		mut state: ES::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (ES::State, Vec<u8>))>, ExitError> {
+	) -> Result<InvokerControl<Self::Interpreter>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
 		{
-			return Ok(InvokerControl::DirectExit((r, (state, retval))));
+			return Ok(InvokerControl::DirectExit(InvokerExit {
+				result: r,
+				substate: Some(state),
+				retval,
+			}));
 		}
 
 		let code = handler.code(code_address);
@@ -139,7 +148,7 @@ where
 		init_code: Vec<u8>,
 		state: ES::State,
 		_handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, (ExitResult, (ES::State, Vec<u8>))>, ExitError> {
+	) -> Result<InvokerControl<Self::Interpreter>, ExitError> {
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),

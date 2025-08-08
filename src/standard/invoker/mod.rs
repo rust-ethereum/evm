@@ -7,8 +7,8 @@ use core::{cmp::min, convert::Infallible};
 
 use evm_interpreter::{
 	error::{
-		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
-		ExitError, ExitException, ExitResult, ExitSucceed, TrapConsume,
+		CallCreateTrap, CallCreateTrapData, CallScheme, CallTrapData, Capture, CreateScheme,
+		CreateTrapData, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
 	},
 	opcode::Opcode,
 	runtime::{
@@ -26,7 +26,7 @@ pub use self::{
 };
 use crate::{
 	backend::TransactionalBackend,
-	invoker::{Invoker as InvokerT, InvokerControl},
+	invoker::{Invoker as InvokerT, InvokerControl, InvokerExit},
 	standard::Config,
 	MergeStrategy,
 };
@@ -202,13 +202,7 @@ where
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<
-		(
-			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
-		),
-		ExitError,
-	> {
+	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter>), ExitError> {
 		let caller = args.caller();
 		let gas_price = args.gas_price();
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
@@ -237,9 +231,6 @@ where
 		};
 		let value = args.value();
 
-		handler.inc_nonce(caller)?;
-		handler.withdrawal(caller, gas_fee)?;
-
 		let invoke = TransactInvoke {
 			gas_limit: args.gas_limit(),
 			gas_price: args.gas_price(),
@@ -249,6 +240,36 @@ where
 				TransactArgs::Create { .. } => Some(address),
 			},
 		};
+
+		match handler.inc_nonce(caller) {
+			Ok(()) => (),
+			Err(err) => {
+				handler.push_substate();
+				return Ok((
+					invoke,
+					InvokerControl::DirectExit(InvokerExit {
+						result: Err(err),
+						substate: None,
+						retval: Vec::new(),
+					}),
+				));
+			}
+		}
+
+		match handler.withdrawal(caller, gas_fee) {
+			Ok(()) => (),
+			Err(err) => {
+				handler.push_substate();
+				return Ok((
+					invoke,
+					InvokerControl::DirectExit(InvokerExit {
+						result: Err(err),
+						substate: None,
+						retval: Vec::new(),
+					}),
+				));
+			}
+		}
 
 		handler.push_substate();
 
@@ -272,120 +293,121 @@ where
 			retbuf: Vec::new(),
 		};
 
-		let work = || -> Result<(TransactInvoke, _), ExitError> {
-			match args {
-				TransactArgs::Call {
-					caller,
+		let machine = match args {
+			TransactArgs::Call {
+				caller,
+				address,
+				data,
+				gas_limit,
+				access_list,
+				..
+			} => {
+				for (address, keys) in &access_list {
+					handler.mark_hot(*address, None);
+					for key in keys {
+						handler.mark_hot(*address, Some(*key));
+					}
+				}
+
+				let state = <R::State>::new_transact_call(
+					runtime_state,
+					gas_limit,
+					&data,
+					&access_list,
+					self.config,
+				)?;
+
+				let machine = routines::make_enter_call_machine(
+					self.config,
+					self.resolver,
+					CallScheme::Call,
 					address,
 					data,
-					gas_limit,
-					access_list,
-					..
-				} => {
-					for (address, keys) in &access_list {
-						handler.mark_hot(*address, None);
-						for key in keys {
-							handler.mark_hot(*address, Some(*key));
-						}
+					Some(transfer),
+					state,
+					handler,
+				)?;
+
+				if self.config.increase_state_access_gas {
+					if self.config.warm_coinbase_address {
+						let coinbase = handler.block_coinbase();
+						handler.mark_hot(coinbase, None);
 					}
-
-					let state = <R::State>::new_transact_call(
-						runtime_state,
-						gas_limit,
-						&data,
-						&access_list,
-						self.config,
-					)?;
-
-					let machine = routines::make_enter_call_machine(
-						self.config,
-						self.resolver,
-						address,
-						data,
-						Some(transfer),
-						state,
-						handler,
-					)?;
-
-					if self.config.increase_state_access_gas {
-						if self.config.warm_coinbase_address {
-							let coinbase = handler.block_coinbase();
-							handler.mark_hot(coinbase, None);
-						}
-						handler.mark_hot(caller, None);
-						handler.mark_hot(address, None);
-					}
-
-					Ok((invoke, machine))
+					handler.mark_hot(caller, None);
+					handler.mark_hot(address, None);
 				}
-				TransactArgs::Create {
+
+				machine
+			}
+			TransactArgs::Create {
+				caller,
+				init_code,
+				gas_limit,
+				access_list,
+				..
+			} => {
+				let state = <R::State>::new_transact_create(
+					runtime_state,
+					gas_limit,
+					&init_code,
+					&access_list,
+					self.config,
+				)?;
+
+				routines::make_enter_create_machine(
+					self.config,
+					self.resolver,
 					caller,
 					init_code,
-					gas_limit,
-					access_list,
-					..
-				} => {
-					let state = <R::State>::new_transact_create(
-						runtime_state,
-						gas_limit,
-						&init_code,
-						&access_list,
-						self.config,
-					)?;
-
-					let machine = routines::make_enter_create_machine(
-						self.config,
-						self.resolver,
-						caller,
-						init_code,
-						transfer,
-						state,
-						handler,
-					)?;
-
-					Ok((invoke, machine))
-				}
+					transfer,
+					state,
+					handler,
+				)?
 			}
 		};
 
-		work().map_err(|err| {
-			handler.pop_substate(MergeStrategy::Discard);
-			err
-		})
+		Ok((invoke, machine))
 	}
 
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		result: ExitResult,
-		(mut substate, retval): (R::State, Vec<u8>),
+		exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = substate.effective_gas();
+		let left_gas = exit
+			.substate
+			.as_ref()
+			.map(|s| s.effective_gas())
+			.unwrap_or_default();
 
 		let work = || -> Result<Self::TransactValue, ExitError> {
-			match result {
+			match exit.result {
 				Ok(result) => {
 					if let Some(address) = invoke.create_address {
-						let retbuf = retval;
+						let retbuf = exit.retval;
 
-						routines::deploy_create_code(
-							self.config,
-							address,
-							retbuf,
-							&mut substate,
-							handler,
-							SetCodeOrigin::Transaction,
-						)?;
+						if let Some(mut substate) = exit.substate {
+							routines::deploy_create_code(
+								self.config,
+								address,
+								retbuf,
+								&mut substate,
+								handler,
+								SetCodeOrigin::Transaction,
+							)?;
 
-						Ok(TransactValue::Create {
-							succeed: result,
-							address,
-						})
+							Ok(TransactValue::Create {
+								succeed: result,
+								address,
+							})
+						} else {
+							Err(ExitFatal::Unfinished.into())
+						}
 					} else {
 						Ok(TransactValue::Call {
 							succeed: result,
-							retval,
+							retval: exit.retval,
 						})
 					}
 				}
@@ -414,7 +436,7 @@ where
 		// Reward coinbase address
 		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
 		// The base fee is always burned.
-		let coinbase_gas_price = if substate.config().eip_1559_enabled {
+		let coinbase_gas_price = if self.config.eip_1559_enabled {
 			invoke
 				.gas_price
 				.saturating_sub(handler.block_base_fee_per_gas())
@@ -437,13 +459,7 @@ where
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<
-			(
-				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, (ExitResult, (R::State, Vec<u8>))>,
-			),
-			ExitError,
-		>,
+		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter>), ExitError>,
 		Self::Interrupt,
 	> {
 		fn l64(gas: U256) -> U256 {
@@ -455,13 +471,22 @@ where
 			Err(interrupt) => return Capture::Trap(interrupt),
 		};
 
-		if depth >= self.config.call_stack_limit {
-			return Capture::Exit(Err(ExitException::CallTooDeep.into()));
-		}
-
 		let trap_data = match CallCreateTrapData::new_from(opcode, machine.machine_mut()) {
 			Ok(trap_data) => trap_data,
 			Err(err) => return Capture::Exit(Err(err)),
+		};
+
+		let invoke = match trap_data {
+			CallCreateTrapData::Call(call_trap_data) => SubstackInvoke::Call {
+				trap: call_trap_data,
+			},
+			CallCreateTrapData::Create(create_trap_data) => {
+				let address = create_trap_data.scheme.address(handler);
+				SubstackInvoke::Create {
+					address,
+					trap: create_trap_data,
+				}
+			}
 		};
 
 		let after_gas = if self.config.call_l64_after_gas {
@@ -469,25 +494,31 @@ where
 		} else {
 			machine.machine().state.gas()
 		};
-		let target_gas = trap_data.target_gas().unwrap_or(after_gas);
+		let target_gas = match &invoke {
+			SubstackInvoke::Call { trap, .. } => trap.gas,
+			SubstackInvoke::Create { .. } => after_gas,
+		};
 		let gas_limit = min(after_gas, target_gas);
 
-		let call_has_value =
-			matches!(&trap_data, CallCreateTrapData::Call(call) if call.has_value());
+		let call_has_value = matches!(&invoke, SubstackInvoke::Call { trap: call_trap_data } if call_trap_data.has_value());
 
 		let is_static = if machine.machine().state.is_static() {
 			true
 		} else {
-			match &trap_data {
-				CallCreateTrapData::Call(CallTrapData { is_static, .. }) => *is_static,
+			match &invoke {
+				SubstackInvoke::Call {
+					trap: CallTrapData { is_static, .. },
+				} => *is_static,
 				_ => false,
 			}
 		};
 
 		let transaction_context = machine.machine().state.as_ref().transaction_context.clone();
 
-		match trap_data {
-			CallCreateTrapData::Call(call_trap_data) => {
+		match invoke {
+			SubstackInvoke::Call {
+				trap: call_trap_data,
+			} => {
 				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
 						context: call_trap_data.context.clone(),
@@ -502,6 +533,37 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
+				if depth >= self.config.call_stack_limit {
+					return Capture::Exit(Ok((
+						SubstackInvoke::Call {
+							trap: call_trap_data,
+						},
+						InvokerControl::DirectExit(InvokerExit {
+							result: Err(ExitException::CallTooDeep.into()),
+							substate: Some(substate),
+							retval: Vec::new(),
+						}),
+					)));
+				}
+
+				if let Some(transfer) = &call_trap_data.transfer {
+					if transfer.value != U256::zero()
+						&& handler.balance(transfer.source) < transfer.value
+					{
+						handler.push_substate();
+						return Capture::Exit(Ok((
+							SubstackInvoke::Call {
+								trap: call_trap_data,
+							},
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(ExitException::OutOfFund.into()),
+								substate: Some(substate),
+								retval: Vec::new(),
+							}),
+						)));
+					}
+				}
+
 				let target = call_trap_data.target;
 
 				Capture::Exit(routines::enter_call_substack(
@@ -513,10 +575,13 @@ where
 					handler,
 				))
 			}
-			CallCreateTrapData::Create(create_trap_data) => {
+			SubstackInvoke::Create {
+				trap: create_trap_data,
+				address,
+			} => {
 				let caller = create_trap_data.scheme.caller();
-				let address = create_trap_data.scheme.address(handler);
 				let code = create_trap_data.code.clone();
+				let value = create_trap_data.value;
 
 				let substate = match machine.machine_mut().state.substate(
 					RuntimeState {
@@ -532,15 +597,61 @@ where
 					is_static,
 					call_has_value,
 				) {
-					Ok(submeter) => submeter,
+					Ok(substate) => substate,
 					Err(err) => return Capture::Exit(Err(err)),
 				};
+
+				if depth >= self.config.call_stack_limit {
+					return Capture::Exit(Ok((
+						SubstackInvoke::Create {
+							trap: create_trap_data,
+							address,
+						},
+						InvokerControl::DirectExit(InvokerExit {
+							result: Err(ExitException::CallTooDeep.into()),
+							substate: Some(substate),
+							retval: Vec::new(),
+						}),
+					)));
+				}
+
+				if value != U256::zero() && handler.balance(caller) < value {
+					return Capture::Exit(Ok((
+						SubstackInvoke::Create {
+							trap: create_trap_data,
+							address,
+						},
+						InvokerControl::DirectExit(InvokerExit {
+							result: Err(ExitException::OutOfFund.into()),
+							substate: Some(substate),
+							retval: Vec::new(),
+						}),
+					)));
+				}
+
+				match handler.inc_nonce(caller) {
+					Ok(()) => (),
+					Err(err) => {
+						return Capture::Exit(Ok((
+							SubstackInvoke::Create {
+								trap: create_trap_data,
+								address,
+							},
+							InvokerControl::DirectExit(InvokerExit {
+								result: Err(err),
+								substate: Some(substate),
+								retval: Vec::new(),
+							}),
+						)));
+					}
+				}
 
 				Capture::Exit(routines::enter_create_substack(
 					self.config,
 					self.resolver,
 					code,
 					create_trap_data,
+					address,
 					substate,
 					handler,
 				))
@@ -550,52 +661,66 @@ where
 
 	fn exit_substack(
 		&self,
-		result: ExitResult,
-		(mut substate, retval): (R::State, Vec<u8>),
 		trap_data: Self::SubstackInvoke,
+		exit: InvokerExit<Self::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
-		let strategy = match &result {
+		let strategy = match &exit.result {
 			Ok(_) => MergeStrategy::Commit,
+			Err(ExitError::Exception(ExitException::OutOfFund)) => MergeStrategy::Revert,
 			Err(ExitError::Reverted) => MergeStrategy::Revert,
 			Err(_) => MergeStrategy::Discard,
 		};
 
 		match trap_data {
 			SubstackInvoke::Create { address, trap } => {
-				let retbuf = retval;
+				let mut retbuf = exit.retval;
 				let caller = trap.scheme.caller();
 
-				let result = result.and_then(|_| {
-					routines::deploy_create_code(
-						self.config,
-						address,
-						retbuf.clone(),
-						&mut substate,
-						handler,
-						SetCodeOrigin::Subcall(caller),
-					)?;
+				let result = if let Some(mut substate) = exit.substate {
+					let result = match exit.result {
+						Ok(_) => {
+							match routines::deploy_create_code(
+								self.config,
+								address,
+								retbuf,
+								&mut substate,
+								handler,
+								SetCodeOrigin::Subcall(caller),
+							) {
+								Ok(()) => {
+									retbuf = Vec::new();
+									Ok(address)
+								}
+								Err(err) => {
+									retbuf = Vec::new();
+									Err(err)
+								}
+							}
+						}
+						Err(err) => Err(err),
+					};
 
-					Ok(address)
-				});
+					parent.machine_mut().state.merge(substate, strategy);
+					result
+				} else {
+					Err(ExitFatal::Unfinished.into())
+				};
 
-				parent.machine_mut().state.merge(substate, strategy);
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, parent)?;
-
-				Ok(())
+				trap.feedback(result, retbuf, parent)
 			}
 			SubstackInvoke::Call { trap } => {
-				let retbuf = retval;
+				let retbuf = exit.retval;
 
-				parent.machine_mut().state.merge(substate, strategy);
+				if let Some(substate) = exit.substate {
+					parent.machine_mut().state.merge(substate, strategy);
+				}
 				handler.pop_substate(strategy);
 
-				trap.feedback(result, retbuf, parent)?;
-
-				Ok(())
+				trap.feedback(exit.result, retbuf, parent)
 			}
 		}
 	}

@@ -5,7 +5,8 @@ use evm::{
 	interpreter::error::{ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
-use num::{BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
+use num::{BigUint, FromPrimitive, One, ToPrimitive, Zero};
+use primitive_types::U256;
 
 use crate::PurePrecompile;
 
@@ -13,8 +14,58 @@ pub struct Modexp;
 
 const MIN_GAS_COST: u64 = 200;
 
+// Calculate gas cost according to EIP-198
+fn calculate_gas_cost_byzantium(
+	base_length: u64,
+	mod_length: u64,
+	exponent: &BigUint,
+	exponent_bytes: &[u8],
+) -> u64 {
+	fn calculate_multiplication_complexity(base_length: u64, mod_length: u64) -> u64 {
+		let max_len = max(base_length, mod_length);
+		let res = if max_len <= 64 {
+			U256::from(max_len * max_len)
+		} else if max_len <= 1_024 {
+			U256::from(max_len * max_len / 4 + 96 * max_len - 3_072)
+		} else {
+			// Up-cast to avoid overflow
+			let x = U256::from(max_len);
+			let x_sq = x * x; // x < 2^64 => x*x < 2^128 < 2^256 (no overflow)
+			x_sq / U256::from(16) + U256::from(480) * x - U256::from(199_680)
+		};
+
+		if res >= U256::from(u64::MAX) {
+			u64::MAX
+		} else {
+			res.as_u64()
+		}
+	}
+
+	fn calculate_iteration_count(exponent: &BigUint, exponent_bytes: &[u8]) -> u64 {
+		let mut iteration_count: u64 = 0;
+		let exp_length = exponent_bytes.len() as u64;
+
+		if exp_length <= 32 && exponent.is_zero() {
+			iteration_count = 0;
+		} else if exp_length <= 32 {
+			iteration_count = exponent.bits() - 1;
+		} else if exp_length > 32 {
+			let exponent_head = BigUint::from_bytes_be(&exponent_bytes[..32]);
+
+			iteration_count = (8 * (exp_length - 32)) + exponent_head.bits() - 1;
+		}
+
+		max(iteration_count, 1)
+	}
+
+	let multiplication_complexity = calculate_multiplication_complexity(base_length, mod_length);
+	let iteration_count = calculate_iteration_count(exponent, exponent_bytes);
+	(multiplication_complexity * iteration_count) / 20
+}
+
 // Calculate gas cost according to EIP 2565:
 // https://eips.ethereum.org/EIPS/eip-2565
+#[allow(unused)]
 fn calculate_gas_cost(
 	base_length: u64,
 	mod_length: u64,
@@ -157,12 +208,12 @@ impl<G: GasMutState> PurePrecompile<G> for Modexp {
 			let modulus = BigUint::from_bytes_be(&mod_buf);
 
 			// do our gas accounting
-			let gas_cost = calculate_gas_cost(
+			let gas_cost = calculate_gas_cost_byzantium(
 				base_len as u64,
 				mod_len as u64,
 				&exponent,
 				&exp_buf,
-				modulus.is_even(),
+				// modulus.is_even(),
 			);
 
 			try_some!(gasometer.record_gas(gas_cost.into()));
