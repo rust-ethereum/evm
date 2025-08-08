@@ -1,5 +1,5 @@
 use evm_interpreter::{
-	error::{CallTrapData, CreateTrapData, ExitError, ExitException, CallScheme},
+	error::{CallScheme, CallTrapData, CreateTrapData, ExitError, ExitException},
 	opcode::Opcode,
 	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, Transfer},
 };
@@ -32,11 +32,13 @@ where
 	if let Some(transfer) = transfer {
 		match handler.transfer(transfer) {
 			Ok(()) => (),
-			Err(err) => return Ok(InvokerControl::DirectExit(InvokerExit {
-				result: Err(err),
-				substate: Some(state),
-				retval: Vec::new(),
-			}))
+			Err(err) => {
+				return Ok(InvokerControl::DirectExit(InvokerExit {
+					result: Err(err),
+					substate: Some(state),
+					retval: Vec::new(),
+				}))
+			}
 		}
 	}
 
@@ -64,7 +66,7 @@ where
 				result: Err(ExitException::CreateContractLimit.into()),
 				substate: Some(state),
 				retval: Vec::new(),
-			}))
+			}));
 		}
 	}
 
@@ -80,17 +82,19 @@ where
 			result: Err(ExitException::CreateCollision.into()),
 			substate: Some(state),
 			retval: Vec::new(),
-		}))
+		}));
 	}
 
 	if config.create_increase_nonce {
 		match handler.inc_nonce(state.as_ref().context.address) {
 			Ok(()) => (),
-			Err(err) => return Ok(InvokerControl::DirectExit(InvokerExit {
-				result: Err(err),
-				substate: Some(state),
-				retval: Vec::new(),
-			}))
+			Err(err) => {
+				return Ok(InvokerControl::DirectExit(InvokerExit {
+					result: Err(err),
+					substate: Some(state),
+					retval: Vec::new(),
+				}))
+			}
 		}
 	}
 
@@ -136,13 +140,14 @@ where
 
 	match res {
 		Ok(machine) => Ok((invoke, machine)),
-		Err(err) => {
-			Ok((invoke, InvokerControl::DirectExit(InvokerExit {
+		Err(err) => Ok((
+			invoke,
+			InvokerControl::DirectExit(InvokerExit {
 				result: Err(err),
 				substate: None,
 				retval: Vec::new(),
-			})))
-		}
+			}),
+		)),
 	}
 }
 

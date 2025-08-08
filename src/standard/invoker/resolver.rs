@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	error::{ExitError, ExitResult, CallScheme},
+	error::{CallScheme, ExitError, ExitResult},
 	etable::EtableSet,
 	machine::Machine,
 	runtime::{RuntimeBackend, RuntimeState},
@@ -117,7 +117,7 @@ where
 	) -> Result<InvokerControl<Self::Interpreter>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
-			.execute(code_address, &input, &mut state, handler)
+				.execute(code_address, &input, &mut state, handler)
 		{
 			return Ok(InvokerControl::DirectExit(InvokerExit {
 				result: r,

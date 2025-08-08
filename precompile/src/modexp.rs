@@ -23,16 +23,16 @@ fn calculate_gas_cost_byzantium(
 ) -> u64 {
 	fn calculate_multiplication_complexity(base_length: u64, mod_length: u64) -> u64 {
 		let max_len = max(base_length, mod_length);
-        let res = if max_len <= 64 {
-            U256::from(max_len * max_len)
-        } else if max_len <= 1_024 {
-            U256::from(max_len * max_len / 4 + 96 * max_len - 3_072)
-        } else {
-            // Up-cast to avoid overflow
-            let x = U256::from(max_len);
-            let x_sq = x * x; // x < 2^64 => x*x < 2^128 < 2^256 (no overflow)
-            x_sq / U256::from(16) + U256::from(480) * x - U256::from(199_680)
-        };
+		let res = if max_len <= 64 {
+			U256::from(max_len * max_len)
+		} else if max_len <= 1_024 {
+			U256::from(max_len * max_len / 4 + 96 * max_len - 3_072)
+		} else {
+			// Up-cast to avoid overflow
+			let x = U256::from(max_len);
+			let x_sq = x * x; // x < 2^64 => x*x < 2^128 < 2^256 (no overflow)
+			x_sq / U256::from(16) + U256::from(480) * x - U256::from(199_680)
+		};
 
 		if res >= U256::from(u64::MAX) {
 			u64::MAX

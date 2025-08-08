@@ -7,8 +7,8 @@ use core::{cmp::min, convert::Infallible};
 
 use evm_interpreter::{
 	error::{
-		CallCreateTrap, CallCreateTrapData, CallTrapData, Capture, CreateScheme, CreateTrapData,
-		ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume, CallScheme,
+		CallCreateTrap, CallCreateTrapData, CallScheme, CallTrapData, Capture, CreateScheme,
+		CreateTrapData, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
 	},
 	opcode::Opcode,
 	runtime::{
@@ -251,8 +251,8 @@ where
 						result: Err(err),
 						substate: None,
 						retval: Vec::new(),
-					})
-				))
+					}),
+				));
 			}
 		}
 
@@ -266,8 +266,8 @@ where
 						result: Err(err),
 						substate: None,
 						retval: Vec::new(),
-					})
-				))
+					}),
+				));
 			}
 		}
 
@@ -544,12 +544,14 @@ where
 							result: Err(ExitException::CallTooDeep.into()),
 							substate: Some(substate),
 							retval: Vec::new(),
-						})
-					)))
+						}),
+					)));
 				}
 
 				if let Some(transfer) = &call_trap_data.transfer {
-					if transfer.value != U256::zero() && handler.balance(transfer.source) < transfer.value {
+					if transfer.value != U256::zero()
+						&& handler.balance(transfer.source) < transfer.value
+					{
 						handler.push_substate();
 						return Capture::Exit(Ok((
 							SubstackInvoke::Call {
@@ -611,8 +613,8 @@ where
 							result: Err(ExitException::CallTooDeep.into()),
 							substate: Some(substate),
 							retval: Vec::new(),
-						})
-					)))
+						}),
+					)));
 				}
 
 				if value != U256::zero() && handler.balance(caller) < value {
