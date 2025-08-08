@@ -5,7 +5,7 @@ use evm_interpreter::{
 	opcode::Opcode,
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
-		SetCodeOrigin, TransactionContext,
+		SetCodeOrigin, TransactionContext, TouchKind
 	},
 	EtableInterpreter, RunInterpreter,
 };
@@ -146,7 +146,11 @@ impl RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 
-	fn mark_hot(&mut self, _address: H160, _index: Option<H256>) {
+	fn mark_hot(&mut self, _address: H160, _kind: TouchKind) {
+		unimplemented!()
+	}
+
+	fn mark_storage_hot(&mut self, _address: H160, _index: H256) {
 		unimplemented!()
 	}
 
