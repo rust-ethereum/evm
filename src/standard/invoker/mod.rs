@@ -354,7 +354,7 @@ where
 					self.config,
 				)?;
 
-				let machine = routines::make_enter_create_machine(
+				routines::make_enter_create_machine(
 					self.config,
 					self.resolver,
 					caller,
@@ -362,9 +362,7 @@ where
 					transfer,
 					state,
 					handler,
-				)?;
-
-				machine
+				)?
 			}
 		};
 
