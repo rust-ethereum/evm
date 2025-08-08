@@ -131,13 +131,9 @@ where
 {
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, Tr>> {
-		if self.is_empty() {
-			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
-		}
-
 		let position = self.position;
 		if position >= self.code.len() {
-			return Err(Capture::Exit(ExitFatal::AlreadyExited.into()));
+			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
 		}
 
 		let control = self.etable.eval(&mut self.machine, handle, self.position);
@@ -161,10 +157,6 @@ where
 			}
 			Control::Trap(opcode) => return Err(Capture::Trap(opcode)),
 		};
-
-		if self.position >= self.code.len() {
-			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
-		}
 
 		Ok(())
 	}
