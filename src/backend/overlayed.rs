@@ -22,6 +22,7 @@ pub struct OverlayedChangeSet {
 	pub storage_resets: BTreeSet<H160>,
 	pub storages: BTreeMap<(H160, H256), H256>,
 	pub transient_storage: BTreeMap<(H160, H256), H256>,
+	pub accessed: BTreeSet<(H160, Option<H256>)>,
 	pub deletes: BTreeSet<H160>,
 }
 
@@ -58,6 +59,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 				storages: self.substate.storages,
 				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
+				accessed: self.accessed,
 			},
 		)
 	}
