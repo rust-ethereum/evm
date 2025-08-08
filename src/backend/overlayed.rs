@@ -6,7 +6,7 @@ use alloc::{
 use core::mem;
 
 use evm_interpreter::{
-	error::{ExitError, ExitException},
+	error::{ExitError, ExitException, ExitFatal},
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
 	},
@@ -281,8 +281,12 @@ impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'
 		self.substate.parent = Some(parent);
 	}
 
-	fn pop_substate(&mut self, strategy: MergeStrategy) {
-		let mut child = self.substate.parent.take().expect("uneven substate pop");
+	fn pop_substate(&mut self, strategy: MergeStrategy) -> Result<(), ExitError> {
+		let mut child = self
+			.substate
+			.parent
+			.take()
+			.ok_or(ExitError::Fatal(ExitFatal::UnevenSubstate))?;
 		mem::swap(&mut child, &mut self.substate);
 		let child = child;
 
@@ -323,6 +327,8 @@ impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'
 			}
 			MergeStrategy::Revert | MergeStrategy::Discard => {}
 		}
+
+		Ok(())
 	}
 }
 

@@ -13,9 +13,10 @@
 
 mod overlayed;
 
-pub use evm_interpreter::runtime::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
+use evm_interpreter::error::ExitError;
 
 pub use self::overlayed::{OverlayedBackend, OverlayedChangeSet};
+pub use evm_interpreter::runtime::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
 
 /// Backend with layers that can transactionally be committed or discarded.
 pub trait TransactionalBackend {
@@ -26,5 +27,5 @@ pub trait TransactionalBackend {
 	///
 	/// The caller is expected to maintain balance of push/pop, and the backend
 	/// are free to panic if it does not.
-	fn pop_substate(&mut self, strategy: crate::MergeStrategy);
+	fn pop_substate(&mut self, strategy: crate::MergeStrategy) -> Result<(), ExitError>;
 }

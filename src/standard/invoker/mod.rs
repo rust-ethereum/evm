@@ -370,27 +370,23 @@ where
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		exit: InvokerExit<Self::State>,
+		mut exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = exit
-			.substate
-			.as_ref()
-			.map(|s| s.effective_gas())
-			.unwrap_or_default();
+		let substate = exit.substate.as_mut();
 
-		let work = || -> Result<Self::TransactValue, ExitError> {
+		let work = || -> Result<_, ExitError> {
 			match exit.result {
 				Ok(result) => {
 					if let Some(address) = invoke.create_address {
 						let retbuf = exit.retval;
 
-						if let Some(mut substate) = exit.substate {
+						if let Some(substate) = substate {
 							routines::deploy_create_code(
 								self.config,
 								address,
 								retbuf,
-								&mut substate,
+								substate,
 								handler,
 								SetCodeOrigin::Transaction,
 							)?;
@@ -415,6 +411,12 @@ where
 
 		let result = work();
 
+		let left_gas = exit
+			.substate
+			.as_ref()
+			.map(|s| s.effective_gas())
+			.unwrap_or_default();
+
 		let refunded_gas = match result {
 			Ok(_) | Err(ExitError::Reverted) => left_gas,
 			Err(_) => U256::zero(),
@@ -422,10 +424,10 @@ where
 
 		match &result {
 			Ok(_) => {
-				handler.pop_substate(MergeStrategy::Commit);
+				handler.pop_substate(MergeStrategy::Commit)?;
 			}
 			Err(_) => {
-				handler.pop_substate(MergeStrategy::Discard);
+				handler.pop_substate(MergeStrategy::Discard)?;
 			}
 		}
 
@@ -531,7 +533,8 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				if depth >= self.config.call_stack_limit {
+				if depth > self.config.call_stack_limit {
+					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Call {
 							trap: call_trap_data,
@@ -603,7 +606,8 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				if depth >= self.config.call_stack_limit {
+				if depth > self.config.call_stack_limit {
+					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Create {
 							trap: create_trap_data,
@@ -618,6 +622,7 @@ where
 				}
 
 				if value != U256::zero() && handler.balance(caller) < value {
+					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Create {
 							trap: create_trap_data,
@@ -636,6 +641,7 @@ where
 				match handler.inc_nonce(caller) {
 					Ok(()) => (),
 					Err(err) => {
+						handler.push_substate();
 						return Capture::Exit(Ok((
 							SubstackInvoke::Create {
 								trap: create_trap_data,
@@ -673,6 +679,7 @@ where
 		let strategy = match &exit.result {
 			Ok(_) => MergeStrategy::Commit,
 			Err(ExitError::Exception(ExitException::OutOfFund)) => MergeStrategy::Revert,
+			Err(ExitError::Exception(ExitException::CallTooDeep)) => MergeStrategy::Revert,
 			Err(ExitError::Reverted) => MergeStrategy::Revert,
 			Err(_) => MergeStrategy::Discard,
 		};
@@ -712,7 +719,7 @@ where
 					Err(ExitFatal::Unfinished.into())
 				};
 
-				handler.pop_substate(strategy);
+				handler.pop_substate(strategy)?;
 
 				trap.feedback(result, retbuf, parent)
 			}
@@ -722,7 +729,7 @@ where
 				if let Some(substate) = exit.substate {
 					parent.machine_mut().state.merge(substate, strategy);
 				}
-				handler.pop_substate(strategy);
+				handler.pop_substate(strategy)?;
 
 				trap.feedback(exit.result, retbuf, parent)
 			}

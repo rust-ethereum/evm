@@ -161,6 +161,8 @@ pub enum ExitFatal {
 	AlreadyExited,
 	/// Unfinished execution.
 	Unfinished,
+	/// Uneven substate.
+	UnevenSubstate,
 
 	/// Other fatal errors.
 	Other(Cow<'static, str>),
