@@ -77,7 +77,7 @@ general_state_tests!(st_random, "stRandom", ignore);
 general_state_tests!(st_random2, "stRandom2", ignore);
 general_state_tests!(st_recursive_create, "stRecursiveCreate", ignore);
 general_state_tests!(st_refund_test, "stRefundTest");
-general_state_tests!(st_return_data_test, "stReturnDataTest", ignore);
+general_state_tests!(st_return_data_test, "stReturnDataTest");
 general_state_tests!(st_revert_test, "stRevertTest", ignore);
 general_state_tests!(st_self_balance, "stSelfBalance");
 general_state_tests!(st_shift, "stShift", ignore);

@@ -124,6 +124,7 @@ pub struct CallTrapData {
 	pub out_offset: U256,
 	pub out_len: U256,
 	pub context: Context,
+	pub scheme: CallScheme,
 }
 
 impl CallTrapData {
@@ -208,6 +209,7 @@ impl CallTrapData {
 				context,
 				out_offset,
 				out_len,
+				scheme,
 			},
 		))
 	}

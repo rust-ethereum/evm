@@ -91,6 +91,7 @@ impl<'config> InvokerState<'config> for State<'config> {
 			gasometer: GasometerState::new_transact_call(gas_limit, data, access_list, config)?,
 		})
 	}
+
 	fn new_transact_create(
 		runtime: RuntimeState,
 		gas_limit: U256,
@@ -118,6 +119,7 @@ impl<'config> InvokerState<'config> for State<'config> {
 				.submeter(gas_limit, is_static, call_has_value)?,
 		})
 	}
+
 	fn merge(&mut self, substate: Self, strategy: MergeStrategy) {
 		self.gasometer.merge(substate.gasometer, strategy)
 	}

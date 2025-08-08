@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	error::{ExitError, ExitResult},
+	error::{ExitError, ExitResult, CallScheme},
 	etable::EtableSet,
 	machine::Machine,
 	runtime::{RuntimeBackend, RuntimeState},
@@ -28,6 +28,7 @@ pub trait Resolver<H> {
 	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
+		scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
 		state: Self::State,
@@ -108,6 +109,7 @@ where
 	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
+		_scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
 		mut state: ES::State,
@@ -115,7 +117,7 @@ where
 	) -> Result<InvokerControl<Self::Interpreter>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
-				.execute(code_address, &input, &mut state, handler)
+			.execute(code_address, &input, &mut state, handler)
 		{
 			return Ok(InvokerControl::DirectExit(InvokerExit {
 				result: r,

@@ -1,5 +1,5 @@
 use evm_interpreter::{
-	error::{CallTrapData, CreateTrapData, ExitError, ExitException},
+	error::{CallTrapData, CreateTrapData, ExitError, ExitException, CallScheme},
 	opcode::Opcode,
 	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, Transfer},
 };
@@ -7,15 +7,15 @@ use primitive_types::{H160, U256};
 
 use crate::{
 	backend::TransactionalBackend,
-	invoker::InvokerControl,
+	invoker::{InvokerControl, InvokerExit},
 	standard::{Config, InvokerState, Resolver, SubstackInvoke},
-	MergeStrategy,
 };
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn make_enter_call_machine<H, R>(
 	_config: &Config,
 	resolver: &R,
+	scheme: CallScheme,
 	code_address: H160,
 	input: Vec<u8>,
 	transfer: Option<Transfer>,
@@ -30,10 +30,17 @@ where
 	handler.mark_hot(state.as_ref().context.address, None);
 
 	if let Some(transfer) = transfer {
-		handler.transfer(transfer)?;
+		match handler.transfer(transfer) {
+			Ok(()) => (),
+			Err(err) => return Ok(InvokerControl::DirectExit(InvokerExit {
+				result: Err(err),
+				substate: Some(state),
+				retval: Vec::new(),
+			}))
+		}
 	}
 
-	resolver.resolve_call(code_address, input, state, handler)
+	resolver.resolve_call(scheme, code_address, input, state, handler)
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
@@ -53,7 +60,11 @@ where
 {
 	if let Some(limit) = config.max_initcode_size {
 		if init_code.len() > limit {
-			return Err(ExitException::CreateContractLimit.into());
+			return Ok(InvokerControl::DirectExit(InvokerExit {
+				result: Err(ExitException::CreateContractLimit.into()),
+				substate: Some(state),
+				retval: Vec::new(),
+			}))
 		}
 	}
 
@@ -65,11 +76,22 @@ where
 	if handler.code_size(state.as_ref().context.address) != U256::zero()
 		|| handler.nonce(state.as_ref().context.address) > U256::zero()
 	{
-		return Err(ExitException::CreateCollision.into());
+		return Ok(InvokerControl::DirectExit(InvokerExit {
+			result: Err(ExitException::CreateCollision.into()),
+			substate: Some(state),
+			retval: Vec::new(),
+		}))
 	}
 
 	if config.create_increase_nonce {
-		handler.inc_nonce(state.as_ref().context.address)?;
+		match handler.inc_nonce(state.as_ref().context.address) {
+			Ok(()) => (),
+			Err(err) => return Ok(InvokerControl::DirectExit(InvokerExit {
+				result: Err(err),
+				substate: Some(state),
+				retval: Vec::new(),
+			}))
+		}
 	}
 
 	handler.reset_storage(state.as_ref().context.address);
@@ -94,10 +116,11 @@ where
 {
 	handler.push_substate();
 
-	let work = || -> Result<(SubstackInvoke, _), ExitError> {
+	let work = || -> Result<_, ExitError> {
 		let machine = make_enter_call_machine(
 			config,
 			resolver,
+			trap_data.scheme,
 			code_address,
 			trap_data.input.clone(),
 			trap_data.transfer.clone(),
@@ -105,14 +128,20 @@ where
 			handler,
 		)?;
 
-		Ok((SubstackInvoke::Call { trap: trap_data }, machine))
+		Ok(machine)
 	};
 
-	match work() {
-		Ok(machine) => Ok(machine),
+	let res = work();
+	let invoke = SubstackInvoke::Call { trap: trap_data };
+
+	match res {
+		Ok(machine) => Ok((invoke, machine)),
 		Err(err) => {
-			handler.pop_substate(MergeStrategy::Discard);
-			Err(err)
+			Ok((invoke, InvokerControl::DirectExit(InvokerExit {
+				result: Err(err),
+				substate: None,
+				retval: Vec::new(),
+			})))
 		}
 	}
 }
@@ -134,40 +163,28 @@ where
 {
 	handler.push_substate();
 
-	let work = || -> Result<(SubstackInvoke, InvokerControl<R::Interpreter>), ExitError> {
-		let CreateTrapData {
-			scheme,
-			value,
-			code: _,
-		} = trap_data.clone();
+	let CreateTrapData {
+		scheme,
+		value,
+		code: _,
+	} = trap_data.clone();
 
-		let caller = scheme.caller();
+	let caller = scheme.caller();
 
-		let transfer = Transfer {
-			source: caller,
-			target: address,
-			value,
-		};
-
-		let machine =
-			make_enter_create_machine(config, resolver, caller, code, transfer, state, handler)?;
-
-		Ok((
-			SubstackInvoke::Create {
-				address,
-				trap: trap_data,
-			},
-			machine,
-		))
+	let transfer = Transfer {
+		source: caller,
+		target: address,
+		value,
 	};
 
-	match work() {
-		Ok(machine) => Ok(machine),
-		Err(err) => {
-			handler.pop_substate(MergeStrategy::Discard);
-			Err(err)
-		}
-	}
+	let invoke = SubstackInvoke::Create {
+		address,
+		trap: trap_data,
+	};
+	let machine =
+		make_enter_create_machine(config, resolver, caller, code, transfer, state, handler)?;
+
+	Ok((invoke, machine))
 }
 
 fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
