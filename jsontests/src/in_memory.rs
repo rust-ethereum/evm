@@ -82,7 +82,7 @@ impl InMemoryBackend {
 			self.state.remove(&address);
 		}
 
-		for (address, _) in changeset.accessed.clone() {
+		for address in changeset.touched.clone() {
 			if self.is_empty(address) {
 				self.state.remove(&address);
 			}

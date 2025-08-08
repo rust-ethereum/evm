@@ -13,7 +13,7 @@ use evm_interpreter::{
 	opcode::Opcode,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
-		TransactionContext, Transfer,
+		TransactionContext, Transfer, TouchKind,
 	},
 	Interpreter,
 };
@@ -206,6 +206,7 @@ where
 		let caller = args.caller();
 		let gas_price = args.gas_price();
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
+		let coinbase = handler.block_coinbase();
 
 		let address = match &args {
 			TransactArgs::Call { address, .. } => *address,
@@ -303,9 +304,9 @@ where
 				..
 			} => {
 				for (address, keys) in &access_list {
-					handler.mark_hot(*address, None);
+					handler.mark_hot(*address, TouchKind::Access);
 					for key in keys {
-						handler.mark_hot(*address, Some(*key));
+						handler.mark_storage_hot(*address, *key);
 					}
 				}
 
@@ -317,6 +318,10 @@ where
 					self.config,
 				)?;
 
+				handler.mark_hot(coinbase, TouchKind::Coinbase);
+				handler.mark_hot(caller, TouchKind::StateChange);
+				handler.mark_hot(address, TouchKind::StateChange);
+
 				let machine = routines::make_enter_call_machine(
 					self.config,
 					self.resolver,
@@ -327,15 +332,6 @@ where
 					state,
 					handler,
 				)?;
-
-				if self.config.increase_state_access_gas {
-					if self.config.warm_coinbase_address {
-						let coinbase = handler.block_coinbase();
-						handler.mark_hot(coinbase, None);
-					}
-					handler.mark_hot(caller, None);
-					handler.mark_hot(address, None);
-				}
 
 				machine
 			}
@@ -353,6 +349,10 @@ where
 					&access_list,
 					self.config,
 				)?;
+
+				handler.mark_hot(coinbase, TouchKind::Coinbase);
+				handler.mark_hot(caller, TouchKind::StateChange);
+				handler.mark_hot(address, TouchKind::StateChange);
 
 				routines::make_enter_create_machine(
 					self.config,
@@ -533,6 +533,9 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
+				handler.mark_hot(call_trap_data.context.caller, TouchKind::StateChange);
+				handler.mark_hot(call_trap_data.context.address, TouchKind::StateChange);
+
 				if depth >= self.config.call_stack_limit {
 					return Capture::Exit(Ok((
 						SubstackInvoke::Call {
@@ -547,6 +550,8 @@ where
 				}
 
 				if let Some(transfer) = &call_trap_data.transfer {
+					handler.mark_hot(transfer.target, TouchKind::StateChange);
+
 					if transfer.value != U256::zero()
 						&& handler.balance(transfer.source) < transfer.value
 					{
@@ -600,6 +605,9 @@ where
 					Ok(substate) => substate,
 					Err(err) => return Capture::Exit(Err(err)),
 				};
+
+				handler.mark_hot(caller, TouchKind::StateChange);
+				handler.mark_hot(address, TouchKind::StateChange);
 
 				if depth >= self.config.call_stack_limit {
 					return Capture::Exit(Ok((

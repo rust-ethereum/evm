@@ -7,7 +7,7 @@ use core::mem;
 
 use evm_interpreter::{
 	error::{ExitError, ExitException},
-	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin},
+	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind},
 };
 use primitive_types::{H160, H256, U256};
 
@@ -23,6 +23,7 @@ pub struct OverlayedChangeSet {
 	pub storages: BTreeMap<(H160, H256), H256>,
 	pub transient_storage: BTreeMap<(H160, H256), H256>,
 	pub accessed: BTreeSet<(H160, Option<H256>)>,
+	pub touched: BTreeSet<H160>,
 	pub deletes: BTreeSet<H160>,
 }
 
@@ -30,6 +31,7 @@ pub struct OverlayedBackend<'config, B> {
 	backend: B,
 	substate: Box<Substate>,
 	accessed: BTreeSet<(H160, Option<H256>)>,
+	touched: BTreeSet<H160>,
 	config: &'config Config,
 }
 
@@ -43,6 +45,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 			backend,
 			substate: Box::new(Substate::new()),
 			accessed,
+			touched: BTreeSet::new(),
 			config,
 		}
 	}
@@ -60,6 +63,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
 				accessed: self.accessed,
+				touched: self.touched,
 			},
 		)
 	}
@@ -170,8 +174,16 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		!self.accessed.contains(&(address, index))
 	}
 
-	fn mark_hot(&mut self, address: H160, index: Option<H256>) {
-		self.accessed.insert((address, index));
+	fn mark_hot(&mut self, address: H160, kind: TouchKind) {
+		self.accessed.insert((address, None));
+
+		if kind == TouchKind::StateChange {
+			self.touched.insert(address);
+		}
+	}
+
+	fn mark_storage_hot(&mut self, address: H160, index: H256) {
+		self.accessed.insert((address, Some(index)));
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {

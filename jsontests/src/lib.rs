@@ -54,7 +54,7 @@ general_state_tests!(
 );
 general_state_tests!(st_eip150_specific, "stEIP150Specific");
 general_state_tests!(st_eip1559, "stEIP1559", ignore);
-general_state_tests!(st_eip158_specific, "stEIP158Specific", ignore);
+general_state_tests!(st_eip158_specific, "stEIP158Specific");
 general_state_tests!(st_eip2930, "stEIP2930", ignore);
 general_state_tests!(st_eip3607, "stEIP3607", ignore);
 general_state_tests!(st_example, "stExample");

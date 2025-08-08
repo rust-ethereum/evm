@@ -142,6 +142,13 @@ pub trait RuntimeBaseBackend {
 	fn nonce(&self, address: H160) -> U256;
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub enum TouchKind {
+	StateChange,
+	Coinbase,
+	Access,
+}
+
 /// The distinguish between `RuntimeBaseBackend` and `RuntimeBackend` is for the implementation of
 /// overlays.
 pub trait RuntimeBackend: RuntimeBaseBackend {
@@ -158,7 +165,8 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	}
 
 	/// Mark an address or (address, index) pair as hot.
-	fn mark_hot(&mut self, address: H160, index: Option<H256>);
+	fn mark_hot(&mut self, address: H160, kind: TouchKind);
+	fn mark_storage_hot(&mut self, address: H160, index: H256);
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
 	/// Set transient storage value of address at index, transient storage gets discarded after every transaction. (see EIP-1153)
