@@ -28,8 +28,6 @@ where
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
-	handler.mark_hot(state.as_ref().context.address, None);
-
 	if let Some(transfer) = transfer {
 		match handler.transfer(transfer) {
 			Ok(()) => (),
@@ -50,7 +48,7 @@ where
 pub fn make_enter_create_machine<H, R>(
 	config: &Config,
 	resolver: &R,
-	caller: H160,
+	_caller: H160,
 	init_code: Vec<u8>,
 	transfer: Transfer,
 	state: R::State,
@@ -70,9 +68,6 @@ where
 			}));
 		}
 	}
-
-	handler.mark_hot(caller, None);
-	handler.mark_hot(state.as_ref().context.address, None);
 
 	handler.transfer(transfer)?;
 

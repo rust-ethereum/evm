@@ -13,7 +13,7 @@ use evm_interpreter::{
 	opcode::Opcode,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
-		TransactionContext, Transfer,
+		TouchKind, TransactionContext, Transfer,
 	},
 	Interpreter,
 };
@@ -206,6 +206,7 @@ where
 		let caller = args.caller();
 		let gas_price = args.gas_price();
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
+		let coinbase = handler.block_coinbase();
 
 		let address = match &args {
 			TransactArgs::Call { address, .. } => *address,
@@ -303,9 +304,9 @@ where
 				..
 			} => {
 				for (address, keys) in &access_list {
-					handler.mark_hot(*address, None);
+					handler.mark_hot(*address, TouchKind::Access);
 					for key in keys {
-						handler.mark_hot(*address, Some(*key));
+						handler.mark_storage_hot(*address, *key);
 					}
 				}
 
@@ -317,7 +318,11 @@ where
 					self.config,
 				)?;
 
-				let machine = routines::make_enter_call_machine(
+				handler.mark_hot(coinbase, TouchKind::Coinbase);
+				handler.mark_hot(caller, TouchKind::StateChange);
+				handler.mark_hot(address, TouchKind::StateChange);
+
+				routines::make_enter_call_machine(
 					self.config,
 					self.resolver,
 					CallScheme::Call,
@@ -326,18 +331,7 @@ where
 					Some(transfer),
 					state,
 					handler,
-				)?;
-
-				if self.config.increase_state_access_gas {
-					if self.config.warm_coinbase_address {
-						let coinbase = handler.block_coinbase();
-						handler.mark_hot(coinbase, None);
-					}
-					handler.mark_hot(caller, None);
-					handler.mark_hot(address, None);
-				}
-
-				machine
+				)?
 			}
 			TransactArgs::Create {
 				caller,
@@ -353,6 +347,10 @@ where
 					&access_list,
 					self.config,
 				)?;
+
+				handler.mark_hot(coinbase, TouchKind::Coinbase);
+				handler.mark_hot(caller, TouchKind::StateChange);
+				handler.mark_hot(address, TouchKind::StateChange);
 
 				routines::make_enter_create_machine(
 					self.config,
@@ -547,6 +545,8 @@ where
 				}
 
 				if let Some(transfer) = &call_trap_data.transfer {
+					handler.mark_hot(transfer.target, TouchKind::StateChange);
+
 					if transfer.value != U256::zero()
 						&& handler.balance(transfer.source) < transfer.value
 					{
@@ -565,6 +565,8 @@ where
 				}
 
 				let target = call_trap_data.target;
+
+				handler.mark_hot(call_trap_data.context.address, TouchKind::StateChange);
 
 				Capture::Exit(routines::enter_call_substack(
 					self.config,
@@ -628,6 +630,8 @@ where
 						}),
 					)));
 				}
+
+				handler.mark_hot(address, TouchKind::StateChange);
 
 				match handler.inc_nonce(caller) {
 					Ok(()) => (),

@@ -7,7 +7,9 @@ use core::mem;
 
 use evm_interpreter::{
 	error::{ExitError, ExitException},
-	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin},
+	runtime::{
+		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
+	},
 };
 use primitive_types::{H160, H256, U256};
 
@@ -22,6 +24,8 @@ pub struct OverlayedChangeSet {
 	pub storage_resets: BTreeSet<H160>,
 	pub storages: BTreeMap<(H160, H256), H256>,
 	pub transient_storage: BTreeMap<(H160, H256), H256>,
+	pub accessed: BTreeSet<(H160, Option<H256>)>,
+	pub touched: BTreeSet<H160>,
 	pub deletes: BTreeSet<H160>,
 }
 
@@ -58,6 +62,8 @@ impl<'config, B> OverlayedBackend<'config, B> {
 				storages: self.substate.storages,
 				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
+				accessed: self.accessed,
+				touched: self.substate.touched,
 			},
 		)
 	}
@@ -168,8 +174,16 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		!self.accessed.contains(&(address, index))
 	}
 
-	fn mark_hot(&mut self, address: H160, index: Option<H256>) {
-		self.accessed.insert((address, index));
+	fn mark_hot(&mut self, address: H160, kind: TouchKind) {
+		self.accessed.insert((address, None));
+
+		if kind == TouchKind::StateChange {
+			self.substate.touched.insert(address);
+		}
+	}
+
+	fn mark_storage_hot(&mut self, address: H160, index: H256) {
+		self.accessed.insert((address, Some(index)));
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
@@ -303,6 +317,9 @@ impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'
 				for address in child.creates {
 					self.substate.creates.insert(address);
 				}
+				for address in child.touched {
+					self.substate.touched.insert(address);
+				}
 			}
 			MergeStrategy::Revert | MergeStrategy::Discard => {}
 		}
@@ -320,6 +337,7 @@ struct Substate {
 	transient_storage: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
 	creates: BTreeSet<H160>,
+	touched: BTreeSet<H160>,
 }
 
 impl Substate {
@@ -335,6 +353,7 @@ impl Substate {
 			transient_storage: Default::default(),
 			deletes: Default::default(),
 			creates: Default::default(),
+			touched: Default::default(),
 		}
 	}
 

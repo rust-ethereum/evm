@@ -402,11 +402,17 @@ impl CreateTrapData {
 		let state = &mut machine.state;
 
 		stack.perform_pop3_push0(|value, code_offset, code_len| {
+			let code_end = code_offset
+				.checked_add(*code_len)
+				.ok_or(ExitException::InvalidRange)?;
+
 			let code_offset_len = if code_len == &U256::zero() {
 				None
 			} else {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
+
+			memory.resize_end(code_end)?;
 
 			let code = code_offset_len
 				.map(|(code_offset, code_len)| memory.get(code_offset, code_len))
@@ -437,11 +443,17 @@ impl CreateTrapData {
 		let state = &mut machine.state;
 
 		stack.perform_pop4_push0(|value, code_offset, code_len, salt| {
+			let code_end = code_offset
+				.checked_add(*code_len)
+				.ok_or(ExitException::InvalidRange)?;
+
 			let code_offset_len = if code_len == &U256::zero() {
 				None
 			} else {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
+
+			memory.resize_end(code_end)?;
 
 			let code = code_offset_len
 				.map(|(code_offset, code_len)| memory.get(code_offset, code_len))

@@ -10,7 +10,7 @@ use evm_interpreter::{
 	etable::Control,
 	machine::{Machine, Stack},
 	opcode::Opcode,
-	runtime::{RuntimeBackend, RuntimeState},
+	runtime::{RuntimeBackend, RuntimeState, TouchKind},
 	utils::{u256_to_h160, u256_to_h256},
 };
 use primitive_types::{H160, H256, U256};
@@ -307,7 +307,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::ExtCodeSize { target_is_cold }
 		}
@@ -316,7 +316,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::Balance { target_is_cold }
 		}
@@ -327,7 +327,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::ExtCodeHash { target_is_cold }
 		}
@@ -338,7 +338,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::CallCode {
 				value: stack.peek(2)?,
@@ -356,7 +356,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::StaticCall {
 				gas: stack.peek(0)?,
@@ -376,7 +376,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::ExtCodeCopy {
 				target_is_cold,
@@ -397,7 +397,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
-			handler.mark_hot(address, Some(index));
+			handler.mark_storage_hot(address, index);
 
 			GasCost::SLoad { target_is_cold }
 		}
@@ -408,7 +408,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::DelegateCall {
 				gas: stack.peek(0)?,
@@ -434,7 +434,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
-			handler.mark_hot(address, Some(index));
+			handler.mark_storage_hot(address, index);
 
 			GasCost::SStore {
 				original: handler.original_storage(address, index),
@@ -473,7 +473,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::StateChange);
 
 			GasCost::Suicide {
 				value: handler.balance(address),
@@ -491,7 +491,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::Call {
 				value: stack.peek(2)?,
