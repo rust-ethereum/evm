@@ -370,27 +370,23 @@ where
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		exit: InvokerExit<Self::State>,
+		mut exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
-		let left_gas = exit
-			.substate
-			.as_ref()
-			.map(|s| s.effective_gas())
-			.unwrap_or_default();
+		let substate = exit.substate.as_mut();
 
-		let work = || -> Result<Self::TransactValue, ExitError> {
+		let work = || -> Result<_, ExitError> {
 			match exit.result {
 				Ok(result) => {
 					if let Some(address) = invoke.create_address {
 						let retbuf = exit.retval;
 
-						if let Some(mut substate) = exit.substate {
+						if let Some(substate) = substate {
 							routines::deploy_create_code(
 								self.config,
 								address,
 								retbuf,
-								&mut substate,
+								substate,
 								handler,
 								SetCodeOrigin::Transaction,
 							)?;
@@ -414,6 +410,12 @@ where
 		};
 
 		let result = work();
+
+		let left_gas = exit
+			.substate
+			.as_ref()
+			.map(|s| s.effective_gas())
+			.unwrap_or_default();
 
 		let refunded_gas = match result {
 			Ok(_) | Err(ExitError::Reverted) => left_gas,

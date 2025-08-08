@@ -69,7 +69,16 @@ where
 		}
 	}
 
-	handler.transfer(transfer)?;
+	match handler.transfer(transfer) {
+		Ok(()) => (),
+		Err(err) => {
+			return Ok(InvokerControl::DirectExit(InvokerExit {
+				result: Err(err),
+				substate: Some(state),
+				retval: Vec::new(),
+			}))
+		}
+	}
 
 	if handler.code_size(state.as_ref().context.address) != U256::zero()
 		|| handler.nonce(state.as_ref().context.address) > U256::zero()
