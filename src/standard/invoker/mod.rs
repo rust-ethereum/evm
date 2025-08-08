@@ -13,7 +13,7 @@ use evm_interpreter::{
 	opcode::Opcode,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
-		TransactionContext, Transfer, TouchKind,
+		TouchKind, TransactionContext, Transfer,
 	},
 	Interpreter,
 };
@@ -322,7 +322,7 @@ where
 				handler.mark_hot(caller, TouchKind::StateChange);
 				handler.mark_hot(address, TouchKind::StateChange);
 
-				let machine = routines::make_enter_call_machine(
+				routines::make_enter_call_machine(
 					self.config,
 					self.resolver,
 					CallScheme::Call,
@@ -331,9 +331,7 @@ where
 					Some(transfer),
 					state,
 					handler,
-				)?;
-
-				machine
+				)?
 			}
 			TransactArgs::Create {
 				caller,

@@ -7,7 +7,9 @@ use core::mem;
 
 use evm_interpreter::{
 	error::{ExitError, ExitException},
-	runtime::{Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind},
+	runtime::{
+		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
+	},
 };
 use primitive_types::{H160, H256, U256};
 

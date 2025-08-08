@@ -402,7 +402,9 @@ impl CreateTrapData {
 		let state = &mut machine.state;
 
 		stack.perform_pop3_push0(|value, code_offset, code_len| {
-			let code_end = code_offset.checked_add(*code_len).ok_or(ExitException::InvalidRange)?;
+			let code_end = code_offset
+				.checked_add(*code_len)
+				.ok_or(ExitException::InvalidRange)?;
 
 			let code_offset_len = if code_len == &U256::zero() {
 				None
@@ -441,7 +443,9 @@ impl CreateTrapData {
 		let state = &mut machine.state;
 
 		stack.perform_pop4_push0(|value, code_offset, code_len, salt| {
-			let code_end = code_offset.checked_add(*code_len).ok_or(ExitException::InvalidRange)?;
+			let code_end = code_offset
+				.checked_add(*code_len)
+				.ok_or(ExitException::InvalidRange)?;
 
 			let code_offset_len = if code_len == &U256::zero() {
 				None
