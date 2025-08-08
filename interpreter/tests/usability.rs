@@ -5,7 +5,7 @@ use evm_interpreter::{
 	opcode::Opcode,
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
-		SetCodeOrigin, TransactionContext, TouchKind
+		SetCodeOrigin, TouchKind, TransactionContext,
 	},
 	EtableInterpreter, RunInterpreter,
 };
