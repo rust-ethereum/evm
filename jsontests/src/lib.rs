@@ -21,7 +21,7 @@ general_state_tests!(st_args_zero_one_balance, "stArgsZeroOneBalance");
 general_state_tests!(st_attack_test, "stAttackTest", ignore);
 general_state_tests!(st_bad_opcode, "stBadOpcode", ignore);
 general_state_tests!(st_bugs, "stBugs", ignore);
-general_state_tests!(st_call_codes, "stCallCodes", ignore);
+general_state_tests!(st_call_codes, "stCallCodes");
 general_state_tests!(
 	st_call_create_call_code_test,
 	"stCallCreateCallCodeTest",
@@ -29,13 +29,11 @@ general_state_tests!(
 );
 general_state_tests!(
 	st_call_delegate_codes_call_code_homestead,
-	"stCallDelegateCodesCallCodeHomestead",
-	ignore
+	"stCallDelegateCodesCallCodeHomestead"
 );
 general_state_tests!(
 	st_call_delegate_codes_homestead,
-	"stCallDelegateCodesHomestead",
-	ignore
+	"stCallDelegateCodesHomestead"
 );
 general_state_tests!(st_chain_id, "stChainId", ignore);
 general_state_tests!(st_code_copy_test, "stCodeCopyTest");
@@ -62,20 +60,16 @@ general_state_tests!(st_ext_code_hash, "stExtCodeHash");
 general_state_tests!(st_homestead_specific, "stHomesteadSpecific", ignore);
 general_state_tests!(st_init_code_test, "stInitCodeTest", ignore);
 general_state_tests!(st_log_tests, "stLogTests");
-general_state_tests!(
-	st_mem_expanding_eip150_calls,
-	"stMemExpandingEIP150Calls",
-	ignore
-);
+general_state_tests!(st_mem_expanding_eip150_calls, "stMemExpandingEIP150Calls");
 general_state_tests!(st_memory_stress_test, "stMemoryStressTest");
 general_state_tests!(st_memory_test, "stMemoryTest");
-general_state_tests!(st_non_zero_calls_test, "stNonZeroCallsTest", ignore);
+general_state_tests!(st_non_zero_calls_test, "stNonZeroCallsTest");
 general_state_tests!(st_precompiled_contracts, "stPreCompiledContracts", ignore);
 general_state_tests!(st_precompiled_contracts2, "stPreCompiledContracts2", ignore);
 general_state_tests!(st_quadratic_complexity_test, "stQuadraticComplexityTest");
 general_state_tests!(st_random, "stRandom", ignore);
 general_state_tests!(st_random2, "stRandom2", ignore);
-general_state_tests!(st_recursive_create, "stRecursiveCreate", ignore);
+general_state_tests!(st_recursive_create, "stRecursiveCreate");
 general_state_tests!(st_refund_test, "stRefundTest");
 general_state_tests!(st_return_data_test, "stReturnDataTest");
 general_state_tests!(st_revert_test, "stRevertTest", ignore);
@@ -94,7 +88,7 @@ general_state_tests!(st_transaction_test, "stTransactionTest", ignore);
 general_state_tests!(st_transition_test, "stTransitionTest", ignore);
 general_state_tests!(st_wallet_test, "stWalletTest", ignore);
 general_state_tests!(st_zero_calls_revert, "stZeroCallsRevert");
-general_state_tests!(st_zero_calls_test, "stZeroCallsTest", ignore);
+general_state_tests!(st_zero_calls_test, "stZeroCallsTest");
 general_state_tests!(st_zero_knowledge, "stZeroKnowledge");
 general_state_tests!(st_zero_knowledge2, "stZeroKnowledge2");
 
