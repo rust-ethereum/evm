@@ -1,13 +1,9 @@
-use std::{collections::BTreeMap, fmt, str::FromStr};
+use std::{collections::BTreeMap, str::FromStr};
 
 use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
 use primitive_types::{H160, H256, U256};
-use serde::{
-	de::{Error, Visitor},
-	Deserialize, Deserializer, Serialize, Serializer,
-};
-use serde_with::{serde_as, NoneAsEmptyString};
+use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -225,7 +221,6 @@ where
 		.collect())
 }
 
-#[serde_as]
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestMultiTransaction {
@@ -249,7 +244,7 @@ where
 {
 	let data: String = Deserialize::deserialize(deserializer)?;
 
-	if data == "" {
+	if data.is_empty() {
 		Ok(None)
 	} else {
 		Ok(Some(H160::from_str(&data).map_err(Error::custom)?))
@@ -261,7 +256,7 @@ where
 	S: Serializer,
 {
 	let s = if let Some(v) = value {
-		format!("{:?}", v)
+		format!("{v:?}")
 	} else {
 		"".to_string()
 	};

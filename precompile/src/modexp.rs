@@ -5,7 +5,7 @@ use evm::{
 	interpreter::error::{ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
-use num::{BigUint, FromPrimitive, Integer, One, ToPrimitive, Zero};
+use num::{BigUint, FromPrimitive, One, ToPrimitive, Zero};
 use primitive_types::U256;
 
 use crate::PurePrecompile;
