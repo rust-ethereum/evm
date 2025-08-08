@@ -338,7 +338,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, TouchKind::StateChange);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::CallCode {
 				value: stack.peek(2)?,
@@ -356,7 +356,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, TouchKind::StateChange);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::StaticCall {
 				gas: stack.peek(0)?,
@@ -408,7 +408,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, TouchKind::StateChange);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::DelegateCall {
 				gas: stack.peek(0)?,
@@ -491,7 +491,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
-			handler.mark_hot(target, TouchKind::StateChange);
+			handler.mark_hot(target, TouchKind::Access);
 
 			GasCost::Call {
 				value: stack.peek(2)?,

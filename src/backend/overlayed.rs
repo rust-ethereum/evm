@@ -33,7 +33,6 @@ pub struct OverlayedBackend<'config, B> {
 	backend: B,
 	substate: Box<Substate>,
 	accessed: BTreeSet<(H160, Option<H256>)>,
-	touched: BTreeSet<H160>,
 	config: &'config Config,
 }
 
@@ -47,7 +46,6 @@ impl<'config, B> OverlayedBackend<'config, B> {
 			backend,
 			substate: Box::new(Substate::new()),
 			accessed,
-			touched: BTreeSet::new(),
 			config,
 		}
 	}
@@ -65,7 +63,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
 				accessed: self.accessed,
-				touched: self.touched,
+				touched: self.substate.touched,
 			},
 		)
 	}
@@ -180,7 +178,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		self.accessed.insert((address, None));
 
 		if kind == TouchKind::StateChange {
-			self.touched.insert(address);
+			self.substate.touched.insert(address);
 		}
 	}
 
@@ -319,6 +317,9 @@ impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'
 				for address in child.creates {
 					self.substate.creates.insert(address);
 				}
+				for address in child.touched {
+					self.substate.touched.insert(address);
+				}
 			}
 			MergeStrategy::Revert | MergeStrategy::Discard => {}
 		}
@@ -336,6 +337,7 @@ struct Substate {
 	transient_storage: BTreeMap<(H160, H256), H256>,
 	deletes: BTreeSet<H160>,
 	creates: BTreeSet<H160>,
+	touched: BTreeSet<H160>,
 }
 
 impl Substate {
@@ -351,6 +353,7 @@ impl Substate {
 			transient_storage: Default::default(),
 			deletes: Default::default(),
 			creates: Default::default(),
+			touched: Default::default(),
 		}
 	}
 

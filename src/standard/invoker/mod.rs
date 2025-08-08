@@ -531,9 +531,6 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				handler.mark_hot(call_trap_data.context.caller, TouchKind::StateChange);
-				handler.mark_hot(call_trap_data.context.address, TouchKind::StateChange);
-
 				if depth >= self.config.call_stack_limit {
 					return Capture::Exit(Ok((
 						SubstackInvoke::Call {
@@ -568,6 +565,8 @@ where
 				}
 
 				let target = call_trap_data.target;
+
+				handler.mark_hot(call_trap_data.context.address, TouchKind::StateChange);
 
 				Capture::Exit(routines::enter_call_substack(
 					self.config,
@@ -604,9 +603,6 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				handler.mark_hot(caller, TouchKind::StateChange);
-				handler.mark_hot(address, TouchKind::StateChange);
-
 				if depth >= self.config.call_stack_limit {
 					return Capture::Exit(Ok((
 						SubstackInvoke::Create {
@@ -634,6 +630,8 @@ where
 						}),
 					)));
 				}
+
+				handler.mark_hot(address, TouchKind::StateChange);
 
 				match handler.inc_nonce(caller) {
 					Ok(()) => (),
