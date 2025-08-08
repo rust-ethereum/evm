@@ -22,11 +22,7 @@ general_state_tests!(st_attack_test, "stAttackTest", ignore);
 general_state_tests!(st_bad_opcode, "stBadOpcode", ignore);
 general_state_tests!(st_bugs, "stBugs", ignore);
 general_state_tests!(st_call_codes, "stCallCodes");
-general_state_tests!(
-	st_call_create_call_code_test,
-	"stCallCreateCallCodeTest",
-	ignore
-);
+general_state_tests!(st_call_create_call_code_test, "stCallCreateCallCodeTest");
 general_state_tests!(
 	st_call_delegate_codes_call_code_homestead,
 	"stCallDelegateCodesCallCodeHomestead"
