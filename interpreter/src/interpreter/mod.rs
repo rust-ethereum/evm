@@ -4,21 +4,25 @@ mod valids;
 use alloc::vec::Vec;
 
 pub use self::etable::EtableInterpreter;
-use crate::error::{Capture, ExitError, ExitResult, Trap};
+use crate::error::{Capture, ExitError, ExitResult};
 
 pub trait Interpreter<H> {
 	type State;
-	type Trap: Trap<Self>;
+	type Trap;
 
 	fn deconstruct(self) -> (Self::State, Vec<u8>);
+	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap>;
+}
+
+pub trait FeedbackInterpreter<H, Feedback>: Interpreter<H> {
+	type FeedbackTrap;
+
 	fn feedback(
 		&mut self,
-		trap: Self::Trap,
-		feedback: <Self::Trap as Trap<Self>>::Feedback,
-	) -> Result<(), ExitError> {
-		trap.feedback(feedback, self)
-	}
-	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap>;
+		trap: Self::FeedbackTrap,
+		feedback: Feedback,
+		handler: &mut H,
+	) -> Result<(), ExitError>;
 }
 
 pub trait StepInterpreter<H>: Interpreter<H> {

@@ -15,4 +15,4 @@ pub mod opcode;
 pub mod runtime;
 pub mod utils;
 
-pub use self::interpreter::{EtableInterpreter, Interpreter, StepInterpreter};
+pub use self::interpreter::{EtableInterpreter, FeedbackInterpreter, Interpreter, StepInterpreter};

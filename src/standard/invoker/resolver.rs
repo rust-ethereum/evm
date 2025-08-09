@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	error::{CallScheme, ExitError, ExitResult, Trap},
+	error::{CallScheme, ExitError, ExitResult},
 	etable::EtableSet,
 	machine::Machine,
 	runtime::{RuntimeBackend, RuntimeState},
@@ -103,7 +103,6 @@ impl<'config, 'precompile, 'etable, H, Pre, ES> Resolver<H>
 	for EtableResolver<'config, 'precompile, 'etable, Pre, ES>
 where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	ES::Trap: Trap<EtableInterpreter<'etable, ES>>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<ES::State, H>,
 	ES: EtableSet<Handle = H>,
