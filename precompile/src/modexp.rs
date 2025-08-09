@@ -235,7 +235,7 @@ impl<G: GasMutState> PurePrecompile<G> for Modexp {
 			(ExitSucceed::Returned.into(), bytes.to_vec())
 		} else if bytes.len() < mod_len {
 			let mut ret = Vec::with_capacity(mod_len);
-			ret.extend(core::iter::repeat(0).take(mod_len - bytes.len()));
+			ret.extend(core::iter::repeat_n(0, mod_len - bytes.len()));
 			ret.extend_from_slice(&bytes[..]);
 			(ExitSucceed::Returned.into(), ret.to_vec())
 		} else {

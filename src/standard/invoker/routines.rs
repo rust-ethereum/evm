@@ -2,7 +2,9 @@ use alloc::vec::Vec;
 use evm_interpreter::{
 	error::{CallScheme, CallTrapData, CreateTrapData, ExitError, ExitException},
 	opcode::Opcode,
-	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, Transfer},
+	runtime::{
+		RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, TouchKind, Transfer,
+	},
 };
 use primitive_types::{H160, U256};
 
@@ -28,6 +30,8 @@ where
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
+	handler.mark_hot(state.as_ref().context.address, TouchKind::StateChange);
+
 	if let Some(transfer) = transfer {
 		match handler.transfer(transfer) {
 			Ok(()) => (),
@@ -59,6 +63,8 @@ where
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
+	handler.mark_hot(state.as_ref().context.address, TouchKind::StateChange);
+
 	if let Some(limit) = config.max_initcode_size {
 		if init_code.len() > limit {
 			return Ok(InvokerControl::DirectExit(InvokerExit {

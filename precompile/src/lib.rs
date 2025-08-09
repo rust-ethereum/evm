@@ -34,7 +34,7 @@ use primitive_types::H160;
 
 pub use crate::{
 	blake2::Blake2F,
-	bn128::{Bn128Add, Bn128Mul, Bn128Pairing},
+	bn128::{Bn128AddIstanbul, Bn128MulIstanbul, Bn128PairingIstanbul},
 	modexp::Modexp,
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
 };
@@ -76,11 +76,11 @@ impl<'config, G: AsRef<RuntimeState> + GasMutState, H> PrecompileSet<G, H>
 		} else if code_address == address(5) {
 			Some(Modexp.execute(input, gasometer))
 		} else if code_address == address(6) {
-			Some(Bn128Add.execute(input, gasometer))
+			Some(Bn128AddIstanbul.execute(input, gasometer))
 		} else if code_address == address(7) {
-			Some(Bn128Mul.execute(input, gasometer))
+			Some(Bn128MulIstanbul.execute(input, gasometer))
 		} else if code_address == address(8) {
-			Some(Bn128Pairing.execute(input, gasometer))
+			Some(Bn128PairingIstanbul.execute(input, gasometer))
 		} else if code_address == address(9) {
 			Some(Blake2F.execute(input, gasometer))
 		} else {
