@@ -5,38 +5,15 @@ use core::{
 	cmp::{max, min},
 	convert::Infallible,
 };
-
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 use crate::{
-	error::{ExitError, ExitException, ExitFatal, ExitResult},
-	machine::{AsMachineMut, Machine, Memory},
+	error::{ExitError, ExitException, ExitResult},
+	machine::{AsMachine, AsMachineMut, Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
 	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
 };
-
-pub trait Trap<I: ?Sized> {
-	type Feedback;
-
-	fn feedback(self, feedback: Self::Feedback, interpreter: &mut I) -> Result<(), ExitError>;
-}
-
-impl<I> Trap<I> for () {
-	type Feedback = Infallible;
-
-	fn feedback(self, feedback: Infallible, _interpreter: &mut I) -> Result<(), ExitError> {
-		match feedback {}
-	}
-}
-
-impl<I> Trap<I> for Infallible {
-	type Feedback = Infallible;
-
-	fn feedback(self, feedback: Infallible, _interpreter: &mut I) -> Result<(), ExitError> {
-		match feedback {}
-	}
-}
 
 pub trait TrapConsume<T> {
 	type Rest;
@@ -68,12 +45,6 @@ pub enum CallCreateTrap {
 	Call(CallTrap),
 	/// A create trap data.
 	Create(CreateTrap),
-}
-
-#[derive(Debug)]
-pub enum CallCreateFeedback {
-	Call(CallFeedback),
-	Create(CreateFeedback),
 }
 
 impl CallCreateTrap {
@@ -114,25 +85,6 @@ impl CallCreateTrap {
 		match self {
 			Self::Call(trap) => handler.code(trap.target),
 			Self::Create(trap) => trap.code.clone(),
-		}
-	}
-}
-
-impl<I: AsMachineMut> Trap<I> for CallCreateTrap
-where
-	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
-{
-	type Feedback = CallCreateFeedback;
-
-	fn feedback(self, feedback: CallCreateFeedback, interpreter: &mut I) -> Result<(), ExitError> {
-		match (self, feedback) {
-			(Self::Call(trap), CallCreateFeedback::Call(feedback)) => {
-				trap.feedback(feedback, interpreter)
-			}
-			(Self::Create(trap), CallCreateFeedback::Create(feedback)) => {
-				trap.feedback(feedback, interpreter)
-			}
-			_ => Err(ExitFatal::InvalidFeedback.into()),
 		}
 	}
 }
@@ -306,15 +258,15 @@ impl CallTrap {
 			.as_ref()
 			.is_some_and(|t| t.value != U256::zero())
 	}
-}
 
-impl<I: AsMachineMut> Trap<I> for CallTrap
-where
-	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
-{
-	type Feedback = CallFeedback;
-
-	fn feedback(self, feedback: CallFeedback, interpreter: &mut I) -> Result<(), ExitError> {
+	pub fn feedback_machine<
+		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+		I: AsMachine<State = S> + AsMachineMut,
+	>(
+		self,
+		feedback: CallFeedback,
+		interpreter: &mut I,
+	) -> Result<(), ExitError> {
 		let machine = interpreter.as_machine_mut();
 
 		let reason = feedback.reason;
@@ -524,15 +476,15 @@ impl CreateTrap {
 			))
 		})
 	}
-}
 
-impl<I: AsMachineMut> Trap<I> for CreateTrap
-where
-	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
-{
-	type Feedback = CreateFeedback;
-
-	fn feedback(self, feedback: CreateFeedback, interpreter: &mut I) -> Result<(), ExitError> {
+	pub fn feedback_machine<
+		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+		I: AsMachine<State = S> + AsMachineMut,
+	>(
+		self,
+		feedback: CreateFeedback,
+		interpreter: &mut I,
+	) -> Result<(), ExitError> {
 		let machine = interpreter.as_machine_mut();
 
 		let reason = feedback.reason;

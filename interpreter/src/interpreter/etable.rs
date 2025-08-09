@@ -2,11 +2,15 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-	error::{Capture, ExitError, ExitException, ExitResult, ExitSucceed, Trap},
+	error::{
+		CallFeedback, CallTrap, Capture, CreateFeedback, CreateTrap, ExitError, ExitException,
+		ExitResult, ExitSucceed,
+	},
 	etable::{Control, EtableSet},
-	interpreter::{valids::Valids, Interpreter, StepInterpreter},
+	interpreter::{valids::Valids, FeedbackInterpreter, Interpreter, StepInterpreter},
 	machine::{AsMachine, AsMachineMut, Machine, Stack},
 	opcode::Opcode,
+	runtime::RuntimeState,
 };
 
 pub struct EtableInterpreter<'etable, ES: EtableSet> {
@@ -109,29 +113,12 @@ impl<'etable, ES: EtableSet> AsMachineMut for EtableInterpreter<'etable, ES> {
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter<'etable, ES>
-where
-	ES::Trap: Trap<Self>,
-{
+impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter<'etable, ES> {
 	type State = ES::State;
 	type Trap = ES::Trap;
 
 	fn deconstruct(self) -> (ES::State, Vec<u8>) {
 		(self.machine.state, self.machine.retval)
-	}
-
-	fn feedback(
-		&mut self,
-		trap: Self::Trap,
-		feedback: <Self::Trap as Trap<Self>>::Feedback,
-	) -> Result<(), ExitError> {
-		match trap.feedback(feedback, self) {
-			Ok(()) => {
-				self.advance();
-				Ok(())
-			}
-			Err(err) => Err(err),
-		}
 	}
 
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap> {
@@ -144,10 +131,53 @@ where
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> StepInterpreter<H> for EtableInterpreter<'etable, ES>
+impl<'etable, H, ES: EtableSet<Handle = H>> FeedbackInterpreter<H, CallFeedback>
+	for EtableInterpreter<'etable, ES>
 where
-	ES::Trap: Trap<Self>,
+	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
+	type FeedbackTrap = CallTrap;
+
+	fn feedback(
+		&mut self,
+		trap: CallTrap,
+		feedback: CallFeedback,
+		_handler: &mut H,
+	) -> Result<(), ExitError> {
+		match trap.feedback_machine(feedback, self) {
+			Ok(()) => {
+				self.advance();
+				Ok(())
+			}
+			Err(err) => Err(err),
+		}
+	}
+}
+
+impl<'etable, H, ES: EtableSet<Handle = H>> FeedbackInterpreter<H, CreateFeedback>
+	for EtableInterpreter<'etable, ES>
+where
+	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+{
+	type FeedbackTrap = CreateTrap;
+
+	fn feedback(
+		&mut self,
+		trap: CreateTrap,
+		feedback: CreateFeedback,
+		_handler: &mut H,
+	) -> Result<(), ExitError> {
+		match trap.feedback_machine(feedback, self) {
+			Ok(()) => {
+				self.advance();
+				Ok(())
+			}
+			Err(err) => Err(err),
+		}
+	}
+}
+
+impl<'etable, H, ES: EtableSet<Handle = H>> StepInterpreter<H> for EtableInterpreter<'etable, ES> {
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, ES::Trap>> {
 		let position = self.position;

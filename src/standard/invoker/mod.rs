@@ -6,16 +6,15 @@ use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::cmp::min;
 use evm_interpreter::{
 	error::{
-		CallCreateFeedback, CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture,
-		CreateFeedback, CreateScheme, CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed,
-		Trap, TrapConsume,
+		CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture, CreateFeedback, CreateScheme,
+		CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
 	},
 	machine::{AsMachine, AsMachineMut},
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
 	},
-	Interpreter,
+	FeedbackInterpreter, Interpreter,
 };
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -171,10 +170,11 @@ where
 		InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
-	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap> + From<CallCreateTrap>,
-	<<R::Interpreter as Interpreter<H>>::Trap as Trap<R::Interpreter>>::Feedback:
-		From<CallCreateFeedback>,
-	R::Interpreter: AsMachine<State = <R::Interpreter as Interpreter<H>>::State> + AsMachineMut,
+	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,
+	R::Interpreter: AsMachine<State = <R::Interpreter as Interpreter<H>>::State>
+		+ AsMachineMut
+		+ FeedbackInterpreter<H, CallFeedback, FeedbackTrap = CallTrap>
+		+ FeedbackInterpreter<H, CreateFeedback, FeedbackTrap = CreateTrap>,
 {
 	type Interpreter = R::Interpreter;
 	type Interrupt =
@@ -711,11 +711,11 @@ where
 
 				handler.pop_substate(strategy)?;
 
-				let feedback = CallCreateFeedback::Create(CreateFeedback {
+				let feedback = CreateFeedback {
 					reason: result,
 					retbuf,
-				});
-				parent.feedback(CallCreateTrap::Create(trap).into(), feedback.into())
+				};
+				parent.feedback(trap, feedback, handler)
 			}
 			SubstackInvoke::Call { trap } => {
 				let retbuf = exit.retval;
@@ -725,11 +725,11 @@ where
 				}
 				handler.pop_substate(strategy)?;
 
-				let feedback = CallCreateFeedback::Call(CallFeedback {
+				let feedback = CallFeedback {
 					reason: exit.result,
 					retbuf,
-				});
-				parent.feedback(CallCreateTrap::Call(trap).into(), feedback.into())
+				};
+				parent.feedback(trap, feedback, handler)
 			}
 		}
 	}
