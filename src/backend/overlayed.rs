@@ -224,6 +224,8 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn mark_delete_reset(&mut self, address: H160) {
+		self.substate.balances.insert(address, U256::zero());
+
 		if self.config.suicide_only_in_same_tx {
 			if self.created(address) {
 				self.substate.deletes.insert(address);
@@ -249,10 +251,6 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	) -> Result<(), ExitError> {
 		self.substate.codes.insert(address, code);
 		Ok(())
-	}
-
-	fn reset_balance(&mut self, address: H160) {
-		self.substate.balances.insert(address, U256::zero());
 	}
 
 	fn deposit(&mut self, target: H160, value: U256) {
