@@ -189,7 +189,7 @@ pub struct TestPostState {
 
 /// `TestExpectException` expected Ethereum exception
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, clippy::enum_variant_names)]
 pub enum TestExpectException {
 	TR_TypeNotSupported,
 	TR_IntrinsicGas,
