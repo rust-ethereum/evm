@@ -2,9 +2,8 @@ mod resolver;
 pub mod routines;
 mod state;
 
-use alloc::{rc::Rc, vec::Vec};
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, convert::Infallible};
-
 use evm_interpreter::{
 	error::{
 		CallCreateFeedback, CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture,
