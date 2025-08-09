@@ -173,8 +173,8 @@ where
 	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,
 	R::Interpreter: AsMachine<State = <R::Interpreter as Interpreter<H>>::State>
 		+ AsMachineMut
-		+ FeedbackInterpreter<H, CallFeedback, FeedbackTrap = CallTrap>
-		+ FeedbackInterpreter<H, CreateFeedback, FeedbackTrap = CreateTrap>,
+		+ FeedbackInterpreter<H, CallFeedback>
+		+ FeedbackInterpreter<H, CreateFeedback>,
 {
 	type Interpreter = R::Interpreter;
 	type Interrupt =
@@ -714,8 +714,9 @@ where
 				let feedback = CreateFeedback {
 					reason: result,
 					retbuf,
+					trap,
 				};
-				parent.feedback(trap, feedback, handler)
+				parent.feedback(feedback, handler)
 			}
 			SubstackInvoke::Call { trap } => {
 				let retbuf = exit.retval;
@@ -728,8 +729,9 @@ where
 				let feedback = CallFeedback {
 					reason: exit.result,
 					retbuf,
+					trap,
 				};
-				parent.feedback(trap, feedback, handler)
+				parent.feedback(feedback, handler)
 			}
 		}
 	}

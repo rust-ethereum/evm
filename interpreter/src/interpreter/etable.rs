@@ -3,8 +3,7 @@ use core::ops::{Deref, DerefMut};
 
 use crate::{
 	error::{
-		CallFeedback, CallTrap, Capture, CreateFeedback, CreateTrap, ExitError, ExitException,
-		ExitResult, ExitSucceed,
+		CallFeedback, Capture, CreateFeedback, ExitError, ExitException, ExitResult, ExitSucceed,
 	},
 	etable::{Control, EtableSet},
 	interpreter::{valids::Valids, FeedbackInterpreter, Interpreter, StepInterpreter},
@@ -136,15 +135,8 @@ impl<'etable, H, ES: EtableSet<Handle = H>> FeedbackInterpreter<H, CallFeedback>
 where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
-	type FeedbackTrap = CallTrap;
-
-	fn feedback(
-		&mut self,
-		trap: CallTrap,
-		feedback: CallFeedback,
-		_handler: &mut H,
-	) -> Result<(), ExitError> {
-		match trap.feedback_machine(feedback, self) {
+	fn feedback(&mut self, feedback: CallFeedback, _handler: &mut H) -> Result<(), ExitError> {
+		match feedback.to_machine(self) {
 			Ok(()) => {
 				self.advance();
 				Ok(())
@@ -159,15 +151,8 @@ impl<'etable, H, ES: EtableSet<Handle = H>> FeedbackInterpreter<H, CreateFeedbac
 where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
-	type FeedbackTrap = CreateTrap;
-
-	fn feedback(
-		&mut self,
-		trap: CreateTrap,
-		feedback: CreateFeedback,
-		_handler: &mut H,
-	) -> Result<(), ExitError> {
-		match trap.feedback_machine(feedback, self) {
+	fn feedback(&mut self, feedback: CreateFeedback, _handler: &mut H) -> Result<(), ExitError> {
+		match feedback.to_machine(self) {
 			Ok(()) => {
 				self.advance();
 				Ok(())

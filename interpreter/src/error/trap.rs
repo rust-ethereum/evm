@@ -115,12 +115,6 @@ pub struct CallTrap {
 	pub scheme: CallScheme,
 }
 
-#[derive(Debug)]
-pub struct CallFeedback {
-	pub reason: ExitResult,
-	pub retbuf: Vec<u8>,
-}
-
 impl CallTrap {
 	#[allow(clippy::too_many_arguments)]
 	fn new_from_params<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
@@ -258,21 +252,29 @@ impl CallTrap {
 			.as_ref()
 			.is_some_and(|t| t.value != U256::zero())
 	}
+}
 
-	pub fn feedback_machine<
+#[derive(Debug)]
+pub struct CallFeedback {
+	pub trap: CallTrap,
+	pub reason: ExitResult,
+	pub retbuf: Vec<u8>,
+}
+
+impl CallFeedback {
+	pub fn to_machine<
 		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 		I: AsMachine<State = S> + AsMachineMut,
 	>(
 		self,
-		feedback: CallFeedback,
 		interpreter: &mut I,
 	) -> Result<(), ExitError> {
 		let machine = interpreter.as_machine_mut();
 
-		let reason = feedback.reason;
-		let retbuf = feedback.retbuf;
-		let target_len = min(self.out_len, U256::from(retbuf.len()));
-		let out_offset = self.out_offset;
+		let reason = self.reason;
+		let retbuf = self.retbuf;
+		let target_len = min(self.trap.out_len, U256::from(retbuf.len()));
+		let out_offset = self.trap.out_offset;
 
 		let ret = match reason {
 			Ok(_) => {
@@ -384,12 +386,6 @@ pub struct CreateTrap {
 	pub code: Vec<u8>,
 }
 
-#[derive(Debug)]
-pub struct CreateFeedback {
-	pub reason: Result<H160, ExitError>,
-	pub retbuf: Vec<u8>,
-}
-
 impl CreateTrap {
 	pub fn new_create_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
@@ -476,19 +472,27 @@ impl CreateTrap {
 			))
 		})
 	}
+}
 
-	pub fn feedback_machine<
+#[derive(Debug)]
+pub struct CreateFeedback {
+	pub trap: CreateTrap,
+	pub reason: Result<H160, ExitError>,
+	pub retbuf: Vec<u8>,
+}
+
+impl CreateFeedback {
+	pub fn to_machine<
 		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 		I: AsMachine<State = S> + AsMachineMut,
 	>(
 		self,
-		feedback: CreateFeedback,
 		interpreter: &mut I,
 	) -> Result<(), ExitError> {
 		let machine = interpreter.as_machine_mut();
 
-		let reason = feedback.reason;
-		let retbuf = feedback.retbuf;
+		let reason = self.reason;
+		let retbuf = self.retbuf;
 
 		let ret = match reason {
 			Ok(address) => {

@@ -15,14 +15,7 @@ pub trait Interpreter<H> {
 }
 
 pub trait FeedbackInterpreter<H, Feedback>: Interpreter<H> {
-	type FeedbackTrap;
-
-	fn feedback(
-		&mut self,
-		trap: Self::FeedbackTrap,
-		feedback: Feedback,
-		handler: &mut H,
-	) -> Result<(), ExitError>;
+	fn feedback(&mut self, feedback: Feedback, handler: &mut H) -> Result<(), ExitError>;
 }
 
 pub trait StepInterpreter<H>: Interpreter<H> {
