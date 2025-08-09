@@ -163,6 +163,8 @@ pub enum ExitFatal {
 	Unfinished,
 	/// Uneven substate.
 	UnevenSubstate,
+	/// Invalid feedback.
+	InvalidFeedback,
 
 	/// Other fatal errors.
 	Other(Cow<'static, str>),

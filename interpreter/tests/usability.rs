@@ -1,13 +1,13 @@
 use evm_interpreter::{
 	error::{CallCreateTrap, Capture, ExitError, ExitSucceed},
 	etable::{Control, Etable, MultiEfn, MultiEtable},
-	machine::Machine,
+	machine::{Machine},
 	opcode::Opcode,
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
 		SetCodeOrigin, TouchKind, TransactionContext,
 	},
-	EtableInterpreter, RunInterpreter,
+	EtableInterpreter, Interpreter,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -21,7 +21,7 @@ fn etable_wrap() {
 	let code = hex::decode(CODE1).unwrap();
 	let data = hex::decode(DATA1).unwrap();
 
-	let wrapped_etable = Etable::<_, _, Opcode>::core().wrap(|f, opcode_t| {
+	let wrapped_etable = Etable::<_, _, ()>::core().wrap(|f, opcode_t| {
 		move |machine, handle, position| {
 			let opcode = Opcode(machine.code()[position]);
 			assert_eq!(opcode_t, opcode);
@@ -44,7 +44,7 @@ fn etable_wrap2() {
 	let data = hex::decode(DATA1).unwrap();
 
 	let wrapped_etable = Etable::core().wrap(
-		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), usize) -> Control<Opcode>> {
+		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), usize) -> Control<()>> {
 			if opcode_t != Opcode(0x50) {
 				Box::new(move |machine, handle, position| {
 					let opcode = Opcode(machine.code()[position]);
@@ -53,10 +53,9 @@ fn etable_wrap2() {
 					f(machine, handle, position)
 				})
 			} else {
-				Box::new(|machine, _handle, position| {
-					let opcode = Opcode(machine.code()[position]);
+				Box::new(|_machine, _handle, _position| {
 					println!("disabled!");
-					Control::Trap(opcode)
+					Control::Trap(Box::new(()))
 				})
 			}
 		},
@@ -65,7 +64,7 @@ fn etable_wrap2() {
 	let machine = Machine::new(Rc::new(code), Rc::new(data), 1024, 10000, ());
 	let mut vm = EtableInterpreter::new(machine, &wrapped_etable);
 	let result = vm.run(&mut ());
-	assert_eq!(result, Capture::Trap(Opcode(0x50)));
+	assert_eq!(result, Capture::Trap(Box::new(())));
 }
 
 pub struct UnimplementedHandler;

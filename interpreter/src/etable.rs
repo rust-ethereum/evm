@@ -5,7 +5,7 @@ use core::{
 };
 
 use crate::{
-	error::{CallCreateTrap, ExitException, ExitResult, TrapConstruct},
+	error::{CallCreateTrap, ExitException, ExitResult},
 	eval::*,
 	machine::Machine,
 	opcode::Opcode,
@@ -399,9 +399,10 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 	}
 }
 
-impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr: TrapConstruct<CallCreateTrap>> Etable<S, H, Tr>
+impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr> Etable<S, H, Tr>
 where
-	S: AsRef<RuntimeState> + GasState,
+	S: AsRef<RuntimeState> + AsMut<RuntimeState> + GasState,
+	Tr: From<CallCreateTrap>,
 {
 	/// Runtime Etable.
 	#[must_use]
@@ -463,7 +464,7 @@ where
 }
 
 /// Control state.
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum Control<Trap> {
 	/// No action.
 	NoAction,
@@ -474,5 +475,5 @@ pub enum Control<Trap> {
 	/// Jump to the specified PC.
 	Jump(usize),
 	/// Trapping the execution with the possibility to resume.
-	Trap(Trap),
+	Trap(Box<Trap>),
 }

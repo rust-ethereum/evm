@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
-use core::ops::{Deref, DerefMut};
+use core::{ops::{Deref, DerefMut}};
 
 use crate::{
-	error::{Capture, ExitError, ExitException, ExitResult, ExitSucceed},
+	error::{Capture, ExitError, ExitException, ExitResult, ExitSucceed, Trap},
 	etable::{Control, EtableSet},
-	interpreter::{valids::Valids, Interpreter, RunInterpreter, StepInterpreter},
-	machine::{Machine, Stack},
+	interpreter::{valids::Valids, Interpreter, StepInterpreter},
+	machine::{Machine, Stack, AsMachine, AsMachineMut},
 	opcode::Opcode,
 };
 
@@ -85,24 +85,8 @@ where
 	pub fn peek_opcode(&self) -> Option<Opcode> {
 		self.code.get(self.position).map(|opcode| Opcode(*opcode))
 	}
-}
 
-impl<'etable, ES: EtableSet> Interpreter for EtableInterpreter<'etable, ES> {
-	type State = ES::State;
-
-	fn machine(&self) -> &Machine<ES::State> {
-		&self.machine
-	}
-
-	fn machine_mut(&mut self) -> &mut Machine<ES::State> {
-		&mut self.machine
-	}
-
-	fn deconstruct(self) -> (ES::State, Vec<u8>) {
-		(self.machine.state, self.machine.retval)
-	}
-
-	fn advance(&mut self) {
+	pub fn advance(&mut self) {
 		if self.position == self.code.len() {
 			return;
 		}
@@ -111,11 +95,41 @@ impl<'etable, ES: EtableSet> Interpreter for EtableInterpreter<'etable, ES> {
 	}
 }
 
-impl<'etable, H, Tr, ES> RunInterpreter<H, Tr> for EtableInterpreter<'etable, ES>
-where
-	ES: EtableSet<Handle = H, Trap = Tr>,
+impl<'etable, ES: EtableSet> AsMachine for EtableInterpreter<'etable, ES> {
+	type State = ES::State;
+
+	fn as_machine(&self) -> &Machine<Self::State> {
+		&self.machine
+	}
+}
+
+impl<'etable, ES: EtableSet> AsMachineMut for EtableInterpreter<'etable, ES> {
+	fn as_machine_mut(&mut self) -> &mut Machine<Self::State> {
+		&mut self.machine
+	}
+}
+
+impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter<'etable, ES> where
+	ES::Trap: Trap<Self>
 {
-	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Tr> {
+	type State = ES::State;
+	type Trap = ES::Trap;
+
+	fn deconstruct(self) -> (ES::State, Vec<u8>) {
+		(self.machine.state, self.machine.retval)
+	}
+
+	fn feedback(&mut self, trap: Self::Trap, feedback: <Self::Trap as Trap<Self>>::Feedback) -> Result<(), ExitError> {
+		match trap.feedback(feedback, self) {
+			Ok(()) => {
+				self.advance();
+				Ok(())
+			},
+			Err(err) => Err(err)
+		}
+	}
+
+	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap> {
 		loop {
 			match self.step(handle) {
 				Ok(()) => (),
@@ -125,12 +139,11 @@ where
 	}
 }
 
-impl<'etable, H, Tr, ES> StepInterpreter<H, Tr> for EtableInterpreter<'etable, ES>
-where
-	ES: EtableSet<Handle = H, Trap = Tr>,
+impl<'etable, H, ES: EtableSet<Handle = H>> StepInterpreter<H> for EtableInterpreter<'etable, ES> where
+	ES::Trap: Trap<Self>
 {
 	#[inline]
-	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, Tr>> {
+	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, ES::Trap>> {
 		let position = self.position;
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
