@@ -227,11 +227,9 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		if self.config.suicide_only_in_same_tx {
 			if self.created(address) {
 				self.substate.deletes.insert(address);
-				self.substate.storage_resets.insert(address);
 			}
 		} else {
 			self.substate.deletes.insert(address);
-			self.substate.storage_resets.insert(address);
 		}
 	}
 
@@ -411,6 +409,8 @@ impl Substate {
 	pub fn known_storage(&self, address: H160, key: H256) -> Option<H256> {
 		if let Some(value) = self.storages.get(&(address, key)) {
 			Some(*value)
+		} else if self.deletes.contains(&address) {
+			None
 		} else if self.storage_resets.contains(&address) {
 			Some(H256::default())
 		} else if let Some(parent) = self.parent.as_ref() {
@@ -421,7 +421,9 @@ impl Substate {
 	}
 
 	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
-		if self.storage_resets.contains(&address) {
+		if self.deletes.contains(&address) {
+			None
+		} else if self.storage_resets.contains(&address) {
 			Some(H256::default())
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_original_storage(address, key)
