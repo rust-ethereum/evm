@@ -1,7 +1,7 @@
 use core::cmp::min;
 
 use evm::{
-	interpreter::error::{ExitException, ExitResult, ExitSucceed, ExitError},
+	interpreter::error::{ExitError, ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
@@ -41,17 +41,17 @@ impl<G: GasMutState> PurePrecompile<G> for ECRecover {
 		let work = || -> Result<_, ExitError> {
 			let mut raw_recid = input[63] - 27;
 			let mut sig = Signature::from_bytes((&sig[..]).into())
-									.map_err(|_| ExitException::Other("invalid ecdsa sig".into()))?;
+				.map_err(|_| ExitException::Other("invalid ecdsa sig".into()))?;
 			if let Some(sig_normalized) = sig.normalize_s() {
 				sig = sig_normalized;
 				raw_recid ^= 1;
 			}
 
 			let recid = RecoveryId::from_byte(raw_recid)
-								  .ok_or(ExitException::Other("invalid recoverty id".into()))?; // v
+				.ok_or(ExitException::Other("invalid recoverty id".into()))?; // v
 
 			let pubkey = VerifyingKey::recover_from_prehash(&msg[..], &sig, recid)
-								   .map_err(|_| ExitException::Other("recover key failed".into()))?;
+				.map_err(|_| ExitException::Other("recover key failed".into()))?;
 
 			let mut address = H256::from_slice(
 				Keccak256::digest(&pubkey.to_encoded_point(false).as_bytes()[1..]).as_slice(),
