@@ -68,7 +68,7 @@ general_state_tests!(st_refund_test, "stRefundTest");
 general_state_tests!(st_return_data_test, "stReturnDataTest");
 general_state_tests!(st_revert_test, "stRevertTest");
 general_state_tests!(st_self_balance, "stSelfBalance");
-general_state_tests!(st_shift, "stShift", ignore);
+general_state_tests!(st_shift, "stShift");
 general_state_tests!(st_sload_test, "stSLoadTest");
 general_state_tests!(st_solidity_test, "stSolidityTest", ignore);
 general_state_tests!(st_special_test, "stSpecialTest", ignore);

@@ -102,8 +102,11 @@ pub fn run_single(
 		for filename in fs::read_dir(filename)? {
 			let filepath = filename?.path();
 			let filename = filepath.to_str().ok_or(Error::NonUtf8Filename)?;
-			println!("RUM for: {filename}");
-			tests_status += run_file(filename, debug, write_failed)?;
+
+			if filename.ends_with(".json") {
+				println!("RUN for: {filename}");
+				tests_status += run_file(filename, debug, write_failed)?;
+			}
 		}
 		tests_status.print_total_for_dir(filename);
 		Ok(tests_status)
