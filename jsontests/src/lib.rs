@@ -33,7 +33,7 @@ general_state_tests!(
 );
 general_state_tests!(st_chain_id, "stChainId");
 general_state_tests!(st_code_copy_test, "stCodeCopyTest");
-general_state_tests!(st_code_size_limit, "stCodeSizeLimit", ignore);
+general_state_tests!(st_code_size_limit, "stCodeSizeLimit");
 general_state_tests!(st_create2, "stCreate2", ignore);
 general_state_tests!(st_create_test, "stCreateTest", ignore);
 general_state_tests!(
@@ -58,7 +58,7 @@ general_state_tests!(st_mem_expanding_eip150_calls, "stMemExpandingEIP150Calls")
 general_state_tests!(st_memory_stress_test, "stMemoryStressTest");
 general_state_tests!(st_memory_test, "stMemoryTest");
 general_state_tests!(st_non_zero_calls_test, "stNonZeroCallsTest");
-general_state_tests!(st_precompiled_contracts, "stPreCompiledContracts", ignore);
+general_state_tests!(st_precompiled_contracts, "stPreCompiledContracts");
 general_state_tests!(st_precompiled_contracts2, "stPreCompiledContracts2", ignore);
 general_state_tests!(st_quadratic_complexity_test, "stQuadraticComplexityTest");
 general_state_tests!(st_random, "stRandom");

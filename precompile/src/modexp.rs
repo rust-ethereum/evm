@@ -1,245 +1,221 @@
-use alloc::{vec, vec::Vec};
-use core::cmp::max;
-
+use alloc::{vec, vec::Vec, borrow::Cow};
+use core::cmp::{max, min};
 use evm::{
 	interpreter::error::{ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
-use num::{BigUint, FromPrimitive, One, ToPrimitive, Zero};
 use primitive_types::U256;
 
 use crate::PurePrecompile;
 
 pub struct Modexp;
 
-const MIN_GAS_COST: u64 = 200;
-
-// Calculate gas cost according to EIP-198
-fn calculate_gas_cost_byzantium(
-	base_length: u64,
-	mod_length: u64,
-	exponent: &BigUint,
-	exponent_bytes: &[u8],
-) -> u64 {
-	fn calculate_multiplication_complexity(base_length: u64, mod_length: u64) -> u64 {
-		let max_len = max(base_length, mod_length);
-		let res = if max_len <= 64 {
-			U256::from(max_len * max_len)
-		} else if max_len <= 1_024 {
-			U256::from(max_len * max_len / 4 + 96 * max_len - 3_072)
-		} else {
-			// Up-cast to avoid overflow
-			let x = U256::from(max_len);
-			let x_sq = x * x; // x < 2^64 => x*x < 2^128 < 2^256 (no overflow)
-			x_sq / U256::from(16) + U256::from(480) * x - U256::from(199_680)
-		};
-
-		if res >= U256::from(u64::MAX) {
-			u64::MAX
-		} else {
-			res.as_u64()
-		}
-	}
-
-	fn calculate_iteration_count(exponent: &BigUint, exponent_bytes: &[u8]) -> u64 {
-		let mut iteration_count: u64 = 0;
-		let exp_length = exponent_bytes.len() as u64;
-
-		if exp_length <= 32 && exponent.is_zero() {
-			iteration_count = 0;
-		} else if exp_length <= 32 {
-			iteration_count = exponent.bits() - 1;
-		} else if exp_length > 32 {
-			let exponent_head = BigUint::from_bytes_be(&exponent_bytes[..32]);
-
-			iteration_count = (8 * (exp_length - 32)) + exponent_head.bits() - 1;
-		}
-
-		max(iteration_count, 1)
-	}
-
-	let multiplication_complexity = calculate_multiplication_complexity(base_length, mod_length);
-	let iteration_count = calculate_iteration_count(exponent, exponent_bytes);
-	(multiplication_complexity * iteration_count) / 20
+fn modexp(base: &[u8], exponent: &[u8], modulus: &[u8]) -> Vec<u8> {
+    aurora_engine_modexp::modexp(base, exponent, modulus)
 }
 
-// Calculate gas cost according to EIP 2565:
-// https://eips.ethereum.org/EIPS/eip-2565
+/// Calculate the iteration count for the modexp precompile.
+fn calculate_iteration_count<const MULTIPLIER: u64>(exp_length: u64, exp_highp: &U256) -> u64 {
+    let mut iteration_count: u64 = 0;
+
+    if exp_length <= 32 && exp_highp.is_zero() {
+        iteration_count = 0;
+    } else if exp_length <= 32 {
+        iteration_count = exp_highp.bits() as u64 - 1;
+    } else if exp_length > 32 {
+        iteration_count = (MULTIPLIER.saturating_mul(exp_length - 32))
+            .saturating_add(max(1, exp_highp.bits() as u64) - 1);
+    }
+
+    max(iteration_count, 1)
+}
+
+/// Calculate the gas cost for the modexp precompile with BYZANTIUM gas rules.
+pub fn byzantium_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: &U256) -> u64 {
+    gas_calc::<0, 8, 20, _>(base_len, exp_len, mod_len, exp_highp, |max_len| -> U256 {
+        // Output of this function is bounded by 2^128
+        if max_len <= 64 {
+            U256::from(max_len * max_len)
+        } else if max_len <= 1_024 {
+            U256::from(max_len * max_len / 4 + 96 * max_len - 3_072)
+        } else {
+            // Up-cast to avoid overflow
+            let x = U256::from(max_len);
+            let x_sq = x * x; // x < 2^64 => x*x < 2^128 < 2^256 (no overflow)
+            x_sq / U256::from(16) + U256::from(480) * x - U256::from(199_680)
+        }
+    })
+}
+
+/// Calculate gas cost according to EIP 2565:
+/// <https://eips.ethereum.org/EIPS/eip-2565>
 #[allow(unused)]
-fn calculate_gas_cost(
-	base_length: u64,
-	mod_length: u64,
-	exponent: &BigUint,
-	exponent_bytes: &[u8],
-	mod_is_even: bool,
-) -> u64 {
-	fn calculate_multiplication_complexity(base_length: u64, mod_length: u64) -> u64 {
-		let max_length = max(base_length, mod_length);
-		let mut words = max_length / 8;
-		if max_length % 8 > 0 {
-			words += 1;
-		}
-
-		// Note: can't overflow because we take words to be some u64 value / 8, which is
-		// necessarily less than sqrt(u64::MAX).
-		// Additionally, both base_length and mod_length are bounded to 1024, so this has
-		// an upper bound of roughly (1024 / 8) squared
-		words * words
-	}
-
-	fn calculate_iteration_count(exponent: &BigUint, exponent_bytes: &[u8]) -> u64 {
-		let mut iteration_count: u64 = 0;
-		let exp_length = exponent_bytes.len() as u64;
-
-		if exp_length <= 32 && exponent.is_zero() {
-			iteration_count = 0;
-		} else if exp_length <= 32 {
-			iteration_count = exponent.bits() - 1;
-		} else if exp_length > 32 {
-			// from the EIP spec:
-			// (8 * (exp_length - 32)) + ((exponent & (2**256 - 1)).bit_length() - 1)
-			//
-			// Notes:
-			// * exp_length is bounded to 1024 and is > 32
-			// * exponent can be zero, so we subtract 1 after adding the other terms (whose sum
-			//   must be > 0)
-			// * the addition can't overflow because the terms are both capped at roughly
-			//   8 * max size of exp_length (1024)
-			// * the EIP spec is written in python, in which (exponent & (2**256 - 1)) takes the
-			//   FIRST 32 bytes. However this `BigUint` `&` operator takes the LAST 32 bytes.
-			//   We thus instead take the bytes manually.
-			let exponent_head = BigUint::from_bytes_be(&exponent_bytes[..32]);
-
-			iteration_count = (8 * (exp_length - 32)) + exponent_head.bits() - 1;
-		}
-
-		max(iteration_count, 1)
-	}
-
-	let multiplication_complexity = calculate_multiplication_complexity(base_length, mod_length);
-	let iteration_count = calculate_iteration_count(exponent, exponent_bytes);
-	max(
-		MIN_GAS_COST,
-		multiplication_complexity * iteration_count / 3,
-	)
-	.saturating_mul(if mod_is_even { 20 } else { 1 })
+fn berlin_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: &U256) -> u64 {
+    gas_calc::<200, 8, 3, _>(base_len, exp_len, mod_len, exp_highp, |max_len| -> U256 {
+        let words = U256::from(max_len.div_ceil(8));
+        words * words
+    })
 }
 
-/// Copy bytes from input to target.
-fn read_input(source: &[u8], target: &mut [u8], source_offset: &mut usize) {
-	// We move the offset by the len of the target, regardless of what we
-	// actually copy.
-	let offset = *source_offset;
-	*source_offset += target.len();
+/// Calculate gas cost according to EIP-7883:
+/// <https://eips.ethereum.org/EIPS/eip-7883>
+///
+/// There are three changes:
+/// 1. Increase minimal price from 200 to 500
+/// 2. Increase cost when exponent is larger than 32 bytes
+/// 3. Increase cost when base or modulus is larger than 32 bytes
+#[allow(unused)]
+fn osaka_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: &U256) -> u64 {
+    gas_calc::<500, 16, 1, _>(base_len, exp_len, mod_len, exp_highp, |max_len| -> U256 {
+        if max_len <= 32 {
+            return U256::from(16); // multiplication_complexity = 16
+        }
 
-	// Out of bounds, nothing to copy.
-	if source.len() <= offset {
-		return;
+        let words = U256::from(max_len.div_ceil(8));
+        words * words * U256::from(2) // multiplication_complexity = 2 * words**2
+    })
+}
+
+/// Calculate gas cost.
+fn gas_calc<const MIN_PRICE: u64, const MULTIPLIER: u64, const GAS_DIVISOR: u64, F>(
+    base_len: u64,
+    exp_len: u64,
+    mod_len: u64,
+    exp_highp: &U256,
+    calculate_multiplication_complexity: F,
+) -> u64
+where
+    F: Fn(u64) -> U256,
+{
+    let multiplication_complexity = calculate_multiplication_complexity(max(base_len, mod_len));
+    let iteration_count = calculate_iteration_count::<MULTIPLIER>(exp_len, exp_highp);
+    let gas = (multiplication_complexity * U256::from(iteration_count)) / U256::from(GAS_DIVISOR);
+
+	if gas > U256::from(u64::MAX) {
+		u64::MAX
+	} else {
+		max(MIN_PRICE, gas.as_u64())
 	}
+}
 
-	// Find len to copy up to target len, but not out of bounds.
-	let len = core::cmp::min(target.len(), source.len() - offset);
-	target[..len].copy_from_slice(&source[offset..][..len]);
+/// Right-pads the given slice at `offset` with zeroes until `LEN`.
+///
+/// Returns the first `LEN` bytes if it does not need padding.
+#[inline]
+pub fn right_pad_with_offset<const LEN: usize>(data: &[u8], offset: usize) -> Cow<'_, [u8; LEN]> {
+    right_pad(data.get(offset..).unwrap_or_default())
+}
+
+/// Right-pads the given slice with zeroes until `LEN`.
+///
+/// Returns the first `LEN` bytes if it does not need padding.
+#[inline]
+pub fn right_pad<const LEN: usize>(data: &[u8]) -> Cow<'_, [u8; LEN]> {
+    if let Some(data) = data.get(..LEN) {
+        Cow::Borrowed(data.try_into().unwrap())
+    } else {
+        let mut padded = [0; LEN];
+        padded[..data.len()].copy_from_slice(data);
+        Cow::Owned(padded)
+    }
+}
+
+/// Right-pads the given slice with zeroes until `len`.
+///
+/// Returns the first `len` bytes if it does not need padding.
+#[inline]
+pub fn right_pad_vec(data: &[u8], len: usize) -> Cow<'_, [u8]> {
+    if let Some(data) = data.get(..len) {
+        Cow::Borrowed(data)
+    } else {
+        let mut padded = vec![0; len];
+        padded[..data.len()].copy_from_slice(data);
+        Cow::Owned(padded)
+    }
+}
+
+/// Left-pads the given slice with zeroes until `LEN`.
+///
+/// Returns the first `LEN` bytes if it does not need padding.
+#[inline]
+pub fn left_pad<const LEN: usize>(data: &[u8]) -> Cow<'_, [u8; LEN]> {
+    if let Some(data) = data.get(..LEN) {
+        Cow::Borrowed(data.try_into().unwrap())
+    } else {
+        let mut padded = [0; LEN];
+        padded[LEN - data.len()..].copy_from_slice(data);
+        Cow::Owned(padded)
+    }
+}
+
+/// Left-pads the given slice with zeroes until `len`.
+///
+/// Returns the first `len` bytes if it does not need padding.
+#[inline]
+pub fn left_pad_vec(data: &[u8], len: usize) -> Cow<'_, [u8]> {
+    if let Some(data) = data.get(..len) {
+        Cow::Borrowed(data)
+    } else {
+        let mut padded = vec![0; len];
+        padded[len - data.len()..].copy_from_slice(data);
+        Cow::Owned(padded)
+    }
 }
 
 impl<G: GasMutState> PurePrecompile<G> for Modexp {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
-		let mut input_offset = 0;
+		// The format of input is:
+		// <length_of_BASE> <length_of_EXPONENT> <length_of_MODULUS> <BASE> <EXPONENT> <MODULUS>
+		// Where every length is a 32-byte left-padded integer representing the number of bytes
+		// to be taken up by the next value.
+		const HEADER_LENGTH: usize = 96;
 
-		// Yellowpaper: whenever the input is too short, the missing bytes are
-		// considered to be zero.
-		let mut base_len_buf = [0u8; 32];
-		read_input(input, &mut base_len_buf, &mut input_offset);
-		let mut exp_len_buf = [0u8; 32];
-		read_input(input, &mut exp_len_buf, &mut input_offset);
-		let mut mod_len_buf = [0u8; 32];
-		read_input(input, &mut mod_len_buf, &mut input_offset);
+		// Extract the header
+		let base_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 0).into_owned());
+		let exp_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 32).into_owned());
+		let mod_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 64).into_owned());
 
-		// reasonable assumption: this must fit within the Ethereum EVM's max stack size
-		let max_size_big = BigUint::from_u32(1024).expect("can't create BigUint");
+		// Cast base and modulus to usize, it does not make sense to handle larger values
+		let base_len =
+			try_some!(usize::try_from(base_len).map_err(|_| ExitException::OutOfGas));
+		let mod_len = try_some!(usize::try_from(mod_len).map_err(|_| ExitException::OutOfGas));
+		// cast exp len to the max size, it will fail later in gas calculation if it is too large.
+		let exp_len = usize::try_from(exp_len).unwrap_or(usize::MAX);
 
-		let base_len_big = BigUint::from_bytes_be(&base_len_buf);
-		if base_len_big > max_size_big {
-			try_some!(Err(ExitException::Other(
-				"unreasonably large base length".into()
-			)));
-		}
+		// TODO: Check Osaka size limit.
 
-		let exp_len_big = BigUint::from_bytes_be(&exp_len_buf);
-		if exp_len_big > max_size_big {
-			try_some!(Err(ExitException::Other(
-				"unreasonably large exponent length".into()
-			)));
-		}
+		// Used to extract ADJUSTED_EXPONENT_LENGTH.
+		let exp_highp_len = min(exp_len, 32);
 
-		let mod_len_big = BigUint::from_bytes_be(&mod_len_buf);
-		if mod_len_big > max_size_big {
-			try_some!(Err(ExitException::Other(
-				"unreasonably large modulus length".into()
-			)));
-		}
+		// Throw away the header data as we already extracted lengths.
+		let input = input.get(HEADER_LENGTH..).unwrap_or_default();
 
-		// bounds check handled above
-		let base_len = base_len_big.to_usize().expect("base_len out of bounds");
-		let exp_len = exp_len_big.to_usize().expect("exp_len out of bounds");
-		let mod_len = mod_len_big.to_usize().expect("mod_len out of bounds");
+		let exp_highp = {
+			// Get right padded bytes so if data.len is less then exp_len we will get right padded zeroes.
+			let right_padded_highp = right_pad_with_offset::<32>(input, base_len);
+			// If exp_len is less then 32 bytes get only exp_len bytes and do left padding.
+			let out = left_pad::<32>(&right_padded_highp[..exp_highp_len]);
+			U256::from_big_endian(&out.into_owned())
+		};
 
-		// if mod_len is 0 output must be empty
-		if mod_len == 0 {
+		// Check if we have enough gas.
+		let gas_cost = byzantium_gas_calc(base_len as u64, exp_len as u64, mod_len as u64, &exp_highp);
+		try_some!(gasometer.record_gas(U256::from(gas_cost)));
+
+		if base_len == 0 && mod_len == 0 {
 			return (ExitSucceed::Returned.into(), Vec::new());
 		}
 
-		// Gas formula allows arbitrary large exp_len when base and modulus are empty, so we need to handle empty base first.
-		let r = if base_len == 0 && mod_len == 0 {
-			try_some!(gasometer.record_gas(MIN_GAS_COST.into()));
-			BigUint::zero()
-		} else {
-			// read the numbers themselves.
-			let mut base_buf = vec![0u8; base_len];
-			read_input(input, &mut base_buf, &mut input_offset);
-			let base = BigUint::from_bytes_be(&base_buf);
+		// Padding is needed if the input does not contain all 3 values.
+		let input_len = base_len.saturating_add(exp_len).saturating_add(mod_len);
+		let input = right_pad_vec(input, input_len);
+		let (base, input) = input.split_at(base_len);
+		let (exponent, modulus) = input.split_at(exp_len);
+		debug_assert_eq!(modulus.len(), mod_len);
 
-			let mut exp_buf = vec![0u8; exp_len];
-			read_input(input, &mut exp_buf, &mut input_offset);
-			let exponent = BigUint::from_bytes_be(&exp_buf);
+		// Call the modexp.
+		let output = modexp(base, exponent, modulus);
 
-			let mut mod_buf = vec![0u8; mod_len];
-			read_input(input, &mut mod_buf, &mut input_offset);
-			let modulus = BigUint::from_bytes_be(&mod_buf);
-
-			// do our gas accounting
-			let gas_cost = calculate_gas_cost_byzantium(
-				base_len as u64,
-				mod_len as u64,
-				&exponent,
-				&exp_buf,
-				// modulus.is_even(),
-			);
-
-			try_some!(gasometer.record_gas(gas_cost.into()));
-
-			if modulus.is_zero() || modulus.is_one() {
-				BigUint::zero()
-			} else {
-				base.modpow(&exponent, &modulus)
-			}
-		};
-
-		// write output to given memory, left padded and same length as the modulus.
-		let bytes = r.to_bytes_be();
-
-		// always true except in the case of zero-length modulus, which leads to
-		// output of length and value 1.
-		#[allow(clippy::comparison_chain)]
-		if bytes.len() == mod_len {
-			(ExitSucceed::Returned.into(), bytes.to_vec())
-		} else if bytes.len() < mod_len {
-			let mut ret = Vec::with_capacity(mod_len);
-			ret.extend(core::iter::repeat_n(0, mod_len - bytes.len()));
-			ret.extend_from_slice(&bytes[..]);
-			(ExitSucceed::Returned.into(), ret.to_vec())
-		} else {
-			return (ExitException::Other("failed".into()).into(), Vec::new());
-		}
+		(ExitSucceed::Returned.into(), left_pad_vec(&output, mod_len).into_owned().into())
 	}
 }

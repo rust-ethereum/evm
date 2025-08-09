@@ -17,6 +17,7 @@ primitive-types = { version = "0.12", default-features = false, features = ["rlp
 ripemd = { version = "0.1", default-features = false }
 sha2 = { version = "0.10", default-features = false }
 sha3 = { version = "0.10", default-features = false }
+aurora-engine-modexp = { version = "1.2", default-features = false }
 
 [features]
 default = ["std"]
@@ -28,4 +29,5 @@ std = [
 	"ripemd/std",
 	"sha2/std",
 	"sha3/std",
+	"aurora-engine-modexp/std",
 ]
