@@ -666,10 +666,11 @@ where
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
-		let strategy = match &exit.result {
+		let mut strategy = match &exit.result {
 			Ok(_) => MergeStrategy::Commit,
 			Err(ExitError::Exception(ExitException::OutOfFund)) => MergeStrategy::Revert,
 			Err(ExitError::Exception(ExitException::CallTooDeep)) => MergeStrategy::Revert,
+			Err(ExitError::Exception(ExitException::MaxNonce)) => MergeStrategy::Revert,
 			Err(ExitError::Reverted) => MergeStrategy::Revert,
 			Err(_) => MergeStrategy::Discard,
 		};
@@ -696,6 +697,7 @@ where
 								}
 								Err(err) => {
 									retbuf = Vec::new();
+									strategy = MergeStrategy::Discard;
 									Err(err)
 								}
 							}

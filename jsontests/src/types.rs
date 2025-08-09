@@ -193,6 +193,7 @@ pub struct TestPostState {
 pub enum TestExpectException {
 	TR_TypeNotSupported,
 	TR_IntrinsicGas,
+	TR_NonceHasMaxValue,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
