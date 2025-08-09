@@ -56,8 +56,8 @@ pub struct Sha256;
 
 impl<G: GasMutState> PurePrecompile<G> for Sha256 {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
-		const COST_BASE: u64 = 600;
-		const COST_WORD: u64 = 120;
+		const COST_BASE: u64 = 60;
+		const COST_WORD: u64 = 12;
 		try_some!(gasometer.record_gas(U256::from(try_some!(linear_cost(
 			input.len() as u64,
 			COST_BASE,
