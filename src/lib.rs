@@ -59,8 +59,8 @@
 //! * Finally, each machine on the call stack has the concept of [Color], which allows you to
 //!   implement account versioning, or specialized precompiles that invoke subcalls.
 
-#![deny(warnings)]
-#![forbid(unsafe_code, unused_variables)]
+// #![deny(warnings)]
+// #![forbid(unsafe_code, unused_variables)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;

@@ -44,6 +44,14 @@ pub trait TrapConsume<T> {
 	fn consume(self) -> Result<T, Self::Rest>;
 }
 
+impl<T> TrapConsume<T> for T {
+	type Rest = Infallible;
+
+	fn consume(self) -> Result<T, Infallible> {
+		Ok(self)
+	}
+}
+
 pub enum CallCreateOpcode {
 	Call,
 	CallCode,

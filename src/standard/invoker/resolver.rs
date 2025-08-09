@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	error::{CallScheme, ExitError, ExitResult},
+	error::{CallScheme, ExitError, ExitResult, Trap},
 	etable::EtableSet,
 	machine::Machine,
 	runtime::{RuntimeBackend, RuntimeState},
@@ -21,8 +21,7 @@ use crate::{
 /// construct a machine, pushing the call stack, or directly exit, handling a
 /// precompile.
 pub trait Resolver<H> {
-	type State;
-	type Interpreter: Interpreter<State = Self::State>;
+	type Interpreter: Interpreter<H>;
 
 	/// Resolve a call (with the target code address).
 	#[allow(clippy::type_complexity)]
@@ -31,18 +30,18 @@ pub trait Resolver<H> {
 		scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
-		state: Self::State,
+		state: <Self::Interpreter as Interpreter<H>>::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter>, ExitError>;
+	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError>;
 
 	/// Resolve a create (with the init code).
 	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		state: Self::State,
+		state: <Self::Interpreter as Interpreter<H>>::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter>, ExitError>;
+	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError>;
 }
 
 /// A set of precompiles.
@@ -98,11 +97,11 @@ impl<'config, 'precompile, 'etable, H, Pre, ES> Resolver<H>
 	for EtableResolver<'config, 'precompile, 'etable, Pre, ES>
 where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	ES::Trap: Trap<EtableInterpreter<'etable, ES>>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<ES::State, H>,
 	ES: EtableSet<Handle = H>,
 {
-	type State = ES::State;
 	type Interpreter = EtableInterpreter<'etable, ES>;
 
 	/// Resolve a call (with the target code address).
@@ -114,7 +113,7 @@ where
 		input: Vec<u8>,
 		mut state: ES::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter>, ExitError> {
+	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
@@ -148,7 +147,7 @@ where
 		init_code: Vec<u8>,
 		state: ES::State,
 		_handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter>, ExitError> {
+	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError> {
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),

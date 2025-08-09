@@ -5,11 +5,11 @@ use evm_interpreter::{
 };
 
 /// Control for an invoker.
-pub enum InvokerControl<I: Interpreter> {
+pub enum InvokerControl<I, S> {
 	/// Pushing the call stack.
 	Enter(I),
 	/// Directly exit, not pushing the call stack.
-	DirectExit(InvokerExit<I::State>),
+	DirectExit(InvokerExit<S>),
 }
 
 pub struct InvokerExit<S> {
@@ -19,9 +19,9 @@ pub struct InvokerExit<S> {
 }
 
 /// An invoker, responsible for pushing/poping values in the call stack.
-pub trait Invoker<H, Tr> {
-	type State;
-	type Interpreter: Interpreter<State = Self::State>;
+pub trait Invoker<H> {
+	/// Interpreter type.
+	type Interpreter: Interpreter<H>;
 	/// Possible interrupt type that may be returned by the call stack.
 	type Interrupt;
 
@@ -42,13 +42,13 @@ pub trait Invoker<H, Tr> {
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter>), ExitError>;
+	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>), ExitError>;
 
 	/// Finalize a transaction.
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		exit: InvokerExit<Self::State>,
+		exit: InvokerExit<<Self::Interpreter as Interpreter<H>>::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
 
@@ -56,12 +56,12 @@ pub trait Invoker<H, Tr> {
 	#[allow(clippy::type_complexity)]
 	fn enter_substack(
 		&self,
-		trap: Tr,
+		trap: <Self::Interpreter as Interpreter<H>>::Trap,
 		machine: &mut Self::Interpreter,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter>), ExitError>,
+		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>), ExitError>,
 		Self::Interrupt,
 	>;
 
@@ -69,7 +69,7 @@ pub trait Invoker<H, Tr> {
 	fn exit_substack(
 		&self,
 		trap_data: Self::SubstackInvoke,
-		exit: InvokerExit<Self::State>,
+		exit: InvokerExit<<Self::Interpreter as Interpreter<H>>::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError>;
