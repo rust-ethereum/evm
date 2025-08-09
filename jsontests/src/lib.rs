@@ -19,7 +19,7 @@ macro_rules! general_state_tests {
 
 general_state_tests!(st_args_zero_one_balance, "stArgsZeroOneBalance");
 general_state_tests!(st_attack_test, "stAttackTest");
-general_state_tests!(st_bad_opcode, "stBadOpcode", ignore);
+general_state_tests!(st_bad_opcode, "stBadOpcode");
 general_state_tests!(st_bugs, "stBugs");
 general_state_tests!(st_call_codes, "stCallCodes");
 general_state_tests!(st_call_create_call_code_test, "stCallCreateCallCodeTest");

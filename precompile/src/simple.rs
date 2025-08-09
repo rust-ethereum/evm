@@ -65,8 +65,8 @@ impl<G: GasMutState> PurePrecompile<G> for Sha256 {
 		)))));
 
 		let mut ret = [0u8; 32];
-		let hash = ripemd::Ripemd160::digest(input);
-		ret[12..32].copy_from_slice(&hash);
+		let hash = sha2::Sha256::digest(input);
+		ret[0..32].copy_from_slice(&hash);
 
 		(ExitSucceed::Returned.into(), ret.to_vec())
 	}
