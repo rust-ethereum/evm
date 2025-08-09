@@ -1,3 +1,5 @@
+use alloc::boxed::Box;
+
 mod exit;
 mod trap;
 

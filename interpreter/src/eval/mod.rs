@@ -5,8 +5,8 @@ mod bitwise;
 mod misc;
 mod system;
 
+use alloc::boxed::Box;
 use core::ops::{BitAnd, BitOr, BitXor};
-
 use primitive_types::U256;
 
 use crate::{
