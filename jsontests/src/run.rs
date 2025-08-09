@@ -137,7 +137,10 @@ pub fn run_test(
 			// Add the previous block hash to the block_hashes map
 			// In EVM, BLOCKHASH opcode can access hashes of the last 256 blocks
 			if test.env.current_number > U256::zero() {
-				block_hashes.insert(test.env.current_number - U256::one(), test.env.previous_hash);
+				block_hashes.insert(
+					test.env.current_number - U256::one(),
+					test.env.previous_hash,
+				);
 			}
 			block_hashes
 		},
