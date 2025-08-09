@@ -3,7 +3,7 @@ pub mod routines;
 mod state;
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
-use core::{cmp::min, convert::Infallible};
+use core::cmp::min;
 use evm_interpreter::{
 	error::{
 		CallCreateFeedback, CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture,
@@ -11,7 +11,6 @@ use evm_interpreter::{
 		Trap, TrapConsume,
 	},
 	machine::{AsMachine, AsMachineMut},
-	opcode::Opcode,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
@@ -31,24 +30,6 @@ use crate::{
 	standard::Config,
 	MergeStrategy,
 };
-
-/// A trap that can be turned into either a call/create trap (where we push new
-/// call stack), or an interrupt (an external signal).
-pub trait IntoCallCreateTrap {
-	/// An external signal.
-	type Interrupt;
-
-	/// Turn the current trap into either a call/create trap or an interrupt.
-	fn into_call_create_trap(self) -> Result<Opcode, Self::Interrupt>;
-}
-
-impl IntoCallCreateTrap for Opcode {
-	type Interrupt = Infallible;
-
-	fn into_call_create_trap(self) -> Result<Opcode, Infallible> {
-		Ok(self)
-	}
-}
 
 /// The invoke used in a substack.
 pub enum SubstackInvoke {
