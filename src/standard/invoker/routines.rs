@@ -2,7 +2,9 @@ use alloc::vec::Vec;
 use evm_interpreter::{
 	error::{CallScheme, CallTrapData, CreateTrapData, ExitError, ExitException},
 	opcode::Opcode,
-	runtime::{RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, Transfer, TouchKind},
+	runtime::{
+		RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, TouchKind, Transfer,
+	},
 };
 use primitive_types::{H160, U256};
 

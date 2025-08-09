@@ -420,13 +420,13 @@ impl Substate {
 		}
 	}
 
-	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
+	pub fn known_original_storage(&self, address: H160, _key: H256) -> Option<H256> {
 		if self.deletes.contains(&address) {
 			None
 		} else if self.storage_resets.contains(&address) {
 			Some(H256::default())
 		} else if let Some(parent) = self.parent.as_ref() {
-			parent.known_original_storage(address, key)
+			parent.known_original_storage(address, _key)
 		} else {
 			None
 		}
