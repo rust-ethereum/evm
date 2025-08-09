@@ -115,7 +115,7 @@ impl Stack {
 		if self.data.len() < pop {
 			return Err(ExitException::StackUnderflow);
 		}
-		if self.data.len() - pop + push + 1 > self.limit {
+		if self.data.len() - pop + push > self.limit {
 			return Err(ExitException::StackOverflow);
 		}
 		Ok(())
