@@ -34,7 +34,7 @@ general_state_tests!(
 general_state_tests!(st_chain_id, "stChainId");
 general_state_tests!(st_code_copy_test, "stCodeCopyTest");
 general_state_tests!(st_code_size_limit, "stCodeSizeLimit");
-general_state_tests!(st_create2, "stCreate2", ignore);
+general_state_tests!(st_create2, "stCreate2");
 general_state_tests!(st_create_test, "stCreateTest");
 general_state_tests!(
 	st_delegatecall_test_homestead,
