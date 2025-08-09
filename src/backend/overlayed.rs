@@ -15,6 +15,8 @@ use primitive_types::{H160, H256, U256};
 
 use crate::{backend::TransactionalBackend, standard::Config, MergeStrategy};
 
+const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
+
 #[derive(Clone, Debug)]
 pub struct OverlayedChangeSet {
 	pub logs: Vec<Log>,
@@ -33,6 +35,7 @@ pub struct OverlayedBackend<'config, B> {
 	backend: B,
 	substate: Box<Substate>,
 	accessed: BTreeSet<(H160, Option<H256>)>,
+	touched_ripemd: bool,
 	config: &'config Config,
 }
 
@@ -46,11 +49,16 @@ impl<'config, B> OverlayedBackend<'config, B> {
 			backend,
 			substate: Box::new(Substate::new()),
 			accessed,
+			touched_ripemd: false,
 			config,
 		}
 	}
 
-	pub fn deconstruct(self) -> (B, OverlayedChangeSet) {
+	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet) {
+		if self.touched_ripemd {
+			self.substate.touched.insert(RIPEMD);
+		}
+
 		(
 			self.backend,
 			OverlayedChangeSet {
@@ -159,7 +167,11 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 
 impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	fn original_storage(&self, address: H160, index: H256) -> H256 {
-		self.backend.storage(address, index)
+		if let Some(value) = self.substate.known_original_storage(address, index) {
+			value
+		} else {
+			self.backend.storage(address, index)
+		}
 	}
 
 	fn created(&self, address: H160) -> bool {
@@ -178,6 +190,9 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		self.accessed.insert((address, None));
 
 		if kind == TouchKind::StateChange {
+			if address == RIPEMD {
+				self.touched_ripemd = true;
+			}
 			self.substate.touched.insert(address);
 		}
 	}
@@ -397,9 +412,19 @@ impl Substate {
 		if let Some(value) = self.storages.get(&(address, key)) {
 			Some(*value)
 		} else if self.storage_resets.contains(&address) {
-			None
+			Some(H256::default())
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_storage(address, key)
+		} else {
+			None
+		}
+	}
+
+	pub fn known_original_storage(&self, address: H160, key: H256) -> Option<H256> {
+		if self.storage_resets.contains(&address) {
+			Some(H256::default())
+		} else if let Some(parent) = self.parent.as_ref() {
+			parent.known_original_storage(address, key)
 		} else {
 			None
 		}
