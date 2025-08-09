@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, str::FromStr};
 use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
 use primitive_types::{H160, H256, U256};
-use serde::{de::Error, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -103,7 +103,7 @@ impl TestMulti {
 						to: self.transaction.to,
 						value: self.transaction.value[post_state.indexes.value],
 						access_list: match &self.transaction.access_lists {
-							Some(access_lists) => access_lists[post_state.indexes.data].clone(),
+							Some(access_lists) => access_lists[post_state.indexes.data].clone().unwrap_or_default(),
 							None => Vec::new(),
 						},
 					},
@@ -194,6 +194,11 @@ pub enum TestExpectException {
 	TR_TypeNotSupported,
 	TR_IntrinsicGas,
 	TR_NonceHasMaxValue,
+	TR_NoFundsOrGas,
+	TR_NoFunds,
+	TR_NoFundsX,
+	TR_RLP_WRONGVALUE,
+	IntrinsicGas,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
@@ -235,8 +240,8 @@ pub struct TestMultiTransaction {
 	pub sender: H160,
 	#[serde(serialize_with = "serialize_to", deserialize_with = "deserialize_to")]
 	pub to: Option<H160>,
-	pub value: Vec<U256>,
-	pub access_lists: Option<Vec<Vec<TestAccessListItem>>>,
+	pub value: Vec<MaybeError<U256>>,
+	pub access_lists: Option<Vec<Option<Vec<TestAccessListItem>>>>,
 }
 
 fn deserialize_to<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error>
@@ -248,7 +253,7 @@ where
 	if data.is_empty() {
 		Ok(None)
 	} else {
-		Ok(Some(H160::from_str(&data).map_err(Error::custom)?))
+		Ok(Some(H160::from_str(&data).map_err(de::Error::custom)?))
 	}
 }
 
@@ -281,7 +286,7 @@ pub struct TestTransaction {
 	pub secret_key: H256,
 	pub sender: H160,
 	pub to: Option<H160>,
-	pub value: U256,
+	pub value: MaybeError<U256>,
 	pub access_list: Vec<TestAccessListItem>,
 }
 
@@ -300,9 +305,9 @@ where
 {
 	let data = String::deserialize(deserializer)?;
 	if &data[0..2] != "0x" {
-		return Err(Error::custom("should start with 0x"));
+		return Err(de::Error::custom("should start with 0x"));
 	}
-	FromHex::from_hex(&data[2..]).map_err(Error::custom)
+	FromHex::from_hex(&data[2..]).map_err(de::Error::custom)
 }
 
 fn serialize_hex_bytes<S>(value: &Vec<u8>, serializer: S) -> Result<S::Ok, S::Error>
@@ -312,4 +317,26 @@ where
 	let mut s = "0x".to_string();
 	s.push_str(&hex::encode(value));
 	s.serialize(serializer)
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
+pub struct MaybeError<T: Serialize + de::DeserializeOwned>(
+	#[serde(serialize_with = "serialize_maybe_error", deserialize_with = "deserialize_maybe_error")]
+	pub Result<T, ()>,
+);
+
+fn deserialize_maybe_error<'de, D, T: Deserialize<'de>>(deserializer: D) -> Result<Result<T, ()>, D::Error>
+where
+	D: Deserializer<'de>
+{
+	match T::deserialize(deserializer) {
+		Ok(value) => Ok(Ok(value)),
+		Err(_) => Ok(Err(())),
+	}
+}
+
+fn serialize_maybe_error<'de, S, T: Serialize>(value: &Result<T, ()>, serializer: S) -> Result<S::Ok, S::Error> where
+	S: Serializer,
+{
+	value.as_ref().map_err(|()| ser::Error::custom("invalid value"))?.serialize(serializer)
 }

@@ -134,6 +134,10 @@ pub fn run_test(
 		return Ok(());
 	}
 
+	if test.post.expect_exception == Some(TestExpectException::TR_RLP_WRONGVALUE) && test.transaction.value.0.is_err() {
+		return Ok(());
+	}
+
 	let env = InMemoryEnvironment {
 		block_hashes: {
 			let mut block_hashes = BTreeMap::new();
@@ -191,7 +195,7 @@ pub fn run_test(
 		TransactArgs::Call {
 			caller: test.transaction.sender,
 			address: to,
-			value: test.transaction.value,
+			value: test.transaction.value.0.map_err(|()| TestError::UnexpectedDecoding)?,
 			data: test.transaction.data.clone(),
 			gas_limit: test.transaction.gas_limit,
 			gas_price: test.transaction.gas_price,
@@ -206,7 +210,7 @@ pub fn run_test(
 	} else {
 		TransactArgs::Create {
 			caller: test.transaction.sender,
-			value: test.transaction.value,
+			value: test.transaction.value.0.map_err(|()| TestError::UnexpectedDecoding)?,
 			salt: None,
 			init_code: test.transaction.data.clone(),
 			gas_limit: test.transaction.gas_limit,
@@ -331,7 +335,7 @@ pub fn run_test(
 							sender: test.transaction.sender,
 							to: test.transaction.to,
 							value: vec![test.transaction.value],
-							access_lists: Some(vec![test.transaction.access_list]),
+							access_lists: Some(vec![Some(test.transaction.access_list)]),
 						},
 					},
 				);
