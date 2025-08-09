@@ -401,14 +401,17 @@ where
 
 		let result = work();
 
-		let left_gas = exit
-			.substate
-			.as_ref()
-			.map(|s| s.effective_gas())
-			.unwrap_or_default();
-
 		let refunded_gas = match result {
-			Ok(_) | Err(ExitError::Reverted) => left_gas,
+			Ok(_) => exit
+				.substate
+				.as_ref()
+				.map(|s| s.effective_gas(true))
+				.unwrap_or_default(),
+			Err(ExitError::Reverted) => exit
+				.substate
+				.as_ref()
+				.map(|s| s.effective_gas(false))
+				.unwrap_or_default(),
 			Err(_) => U256::zero(),
 		};
 

@@ -160,15 +160,17 @@ impl<'config> GasometerState<'config> {
 		Ok(s)
 	}
 
-	pub fn effective_gas(&self) -> U256 {
-		U256::from(
+	pub fn effective_gas(&self, with_refund: bool) -> U256 {
+		U256::from(if with_refund {
 			self.gas_limit
 				- (self.total_used_gas()
 					- min(
 						self.total_used_gas() / self.config.max_refund_quotient,
 						self.refunded_gas,
-					)),
-		)
+					))
+		} else {
+			self.gas_limit - self.total_used_gas()
+		})
 	}
 
 	pub fn submeter(

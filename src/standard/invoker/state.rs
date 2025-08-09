@@ -36,6 +36,6 @@ pub trait InvokerState<'config>: GasState + Sized {
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
 
 	fn is_static(&self) -> bool;
-	fn effective_gas(&self) -> U256;
+	fn effective_gas(&self, with_refund: bool) -> U256;
 	fn config(&self) -> &Config;
 }
