@@ -26,6 +26,7 @@ enum LastSubstackStatus<Tr> {
 
 // Note: this should not be exposed to public because it does not implement
 // Drop.
+#[allow(clippy::type_complexity)]
 struct CallStack<'backend, 'invoker, H, I: Invoker<H>> {
 	stack: Vec<Substack<I::Interpreter, I::SubstackInvoke>>,
 	last: Option<LastSubstack<I::Interpreter, <I::Interpreter as Interpreter<H>>::Trap>>,
@@ -62,7 +63,10 @@ where
 		fs: FS,
 	) -> Result<(), Capture<Result<(ExitResult, I::Interpreter), ExitFatal>, I::Interrupt>>
 	where
-		FS: Fn(&mut I::Interpreter, &mut H) -> LastSubstackStatus<<I::Interpreter as Interpreter<H>>::Trap>,
+		FS: Fn(
+			&mut I::Interpreter,
+			&mut H,
+		) -> LastSubstackStatus<<I::Interpreter as Interpreter<H>>::Trap>,
 	{
 		let mut step_ret = None;
 

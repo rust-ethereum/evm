@@ -7,15 +7,16 @@ use core::{cmp::min, convert::Infallible};
 
 use evm_interpreter::{
 	error::{
-		CallCreateTrap, CallScheme, CallTrap, Capture, CreateScheme, CallCreateFeedback, CallFeedback, CreateFeedback,
-		CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume, Trap,
+		CallCreateFeedback, CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture,
+		CreateFeedback, CreateScheme, CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed,
+		Trap, TrapConsume,
 	},
+	machine::{AsMachine, AsMachineMut},
 	opcode::Opcode,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
 	},
-	machine::{AsMachine, AsMachineMut},
 	Interpreter,
 };
 use primitive_types::{H160, H256, U256};
@@ -186,15 +187,18 @@ impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
-	<R::Interpreter as Interpreter<H>>::State: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State:
+		InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
-<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap> + From<CallCreateTrap>,
-<<R::Interpreter as Interpreter<H>>::Trap as Trap<R::Interpreter>>::Feedback: From<CallCreateFeedback>,
-    R::Interpreter: AsMachine<State=<R::Interpreter as Interpreter<H>>::State> + AsMachineMut,
+	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap> + From<CallCreateTrap>,
+	<<R::Interpreter as Interpreter<H>>::Trap as Trap<R::Interpreter>>::Feedback:
+		From<CallCreateFeedback>,
+	R::Interpreter: AsMachine<State = <R::Interpreter as Interpreter<H>>::State> + AsMachineMut,
 {
 	type Interpreter = R::Interpreter;
-	type Interrupt = <<R::Interpreter as Interpreter<H>>::Trap as TrapConsume<CallCreateTrap>>::Rest;
+	type Interrupt =
+		<<R::Interpreter as Interpreter<H>>::Trap as TrapConsume<CallCreateTrap>>::Rest;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
 	type TransactValue = TransactValue;
@@ -204,7 +208,13 @@ where
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>), ExitError> {
+	) -> Result<
+		(
+			Self::TransactInvoke,
+			InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+		),
+		ExitError,
+	> {
 		let caller = args.caller();
 		let gas_price = args.gas_price();
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
@@ -459,7 +469,13 @@ where
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>), ExitError>,
+		Result<
+			(
+				Self::SubstackInvoke,
+				InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+			),
+			ExitError,
+		>,
 		Self::Interrupt,
 	> {
 		fn l64(gas: U256) -> U256 {
@@ -508,7 +524,12 @@ where
 			}
 		};
 
-		let transaction_context = machine.as_machine().state.as_ref().transaction_context.clone();
+		let transaction_context = machine
+			.as_machine()
+			.state
+			.as_ref()
+			.transaction_context
+			.clone();
 
 		match invoke {
 			SubstackInvoke::Call {
@@ -711,7 +732,8 @@ where
 				handler.pop_substate(strategy)?;
 
 				let feedback = CallCreateFeedback::Create(CreateFeedback {
-					reason: result, retbuf
+					reason: result,
+					retbuf,
 				});
 				parent.feedback(CallCreateTrap::Create(trap).into(), feedback.into())
 			}
@@ -724,7 +746,8 @@ where
 				handler.pop_substate(strategy)?;
 
 				let feedback = CallCreateFeedback::Call(CallFeedback {
-					reason: exit.result, retbuf,
+					reason: exit.result,
+					retbuf,
 				});
 				parent.feedback(CallCreateTrap::Call(trap).into(), feedback.into())
 			}

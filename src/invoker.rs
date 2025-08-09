@@ -42,7 +42,13 @@ pub trait Invoker<H> {
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>), ExitError>;
+	) -> Result<
+		(
+			Self::TransactInvoke,
+			InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+		),
+		ExitError,
+	>;
 
 	/// Finalize a transaction.
 	fn finalize_transact(
@@ -61,7 +67,13 @@ pub trait Invoker<H> {
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>), ExitError>,
+		Result<
+			(
+				Self::SubstackInvoke,
+				InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+			),
+			ExitError,
+		>,
 		Self::Interrupt,
 	>;
 

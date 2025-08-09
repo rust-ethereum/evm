@@ -2,10 +2,10 @@ use alloc::vec::Vec;
 use evm_interpreter::{
 	error::{CallScheme, CallTrap, CreateTrap, ExitError, ExitException},
 	opcode::Opcode,
-	Interpreter,
 	runtime::{
 		RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, TouchKind, Transfer,
 	},
+	Interpreter,
 };
 use primitive_types::{H160, U256};
 
@@ -124,7 +124,13 @@ pub fn enter_call_substack<H, R>(
 	code_address: H160,
 	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>), ExitError>
+) -> Result<
+	(
+		SubstackInvoke,
+		InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+	),
+	ExitError,
+>
 where
 	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -172,7 +178,13 @@ pub fn enter_create_substack<H, R>(
 	address: H160,
 	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>), ExitError>
+) -> Result<
+	(
+		SubstackInvoke,
+		InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+	),
+	ExitError,
+>
 where
 	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -180,8 +192,8 @@ where
 {
 	handler.push_substate();
 
-	let scheme = trap_data.scheme.clone();
-	let value = trap_data.value.clone();
+	let scheme = trap_data.scheme;
+	let value = trap_data.value;
 	let caller = scheme.caller();
 
 	let transfer = Transfer {

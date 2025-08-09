@@ -9,9 +9,9 @@ use evm::{
 	interpreter::{
 		error::Capture,
 		etable::{Chained, Single},
+		machine::AsMachine,
 		runtime::GasState,
 		utils::u256_to_h256,
-		machine::AsMachine,
 	},
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
 };

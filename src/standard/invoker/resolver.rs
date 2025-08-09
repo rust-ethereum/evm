@@ -32,7 +32,10 @@ pub trait Resolver<H> {
 		input: Vec<u8>,
 		state: <Self::Interpreter as Interpreter<H>>::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError>;
+	) -> Result<
+		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+		ExitError,
+	>;
 
 	/// Resolve a create (with the init code).
 	#[allow(clippy::type_complexity)]
@@ -41,7 +44,10 @@ pub trait Resolver<H> {
 		init_code: Vec<u8>,
 		state: <Self::Interpreter as Interpreter<H>>::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError>;
+	) -> Result<
+		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+		ExitError,
+	>;
 }
 
 /// A set of precompiles.
@@ -113,7 +119,10 @@ where
 		input: Vec<u8>,
 		mut state: ES::State,
 		handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError> {
+	) -> Result<
+		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+		ExitError,
+	> {
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
@@ -147,7 +156,10 @@ where
 		init_code: Vec<u8>,
 		state: ES::State,
 		_handler: &mut H,
-	) -> Result<InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>, ExitError> {
+	) -> Result<
+		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+		ExitError,
+	> {
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
