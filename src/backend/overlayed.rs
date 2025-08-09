@@ -281,7 +281,11 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn inc_nonce(&mut self, address: H160) -> Result<(), ExitError> {
-		let new_nonce = self.nonce(address).saturating_add(U256::from(1));
+		let old_nonce = self.nonce(address);
+		if old_nonce >= U256::from(u64::MAX) {
+			return Err(ExitException::MaxNonce.into());
+		}
+		let new_nonce = old_nonce.saturating_add(U256::from(1));
 		self.substate.nonces.insert(address, new_nonce);
 		Ok(())
 	}

@@ -35,7 +35,7 @@ general_state_tests!(st_chain_id, "stChainId");
 general_state_tests!(st_code_copy_test, "stCodeCopyTest");
 general_state_tests!(st_code_size_limit, "stCodeSizeLimit");
 general_state_tests!(st_create2, "stCreate2", ignore);
-general_state_tests!(st_create_test, "stCreateTest", ignore);
+general_state_tests!(st_create_test, "stCreateTest");
 general_state_tests!(
 	st_delegatecall_test_homestead,
 	"stDelegatecallTestHomestead"
@@ -59,10 +59,10 @@ general_state_tests!(st_memory_stress_test, "stMemoryStressTest");
 general_state_tests!(st_memory_test, "stMemoryTest");
 general_state_tests!(st_non_zero_calls_test, "stNonZeroCallsTest");
 general_state_tests!(st_precompiled_contracts, "stPreCompiledContracts");
-general_state_tests!(st_precompiled_contracts2, "stPreCompiledContracts2", ignore);
+general_state_tests!(st_precompiled_contracts2, "stPreCompiledContracts2");
 general_state_tests!(st_quadratic_complexity_test, "stQuadraticComplexityTest");
 general_state_tests!(st_random, "stRandom");
-general_state_tests!(st_random2, "stRandom2", ignore);
+general_state_tests!(st_random2, "stRandom2");
 general_state_tests!(st_recursive_create, "stRecursiveCreate");
 general_state_tests!(st_refund_test, "stRefundTest");
 general_state_tests!(st_return_data_test, "stReturnDataTest");
@@ -74,8 +74,8 @@ general_state_tests!(st_solidity_test, "stSolidityTest", ignore);
 general_state_tests!(st_special_test, "stSpecialTest", ignore);
 general_state_tests!(st_sstore_test, "stSStoreTest", ignore);
 general_state_tests!(st_stack_tests, "stStackTests", ignore);
-general_state_tests!(st_static_call, "stStaticCall", ignore);
-general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled", ignore);
+general_state_tests!(st_static_call, "stStaticCall");
+general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled");
 general_state_tests!(st_system_operations_test, "stSystemOperationsTest", ignore);
 general_state_tests!(st_time_consuming, "stTimeConsuming");
 general_state_tests!(st_transaction_test, "stTransactionTest", ignore);
