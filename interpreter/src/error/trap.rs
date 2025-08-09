@@ -10,8 +10,8 @@ use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 use crate::{
-	error::{ExitError, ExitException, ExitResult, ExitFatal},
-	machine::{Machine, Memory, AsMachineMut},
+	error::{ExitError, ExitException, ExitFatal, ExitResult},
+	machine::{AsMachineMut, Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
 	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
 };
@@ -84,10 +84,9 @@ impl CallCreateTrap {
 		match opcode {
 			CallCreateOpcode::Create => Ok(Self::Create(CreateTrap::new_create_from(machine)?)),
 			CallCreateOpcode::Create2 => Ok(Self::Create(CreateTrap::new_create2_from(machine)?)),
-			CallCreateOpcode::Call => Ok(Self::Call(CallTrap::new_from(
-				CallScheme::Call,
-				machine,
-			)?)),
+			CallCreateOpcode::Call => {
+				Ok(Self::Call(CallTrap::new_from(CallScheme::Call, machine)?))
+			}
 			CallCreateOpcode::CallCode => Ok(Self::Call(CallTrap::new_from(
 				CallScheme::CallCode,
 				machine,
@@ -111,15 +110,20 @@ impl CallCreateTrap {
 	}
 }
 
-impl<I: AsMachineMut> Trap<I> for CallCreateTrap where
+impl<I: AsMachineMut> Trap<I> for CallCreateTrap
+where
 	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
 	type Feedback = CallCreateFeedback;
 
 	fn feedback(self, feedback: CallCreateFeedback, interpreter: &mut I) -> Result<(), ExitError> {
 		match (self, feedback) {
-			(Self::Call(trap), CallCreateFeedback::Call(feedback)) => trap.feedback(feedback, interpreter),
-			(Self::Create(trap), CallCreateFeedback::Create(feedback)) => trap.feedback(feedback, interpreter),
+			(Self::Call(trap), CallCreateFeedback::Call(feedback)) => {
+				trap.feedback(feedback, interpreter)
+			}
+			(Self::Create(trap), CallCreateFeedback::Create(feedback)) => {
+				trap.feedback(feedback, interpreter)
+			}
 			_ => Err(ExitFatal::InvalidFeedback.into()),
 		}
 	}
@@ -296,7 +300,8 @@ impl CallTrap {
 	}
 }
 
-impl<I: AsMachineMut> Trap<I> for CallTrap where
+impl<I: AsMachineMut> Trap<I> for CallTrap
+where
 	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
 	type Feedback = CallFeedback;
@@ -311,12 +316,10 @@ impl<I: AsMachineMut> Trap<I> for CallTrap where
 
 		let ret = match reason {
 			Ok(_) => {
-				match machine.memory.copy_large(
-					out_offset,
-					U256::zero(),
-					target_len,
-					&retbuf[..],
-				) {
+				match machine
+					.memory
+					.copy_large(out_offset, U256::zero(), target_len, &retbuf[..])
+				{
 					Ok(()) => {
 						machine.stack.push(U256::one())?;
 
@@ -332,12 +335,10 @@ impl<I: AsMachineMut> Trap<I> for CallTrap where
 			Err(ExitError::Reverted) => {
 				machine.stack.push(U256::zero())?;
 
-				let _ = machine.memory.copy_large(
-					out_offset,
-					U256::zero(),
-					target_len,
-					&retbuf[..],
-				);
+				let _ =
+					machine
+						.memory
+						.copy_large(out_offset, U256::zero(), target_len, &retbuf[..]);
 
 				Ok(())
 			}
@@ -517,7 +518,8 @@ impl CreateTrap {
 	}
 }
 
-impl<I: AsMachineMut> Trap<I> for CreateTrap where
+impl<I: AsMachineMut> Trap<I> for CreateTrap
+where
 	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
 	type Feedback = CreateFeedback;
@@ -530,9 +532,7 @@ impl<I: AsMachineMut> Trap<I> for CreateTrap where
 
 		let ret = match reason {
 			Ok(address) => {
-				machine
-					.stack
-					.push(h256_to_u256(address.into()))?;
+				machine.stack.push(h256_to_u256(address.into()))?;
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {

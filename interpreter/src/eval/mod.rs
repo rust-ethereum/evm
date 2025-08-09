@@ -668,7 +668,11 @@ pub fn eval_basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::basefee(machine, handle)
 }
 
-pub fn eval_call_create_trap<S: AsRef<RuntimeState> + AsMut<RuntimeState>, H, Tr: From<CallCreateTrap>>(
+pub fn eval_call_create_trap<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H,
+	Tr: From<CallCreateTrap>,
+>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	position: usize,

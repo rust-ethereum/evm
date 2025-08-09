@@ -1,11 +1,11 @@
 use alloc::vec::Vec;
-use core::{ops::{Deref, DerefMut}};
+use core::ops::{Deref, DerefMut};
 
 use crate::{
 	error::{Capture, ExitError, ExitException, ExitResult, ExitSucceed, Trap},
 	etable::{Control, EtableSet},
 	interpreter::{valids::Valids, Interpreter, StepInterpreter},
-	machine::{Machine, Stack, AsMachine, AsMachineMut},
+	machine::{AsMachine, AsMachineMut, Machine, Stack},
 	opcode::Opcode,
 };
 
@@ -109,8 +109,9 @@ impl<'etable, ES: EtableSet> AsMachineMut for EtableInterpreter<'etable, ES> {
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter<'etable, ES> where
-	ES::Trap: Trap<Self>
+impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter<'etable, ES>
+where
+	ES::Trap: Trap<Self>,
 {
 	type State = ES::State;
 	type Trap = ES::Trap;
@@ -119,13 +120,17 @@ impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter
 		(self.machine.state, self.machine.retval)
 	}
 
-	fn feedback(&mut self, trap: Self::Trap, feedback: <Self::Trap as Trap<Self>>::Feedback) -> Result<(), ExitError> {
+	fn feedback(
+		&mut self,
+		trap: Self::Trap,
+		feedback: <Self::Trap as Trap<Self>>::Feedback,
+	) -> Result<(), ExitError> {
 		match trap.feedback(feedback, self) {
 			Ok(()) => {
 				self.advance();
 				Ok(())
-			},
-			Err(err) => Err(err)
+			}
+			Err(err) => Err(err),
 		}
 	}
 
@@ -139,8 +144,9 @@ impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> StepInterpreter<H> for EtableInterpreter<'etable, ES> where
-	ES::Trap: Trap<Self>
+impl<'etable, H, ES: EtableSet<Handle = H>> StepInterpreter<H> for EtableInterpreter<'etable, ES>
+where
+	ES::Trap: Trap<Self>,
 {
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, ES::Trap>> {

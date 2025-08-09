@@ -1,7 +1,7 @@
 use evm_interpreter::{
 	error::{CallCreateTrap, Capture, ExitError, ExitSucceed},
 	etable::{Control, Etable, MultiEfn, MultiEtable},
-	machine::{Machine},
+	machine::Machine,
 	opcode::Opcode,
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
