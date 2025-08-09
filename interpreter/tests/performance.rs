@@ -4,7 +4,7 @@ use evm_interpreter::{
 	error::{Capture, ExitSucceed},
 	etable::Etable,
 	machine::Machine,
-	EtableInterpreter, RunInterpreter,
+	EtableInterpreter, Interpreter,
 };
 
 static ETABLE: Etable<(), (), ()> = Etable::core();

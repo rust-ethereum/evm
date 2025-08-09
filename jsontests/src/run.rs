@@ -9,9 +9,9 @@ use evm::{
 	interpreter::{
 		error::Capture,
 		etable::{Chained, Single},
+		machine::AsMachine,
 		runtime::GasState,
 		utils::u256_to_h256,
-		Interpreter,
 	},
 	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
 };
@@ -239,9 +239,9 @@ pub fn run_test(
 							"pc: {}, opcode: {:?}, gas: 0x{:x}, stack: {:?}",
 							machine.position(),
 							machine.peek_opcode(),
-							machine.machine().state.gas(),
+							machine.as_machine().state.gas(),
 							machine
-								.machine()
+								.as_machine()
 								.stack
 								.data()
 								.clone()

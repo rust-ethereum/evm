@@ -1,10 +1,11 @@
 use alloc::vec::Vec;
 use evm_interpreter::{
-	error::{CallScheme, CallTrapData, CreateTrapData, ExitError, ExitException},
+	error::{CallScheme, CallTrap, CreateTrap, ExitError, ExitException},
 	opcode::Opcode,
 	runtime::{
 		RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, TouchKind, Transfer,
 	},
+	Interpreter,
 };
 use primitive_types::{H160, U256};
 
@@ -22,11 +23,11 @@ pub fn make_enter_call_machine<H, R>(
 	code_address: H160,
 	input: Vec<u8>,
 	transfer: Option<Transfer>,
-	state: R::State,
+	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>, ExitError>
 where
-	R::State: AsRef<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -55,11 +56,11 @@ pub fn make_enter_create_machine<H, R>(
 	_caller: H160,
 	init_code: Vec<u8>,
 	transfer: Transfer,
-	state: R::State,
+	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>, ExitError>
 where
-	R::State: AsRef<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -119,13 +120,19 @@ where
 pub fn enter_call_substack<H, R>(
 	config: &Config,
 	resolver: &R,
-	trap_data: CallTrapData,
+	trap_data: CallTrap,
 	code_address: H160,
-	state: R::State,
+	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter>), ExitError>
+) -> Result<
+	(
+		SubstackInvoke,
+		InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+	),
+	ExitError,
+>
 where
-	R::State: AsRef<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -167,24 +174,26 @@ pub fn enter_create_substack<H, R>(
 	config: &Config,
 	resolver: &R,
 	code: Vec<u8>,
-	trap_data: CreateTrapData,
+	trap_data: CreateTrap,
 	address: H160,
-	state: R::State,
+	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter>), ExitError>
+) -> Result<
+	(
+		SubstackInvoke,
+		InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+	),
+	ExitError,
+>
 where
-	R::State: AsRef<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
 	handler.push_substate();
 
-	let CreateTrapData {
-		scheme,
-		value,
-		code: _,
-	} = trap_data.clone();
-
+	let scheme = trap_data.scheme;
+	let value = trap_data.value;
 	let caller = scheme.caller();
 
 	let transfer = Transfer {

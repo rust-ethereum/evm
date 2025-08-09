@@ -5,12 +5,12 @@ mod bitwise;
 mod misc;
 mod system;
 
+use alloc::boxed::Box;
 use core::ops::{BitAnd, BitOr, BitXor};
-
 use primitive_types::U256;
 
 use crate::{
-	error::{CallCreateTrap, ExitException, ExitSucceed, TrapConstruct},
+	error::{CallCreateOpcode, CallCreateTrap, ExitException, ExitSucceed},
 	etable::Control,
 	machine::Machine,
 	opcode::Opcode,
@@ -668,22 +668,31 @@ pub fn eval_basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::basefee(machine, handle)
 }
 
-pub fn eval_call_create_trap<S, H, Tr: TrapConstruct<CallCreateTrap>>(
+pub fn eval_call_create_trap<
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	H,
+	Tr: From<CallCreateTrap>,
+>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
 	position: usize,
 ) -> Control<Tr> {
-	let opcode = Opcode(machine.code()[position]);
+	let raw_opcode = Opcode(machine.code()[position]);
 
-	let trap = match opcode {
-		Opcode::CREATE => CallCreateTrap::Create,
-		Opcode::CREATE2 => CallCreateTrap::Create2,
-		Opcode::CALL => CallCreateTrap::Call,
-		Opcode::CALLCODE => CallCreateTrap::CallCode,
-		Opcode::DELEGATECALL => CallCreateTrap::DelegateCall,
-		Opcode::STATICCALL => CallCreateTrap::StaticCall,
-		_ => return Control::Exit(Err(ExitException::InvalidOpcode(opcode).into())),
+	let opcode = match raw_opcode {
+		Opcode::CREATE => CallCreateOpcode::Create,
+		Opcode::CREATE2 => CallCreateOpcode::Create2,
+		Opcode::CALL => CallCreateOpcode::Call,
+		Opcode::CALLCODE => CallCreateOpcode::CallCode,
+		Opcode::DELEGATECALL => CallCreateOpcode::DelegateCall,
+		Opcode::STATICCALL => CallCreateOpcode::StaticCall,
+		_ => return Control::Exit(Err(ExitException::InvalidOpcode(raw_opcode).into())),
 	};
 
-	Control::Trap(Tr::construct(trap))
+	let trap = match CallCreateTrap::new_from(opcode, machine) {
+		Ok(trap) => trap,
+		Err(err) => return Control::Exit(Err(err)),
+	};
+
+	Control::Trap(Box::new(trap.into()))
 }

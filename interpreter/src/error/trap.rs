@@ -10,15 +10,32 @@ use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 use crate::{
-	error::{ExitError, ExitException, ExitResult},
-	interpreter::Interpreter,
-	machine::{Machine, Memory},
+	error::{ExitError, ExitException, ExitFatal, ExitResult},
+	machine::{AsMachineMut, Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
 	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
 };
 
-pub trait TrapConstruct<T> {
-	fn construct(v: T) -> Self;
+pub trait Trap<I: ?Sized> {
+	type Feedback;
+
+	fn feedback(self, feedback: Self::Feedback, interpreter: &mut I) -> Result<(), ExitError>;
+}
+
+impl<I> Trap<I> for () {
+	type Feedback = Infallible;
+
+	fn feedback(self, feedback: Infallible, _interpreter: &mut I) -> Result<(), ExitError> {
+		match feedback {}
+	}
+}
+
+impl<I> Trap<I> for Infallible {
+	type Feedback = Infallible;
+
+	fn feedback(self, feedback: Infallible, _interpreter: &mut I) -> Result<(), ExitError> {
+		match feedback {}
+	}
 }
 
 pub trait TrapConsume<T> {
@@ -27,66 +44,66 @@ pub trait TrapConsume<T> {
 	fn consume(self) -> Result<T, Self::Rest>;
 }
 
-pub enum CallCreateTrap {
-	Create,
-	Create2,
-	Call,
-	CallCode,
-	DelegateCall,
-	StaticCall,
-}
-
-impl TrapConstruct<CallCreateTrap> for CallCreateTrap {
-	fn construct(v: CallCreateTrap) -> Self {
-		v
-	}
-}
-
-impl TrapConsume<CallCreateTrap> for CallCreateTrap {
+impl<T> TrapConsume<T> for T {
 	type Rest = Infallible;
 
-	fn consume(self) -> Result<CallCreateTrap, Infallible> {
+	fn consume(self) -> Result<T, Infallible> {
 		Ok(self)
 	}
 }
 
-/// Combined call create trap data.
-pub enum CallCreateTrapData {
-	/// A call trap data.
-	Call(CallTrapData),
-	/// A create trap data.
-	Create(CreateTrapData),
+pub enum CallCreateOpcode {
+	Call,
+	CallCode,
+	DelegateCall,
+	StaticCall,
+	Create,
+	Create2,
 }
 
-impl CallCreateTrapData {
+/// Combined call create trap data.
+#[derive(Debug)]
+pub enum CallCreateTrap {
+	/// A call trap data.
+	Call(CallTrap),
+	/// A create trap data.
+	Create(CreateTrap),
+}
+
+#[derive(Debug)]
+pub enum CallCreateFeedback {
+	Call(CallFeedback),
+	Create(CreateFeedback),
+}
+
+impl CallCreateTrap {
 	#[must_use]
 	pub const fn target_gas(&self) -> Option<U256> {
 		match self {
-			Self::Call(CallTrapData { gas, .. }) => Some(*gas),
+			Self::Call(CallTrap { gas, .. }) => Some(*gas),
 			Self::Create(_) => None,
 		}
 	}
 
 	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
-		opcode: CallCreateTrap,
+		opcode: CallCreateOpcode,
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
 		match opcode {
-			CallCreateTrap::Create => Ok(Self::Create(CreateTrapData::new_create_from(machine)?)),
-			CallCreateTrap::Create2 => Ok(Self::Create(CreateTrapData::new_create2_from(machine)?)),
-			CallCreateTrap::Call => Ok(Self::Call(CallTrapData::new_from(
-				CallScheme::Call,
-				machine,
-			)?)),
-			CallCreateTrap::CallCode => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateOpcode::Create => Ok(Self::Create(CreateTrap::new_create_from(machine)?)),
+			CallCreateOpcode::Create2 => Ok(Self::Create(CreateTrap::new_create2_from(machine)?)),
+			CallCreateOpcode::Call => {
+				Ok(Self::Call(CallTrap::new_from(CallScheme::Call, machine)?))
+			}
+			CallCreateOpcode::CallCode => Ok(Self::Call(CallTrap::new_from(
 				CallScheme::CallCode,
 				machine,
 			)?)),
-			CallCreateTrap::DelegateCall => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateOpcode::DelegateCall => Ok(Self::Call(CallTrap::new_from(
 				CallScheme::DelegateCall,
 				machine,
 			)?)),
-			CallCreateTrap::StaticCall => Ok(Self::Call(CallTrapData::new_from(
+			CallCreateOpcode::StaticCall => Ok(Self::Call(CallTrap::new_from(
 				CallScheme::StaticCall,
 				machine,
 			)?)),
@@ -97,6 +114,25 @@ impl CallCreateTrapData {
 		match self {
 			Self::Call(trap) => handler.code(trap.target),
 			Self::Create(trap) => trap.code.clone(),
+		}
+	}
+}
+
+impl<I: AsMachineMut> Trap<I> for CallCreateTrap
+where
+	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+{
+	type Feedback = CallCreateFeedback;
+
+	fn feedback(self, feedback: CallCreateFeedback, interpreter: &mut I) -> Result<(), ExitError> {
+		match (self, feedback) {
+			(Self::Call(trap), CallCreateFeedback::Call(feedback)) => {
+				trap.feedback(feedback, interpreter)
+			}
+			(Self::Create(trap), CallCreateFeedback::Create(feedback)) => {
+				trap.feedback(feedback, interpreter)
+			}
+			_ => Err(ExitFatal::InvalidFeedback.into()),
 		}
 	}
 }
@@ -114,8 +150,8 @@ pub enum CallScheme {
 	StaticCall,
 }
 
-#[derive(Clone, Debug)]
-pub struct CallTrapData {
+#[derive(Debug)]
+pub struct CallTrap {
 	pub target: H160,
 	pub transfer: Option<Transfer>,
 	pub input: Vec<u8>,
@@ -127,7 +163,13 @@ pub struct CallTrapData {
 	pub scheme: CallScheme,
 }
 
-impl CallTrapData {
+#[derive(Debug)]
+pub struct CallFeedback {
+	pub reason: ExitResult,
+	pub retbuf: Vec<u8>,
+}
+
+impl CallTrap {
 	#[allow(clippy::too_many_arguments)]
 	fn new_from_params<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		scheme: CallScheme,
@@ -258,57 +300,63 @@ impl CallTrapData {
 		}
 	}
 
-	pub fn feedback<I: Interpreter>(
-		self,
-		reason: ExitResult,
-		retbuf: Vec<u8>,
-		interpreter: &mut I,
-	) -> Result<(), ExitError>
-	where
-		I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	{
+	#[must_use]
+	pub fn has_value(&self) -> bool {
+		self.transfer
+			.as_ref()
+			.is_some_and(|t| t.value != U256::zero())
+	}
+}
+
+impl<I: AsMachineMut> Trap<I> for CallTrap
+where
+	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+{
+	type Feedback = CallFeedback;
+
+	fn feedback(self, feedback: CallFeedback, interpreter: &mut I) -> Result<(), ExitError> {
+		let machine = interpreter.as_machine_mut();
+
+		let reason = feedback.reason;
+		let retbuf = feedback.retbuf;
 		let target_len = min(self.out_len, U256::from(retbuf.len()));
 		let out_offset = self.out_offset;
 
 		let ret = match reason {
 			Ok(_) => {
-				match interpreter.machine_mut().memory.copy_large(
-					out_offset,
-					U256::zero(),
-					target_len,
-					&retbuf[..],
-				) {
+				match machine
+					.memory
+					.copy_large(out_offset, U256::zero(), target_len, &retbuf[..])
+				{
 					Ok(()) => {
-						interpreter.machine_mut().stack.push(U256::one())?;
+						machine.stack.push(U256::one())?;
 
 						Ok(())
 					}
 					Err(_) => {
-						interpreter.machine_mut().stack.push(U256::zero())?;
+						machine.stack.push(U256::zero())?;
 
 						Ok(())
 					}
 				}
 			}
 			Err(ExitError::Reverted) => {
-				interpreter.machine_mut().stack.push(U256::zero())?;
+				machine.stack.push(U256::zero())?;
 
-				let _ = interpreter.machine_mut().memory.copy_large(
-					out_offset,
-					U256::zero(),
-					target_len,
-					&retbuf[..],
-				);
+				let _ =
+					machine
+						.memory
+						.copy_large(out_offset, U256::zero(), target_len, &retbuf[..]);
 
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				interpreter.machine_mut().stack.push(U256::zero())?;
+				machine.stack.push(U256::zero())?;
 
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				interpreter.machine_mut().stack.push(U256::zero())?;
+				machine.stack.push(U256::zero())?;
 
 				Err(e.into())
 			}
@@ -316,20 +364,11 @@ impl CallTrapData {
 
 		match ret {
 			Ok(()) => {
-				interpreter.machine_mut().state.as_mut().retbuf = retbuf;
-				interpreter.advance();
-
+				machine.state.as_mut().retbuf = retbuf;
 				Ok(())
 			}
 			Err(e) => Err(e),
 		}
-	}
-
-	#[must_use]
-	pub fn has_value(&self) -> bool {
-		self.transfer
-			.as_ref()
-			.is_some_and(|t| t.value != U256::zero())
 	}
 }
 
@@ -386,14 +425,20 @@ impl CreateScheme {
 	}
 }
 
-#[derive(Clone, Debug)]
-pub struct CreateTrapData {
+#[derive(Debug)]
+pub struct CreateTrap {
 	pub scheme: CreateScheme,
 	pub value: U256,
 	pub code: Vec<u8>,
 }
 
-impl CreateTrapData {
+#[derive(Debug)]
+pub struct CreateFeedback {
+	pub reason: Result<H160, ExitError>,
+	pub retbuf: Vec<u8>,
+}
+
+impl CreateTrap {
 	pub fn new_create_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
@@ -479,43 +524,42 @@ impl CreateTrapData {
 			))
 		})
 	}
+}
 
-	pub fn feedback<I: Interpreter>(
-		self,
-		reason: Result<H160, ExitError>,
-		retbuf: Vec<u8>,
-		interpreter: &mut I,
-	) -> Result<(), ExitError>
-	where
-		I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
-	{
+impl<I: AsMachineMut> Trap<I> for CreateTrap
+where
+	I::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+{
+	type Feedback = CreateFeedback;
+
+	fn feedback(self, feedback: CreateFeedback, interpreter: &mut I) -> Result<(), ExitError> {
+		let machine = interpreter.as_machine_mut();
+
+		let reason = feedback.reason;
+		let retbuf = feedback.retbuf;
+
 		let ret = match reason {
 			Ok(address) => {
-				interpreter
-					.machine_mut()
-					.stack
-					.push(h256_to_u256(address.into()))?;
+				machine.stack.push(h256_to_u256(address.into()))?;
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {
-				interpreter.machine_mut().stack.push(U256::zero())?;
+				machine.stack.push(U256::zero())?;
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				interpreter.machine_mut().stack.push(U256::zero())?;
+				machine.stack.push(U256::zero())?;
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				interpreter.machine_mut().stack.push(U256::zero())?;
+				machine.stack.push(U256::zero())?;
 				Err(e.into())
 			}
 		};
 
 		match ret {
 			Ok(()) => {
-				interpreter.machine_mut().state.as_mut().retbuf = retbuf;
-				interpreter.advance();
-
+				machine.state.as_mut().retbuf = retbuf;
 				Ok(())
 			}
 			Err(e) => Err(e),

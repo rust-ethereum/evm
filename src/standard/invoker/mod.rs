@@ -2,15 +2,15 @@ mod resolver;
 pub mod routines;
 mod state;
 
-use alloc::{rc::Rc, vec::Vec};
-use core::{cmp::min, convert::Infallible};
-
+use alloc::{boxed::Box, rc::Rc, vec::Vec};
+use core::cmp::min;
 use evm_interpreter::{
 	error::{
-		CallCreateTrap, CallCreateTrapData, CallScheme, CallTrapData, Capture, CreateScheme,
-		CreateTrapData, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
+		CallCreateFeedback, CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture,
+		CreateFeedback, CreateScheme, CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed,
+		Trap, TrapConsume,
 	},
-	opcode::Opcode,
+	machine::{AsMachine, AsMachineMut},
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
@@ -31,28 +31,10 @@ use crate::{
 	MergeStrategy,
 };
 
-/// A trap that can be turned into either a call/create trap (where we push new
-/// call stack), or an interrupt (an external signal).
-pub trait IntoCallCreateTrap {
-	/// An external signal.
-	type Interrupt;
-
-	/// Turn the current trap into either a call/create trap or an interrupt.
-	fn into_call_create_trap(self) -> Result<Opcode, Self::Interrupt>;
-}
-
-impl IntoCallCreateTrap for Opcode {
-	type Interrupt = Infallible;
-
-	fn into_call_create_trap(self) -> Result<Opcode, Infallible> {
-		Ok(self)
-	}
-}
-
 /// The invoke used in a substack.
 pub enum SubstackInvoke {
-	Call { trap: CallTrapData },
-	Create { trap: CreateTrapData, address: H160 },
+	Call { trap: CallTrap },
+	Create { trap: CreateTrap, address: H160 },
 }
 
 /// Return value of a transaction.
@@ -183,16 +165,20 @@ impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	}
 }
 
-impl<'config, 'resolver, H, R, Tr> InvokerT<H, Tr> for Invoker<'config, 'resolver, R>
+impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
-	R::State: InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State:
+		InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
-	Tr: TrapConsume<CallCreateTrap>,
+	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap> + From<CallCreateTrap>,
+	<<R::Interpreter as Interpreter<H>>::Trap as Trap<R::Interpreter>>::Feedback:
+		From<CallCreateFeedback>,
+	R::Interpreter: AsMachine<State = <R::Interpreter as Interpreter<H>>::State> + AsMachineMut,
 {
-	type State = R::State;
 	type Interpreter = R::Interpreter;
-	type Interrupt = Tr::Rest;
+	type Interrupt =
+		<<R::Interpreter as Interpreter<H>>::Trap as TrapConsume<CallCreateTrap>>::Rest;
 	type TransactArgs = TransactArgs;
 	type TransactInvoke = TransactInvoke;
 	type TransactValue = TransactValue;
@@ -202,7 +188,13 @@ where
 		&self,
 		args: Self::TransactArgs,
 		handler: &mut H,
-	) -> Result<(Self::TransactInvoke, InvokerControl<Self::Interpreter>), ExitError> {
+	) -> Result<
+		(
+			Self::TransactInvoke,
+			InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+		),
+		ExitError,
+	> {
 		let caller = args.caller();
 		let gas_price = args.gas_price();
 		let gas_fee = args.gas_limit().saturating_mul(gas_price);
@@ -310,7 +302,7 @@ where
 					}
 				}
 
-				let state = <R::State>::new_transact_call(
+				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_call(
 					runtime_state,
 					gas_limit,
 					&data,
@@ -339,7 +331,7 @@ where
 				access_list,
 				..
 			} => {
-				let state = <R::State>::new_transact_create(
+				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_create(
 					runtime_state,
 					gas_limit,
 					&init_code,
@@ -368,7 +360,7 @@ where
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		mut exit: InvokerExit<Self::State>,
+		mut exit: InvokerExit<<R::Interpreter as Interpreter<H>>::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
 		let substate = exit.substate.as_mut();
@@ -452,33 +444,34 @@ where
 
 	fn enter_substack(
 		&self,
-		trap: Tr,
+		trap: <R::Interpreter as Interpreter<H>>::Trap,
 		machine: &mut Self::Interpreter,
 		handler: &mut H,
 		depth: usize,
 	) -> Capture<
-		Result<(Self::SubstackInvoke, InvokerControl<Self::Interpreter>), ExitError>,
+		Result<
+			(
+				Self::SubstackInvoke,
+				InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+			),
+			ExitError,
+		>,
 		Self::Interrupt,
 	> {
 		fn l64(gas: U256) -> U256 {
 			gas - gas / U256::from(64)
 		}
 
-		let opcode = match trap.consume() {
-			Ok(opcode) => opcode,
-			Err(interrupt) => return Capture::Trap(interrupt),
-		};
-
-		let trap_data = match CallCreateTrapData::new_from(opcode, machine.machine_mut()) {
+		let trap_data = match trap.consume() {
 			Ok(trap_data) => trap_data,
-			Err(err) => return Capture::Exit(Err(err)),
+			Err(interrupt) => return Capture::Trap(Box::new(interrupt)),
 		};
 
 		let invoke = match trap_data {
-			CallCreateTrapData::Call(call_trap_data) => SubstackInvoke::Call {
+			CallCreateTrap::Call(call_trap_data) => SubstackInvoke::Call {
 				trap: call_trap_data,
 			},
-			CallCreateTrapData::Create(create_trap_data) => {
+			CallCreateTrap::Create(create_trap_data) => {
 				let address = create_trap_data.scheme.address(handler);
 				SubstackInvoke::Create {
 					address,
@@ -488,9 +481,9 @@ where
 		};
 
 		let after_gas = if self.config.call_l64_after_gas {
-			l64(machine.machine().state.gas())
+			l64(machine.as_machine().state.gas())
 		} else {
-			machine.machine().state.gas()
+			machine.as_machine().state.gas()
 		};
 		let target_gas = match &invoke {
 			SubstackInvoke::Call { trap, .. } => trap.gas,
@@ -500,24 +493,29 @@ where
 
 		let call_has_value = matches!(&invoke, SubstackInvoke::Call { trap: call_trap_data } if call_trap_data.has_value());
 
-		let is_static = if machine.machine().state.is_static() {
+		let is_static = if machine.as_machine().state.is_static() {
 			true
 		} else {
 			match &invoke {
 				SubstackInvoke::Call {
-					trap: CallTrapData { is_static, .. },
+					trap: CallTrap { is_static, .. },
 				} => *is_static,
 				_ => false,
 			}
 		};
 
-		let transaction_context = machine.machine().state.as_ref().transaction_context.clone();
+		let transaction_context = machine
+			.as_machine()
+			.state
+			.as_ref()
+			.transaction_context
+			.clone();
 
 		match invoke {
 			SubstackInvoke::Call {
 				trap: call_trap_data,
 			} => {
-				let substate = match machine.machine_mut().state.substate(
+				let substate = match machine.as_machine_mut().state.substate(
 					RuntimeState {
 						context: call_trap_data.context.clone(),
 						transaction_context,
@@ -582,7 +580,7 @@ where
 				let code = create_trap_data.code.clone();
 				let value = create_trap_data.value;
 
-				let substate = match machine.machine_mut().state.substate(
+				let substate = match machine.as_machine_mut().state.substate(
 					RuntimeState {
 						context: Context {
 							address,
@@ -664,7 +662,7 @@ where
 	fn exit_substack(
 		&self,
 		trap_data: Self::SubstackInvoke,
-		exit: InvokerExit<Self::State>,
+		exit: InvokerExit<<R::Interpreter as Interpreter<H>>::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
@@ -705,7 +703,7 @@ where
 						Err(err) => Err(err),
 					};
 
-					parent.machine_mut().state.merge(substate, strategy);
+					parent.as_machine_mut().state.merge(substate, strategy);
 					result
 				} else {
 					Err(ExitFatal::Unfinished.into())
@@ -713,17 +711,25 @@ where
 
 				handler.pop_substate(strategy)?;
 
-				trap.feedback(result, retbuf, parent)
+				let feedback = CallCreateFeedback::Create(CreateFeedback {
+					reason: result,
+					retbuf,
+				});
+				parent.feedback(CallCreateTrap::Create(trap).into(), feedback.into())
 			}
 			SubstackInvoke::Call { trap } => {
 				let retbuf = exit.retval;
 
 				if let Some(substate) = exit.substate {
-					parent.machine_mut().state.merge(substate, strategy);
+					parent.as_machine_mut().state.merge(substate, strategy);
 				}
 				handler.pop_substate(strategy)?;
 
-				trap.feedback(exit.result, retbuf, parent)
+				let feedback = CallCreateFeedback::Call(CallFeedback {
+					reason: exit.result,
+					retbuf,
+				});
+				parent.feedback(CallCreateTrap::Call(trap).into(), feedback.into())
 			}
 		}
 	}
