@@ -1,7 +1,7 @@
 use core::cmp::min;
 
 use evm::{
-	interpreter::error::{ExitException, ExitResult, ExitSucceed},
+	interpreter::error::{ExitException, ExitResult, ExitSucceed, ExitError},
 	GasMutState,
 };
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
@@ -38,25 +38,33 @@ impl<G: GasMutState> PurePrecompile<G> for ECRecover {
 		sig[0..32].copy_from_slice(&input[64..96]); // r
 		sig[32..64].copy_from_slice(&input[96..128]); // s
 
-		let mut raw_recid = input[63] - 27;
-		let mut sig = try_some!(Signature::from_bytes((&sig[..]).into())
-			.map_err(|_| ExitException::Other("invalid ecdsa sig".into())));
-		if let Some(sig_normalized) = sig.normalize_s() {
-			sig = sig_normalized;
-			raw_recid ^= 1;
+		let work = || -> Result<_, ExitError> {
+			let mut raw_recid = input[63] - 27;
+			let mut sig = Signature::from_bytes((&sig[..]).into())
+									.map_err(|_| ExitException::Other("invalid ecdsa sig".into()))?;
+			if let Some(sig_normalized) = sig.normalize_s() {
+				sig = sig_normalized;
+				raw_recid ^= 1;
+			}
+
+			let recid = RecoveryId::from_byte(raw_recid)
+								  .ok_or(ExitException::Other("invalid recoverty id".into()))?; // v
+
+			let pubkey = VerifyingKey::recover_from_prehash(&msg[..], &sig, recid)
+								   .map_err(|_| ExitException::Other("recover key failed".into()))?;
+
+			let mut address = H256::from_slice(
+				Keccak256::digest(&pubkey.to_encoded_point(false).as_bytes()[1..]).as_slice(),
+			);
+			address.0[0..12].copy_from_slice(&[0u8; 12]);
+
+			Ok(address)
+		};
+
+		match work() {
+			Ok(address) => (ExitSucceed::Returned.into(), address.0.to_vec()),
+			Err(_) => (ExitSucceed::Returned.into(), Vec::new()),
 		}
-
-		let recid = try_some!(RecoveryId::from_byte(raw_recid)
-			.ok_or(ExitException::Other("invalid recoverty id".into()))); // v
-
-		let pubkey = try_some!(VerifyingKey::recover_from_prehash(&msg[..], &sig, recid)
-			.map_err(|_| ExitException::Other("recover key failed".into())));
-		let mut address = H256::from_slice(
-			Keccak256::digest(&pubkey.to_encoded_point(false).as_bytes()[1..]).as_slice(),
-		);
-		address.0[0..12].copy_from_slice(&[0u8; 12]);
-
-		(ExitSucceed::Returned.into(), address.0.to_vec())
 	}
 }
 
@@ -92,9 +100,11 @@ impl<G: GasMutState> PurePrecompile<G> for Ripemd160 {
 			COST_WORD
 		)))));
 
-		let hash = sha2::Sha256::digest(input);
+		let mut ret = [0u8; 32];
+		let hash = ripemd::Ripemd160::digest(input);
+		ret[12..32].copy_from_slice(&hash);
 
-		(ExitSucceed::Returned.into(), hash.to_vec())
+		(ExitSucceed::Returned.into(), ret.to_vec())
 	}
 }
 
