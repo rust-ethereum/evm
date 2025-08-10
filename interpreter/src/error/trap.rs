@@ -1,10 +1,7 @@
 //! Call and create trap handler.
 
 use alloc::vec::Vec;
-use core::{
-	cmp::{max, min},
-	convert::Infallible,
-};
+use core::{cmp::min, convert::Infallible};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
@@ -134,17 +131,21 @@ impl CallTrap {
 		let in_end = in_offset
 			.checked_add(in_len)
 			.ok_or(ExitException::InvalidRange)?;
+		if in_len != U256::zero() {
+			memory.resize_end(in_end)?;
+		}
 		let out_end = out_offset
 			.checked_add(out_len)
 			.ok_or(ExitException::InvalidRange)?;
+		if out_len != U256::zero() {
+			memory.resize_end(out_end)?;
+		}
 
 		let in_offset_len = if in_len == U256::zero() {
 			None
 		} else {
 			Some((u256_to_usize(in_offset)?, u256_to_usize(in_len)?))
 		};
-
-		memory.resize_end(max(in_end, out_end))?;
 
 		let input = in_offset_len
 			.map(|(in_offset, in_len)| memory.get(in_offset, in_len))
@@ -405,7 +406,9 @@ impl CreateTrap {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
 
-			memory.resize_end(code_end)?;
+			if *code_len != U256::zero() {
+				memory.resize_end(code_end)?;
+			}
 
 			let code = code_offset_len
 				.map(|(code_offset, code_len)| memory.get(code_offset, code_len))

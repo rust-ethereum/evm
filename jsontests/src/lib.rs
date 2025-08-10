@@ -34,7 +34,7 @@ general_state_tests!(
 general_state_tests!(st_chain_id, "stChainId");
 general_state_tests!(st_code_copy_test, "stCodeCopyTest");
 general_state_tests!(st_code_size_limit, "stCodeSizeLimit");
-general_state_tests!(st_create2, "stCreate2", ignore);
+general_state_tests!(st_create2, "stCreate2");
 general_state_tests!(st_create_test, "stCreateTest");
 general_state_tests!(
 	st_delegatecall_test_homestead,
@@ -45,10 +45,10 @@ general_state_tests!(
 	"stEIP150singleCodeGasPrices"
 );
 general_state_tests!(st_eip150_specific, "stEIP150Specific");
-general_state_tests!(st_eip1559, "stEIP1559", ignore);
+general_state_tests!(st_eip1559, "stEIP1559");
 general_state_tests!(st_eip158_specific, "stEIP158Specific");
-general_state_tests!(st_eip2930, "stEIP2930", ignore);
-general_state_tests!(st_eip3607, "stEIP3607", ignore);
+general_state_tests!(st_eip2930, "stEIP2930");
+general_state_tests!(st_eip3607, "stEIP3607");
 general_state_tests!(st_example, "stExample");
 general_state_tests!(st_ext_code_hash, "stExtCodeHash");
 general_state_tests!(st_homestead_specific, "stHomesteadSpecific");
@@ -68,17 +68,17 @@ general_state_tests!(st_refund_test, "stRefundTest");
 general_state_tests!(st_return_data_test, "stReturnDataTest");
 general_state_tests!(st_revert_test, "stRevertTest");
 general_state_tests!(st_self_balance, "stSelfBalance");
-general_state_tests!(st_shift, "stShift", ignore);
+general_state_tests!(st_shift, "stShift");
 general_state_tests!(st_sload_test, "stSLoadTest");
-general_state_tests!(st_solidity_test, "stSolidityTest", ignore);
-general_state_tests!(st_special_test, "stSpecialTest", ignore);
-general_state_tests!(st_sstore_test, "stSStoreTest", ignore);
-general_state_tests!(st_stack_tests, "stStackTests", ignore);
+general_state_tests!(st_solidity_test, "stSolidityTest");
+general_state_tests!(st_special_test, "stSpecialTest");
+general_state_tests!(st_sstore_test, "stSStoreTest");
+general_state_tests!(st_stack_tests, "stStackTests");
 general_state_tests!(st_static_call, "stStaticCall");
 general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled");
-general_state_tests!(st_system_operations_test, "stSystemOperationsTest", ignore);
+general_state_tests!(st_system_operations_test, "stSystemOperationsTest");
 general_state_tests!(st_time_consuming, "stTimeConsuming");
-general_state_tests!(st_transaction_test, "stTransactionTest", ignore);
+general_state_tests!(st_transaction_test, "stTransactionTest");
 general_state_tests!(st_transition_test, "stTransitionTest");
 general_state_tests!(st_wallet_test, "stWalletTest");
 general_state_tests!(st_zero_calls_revert, "stZeroCallsRevert");

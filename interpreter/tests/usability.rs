@@ -188,10 +188,6 @@ impl RuntimeBackend for UnimplementedHandler {
 		unimplemented!()
 	}
 
-	fn reset_balance(&mut self, _address: H160) {
-		unimplemented!()
-	}
-
 	fn deposit(&mut self, _address: H160, _value: U256) {
 		unimplemented!()
 	}

@@ -131,9 +131,11 @@ impl<'config> InvokerState<'config> for State<'config> {
 	fn is_static(&self) -> bool {
 		self.gasometer.is_static
 	}
-	fn effective_gas(&self) -> U256 {
-		self.gasometer.effective_gas()
+
+	fn effective_gas(&self, with_refund: bool) -> U256 {
+		self.gasometer.effective_gas(with_refund)
 	}
+
 	fn config(&self) -> &Config {
 		self.gasometer.config
 	}

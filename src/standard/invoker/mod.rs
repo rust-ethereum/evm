@@ -234,6 +234,18 @@ where
 			},
 		};
 
+		if handler.code_size(caller) != U256::zero() {
+			handler.push_substate();
+			return Ok((
+				invoke,
+				InvokerControl::DirectExit(InvokerExit {
+					result: Err(ExitException::NotEOA.into()),
+					substate: None,
+					retval: Vec::new(),
+				}),
+			));
+		}
+
 		match handler.inc_nonce(caller) {
 			Ok(()) => (),
 			Err(err) => {
@@ -401,14 +413,17 @@ where
 
 		let result = work();
 
-		let left_gas = exit
-			.substate
-			.as_ref()
-			.map(|s| s.effective_gas())
-			.unwrap_or_default();
-
 		let refunded_gas = match result {
-			Ok(_) | Err(ExitError::Reverted) => left_gas,
+			Ok(_) => exit
+				.substate
+				.as_ref()
+				.map(|s| s.effective_gas(true))
+				.unwrap_or_default(),
+			Err(ExitError::Reverted) => exit
+				.substate
+				.as_ref()
+				.map(|s| s.effective_gas(false))
+				.unwrap_or_default(),
 			Err(_) => U256::zero(),
 		};
 

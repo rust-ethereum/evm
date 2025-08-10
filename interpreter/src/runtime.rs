@@ -191,8 +191,6 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 		code: Vec<u8>,
 		origin: SetCodeOrigin,
 	) -> Result<(), ExitError>;
-	/// Reset balance of an account.
-	fn reset_balance(&mut self, address: H160);
 	fn deposit(&mut self, target: H160, value: U256);
 	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError>;
 	/// Initiate a transfer.

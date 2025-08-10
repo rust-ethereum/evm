@@ -5,6 +5,8 @@ pub enum TestError {
 	StateMismatch,
 	#[error("expect error, but got okay")]
 	ExpectException,
+	#[error("unexpected decoding error")]
+	UnexpectedDecoding,
 }
 
 #[allow(clippy::upper_case_acronyms)]
