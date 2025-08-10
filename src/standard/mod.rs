@@ -39,7 +39,8 @@ pub type Etable<'config, H, F = Efn<'config, H>> =
 
 pub struct State<'config> {
 	pub runtime: RuntimeState,
-	pub gasometer: GasometerState<'config>,
+	pub gasometer: GasometerState,
+	pub config: &'config Config,
 }
 
 impl<'config> AsRef<RuntimeState> for State<'config> {
@@ -54,15 +55,21 @@ impl<'config> AsMut<RuntimeState> for State<'config> {
 	}
 }
 
-impl<'config> AsRef<GasometerState<'config>> for State<'config> {
-	fn as_ref(&self) -> &GasometerState<'config> {
+impl<'config> AsRef<GasometerState> for State<'config> {
+	fn as_ref(&self) -> &GasometerState {
 		&self.gasometer
 	}
 }
 
-impl<'config> AsMut<GasometerState<'config>> for State<'config> {
-	fn as_mut(&mut self) -> &mut GasometerState<'config> {
+impl<'config> AsMut<GasometerState> for State<'config> {
+	fn as_mut(&mut self) -> &mut GasometerState {
 		&mut self.gasometer
+	}
+}
+
+impl<'config> AsRef<Config> for State<'config> {
+	fn as_ref(&self) -> &Config {
+		&self.config
 	}
 }
 
@@ -89,6 +96,7 @@ impl<'config> InvokerState<'config> for State<'config> {
 		Ok(Self {
 			runtime,
 			gasometer: GasometerState::new_transact_call(gas_limit, data, access_list, config)?,
+			config,
 		})
 	}
 
@@ -102,6 +110,7 @@ impl<'config> InvokerState<'config> for State<'config> {
 		Ok(Self {
 			runtime,
 			gasometer: GasometerState::new_transact_create(gas_limit, code, access_list, config)?,
+			config,
 		})
 	}
 
@@ -116,7 +125,8 @@ impl<'config> InvokerState<'config> for State<'config> {
 			runtime,
 			gasometer: self
 				.gasometer
-				.submeter(gas_limit, is_static, call_has_value)?,
+				.submeter(gas_limit, is_static, call_has_value, self.config)?,
+			config: self.config,
 		})
 	}
 
@@ -133,10 +143,10 @@ impl<'config> InvokerState<'config> for State<'config> {
 	}
 
 	fn effective_gas(&self, with_refund: bool) -> U256 {
-		self.gasometer.effective_gas(with_refund)
+		self.gasometer.effective_gas(with_refund, self.config)
 	}
 
 	fn config(&self) -> &Config {
-		self.gasometer.config
+		self.config
 	}
 }

@@ -24,7 +24,7 @@ fn transact(
 	let gas_etable = Single::new(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
 	let etable = Chained(gas_etable, exec_etable);
-	let resolver = EtableResolver::new(config, &(), &etable);
+	let resolver = EtableResolver::new(&(), &etable);
 	let invoker = Invoker::new(config, &resolver);
 
 	evm::transact(args.clone(), Some(4), overlayed_backend, &invoker)

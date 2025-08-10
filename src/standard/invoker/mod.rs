@@ -176,7 +176,7 @@ impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
 	<R::Interpreter as Interpreter<H>>::State:
-		InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState>,
+		InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,
@@ -531,12 +531,11 @@ where
 			}
 		};
 
-		let transaction_context = machine
-			.as_machine()
-			.state
-			.as_ref()
-			.transaction_context
-			.clone();
+		let transaction_context = {
+			let runtime_state: &RuntimeState = machine.as_machine().state.as_ref();
+			runtime_state.transaction_context
+				.clone()
+		};
 
 		match invoke {
 			SubstackInvoke::Call {

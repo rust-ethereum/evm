@@ -23,7 +23,7 @@ pub fn etable<'config, S, H, Tr>(
 	orig: (Single<S, H, Tr>, Etable<S, H, Tr>),
 ) -> (Etable<S, H, Tr>, MultiEtable<S, H, Tr>)
 where
-	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>>,
+	S: AsRef<GasometerState> + AsMut<GasometerState>,
 {
 	let mut gasometer_etable = Etable::from(orig.0);
 	let mut eval_etable = MultiEtable::from(orig.1);

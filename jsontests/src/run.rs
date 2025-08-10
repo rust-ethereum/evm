@@ -190,8 +190,8 @@ pub fn run_test(
 	let gas_etable = Single::new(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
 	let etable = Chained(gas_etable, exec_etable);
-	let precompiles = StandardPrecompileSet::new(&config);
-	let resolver = EtableResolver::new(&config, &precompiles, &etable);
+	let precompiles = StandardPrecompileSet;
+	let resolver = EtableResolver::new(&precompiles, &etable);
 	let invoker = Invoker::new(&config, &resolver);
 	let args = if let Some(to) = test.transaction.to {
 		TransactArgs::Call {
