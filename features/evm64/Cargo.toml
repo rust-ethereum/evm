@@ -1,6 +1,7 @@
 [package]
 name = "evm-feature-evm64"
 version = "0.1.0"
+description = "EVM64 support for Rust EVM."
 edition = { workspace = true }
 rust-version = { workspace = true }
 license = { workspace = true }
