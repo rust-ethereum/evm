@@ -73,7 +73,7 @@ general_state_tests!(st_sload_test, "stSLoadTest");
 general_state_tests!(st_solidity_test, "stSolidityTest");
 general_state_tests!(st_special_test, "stSpecialTest");
 general_state_tests!(st_sstore_test, "stSStoreTest", ignore);
-general_state_tests!(st_stack_tests, "stStackTests", ignore);
+general_state_tests!(st_stack_tests, "stStackTests");
 general_state_tests!(st_static_call, "stStaticCall");
 general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled");
 general_state_tests!(st_system_operations_test, "stSystemOperationsTest", ignore);

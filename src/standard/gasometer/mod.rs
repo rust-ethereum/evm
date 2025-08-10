@@ -21,7 +21,7 @@ pub struct GasometerState<'config> {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
-	refunded_gas: u64,
+	refunded_gas: i64,
 	pub is_static: bool,
 	pub config: &'config Config,
 }
@@ -161,12 +161,18 @@ impl<'config> GasometerState<'config> {
 	}
 
 	pub fn effective_gas(&self, with_refund: bool) -> U256 {
+		let refunded_gas = if self.refunded_gas >= 0 {
+			self.refunded_gas as u64
+		} else {
+			0
+		};
+
 		U256::from(if with_refund {
 			self.gas_limit
 				- (self.total_used_gas()
 					- min(
 						self.total_used_gas() / self.config.max_refund_quotient,
-						self.refunded_gas,
+						refunded_gas,
 					))
 		} else {
 			self.gas_limit - self.total_used_gas()
@@ -254,11 +260,8 @@ where
 			let refund = gas.refund(gasometer.config);
 
 			gasometer.record_gas64(cost)?;
-			if refund >= 0 {
-				gasometer.refunded_gas += refund as u64;
-			} else {
-				gasometer.refunded_gas = gasometer.refunded_gas.saturating_sub(-refund as u64);
-			}
+			gasometer.refunded_gas += refund;
+
 			if let Some(memory_gas) = memory_gas {
 				let memory_cost = memory_gas.cost()?;
 				if let Some(memory_cost) = memory_cost {
