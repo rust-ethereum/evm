@@ -20,16 +20,17 @@ impl<S, H> FutureInterpreterAction<S, H> for EmptyAction {
 	}
 }
 
+#[allow(clippy::unit_cmp)]
 async fn async_precompile_noop(submit: Rc<FutureInterpreterSubmit<EmptyAction, ()>>) -> ExitResult {
 	let feedback = submit.submit(EmptyAction).await;
 	assert_eq!(feedback, ());
-	Ok(ExitSucceed::Returned.into())
+	Ok(ExitSucceed::Returned)
 }
 
 #[test]
 fn create_future_closure() {
 	let mut interpreter: FutureInterpreter<EmptyAction, (), _, ()> =
-		FutureInterpreter::new((), Vec::new(), |submit| async_precompile_noop(submit));
+		FutureInterpreter::new((), Vec::new(), async_precompile_noop);
 	let result = interpreter.run(&mut UnimplementedHandler);
 	assert_eq!(result, Capture::Exit(ExitSucceed::Returned.into()));
 }
