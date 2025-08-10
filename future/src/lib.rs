@@ -105,7 +105,7 @@ where
 
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap> {
 		let waker = Waker::noop();
-		let mut ctx = Context::from_waker(&waker);
+		let mut ctx = Context::from_waker(waker);
 
 		loop {
 			match self.inner.as_mut().poll(&mut ctx) {
