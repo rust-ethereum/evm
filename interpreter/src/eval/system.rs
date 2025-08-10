@@ -179,9 +179,10 @@ pub fn returndatacopy<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> C
 	pop_u256!(machine, memory_offset, data_offset, len);
 
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
-	if data_offset.checked_add(len).is_none_or(|l| {
-		l > U256::from(machine.state.as_ref().retbuf.len())
-	}) {
+	if data_offset
+		.checked_add(len)
+		.is_none_or(|l| l > U256::from(machine.state.as_ref().retbuf.len()))
+	{
 		return Control::Exit(ExitException::OutOfOffset.into());
 	}
 
