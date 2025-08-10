@@ -9,7 +9,7 @@ The harness has four invariants:
 1. The user MUST spend funds to execute bytecode.
 2. The user MUST not go above the gas_limit.
 3. There should be NO funds minted.
-4. The execution time MUST be within a reasonable thresold.
+4. The execution time MUST be within a reasonable threshold.
 
 ## Analysis
 Additionally, the harness is instrumented with memory profiling to spot anomoalies.
