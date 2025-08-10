@@ -36,9 +36,9 @@ pub enum SubstackInvoke {
 	Create { trap: CreateTrap, address: H160 },
 }
 
-/// Return value of a transaction.
+/// Return value of a transaction. Call and create status.
 #[derive(Clone, Debug)]
-pub enum TransactValue {
+pub enum TransactValueCallCreate {
 	Call {
 		/// The exit result. If we return a value, then it will be an
 		/// `ExitSucceed`.
@@ -53,6 +53,15 @@ pub enum TransactValue {
 		/// The contract address created.
 		address: H160,
 	},
+}
+
+/// Complete return value of a transaction.
+#[derive(Clone, Debug)]
+pub struct TransactValue {
+	/// Call/Create status.
+	pub call_create: TransactValueCallCreate,
+	/// Used gas minus the refund.
+	pub effective_gas: U256,
 }
 
 /// The invoke used in a top-layer transaction stack.
@@ -393,7 +402,7 @@ where
 								SetCodeOrigin::Transaction,
 							)?;
 
-							Ok(TransactValue::Create {
+							Ok(TransactValueCallCreate::Create {
 								succeed: result,
 								address,
 							})
@@ -401,7 +410,7 @@ where
 							Err(ExitFatal::Unfinished.into())
 						}
 					} else {
-						Ok(TransactValue::Call {
+						Ok(TransactValueCallCreate::Call {
 							succeed: result,
 							retval: exit.retval,
 						})
@@ -413,7 +422,7 @@ where
 
 		let result = work();
 
-		let refunded_gas = match result {
+		let effective_gas = match result {
 			Ok(_) => exit
 				.substate
 				.as_ref()
@@ -436,7 +445,7 @@ where
 			}
 		}
 
-		let refunded_fee = refunded_gas.saturating_mul(invoke.gas_price);
+		let refunded_fee = effective_gas.saturating_mul(invoke.gas_price);
 		handler.deposit(invoke.caller, refunded_fee);
 		// Reward coinbase address
 		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
@@ -454,7 +463,10 @@ where
 			.saturating_sub(refunded_fee);
 		handler.deposit(handler.block_coinbase(), coinbase_reward);
 
-		result
+		result.map(|call_create| TransactValue {
+			call_create,
+			effective_gas,
+		})
 	}
 
 	fn enter_substack(
