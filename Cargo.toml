@@ -5,6 +5,7 @@ members = [
 	"jsontests",
 	"precompile",
 	"tracer",
+	"future",
 
 	"features/evm64",
 ]
@@ -12,7 +13,7 @@ resolver = "2"
 
 [workspace.package]
 edition = "2021"
-rust-version = "1.70.0"
+rust-version = "1.85.0"
 license = "Apache-2.0"
 authors = ["rust-evm Developers <contact-rust-evm@pacna.org>"]
 repository = "https://github.com/rust-ethereum/evm"
