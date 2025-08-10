@@ -47,7 +47,7 @@ general_state_tests!(
 general_state_tests!(st_eip150_specific, "stEIP150Specific");
 general_state_tests!(st_eip1559, "stEIP1559", ignore);
 general_state_tests!(st_eip158_specific, "stEIP158Specific");
-general_state_tests!(st_eip2930, "stEIP2930", ignore);
+general_state_tests!(st_eip2930, "stEIP2930");
 general_state_tests!(st_eip3607, "stEIP3607", ignore);
 general_state_tests!(st_example, "stExample");
 general_state_tests!(st_ext_code_hash, "stExtCodeHash");
@@ -72,7 +72,7 @@ general_state_tests!(st_shift, "stShift");
 general_state_tests!(st_sload_test, "stSLoadTest");
 general_state_tests!(st_solidity_test, "stSolidityTest");
 general_state_tests!(st_special_test, "stSpecialTest");
-general_state_tests!(st_sstore_test, "stSStoreTest", ignore);
+general_state_tests!(st_sstore_test, "stSStoreTest");
 general_state_tests!(st_stack_tests, "stStackTests");
 general_state_tests!(st_static_call, "stStaticCall");
 general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled");
