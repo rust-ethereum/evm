@@ -1,6 +1,6 @@
 [package]
 name = "jsontests"
-version = "0.0.0-dev"
+version = "1.0.0-beta.1"
 edition = { workspace = true }
 rust-version = { workspace = true }
 license = { workspace = true }
@@ -11,8 +11,8 @@ keywords = { workspace = true }
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 ethereum = "0.15.0"
-evm = { path = ".." }
-evm-precompile = { path = "../precompile" }
+evm = { version = "1.0.0-beta.1", path = ".." }
+evm-precompile = { version = "1.0.0-beta.1", path = "../precompile" }
 hex = { version = "0.4", features = ["serde"] }
 primitive-types = { version = "0.12", features = ["rlp", "serde"] }
 rlp = "0.5"

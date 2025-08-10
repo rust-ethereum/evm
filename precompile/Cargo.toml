@@ -1,16 +1,17 @@
 [package]
 name = "evm-precompile"
-version = "0.0.0-dev"
+version = "1.0.0-beta.1"
 edition = { workspace = true }
 rust-version = "1.87.0"
 authors = { workspace = true }
 repository = { workspace = true }
 keywords = { workspace = true }
 description = "Standard EVM precompiles."
+license = { workspace = true }
 
 [dependencies]
 bn = { package = "substrate-bn", version = "0.6", default-features = false }
-evm = { path = "..", default-features = false }
+evm = { version = "1.0.0-beta.1", path = "..", default-features = false }
 k256 = { version = "0.13", features = ["ecdsa"], default-features = false }
 num = { version = "0.4", default-features = false, features = ["alloc"] }
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
