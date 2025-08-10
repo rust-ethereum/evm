@@ -1,10 +1,7 @@
 //! Call and create trap handler.
 
 use alloc::vec::Vec;
-use core::{
-	cmp::min,
-	convert::Infallible,
-};
+use core::{cmp::min, convert::Infallible};
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 

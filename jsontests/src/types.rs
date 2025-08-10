@@ -103,7 +103,9 @@ impl TestMulti {
 						to: self.transaction.to,
 						value: self.transaction.value[post_state.indexes.value],
 						access_list: match &self.transaction.access_lists {
-							Some(access_lists) => access_lists[post_state.indexes.data].clone().unwrap_or_default(),
+							Some(access_lists) => access_lists[post_state.indexes.data]
+								.clone()
+								.unwrap_or_default(),
 							None => Vec::new(),
 						},
 					},
@@ -325,13 +327,18 @@ where
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Deserialize, Serialize)]
 pub struct MaybeError<T: Serialize + de::DeserializeOwned>(
-	#[serde(serialize_with = "serialize_maybe_error", deserialize_with = "deserialize_maybe_error")]
+	#[serde(
+		serialize_with = "serialize_maybe_error",
+		deserialize_with = "deserialize_maybe_error"
+	)]
 	pub Result<T, ()>,
 );
 
-fn deserialize_maybe_error<'de, D, T: Deserialize<'de>>(deserializer: D) -> Result<Result<T, ()>, D::Error>
+fn deserialize_maybe_error<'de, D, T: Deserialize<'de>>(
+	deserializer: D,
+) -> Result<Result<T, ()>, D::Error>
 where
-	D: Deserializer<'de>
+	D: Deserializer<'de>,
 {
 	match T::deserialize(deserializer) {
 		Ok(value) => Ok(Ok(value)),
@@ -339,8 +346,15 @@ where
 	}
 }
 
-fn serialize_maybe_error<'de, S, T: Serialize>(value: &Result<T, ()>, serializer: S) -> Result<S::Ok, S::Error> where
+fn serialize_maybe_error<S, T: Serialize>(
+	value: &Result<T, ()>,
+	serializer: S,
+) -> Result<S::Ok, S::Error>
+where
 	S: Serializer,
 {
-	value.as_ref().map_err(|()| ser::Error::custom("invalid value"))?.serialize(serializer)
+	value
+		.as_ref()
+		.map_err(|()| ser::Error::custom("invalid value"))?
+		.serialize(serializer)
 }

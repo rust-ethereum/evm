@@ -134,7 +134,9 @@ pub fn run_test(
 		return Ok(());
 	}
 
-	if test.post.expect_exception == Some(TestExpectException::TR_RLP_WRONGVALUE) && test.transaction.value.0.is_err() {
+	if test.post.expect_exception == Some(TestExpectException::TR_RLP_WRONGVALUE)
+		&& test.transaction.value.0.is_err()
+	{
 		return Ok(());
 	}
 
@@ -195,7 +197,11 @@ pub fn run_test(
 		TransactArgs::Call {
 			caller: test.transaction.sender,
 			address: to,
-			value: test.transaction.value.0.map_err(|()| TestError::UnexpectedDecoding)?,
+			value: test
+				.transaction
+				.value
+				.0
+				.map_err(|()| TestError::UnexpectedDecoding)?,
 			data: test.transaction.data.clone(),
 			gas_limit: test.transaction.gas_limit,
 			gas_price: test.transaction.gas_price,
@@ -210,7 +216,11 @@ pub fn run_test(
 	} else {
 		TransactArgs::Create {
 			caller: test.transaction.sender,
-			value: test.transaction.value.0.map_err(|()| TestError::UnexpectedDecoding)?,
+			value: test
+				.transaction
+				.value
+				.0
+				.map_err(|()| TestError::UnexpectedDecoding)?,
 			salt: None,
 			init_code: test.transaction.data.clone(),
 			gas_limit: test.transaction.gas_limit,

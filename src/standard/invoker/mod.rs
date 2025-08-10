@@ -243,7 +243,7 @@ where
 					substate: None,
 					retval: Vec::new(),
 				}),
-			))
+			));
 		}
 
 		match handler.inc_nonce(caller) {
