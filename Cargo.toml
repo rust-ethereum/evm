@@ -5,6 +5,7 @@ members = [
 	"jsontests",
 	"precompile",
 	"tracer",
+	"future",
 
 	"features/evm64",
 ]
