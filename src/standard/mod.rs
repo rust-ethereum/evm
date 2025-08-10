@@ -22,7 +22,7 @@ pub use self::{
 	gasometer::{eval as eval_gasometer, GasometerState},
 	invoker::{
 		routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
-		TransactArgs, TransactInvoke, TransactValue,
+		TransactArgs, TransactInvoke, TransactValue, TransactValueCallCreate,
 	},
 };
 use crate::{gasometer::GasMutState, MergeStrategy};

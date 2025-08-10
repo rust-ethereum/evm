@@ -29,7 +29,10 @@ use backend::MockBackend;
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::etable::{Chained, Single},
-	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
+	standard::{
+		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue,
+		TransactValueCallCreate,
+	},
 };
 use evm_interpreter::error::ExitError;
 use primitive_types::{H160, U256};
@@ -93,9 +96,12 @@ fn main() {
 			gas_price,
 			gas_limit,
 		);
-		let Ok(TransactValue::Create {
-			succeed: _succeed,
-			address,
+		let Ok(TransactValue {
+			call_create: TransactValueCallCreate::Create {
+				succeed: _succeed,
+				address,
+			},
+			..
 		}) = deployed
 		else {
 			return;

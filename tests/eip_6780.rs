@@ -5,7 +5,10 @@ use evm::{
 		error::ExitError,
 		etable::{Chained, Single},
 	},
-	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue},
+	standard::{
+		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue,
+		TransactValueCallCreate,
+	},
 };
 use mock::{MockAccount, MockBackend};
 use primitive_types::{H160, H256, U256};
@@ -56,7 +59,10 @@ fn self_destruct_before_cancun() {
 
 	// Create simple contract
 	let contract_address = match transact(&config, args, &mut overlayed_backend) {
-		Ok(TransactValue::Create { address, .. }) => address,
+		Ok(TransactValue {
+			call_create: TransactValueCallCreate::Create { address, .. },
+			..
+		}) => address,
 		_ => panic!("Failed to create contract"),
 	};
 
@@ -120,7 +126,10 @@ fn self_destruct_cancun() {
 
 	// Create simple contract
 	let contract_address = match transact(&config, args, &mut overlayed_backend) {
-		Ok(TransactValue::Create { address, .. }) => address,
+		Ok(TransactValue {
+			call_create: TransactValueCallCreate::Create { address, .. },
+			..
+		}) => address,
 		_ => panic!("Failed to create contract"),
 	};
 
