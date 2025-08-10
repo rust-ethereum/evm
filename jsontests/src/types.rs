@@ -198,7 +198,11 @@ pub enum TestExpectException {
 	TR_NoFunds,
 	TR_NoFundsX,
 	TR_RLP_WRONGVALUE,
+	TR_TipGtFeeCap,
+	TR_FeeCapLessThanBlocks,
+	TR_GasLimitReached,
 	IntrinsicGas,
+	SenderNotEOA,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]

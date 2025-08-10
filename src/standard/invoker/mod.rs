@@ -234,6 +234,18 @@ where
 			},
 		};
 
+		if handler.code_size(caller) != U256::zero() {
+			handler.push_substate();
+			return Ok((
+				invoke,
+				InvokerControl::DirectExit(InvokerExit {
+					result: Err(ExitException::NotEOA.into()),
+					substate: None,
+					retval: Vec::new(),
+				}),
+			))
+		}
+
 		match handler.inc_nonce(caller) {
 			Ok(()) => (),
 			Err(err) => {

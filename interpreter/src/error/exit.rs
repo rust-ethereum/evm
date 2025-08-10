@@ -126,6 +126,10 @@ pub enum ExitException {
 	#[cfg_attr(feature = "scale", codec(index = 14))]
 	MaxNonce,
 
+	/// Not EOA account called from transaction.
+	#[cfg_attr(feature = "scale", codec(index = 25))]
+	NotEOA,
+
 	/// Other normal errors.
 	#[cfg_attr(feature = "scale", codec(index = 13))]
 	Other(Cow<'static, str>),
