@@ -76,7 +76,7 @@ general_state_tests!(st_sstore_test, "stSStoreTest");
 general_state_tests!(st_stack_tests, "stStackTests");
 general_state_tests!(st_static_call, "stStaticCall");
 general_state_tests!(st_static_flag_enabled, "stStaticFlagEnabled");
-general_state_tests!(st_system_operations_test, "stSystemOperationsTest", ignore);
+general_state_tests!(st_system_operations_test, "stSystemOperationsTest");
 general_state_tests!(st_time_consuming, "stTimeConsuming");
 general_state_tests!(st_transaction_test, "stTransactionTest");
 general_state_tests!(st_transition_test, "stTransitionTest");
