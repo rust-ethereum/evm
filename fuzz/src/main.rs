@@ -30,8 +30,8 @@ use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::etable::{Chained, Single},
 	standard::{
-		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate, TransactValue,
-		TransactValueCallCreate,
+		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
+		TransactValue, TransactValueCallCreate,
 	},
 };
 use evm_interpreter::error::ExitError;
@@ -225,8 +225,7 @@ fn fuzz_transact(
 	#[cfg(not(feature = "fuzzing"))]
 	let now = std::time::Instant::now();
 
-	let (result, memory_alloc, storage_alloc) =
-		inner_transact(args, &mut overlayed_backend);
+	let (result, memory_alloc, storage_alloc) = inner_transact(args, &mut overlayed_backend);
 
 	#[cfg(not(feature = "fuzzing"))]
 	println!(

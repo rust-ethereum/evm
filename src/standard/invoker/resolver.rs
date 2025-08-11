@@ -82,13 +82,8 @@ pub struct EtableResolver<'precompile, 'etable, Pre, ES> {
 	precompiles: &'precompile Pre,
 }
 
-impl<'precompile, 'etable, Pre, ES>
-	EtableResolver<'precompile, 'etable, Pre, ES>
-{
-	pub fn new(
-		precompiles: &'precompile Pre,
-		etable: &'etable ES,
-	) -> Self {
+impl<'precompile, 'etable, Pre, ES> EtableResolver<'precompile, 'etable, Pre, ES> {
+	pub fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
 		Self {
 			precompiles,
 			etable,
@@ -96,8 +91,7 @@ impl<'precompile, 'etable, Pre, ES>
 	}
 }
 
-impl<'precompile, 'etable, H, Pre, ES> Resolver<H>
-	for EtableResolver<'precompile, 'etable, Pre, ES>
+impl<'precompile, 'etable, H, Pre, ES> Resolver<H> for EtableResolver<'precompile, 'etable, Pre, ES>
 where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,

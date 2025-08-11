@@ -22,7 +22,8 @@ pub use self::{
 	gasometer::{eval as eval_gasometer, GasometerState},
 	invoker::{
 		routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
-		TransactArgs, TransactArgsCallCreate, TransactInvoke, TransactValue, TransactValueCallCreate,
+		TransactArgs, TransactArgsCallCreate, TransactInvoke, TransactValue,
+		TransactValueCallCreate,
 	},
 };
 use crate::{gasometer::GasMutState, MergeStrategy};
@@ -127,9 +128,12 @@ impl<'config> InvokerState for State<'config> {
 	) -> Result<Self, ExitError> {
 		Ok(Self {
 			runtime,
-			gasometer: self
-				.gasometer
-				.submeter(gas_limit, is_static, call_has_value, self.config)?,
+			gasometer: self.gasometer.submeter(
+				gas_limit,
+				is_static,
+				call_has_value,
+				self.config,
+			)?,
 			config: self.config,
 		})
 	}

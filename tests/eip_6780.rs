@@ -6,8 +6,8 @@ use evm::{
 		etable::{Chained, Single},
 	},
 	standard::{
-		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate, TransactValue,
-		TransactValueCallCreate,
+		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
+		TransactValue, TransactValueCallCreate,
 	},
 };
 use mock::{MockAccount, MockBackend};
@@ -84,7 +84,7 @@ fn self_destruct_before_cancun() {
 			data: hex::decode(
 				"00f55d9d00000000000000000000000055c41626c84445180eda39bac564606c633dd980",
 			)
-				.unwrap(),
+			.unwrap(),
 		},
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),
@@ -156,7 +156,8 @@ fn self_destruct_cancun() {
 			address: contract_address,
 			data: hex::decode(
 				"00f55d9d00000000000000000000000055c41626c84445180eda39bac564606c633dd980",
-			).unwrap(),
+			)
+			.unwrap(),
 		},
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),

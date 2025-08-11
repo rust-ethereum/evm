@@ -85,7 +85,7 @@ pub enum TransactArgsCallCreate {
 		init_code: Vec<u8>,
 		/// Salt of `CREATE2`. `None` for a normal create transaction.
 		salt: Option<H256>,
-	}
+	},
 }
 
 /// Transaction arguments.
@@ -128,20 +128,23 @@ pub struct Invoker<'config, 'resolver, R> {
 impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	/// Create a new standard invoker with the given config and resolver.
 	pub fn new(resolver: &'resolver R) -> Self {
-		Self { resolver, _marker: PhantomData }
+		Self {
+			resolver,
+			_marker: PhantomData,
+		}
 	}
 }
 
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
 	<R::Interpreter as Interpreter<H>>::State:
-InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
-<<R::Interpreter as Interpreter<H>>::State as InvokerState>::TransactArgs: AsRef<TransactArgs<'config>>,
+		InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
+	<<R::Interpreter as Interpreter<H>>::State as InvokerState>::TransactArgs:
+		AsRef<TransactArgs<'config>>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,
-	R::Interpreter: FeedbackInterpreter<H, CallFeedback>
-		+ FeedbackInterpreter<H, CreateFeedback>,
+	R::Interpreter: FeedbackInterpreter<H, CallFeedback> + FeedbackInterpreter<H, CreateFeedback>,
 {
 	type Interpreter = R::Interpreter;
 	type Interrupt =
@@ -164,15 +167,15 @@ InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 	> {
 		let caller = AsRef::<TransactArgs>::as_ref(&args).caller;
 		let gas_price = AsRef::<TransactArgs>::as_ref(&args).gas_price;
-		let gas_fee = AsRef::<TransactArgs>::as_ref(&args).gas_limit.saturating_mul(gas_price);
+		let gas_fee = AsRef::<TransactArgs>::as_ref(&args)
+			.gas_limit
+			.saturating_mul(gas_price);
 		let coinbase = handler.block_coinbase();
 
 		let address = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
 			TransactArgsCallCreate::Call { address, .. } => *address,
 			TransactArgsCallCreate::Create {
-				salt,
-				init_code,
-				..
+				salt, init_code, ..
 			} => match salt {
 				Some(salt) => {
 					let scheme = CreateScheme::Create2 {
@@ -268,10 +271,7 @@ InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 
 		let access_list = AsRef::<TransactArgs>::as_ref(&args).access_list.clone();
 		let machine = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
-			TransactArgsCallCreate::Call {
-				data,
-				..
-			} => {
+			TransactArgsCallCreate::Call { data, .. } => {
 				for (address, keys) in &access_list {
 					handler.mark_hot(*address, TouchKind::Access);
 					for key in keys {
@@ -300,10 +300,7 @@ InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 					handler,
 				)?
 			}
-			TransactArgsCallCreate::Create {
-				init_code,
-				..
-			} => {
+			TransactArgsCallCreate::Create { init_code, .. } => {
 				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_create(
 					runtime_state,
 					gas_limit,
@@ -455,7 +452,7 @@ InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 					address,
 					trap: create_trap_data,
 				}
-			},
+			}
 		};
 
 		let after_gas = if AsRef::<Config>::as_ref(machine.state()).call_l64_after_gas {
@@ -483,7 +480,8 @@ InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 		};
 
 		let transaction_context = {
-			AsRef::<RuntimeState>::as_ref(machine.state()).transaction_context
+			AsRef::<RuntimeState>::as_ref(machine.state())
+				.transaction_context
 				.clone()
 		};
 

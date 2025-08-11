@@ -62,7 +62,10 @@ where
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
-	handler.mark_hot(AsRef::<RuntimeState>::as_ref(&state).context.address, TouchKind::StateChange);
+	handler.mark_hot(
+		AsRef::<RuntimeState>::as_ref(&state).context.address,
+		TouchKind::StateChange,
+	);
 
 	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size {
 		if init_code.len() > limit {
@@ -201,8 +204,7 @@ where
 		address,
 		trap: trap_data,
 	};
-	let machine =
-		make_enter_create_machine(resolver, caller, code, transfer, state, handler)?;
+	let machine = make_enter_create_machine(resolver, caller, code, transfer, state, handler)?;
 
 	Ok((invoke, machine))
 }
