@@ -1,7 +1,7 @@
 mod etable;
 mod valids;
 
-use alloc::vec::Vec;
+use alloc::{boxed::Box, vec::Vec};
 
 pub use self::etable::EtableInterpreter;
 pub use self::valids::Valids;
