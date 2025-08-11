@@ -19,9 +19,13 @@ authors = ["rust-evm Developers <contact-rust-evm@pacna.org>"]
 repository = "https://github.com/rust-ethereum/evm"
 keywords = ["no_std", "ethereum", "evm"]
 
+[workspace.dependencies]
+evm = { version = "1.0.0-beta.2", path = ".", default-features = false }
+evm-interpreter = { version = "1.0.0-beta.2", path = "interpreter", default-features = false }
+
 [package]
 name = "evm"
-version = "1.0.0-dev"
+version = "1.0.0-beta.2"
 edition = { workspace = true }
 rust-version = { workspace = true }
 license = { workspace = true }
@@ -33,8 +37,7 @@ description = "Ethereum Virtual Machine"
 [dependencies]
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 sha3 = { version = "0.10", default-features = false }
-
-evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
+evm-interpreter = { workspace = true }
 
 [dev-dependencies]
 hex = { version = "0.4", features = [ "serde" ] }

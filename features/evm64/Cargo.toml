@@ -11,8 +11,7 @@ keywords = { workspace = true }
 
 [dependencies]
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
-
-evm = { version = "1.0.0-dev", path = "../..", default-features = false }
+evm = { workspace = true }
 
 [features]
 default = ["std"]
