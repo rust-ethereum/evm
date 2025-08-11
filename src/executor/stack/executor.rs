@@ -220,9 +220,8 @@ pub trait StackState<'config>: Backend {
 		code: Vec<u8>,
 		caller: Option<H160>,
 	) -> Result<(), ExitError>;
-	fn set_delegation(&mut self, authorizer: H160, delegation: Delegation)
-		-> Result<(), ExitError>;
-	fn remove_delegation(&mut self, authorizer: H160) -> Result<(), ExitError>;
+	fn set_delegation(&mut self, authority: H160, delegation: Delegation) -> Result<(), ExitError>;
+	fn remove_delegation(&mut self, authority: H160) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
