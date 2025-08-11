@@ -213,7 +213,7 @@ impl GasometerState {
 	}
 }
 
-pub fn eval<'config, S, H, Tr>(
+pub fn eval<S, H, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 	position: usize,
@@ -228,7 +228,7 @@ where
 	}
 }
 
-fn eval_to_result<'config, S, H>(
+fn eval_to_result<S, H>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 	position: usize,

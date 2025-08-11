@@ -70,7 +70,7 @@ impl<'config> AsMut<GasometerState> for State<'config> {
 
 impl<'config> AsRef<Config> for State<'config> {
 	fn as_ref(&self) -> &Config {
-		&self.config
+		self.config
 	}
 }
 

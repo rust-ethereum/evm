@@ -282,7 +282,7 @@ where
 				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_call(
 					runtime_state,
 					gas_limit,
-					&data,
+					data,
 					&access_list,
 					&args,
 				)?;
@@ -304,7 +304,7 @@ where
 				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_create(
 					runtime_state,
 					gas_limit,
-					&init_code,
+					init_code,
 					&access_list,
 					&args,
 				)?;
@@ -342,7 +342,6 @@ where
 
 						if let Some(substate) = substate {
 							routines::deploy_create_code(
-								invoke.config,
 								address,
 								retbuf,
 								substate,
@@ -656,7 +655,6 @@ where
 					let result = match exit.result {
 						Ok(_) => {
 							match routines::deploy_create_code(
-								parent.state().as_ref(),
 								address,
 								retbuf,
 								&mut substate,

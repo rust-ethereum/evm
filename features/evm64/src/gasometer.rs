@@ -12,7 +12,7 @@ macro_rules! try_or_fail {
 	};
 }
 
-pub fn eval<'config, S, H, Tr>(
+pub fn eval<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handler: &mut H,
 	position: usize,

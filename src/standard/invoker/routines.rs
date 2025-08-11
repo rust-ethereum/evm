@@ -216,8 +216,7 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 	Ok(())
 }
 
-pub fn deploy_create_code<'config, S, H>(
-	config: &Config,
+pub fn deploy_create_code<S, H>(
 	address: H160,
 	retbuf: Vec<u8>,
 	state: &mut S,
@@ -225,12 +224,12 @@ pub fn deploy_create_code<'config, S, H>(
 	origin: SetCodeOrigin,
 ) -> Result<(), ExitError>
 where
-	S: InvokerState,
+	S: InvokerState + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	check_first_byte(config, &retbuf[..])?;
+	check_first_byte(state.as_ref(), &retbuf[..])?;
 
-	if let Some(limit) = config.create_contract_limit {
+	if let Some(limit) = AsRef::<Config>::as_ref(state).create_contract_limit {
 		if retbuf.len() > limit {
 			return Err(ExitException::CreateContractLimit.into());
 		}

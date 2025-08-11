@@ -19,7 +19,7 @@ pub const OPCODE_EVM64_MODE: Opcode = Opcode(0xc0);
 
 /// Append a normal `(gasometer, runtime)` etable with EVM64 gasometer and
 /// opcodes.
-pub fn etable<'config, S, H, Tr>(
+pub fn etable<S, H, Tr>(
 	orig: (Single<S, H, Tr>, Etable<S, H, Tr>),
 ) -> (Etable<S, H, Tr>, MultiEtable<S, H, Tr>)
 where
