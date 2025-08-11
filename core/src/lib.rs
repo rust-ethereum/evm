@@ -6,6 +6,7 @@
 
 extern crate alloc;
 
+pub mod delegation;
 mod error;
 mod eval;
 mod external;
@@ -26,13 +27,7 @@ use crate::eval::{eval, Control};
 use alloc::rc::Rc;
 use alloc::vec::Vec;
 use core::ops::Range;
-use primitive_types::{H160, U256};
-
-/// EIP-7702 delegation designator prefix
-pub const EIP_7702_DELEGATION_PREFIX: &[u8] = &[0xef, 0x01, 0x00];
-
-/// EIP-7702 delegation designator full length (prefix + address)
-pub const EIP_7702_DELEGATION_SIZE: usize = 23; // 3 bytes prefix + 20 bytes address
+use primitive_types::U256;
 
 /// Core execution layer for EVM.
 pub struct Machine {
@@ -182,60 +177,5 @@ impl Machine {
 				Err(Capture::Exit(ExitSucceed::Stopped.into()))
 			}
 		}
-	}
-}
-
-/// Check if code is an EIP-7702 delegation designator
-pub fn is_delegation_designator(code: &[u8]) -> bool {
-	code.len() == EIP_7702_DELEGATION_SIZE && code.starts_with(EIP_7702_DELEGATION_PREFIX)
-}
-
-/// Extract the delegated address from EIP-7702 delegation designator
-pub fn extract_delegation_address(code: &[u8]) -> Option<H160> {
-	if is_delegation_designator(code) {
-		let mut address_bytes = [0u8; 20];
-		address_bytes.copy_from_slice(&code[3..23]);
-		Some(H160::from(address_bytes))
-	} else {
-		None
-	}
-}
-
-/// Create EIP-7702 delegation designator
-pub fn create_delegation_designator(address: H160) -> Vec<u8> {
-	let mut designator = Vec::with_capacity(EIP_7702_DELEGATION_SIZE);
-	designator.extend_from_slice(EIP_7702_DELEGATION_PREFIX);
-	designator.extend_from_slice(address.as_bytes());
-	designator
-}
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn test_delegation_designator_creation() {
-		let address = H160::from_slice(&[1u8; 20]);
-		let designator = create_delegation_designator(address);
-
-		assert_eq!(designator.len(), EIP_7702_DELEGATION_SIZE);
-		assert_eq!(&designator[0..3], EIP_7702_DELEGATION_PREFIX);
-		assert_eq!(&designator[3..23], address.as_bytes());
-	}
-
-	#[test]
-	fn test_delegation_designator_detection() {
-		let address = H160::from_slice(&[1u8; 20]);
-		let designator = create_delegation_designator(address);
-
-		assert!(is_delegation_designator(&designator));
-		assert_eq!(extract_delegation_address(&designator), Some(address));
-	}
-
-	#[test]
-	fn test_non_delegation_code() {
-		let regular_code = vec![0x60, 0x00]; // PUSH1 0
-		assert!(!is_delegation_designator(&regular_code));
-		assert_eq!(extract_delegation_address(&regular_code), None);
 	}
 }

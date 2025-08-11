@@ -7,6 +7,7 @@ use alloc::{
 	vec::Vec,
 };
 use core::mem;
+use evm_core::delegation::DelegationDesignator;
 use primitive_types::{H160, H256, U256};
 
 #[derive(Clone, Debug)]
@@ -383,9 +384,13 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(address, backend).code = Some(code);
 	}
 
-	pub fn set_delegation<B: Backend>(&mut self, authorizer: H160, delegated: H160, backend: &B) {
-		self.account_mut(authorizer, backend).code =
-			Some(evm_core::create_delegation_designator(delegated));
+	pub fn set_delegation<B: Backend>(
+		&mut self,
+		authorizer: H160,
+		delegation: DelegationDesignator,
+		backend: &B,
+	) {
+		self.account_mut(authorizer, backend).code = Some(delegation.to_bytes());
 	}
 
 	pub fn remove_delegation<B: Backend>(&mut self, authorizer: H160, backend: &B) {
@@ -613,9 +618,13 @@ impl<'config, B: Backend> StackState<'config> for MemoryStackState<'_, 'config, 
 		Ok(())
 	}
 
-	fn set_delegation(&mut self, authorizing: H160, delegated: H160) -> Result<(), ExitError> {
+	fn set_delegation(
+		&mut self,
+		authorizing: H160,
+		delegation: DelegationDesignator,
+	) -> Result<(), ExitError> {
 		self.substate
-			.set_delegation(authorizing, delegated, self.backend);
+			.set_delegation(authorizing, delegation, self.backend);
 		Ok(())
 	}
 
