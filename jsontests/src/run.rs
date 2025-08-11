@@ -5,14 +5,10 @@ use std::{
 };
 
 use evm::{
-	with_mainnet_invoker,
-	backend::{OverlayedBackend, InMemoryAccount, InMemoryBackend, InMemoryEnvironment},
-	interpreter::{
-		runtime::GasState,
-		utils::u256_to_h256,
-		AsMachine, Capture,
-	},
+	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
+	interpreter::{runtime::GasState, utils::u256_to_h256, AsMachine, Capture},
 	standard::{Config, TransactArgs, TransactArgsCallCreate},
+	with_mainnet_invoker,
 };
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::{H256, U256};

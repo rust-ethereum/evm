@@ -12,7 +12,7 @@ use alloc::vec::Vec;
 
 use evm_interpreter::{
 	etable,
-	runtime::{GasState, RuntimeState, RuntimeEnvironment, RuntimeBackend},
+	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
 	trap::CallCreateTrap,
 	ExitError,
 };
@@ -159,14 +159,14 @@ impl<'config> InvokerState for State<'config> {
 #[macro_export]
 macro_rules! with_mainnet_invoker {
 	// This can technically be written as a normal function as well, but we then must explicitly write the complex type.
-	( $precompiles:expr, |$invoker:ident| $body:expr ) => ({
+	( $precompiles:expr, |$invoker:ident| $body:expr ) => {{
 		let gas_etable = $crate::interpreter::etable::Single::new($crate::standard::eval_gasometer);
 		let exec_etable = $crate::standard::Etable::runtime();
 		let etable = $crate::interpreter::etable::Chained(gas_etable, exec_etable);
 		let resolver = $crate::standard::EtableResolver::new($precompiles, &etable);
 		let $invoker = $crate::standard::Invoker::new(&resolver);
 		$body
-	})
+	}};
 }
 
 const TRANSACT_MAINNET_HEAP_DEPTH: Option<usize> = Some(4);
@@ -174,7 +174,8 @@ pub fn transact_mainnet<'config, 'precompile, Pre, H>(
 	args: TransactArgs<'config>,
 	precompiles: &'precompile Pre,
 	backend: &mut H,
-) -> Result<TransactValue, ExitError> where
+) -> Result<TransactValue, ExitError>
+where
 	H: TransactionalBackend + RuntimeEnvironment + RuntimeBackend,
 	Pre: PrecompileSet<State<'config>, H>,
 {
