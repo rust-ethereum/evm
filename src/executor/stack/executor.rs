@@ -218,6 +218,8 @@ pub trait StackState<'config>: Backend {
 		code: Vec<u8>,
 		caller: Option<H160>,
 	) -> Result<(), ExitError>;
+	fn set_delegation(&mut self, authorizer: H160, delegated: H160) -> Result<(), ExitError>;
+	fn remove_delegation(&mut self, authorizer: H160) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -855,12 +857,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 
 			// Set account code: clear if delegating to zero address, otherwise set delegation designator
-			let code = if delegation_address == H160::zero() {
-				Vec::new()
+			if delegation_address == H160::zero() {
+				self.state.remove_delegation(authorizing_address)?;
 			} else {
-				evm_core::create_delegation_designator(delegation_address)
+				self.state
+					.set_delegation(authorizing_address, delegation_address)?;
 			};
-			self.state.set_code(authorizing_address, code, None)?;
 
 			// Increment the nonce of the authorizing account
 			self.state.inc_nonce(authorizing_address)?;
