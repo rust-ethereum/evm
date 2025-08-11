@@ -1,6 +1,5 @@
 mod error;
 mod hash;
-mod in_memory;
 mod run;
 mod types;
 

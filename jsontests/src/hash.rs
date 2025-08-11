@@ -2,7 +2,7 @@ use evm::interpreter::utils::h256_to_u256;
 use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
-use crate::in_memory::InMemoryBackend;
+use evm::backend::InMemoryBackend;
 
 /// Basic account type.
 #[derive(Debug, Clone, PartialEq, Eq)]
