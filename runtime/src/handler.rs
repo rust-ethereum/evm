@@ -1,4 +1,4 @@
-use core::convert::TryInto;
+use core::convert::TryFrom;
 
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
 use alloc::vec::Vec;
