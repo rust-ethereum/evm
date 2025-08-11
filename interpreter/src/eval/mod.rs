@@ -10,11 +10,9 @@ use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::U256;
 
 use crate::{
-	error::{CallCreateOpcode, CallCreateTrap, ExitException, ExitSucceed},
-	etable::Control,
-	machine::Machine,
-	opcode::Opcode,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+	trap::{CallCreateOpcode, CallCreateTrap},
+	Control, ExitException, ExitSucceed, Machine, Opcode,
 };
 
 pub fn eval_pass<S, H, Tr>(

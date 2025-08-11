@@ -28,13 +28,15 @@ use std::alloc::System;
 use backend::MockBackend;
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
-	interpreter::etable::{Chained, Single},
+	interpreter::{
+		etable::{Chained, Single},
+		ExitError,
+	},
 	standard::{
 		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
 		TransactValue, TransactValueCallCreate,
 	},
 };
-use evm_interpreter::error::ExitError;
 use primitive_types::{H160, U256};
 #[cfg(not(feature = "fuzzing"))]
 use stats_alloc::{StatsAlloc, INSTRUMENTED_SYSTEM};

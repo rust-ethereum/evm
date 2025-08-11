@@ -1,10 +1,7 @@
 use std::rc::Rc;
 
 use evm_interpreter::{
-	error::{Capture, ExitSucceed},
-	etable::Etable,
-	machine::Machine,
-	EtableInterpreter, Interpreter,
+	etable::Etable, Capture, EtableInterpreter, ExitSucceed, Interpreter, Machine,
 };
 
 static ETABLE: Etable<(), (), ()> = Etable::core();

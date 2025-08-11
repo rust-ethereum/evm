@@ -11,8 +11,7 @@ use core::{
 	task::{Context, Poll, Waker},
 };
 use evm::interpreter::{
-	error::{Capture, ExitError, ExitFatal, ExitResult},
-	FeedbackInterpreter, Interpreter,
+	Capture, ExitError, ExitFatal, ExitResult, FeedbackInterpreter, Interpreter,
 };
 
 pub trait FutureInterpreterAction<S, H> {

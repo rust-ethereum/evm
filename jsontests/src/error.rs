@@ -17,7 +17,7 @@ pub enum Error {
 	#[error("json error")]
 	JSON(#[from] serde_json::Error),
 	#[error("evm error")]
-	EVM(#[from] evm::interpreter::error::ExitError),
+	EVM(#[from] evm::interpreter::ExitError),
 	#[error("unsupported fork")]
 	UnsupportedFork,
 	#[error("non-utf8 filename")]

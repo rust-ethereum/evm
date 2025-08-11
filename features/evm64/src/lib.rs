@@ -8,7 +8,7 @@ mod gasometer;
 use evm::{
 	interpreter::{
 		etable::{Etable, MultiEfn, MultiEtable, Single},
-		opcode::Opcode,
+		Opcode,
 	},
 	standard::GasometerState,
 };

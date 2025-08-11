@@ -1,9 +1,8 @@
 use alloc::boxed::Box;
 
 mod exit;
-mod trap;
 
-pub use self::{exit::*, trap::*};
+pub use self::exit::{ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed};
 
 /// Capture represents the result of execution.
 #[derive(Debug, Eq, PartialEq)]

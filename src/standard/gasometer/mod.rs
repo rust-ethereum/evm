@@ -6,12 +6,9 @@ use alloc::vec::Vec;
 use core::cmp::{max, min};
 
 use evm_interpreter::{
-	error::{ExitError, ExitException},
-	etable::Control,
-	machine::{Machine, Stack},
-	opcode::Opcode,
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
 	utils::{u256_to_h160, u256_to_h256},
+	Control, ExitError, ExitException, Machine, Opcode, Stack,
 };
 use primitive_types::{H160, H256, U256};
 

@@ -1,8 +1,5 @@
 use alloc::vec::Vec;
-use evm_interpreter::{
-	error::{Capture, ExitError, ExitResult},
-	Interpreter,
-};
+use evm_interpreter::{Capture, ExitError, ExitResult, Interpreter};
 
 /// Control for an invoker.
 pub enum InvokerControl<I, S> {

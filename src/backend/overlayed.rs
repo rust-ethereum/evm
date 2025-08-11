@@ -6,10 +6,10 @@ use alloc::{
 use core::mem;
 
 use evm_interpreter::{
-	error::{ExitError, ExitException, ExitFatal},
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
 	},
+	ExitError, ExitException, ExitFatal,
 };
 use primitive_types::{H160, H256, U256};
 

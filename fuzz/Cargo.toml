@@ -16,7 +16,6 @@ ziggy = { version = "1.3.2", default-features = false }
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 # evm
 evm = { version = "1.0.0-dev", path = ".." }
-evm-interpreter = { version = "1.0.0-dev", path = "../interpreter" }
 # grammar
 hex = "0.4.3"
 # memory analysis

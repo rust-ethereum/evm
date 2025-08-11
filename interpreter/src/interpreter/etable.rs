@@ -2,14 +2,11 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-	error::{
-		CallFeedback, Capture, CreateFeedback, ExitError, ExitException, ExitResult, ExitSucceed,
-	},
-	etable::{Control, EtableSet},
-	interpreter::{valids::Valids, FeedbackInterpreter, Interpreter, StepInterpreter},
-	machine::{AsMachine, AsMachineMut, Machine, Stack},
-	opcode::Opcode,
+	etable::EtableSet,
 	runtime::RuntimeState,
+	trap::{CallFeedback, CreateFeedback},
+	AsMachine, AsMachineMut, Capture, Control, ExitError, ExitException, ExitResult, ExitSucceed,
+	FeedbackInterpreter, Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
 };
 
 pub struct EtableInterpreter<'etable, ES: EtableSet> {

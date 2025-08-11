@@ -5,11 +5,10 @@ use core::{
 };
 
 use crate::{
-	error::{CallCreateTrap, ExitException, ExitResult},
 	eval::*,
-	machine::Machine,
-	opcode::Opcode,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+	trap::CallCreateTrap,
+	Control, ExitException, Machine, Opcode,
 };
 
 /// An etable "set" that can be evaluated. This is the generic trait to support
@@ -461,19 +460,4 @@ where
 
 		table
 	}
-}
-
-/// Control state.
-#[derive(Eq, PartialEq, Debug)]
-pub enum Control<Trap> {
-	/// No action.
-	NoAction,
-	/// Continue the execution, increase the PC by N.
-	Continue(usize),
-	/// Exit the execution.
-	Exit(ExitResult),
-	/// Jump to the specified PC.
-	Jump(usize),
-	/// Trapping the execution with the possibility to resume.
-	Trap(Box<Trap>),
 }

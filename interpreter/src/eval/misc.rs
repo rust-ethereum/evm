@@ -2,11 +2,7 @@ use core::cmp::{max, min};
 
 use primitive_types::{H256, U256};
 
-use crate::{
-	error::{ExitError, ExitException, ExitFatal, ExitSucceed},
-	etable::Control,
-	machine::Machine,
-};
+use crate::{Control, ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 
 #[inline]
 pub fn codesize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {

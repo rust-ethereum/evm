@@ -1,10 +1,7 @@
 use alloc::{borrow::Cow, vec::Vec};
 use bn::{AffineG1, AffineG2, Fq, Fq2, Group, Gt, G1, G2};
 use evm::{
-	interpreter::{
-		error::{ExitError, ExitException, ExitResult, ExitSucceed},
-		utils::u256_to_h256,
-	},
+	interpreter::{utils::u256_to_h256, ExitError, ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
 use primitive_types::U256;

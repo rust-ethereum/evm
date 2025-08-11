@@ -1,11 +1,10 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	error::{CallScheme, ExitError, ExitResult},
 	etable::EtableSet,
-	machine::Machine,
 	runtime::{RuntimeBackend, RuntimeState},
-	EtableInterpreter, Interpreter,
+	trap::CallScheme,
+	EtableInterpreter, ExitError, ExitResult, Interpreter, Machine,
 };
 use primitive_types::H160;
 

@@ -13,7 +13,7 @@
 
 mod overlayed;
 
-use evm_interpreter::error::ExitError;
+use evm_interpreter::ExitError;
 
 pub use self::overlayed::{OverlayedBackend, OverlayedChangeSet};
 pub use evm_interpreter::runtime::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};

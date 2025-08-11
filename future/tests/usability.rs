@@ -1,9 +1,8 @@
 use evm::interpreter::{
-	error::{Capture, ExitError, ExitResult, ExitSucceed},
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
 	},
-	Interpreter,
+	Capture, ExitError, ExitResult, ExitSucceed, Interpreter,
 };
 use evm_future::{FutureInterpreter, FutureInterpreterAction, FutureInterpreterSubmit};
 use primitive_types::{H160, H256, U256};

@@ -4,7 +4,24 @@ mod valids;
 use alloc::vec::Vec;
 
 pub use self::etable::EtableInterpreter;
-use crate::error::{Capture, ExitError, ExitResult};
+pub use self::valids::Valids;
+
+use crate::{Capture, ExitError, ExitResult};
+
+/// Control state.
+#[derive(Eq, PartialEq, Debug)]
+pub enum Control<Trap> {
+	/// No action.
+	NoAction,
+	/// Continue the execution, increase the PC by N.
+	Continue(usize),
+	/// Exit the execution.
+	Exit(ExitResult),
+	/// Jump to the specified PC.
+	Jump(usize),
+	/// Trapping the execution with the possibility to resume.
+	Trap(Box<Trap>),
+}
 
 pub trait Interpreter<H> {
 	type State;
