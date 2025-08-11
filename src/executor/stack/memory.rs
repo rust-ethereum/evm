@@ -393,7 +393,7 @@ impl<'config> MemoryStackSubstate<'config> {
 		self.account_mut(authority, backend).code = Some(delegation.to_bytes());
 	}
 
-	pub fn remove_delegation<B: Backend>(&mut self, authority: H160, backend: &B) {
+	pub fn reset_delegation<B: Backend>(&mut self, authority: H160, backend: &B) {
 		self.account_mut(authority, backend).code = Some(Vec::new());
 	}
 
@@ -628,8 +628,8 @@ impl<'config, B: Backend> StackState<'config> for MemoryStackState<'_, 'config, 
 		Ok(())
 	}
 
-	fn remove_delegation(&mut self, authority: H160) -> Result<(), ExitError> {
-		self.substate.remove_delegation(authority, self.backend);
+	fn reset_delegation(&mut self, authority: H160) -> Result<(), ExitError> {
+		self.substate.reset_delegation(authority, self.backend);
 		Ok(())
 	}
 

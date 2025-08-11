@@ -221,7 +221,7 @@ pub trait StackState<'config>: Backend {
 		caller: Option<H160>,
 	) -> Result<(), ExitError>;
 	fn set_delegation(&mut self, authority: H160, delegation: Delegation) -> Result<(), ExitError>;
-	fn remove_delegation(&mut self, authority: H160) -> Result<(), ExitError>;
+	fn reset_delegation(&mut self, authority: H160) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -862,7 +862,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			// Set account code: clear if delegating to zero address, otherwise set delegation designator
 			if delegation_address == H160::zero() {
-				self.state.remove_delegation(authorizing_address)?;
+				self.state.reset_delegation(authorizing_address)?;
 			} else {
 				self.state
 					.set_delegation(authorizing_address, Delegation::new(delegation_address))?;
