@@ -2,7 +2,7 @@ use evm::{
 	backend::{Backend, MemoryBackend},
 	delegation::Delegation,
 	executor::stack::StackExecutor,
-	Config, ExitError, ExitReason, Handler,
+	Config, ExitError, ExitReason, ExitSucceed, Handler,
 };
 use primitive_types::{H160, H256, U256};
 use std::collections::BTreeMap;
@@ -3608,8 +3608,13 @@ fn test_8_2_contract_with_code_as_origin() {
 		Vec::new(),
 	);
 
-	// Should be rejected per EIP-3607 (though this might succeed in test environment)
+	// Should be rejected per EIP-3607
 	// The key is that this behavior is different from delegation case
+	assert!(
+		matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Stopped)),
+		"Transaction should be rejected, got: {:?}",
+		exit_reason
+	);
 }
 
 // ============================================================================
@@ -3992,6 +3997,11 @@ fn test_9_2_failed_transaction_rollback() {
 
 	// Transaction should fail, but the exact failure mode may vary
 	// The key test is that delegation is still set regardless of transaction result
+	assert!(
+		matches!(exit_reason, ExitReason::Error(_)),
+		"Transaction to failing target should fail, got: {:?}",
+		exit_reason
+	);
 
 	// But delegation should still be set (not rolled back)
 	let delegation_designator = Delegation::new(implementation);
