@@ -1,6 +1,6 @@
 use evm::{
 	backend::{Backend, MemoryBackend},
-	delegation::DelegationDesignator,
+	delegation::Delegation,
 	executor::stack::StackExecutor,
 	Config, ExitError, ExitReason, Handler,
 };
@@ -123,7 +123,7 @@ fn test_1_1_valid_transaction_structure() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -246,7 +246,7 @@ fn test_1_3_transaction_with_null_destination() {
 	assert!(matches!(exit_reason, ExitReason::Succeed(_)));
 	// For contract creation, return data can be empty - check if contract was actually created
 	// by verifying the authorizing account got delegated code
-	let expected_delegation = DelegationDesignator::new(implementation);
+	let expected_delegation = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), expected_delegation.to_bytes());
 }
 
@@ -385,7 +385,7 @@ fn test_2_1_valid_authorization_tuple() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set correctly
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -623,7 +623,7 @@ fn test_2_5_delegation_indicator_format() {
 	let implementation_address = H160::from_slice(&[0x42u8; 20]);
 
 	// Test delegation designator creation
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 
 	// Verify format: 0xef0100 + 20 byte address = 23 bytes total
 	assert_eq!(delegation_designator.to_bytes().len(), 23);
@@ -634,23 +634,23 @@ fn test_2_5_delegation_indicator_format() {
 	);
 
 	// Test detection
-	assert!(DelegationDesignator::is_delegation_designator(
+	assert!(evm_core::delegation::is_delegation_designator(
 		&delegation_designator.to_bytes()
 	));
 
 	// Test extraction
-	let extracted = delegation_designator.address();
+	let extracted = *delegation_designator.address();
 	assert_eq!(extracted, implementation_address);
 
 	// Test invalid format (wrong length)
 	let invalid_short = vec![0xef, 0x01, 0x00]; // Too short
-	assert!(!DelegationDesignator::is_delegation_designator(
+	assert!(!evm_core::delegation::is_delegation_designator(
 		&invalid_short
 	));
 
 	let mut invalid_long = vec![0xef, 0x01, 0x00];
 	invalid_long.extend(vec![0u8; 27]); // Make it 30 bytes total (too long)
-	assert!(!DelegationDesignator::is_delegation_designator(
+	assert!(!evm_core::delegation::is_delegation_designator(
 		&invalid_long
 	));
 
@@ -660,7 +660,7 @@ fn test_2_5_delegation_indicator_format() {
 		invalid[0] = 0xfe; // Wrong prefix
 		invalid
 	};
-	assert!(!DelegationDesignator::is_delegation_designator(
+	assert!(!evm_core::delegation::is_delegation_designator(
 		&invalid_prefix
 	));
 } // ============================================================================
@@ -812,7 +812,7 @@ fn test_3_2_chain_id_zero() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set (authorization accepted)
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -886,7 +886,7 @@ fn test_3_3_authority_code_state_empty() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -934,7 +934,7 @@ fn test_3_4_authority_code_state_already_delegated() {
 	);
 
 	// Authorizing account starts with delegation to old implementation
-	let old_delegation = DelegationDesignator::new(old_implementation);
+	let old_delegation = Delegation::new(old_implementation);
 	state.insert(
 		authorizing,
 		evm::backend::MemoryAccount {
@@ -973,7 +973,7 @@ fn test_3_4_authority_code_state_already_delegated() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was updated
-	let new_delegation = DelegationDesignator::new(new_implementation);
+	let new_delegation = Delegation::new(new_implementation);
 	assert_eq!(executor.code(authorizing), new_delegation.to_bytes());
 }
 
@@ -1031,7 +1031,7 @@ fn test_3_5_authority_code_state_non_delegation_code() {
 
 	// Verify initial code
 	assert_eq!(executor.code(authorizing), existing_code);
-	assert!(!DelegationDesignator::is_delegation_designator(
+	assert!(!evm_core::delegation::is_delegation_designator(
 		&executor.code(authorizing)
 	));
 
@@ -1206,7 +1206,7 @@ fn test_3_7_nonce_increment() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 
 	// Verify nonce was incremented
@@ -1227,7 +1227,7 @@ fn test_4_1_correct_delegation_format() {
 	]);
 
 	// Create delegation designator
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 
 	// Test correct format
 	assert_eq!(delegation_designator.to_bytes().len(), 23);
@@ -1238,12 +1238,12 @@ fn test_4_1_correct_delegation_format() {
 	);
 
 	// Test detection
-	assert!(DelegationDesignator::is_delegation_designator(
+	assert!(evm_core::delegation::is_delegation_designator(
 		&delegation_designator.to_bytes()
 	));
 
 	// Test extraction
-	let extracted = delegation_designator.address();
+	let extracted = *delegation_designator.address();
 	assert_eq!(extracted, implementation_address);
 }
 
@@ -1254,7 +1254,7 @@ fn test_4_2_extcodesize_with_delegation() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let delegating_address = H160::from_slice(&[1u8; 20]);
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -1299,7 +1299,7 @@ fn test_4_3_extcodecopy_with_delegation() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let delegating_address = H160::from_slice(&[1u8; 20]);
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -1352,7 +1352,7 @@ fn test_4_4_extcodehash_with_delegation() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let delegating_address = H160::from_slice(&[1u8; 20]);
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 
 	// Calculate expected hash
 	use sha3::{Digest, Keccak256};
@@ -1416,7 +1416,7 @@ fn test_4_5_code_execution_redirection() {
 		0xf3, // RETURN
 	];
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -1533,7 +1533,7 @@ fn test_4_6_code_reading_operations_during_delegation() {
 		0xf3, // RETURN
 	];
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -1891,7 +1891,7 @@ fn test_5_4_cold_account_access() {
 		0xf3, // RETURN
 	]);
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -2132,7 +2132,7 @@ fn test_6_1_duplicate_authorities() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Only the LAST authorization should be processed (implementation2)
-	let delegation_designator = DelegationDesignator::new(implementation2);
+	let delegation_designator = Delegation::new(implementation2);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 
 	// Verify nonce was incremented only once (not twice)
@@ -2228,7 +2228,7 @@ fn test_6_2_mixed_valid_invalid() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Valid authorization should be processed
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(
 		executor.code(valid_authorizing),
 		delegation_designator.to_bytes()
@@ -2347,8 +2347,8 @@ fn test_6_3_order_independence() {
 		assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 		// Both authorizations should be processed regardless of order
-		let delegation1 = DelegationDesignator::new(implementation1);
-		let delegation2 = DelegationDesignator::new(implementation2);
+		let delegation1 = Delegation::new(implementation1);
+		let delegation2 = Delegation::new(implementation2);
 
 		assert_eq!(executor.code(authorizing1), delegation1.to_bytes());
 		assert_eq!(executor.code(authorizing2), delegation2.to_bytes());
@@ -2423,7 +2423,7 @@ fn test_9_1_self_delegation() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify self-delegation was set
-	let delegation_designator = DelegationDesignator::new(self_delegating);
+	let delegation_designator = Delegation::new(self_delegating);
 	assert_eq!(
 		executor.code(self_delegating),
 		delegation_designator.to_bytes()
@@ -2532,8 +2532,8 @@ fn test_9_2_delegation_chain() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegations were set
-	let delegation_a_to_b = DelegationDesignator::new(account_b);
-	let delegation_b_to_c = DelegationDesignator::new(account_c);
+	let delegation_a_to_b = Delegation::new(account_b);
+	let delegation_b_to_c = Delegation::new(account_c);
 
 	assert_eq!(executor.code(account_a), delegation_a_to_b.to_bytes());
 	assert_eq!(executor.code(account_b), delegation_b_to_c.to_bytes());
@@ -2589,7 +2589,7 @@ fn test_9_3_reentrancy_via_delegation() {
 		0xf3, // RETURN
 	]);
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -2794,7 +2794,7 @@ fn test_9_5_delegation_to_non_contract() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 
 	// Now call the delegating address - should execute empty code
@@ -2928,7 +2928,7 @@ fn test_9_7_delegation_to_zero_address() {
 	);
 
 	// Start with authorizing account that already has a delegation
-	let existing_delegation = DelegationDesignator::new(first_delegation);
+	let existing_delegation = Delegation::new(first_delegation);
 	state.insert(
 		authorizing,
 		evm::backend::MemoryAccount {
@@ -3025,7 +3025,7 @@ fn test_5_1_all_call_types_to_delegated_account() {
 		0xf3, // RETURN
 	];
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -3139,7 +3139,7 @@ fn test_5_2_transaction_to_delegated_account() {
 		0xf3, // RETURN
 	];
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -3227,7 +3227,7 @@ fn test_14_1_delegation_to_precompile_addresses() {
 	let precompile_address =
 		H160::from_slice(&[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]); // ECRECOVER
 
-	let delegation_designator = DelegationDesignator::new(precompile_address);
+	let delegation_designator = Delegation::new(precompile_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -3315,7 +3315,7 @@ fn test_14_2_executing_operations_on_precompile_delegation() {
 		0xf3, // RETURN
 	];
 
-	let delegation_designator = DelegationDesignator::new(sha256_precompile);
+	let delegation_designator = Delegation::new(sha256_precompile);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -3413,7 +3413,7 @@ fn test_14_3_code_reading_operations_on_precompile_delegation() {
 		0xf3, // RETURN
 	];
 
-	let delegation_designator = DelegationDesignator::new(identity_precompile);
+	let delegation_designator = Delegation::new(identity_precompile);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -3499,7 +3499,7 @@ fn test_8_1_eoa_with_delegation_as_origin() {
 	let implementation_address = H160::from_slice(&[2u8; 20]);
 	let target = H160::from_slice(&[3u8; 20]);
 
-	let delegation_designator = DelegationDesignator::new(implementation_address);
+	let delegation_designator = Delegation::new(implementation_address);
 	let config = Config::pectra();
 	let mut state = BTreeMap::new();
 
@@ -3685,7 +3685,7 @@ fn test_11_1_authority_in_access_list() {
 	assert_eq!(exit_reason, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -3910,7 +3910,7 @@ fn test_9_1_permanent_delegation() {
 	}
 
 	// Verify delegation is still active
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -3994,7 +3994,7 @@ fn test_9_2_failed_transaction_rollback() {
 	// The key test is that delegation is still set regardless of transaction result
 
 	// But delegation should still be set (not rolled back)
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 }
 
@@ -4145,7 +4145,7 @@ fn test_12_2_signature_replay_protection() {
 	assert_eq!(exit_reason1, ExitReason::Succeed(evm::ExitSucceed::Stopped));
 
 	// Verify delegation was set and nonce incremented
-	let delegation_designator = DelegationDesignator::new(implementation);
+	let delegation_designator = Delegation::new(implementation);
 	assert_eq!(executor.code(authorizing), delegation_designator.to_bytes());
 	assert_eq!(executor.state().basic(authorizing).nonce, U256::from(1));
 
@@ -4275,7 +4275,7 @@ fn test_none_authorizing_address_rejection() {
 		// Authorizing account should now have delegation designator
 		let authorizing_basic = executor.state().basic(authorizing);
 		assert_eq!(authorizing_basic.nonce, U256::from(1)); // Nonce incremented
-		let expected_delegation = DelegationDesignator::new(implementation);
+		let expected_delegation = Delegation::new(implementation);
 		assert_eq!(executor.code(authorizing), expected_delegation.to_bytes());
 	}
 }
