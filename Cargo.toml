@@ -20,12 +20,12 @@ repository = "https://github.com/rust-ethereum/evm"
 keywords = ["no_std", "ethereum", "evm"]
 
 [workspace.dependencies]
-evm = { version = "1.0.0-beta.2", path = ".", default-features = false }
-evm-interpreter = { version = "1.0.0-beta.2", path = "interpreter", default-features = false }
+evm = { version = "1.0.0-dev", path = ".", default-features = false }
+evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
 
 [package]
 name = "evm"
-version = "1.0.0-beta.2"
+version = "1.0.0-dev"
 edition = { workspace = true }
 rust-version = { workspace = true }
 license = { workspace = true }
