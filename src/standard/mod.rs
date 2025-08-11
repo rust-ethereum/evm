@@ -153,8 +153,4 @@ impl<'config> InvokerState for State<'config> {
 	fn effective_gas(&self, with_refund: bool) -> U256 {
 		self.gasometer.effective_gas(with_refund, self.config)
 	}
-
-	fn config(&self) -> &Config {
-		self.config
-	}
 }

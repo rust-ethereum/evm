@@ -12,11 +12,7 @@ macro_rules! try_or_fail {
 	};
 }
 
-pub fn eval<S, H, Tr>(
-	machine: &mut Machine<S>,
-	_handler: &mut H,
-	position: usize,
-) -> Control<Tr>
+pub fn eval<S, H, Tr>(machine: &mut Machine<S>, _handler: &mut H, position: usize) -> Control<Tr>
 where
 	S: AsRef<GasometerState> + AsMut<GasometerState>,
 {

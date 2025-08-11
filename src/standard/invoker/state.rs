@@ -6,7 +6,7 @@ use evm_interpreter::{
 };
 use primitive_types::{H160, H256, U256};
 
-use crate::{standard::Config, MergeStrategy};
+use crate::MergeStrategy;
 
 pub trait InvokerState: GasState + Sized {
 	type TransactArgs;
@@ -36,8 +36,6 @@ pub trait InvokerState: GasState + Sized {
 	fn merge(&mut self, substate: Self, strategy: MergeStrategy);
 
 	fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError>;
-
 	fn is_static(&self) -> bool;
 	fn effective_gas(&self, with_refund: bool) -> U256;
-	fn config(&self) -> &Config;
 }

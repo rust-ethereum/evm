@@ -213,11 +213,7 @@ impl GasometerState {
 	}
 }
 
-pub fn eval<S, H, Tr>(
-	machine: &mut Machine<S>,
-	handler: &mut H,
-	position: usize,
-) -> Control<Tr>
+pub fn eval<S, H, Tr>(machine: &mut Machine<S>, handler: &mut H, position: usize) -> Control<Tr>
 where
 	S: AsRef<GasometerState> + AsMut<GasometerState> + AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,
