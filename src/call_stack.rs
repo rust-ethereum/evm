@@ -1,10 +1,7 @@
 use alloc::vec::Vec;
 use core::convert::Infallible;
 
-use evm_interpreter::{
-	error::{Capture, ExitError, ExitFatal, ExitResult},
-	Interpreter, StepInterpreter,
-};
+use evm_interpreter::{Capture, ExitError, ExitFatal, ExitResult, Interpreter, StepInterpreter};
 
 use crate::invoker::{Invoker, InvokerControl, InvokerExit};
 

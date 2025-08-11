@@ -1,4 +1,4 @@
-use evm_interpreter::error::ExitException;
+use evm_interpreter::ExitException;
 use primitive_types::{H256, U256};
 
 use super::{consts::*, utils::log2floor};

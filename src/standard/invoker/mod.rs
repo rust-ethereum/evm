@@ -5,15 +5,15 @@ mod state;
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, marker::PhantomData};
 use evm_interpreter::{
-	error::{
-		CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture, CreateFeedback, CreateScheme,
-		CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
-	},
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
 	},
-	FeedbackInterpreter, Interpreter,
+	trap::{
+		CallCreateTrap, CallFeedback, CallScheme, CallTrap, CreateFeedback, CreateScheme,
+		CreateTrap, TrapConsume,
+	},
+	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
 };
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};

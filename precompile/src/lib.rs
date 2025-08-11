@@ -23,10 +23,7 @@ mod simple;
 use alloc::vec::Vec;
 
 use evm::{
-	interpreter::{
-		error::{ExitError, ExitException, ExitResult},
-		runtime::RuntimeState,
-	},
+	interpreter::{runtime::RuntimeState, ExitError, ExitException, ExitResult},
 	standard::{Config, PrecompileSet},
 	GasMutState,
 };

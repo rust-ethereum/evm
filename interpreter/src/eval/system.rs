@@ -6,10 +6,8 @@ use sha3::{Digest, Keccak256};
 use crate::utils::u256_to_h256;
 
 use crate::{
-	error::{ExitException, ExitFatal, ExitSucceed},
-	etable::Control,
-	machine::Machine,
 	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
+	Control, ExitException, ExitFatal, ExitSucceed, Machine,
 };
 
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {

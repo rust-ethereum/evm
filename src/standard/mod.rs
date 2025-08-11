@@ -11,9 +11,10 @@ mod invoker;
 use alloc::vec::Vec;
 
 use evm_interpreter::{
-	error::{CallCreateTrap, ExitError},
-	etable, machine,
+	etable,
 	runtime::{GasState, RuntimeState},
+	trap::CallCreateTrap,
+	ExitError,
 };
 use primitive_types::{H160, H256, U256};
 
@@ -29,7 +30,7 @@ pub use self::{
 use crate::{gasometer::GasMutState, MergeStrategy};
 
 /// Standard machine.
-pub type Machine<'config> = machine::Machine<State<'config>>;
+pub type Machine<'config> = evm_interpreter::Machine<State<'config>>;
 
 /// Standard Etable opcode handle function.
 pub type Efn<'config, H> = etable::Efn<State<'config>, H, CallCreateTrap>;

@@ -6,13 +6,20 @@
 
 extern crate alloc;
 
-pub mod error;
+mod error;
+mod interpreter;
+mod machine;
+mod opcode;
+
 pub mod etable;
 pub mod eval;
-mod interpreter;
-pub mod machine;
-pub mod opcode;
 pub mod runtime;
+pub mod trap;
 pub mod utils;
 
-pub use self::interpreter::{EtableInterpreter, FeedbackInterpreter, Interpreter, StepInterpreter};
+pub use self::error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed};
+pub use self::interpreter::{
+	Control, EtableInterpreter, FeedbackInterpreter, Interpreter, StepInterpreter, Valids,
+};
+pub use self::machine::{AsMachine, AsMachineMut, Machine, Memory, Stack};
+pub use self::opcode::Opcode;

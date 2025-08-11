@@ -1,4 +1,4 @@
-use evm_interpreter::opcode::Opcode;
+use evm_interpreter::Opcode;
 
 pub const G_ZERO: u64 = 0;
 pub const G_BASE: u64 = 2;

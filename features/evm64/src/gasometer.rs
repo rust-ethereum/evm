@@ -1,5 +1,5 @@
 use evm::{
-	interpreter::{error::ExitException, etable::Control, machine::Machine, opcode::Opcode},
+	interpreter::{Control, ExitException, Machine, Opcode},
 	standard::GasometerState,
 };
 

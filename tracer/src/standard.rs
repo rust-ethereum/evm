@@ -1,5 +1,5 @@
 use evm::{
-	interpreter::opcode::Opcode,
+	interpreter::Opcode,
 	standard::{Machine, State},
 };
 

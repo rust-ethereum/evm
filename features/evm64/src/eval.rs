@@ -1,6 +1,6 @@
 use core::ops::{BitAnd, BitOr, BitXor};
 
-use evm::interpreter::{error::ExitException, etable::Control, machine::Machine};
+use evm::interpreter::{Control, ExitException, Machine};
 use primitive_types::U256;
 
 macro_rules! pop_u64 {

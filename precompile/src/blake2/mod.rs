@@ -1,7 +1,7 @@
 mod eip152;
 
 use evm::{
-	interpreter::error::{ExitException, ExitResult, ExitSucceed},
+	interpreter::{ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
 

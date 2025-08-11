@@ -1,7 +1,7 @@
 use core::cmp::min;
 
 use evm::{
-	interpreter::error::{ExitError, ExitException, ExitResult, ExitSucceed},
+	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 	GasMutState,
 };
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
