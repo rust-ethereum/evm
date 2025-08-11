@@ -5,21 +5,20 @@ use std::{
 };
 
 use evm::{
-	backend::OverlayedBackend,
+	with_mainnet_invoker,
+	backend::{OverlayedBackend, InMemoryAccount, InMemoryBackend, InMemoryEnvironment},
 	interpreter::{
-		etable::{Chained, Single},
 		runtime::GasState,
 		utils::u256_to_h256,
 		AsMachine, Capture,
 	},
-	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate},
+	standard::{Config, TransactArgs, TransactArgsCallCreate},
 };
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::{H256, U256};
 
 use crate::{
 	error::{Error, TestError},
-	in_memory::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment},
 	types::{
 		Fork, HexBytes, TestCompletionStatus, TestData, TestExpectException, TestMulti,
 		TestMultiTransaction, TestPostStateIndexes,
@@ -186,12 +185,6 @@ pub fn run_test(
 		})
 		.collect::<BTreeMap<_, _>>();
 
-	let gas_etable = Single::new(evm::standard::eval_gasometer);
-	let exec_etable = Etable::runtime();
-	let etable = Chained(gas_etable, exec_etable);
-	let precompiles = StandardPrecompileSet;
-	let resolver = EtableResolver::new(&precompiles, &etable);
-	let invoker = Invoker::new(&resolver);
 	let args = if let Some(to) = test.transaction.to {
 		TransactArgs {
 			call_create: TransactArgsCallCreate::Call {
@@ -257,38 +250,40 @@ pub fn run_test(
 	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config);
 
 	// Run
-	let run_result = evm::transact(args.clone(), Some(4), &mut run_backend, &invoker);
+	let run_result = evm::transact_mainnet(args.clone(), &StandardPrecompileSet, &mut run_backend);
 	let run_changeset = run_backend.deconstruct().1;
 	let mut run_backend = base_backend.clone();
 	run_backend.apply_overlayed(&run_changeset);
 
 	// Step
 	if debug {
-		let _step_result = evm::HeapTransact::new(args, &invoker, &mut step_backend).and_then(
-			|mut stepper| loop {
-				{
-					if let Some(machine) = stepper.last_interpreter() {
-						println!(
-							"pc: {}, opcode: {:?}, gas: 0x{:x}, stack: {:?}",
-							machine.position(),
-							machine.peek_opcode(),
-							machine.as_machine().state.gas(),
-							machine
-								.as_machine()
-								.stack
-								.data()
-								.clone()
-								.into_iter()
-								.map(|v| format!("0x{v:x}"))
-								.collect::<Vec<_>>(),
-						);
+		with_mainnet_invoker!(&StandardPrecompileSet, |invoker| {
+			let _step_result = evm::HeapTransact::new(args, &invoker, &mut step_backend).and_then(
+				|mut stepper| loop {
+					{
+						if let Some(machine) = stepper.last_interpreter() {
+							println!(
+								"pc: {}, opcode: {:?}, gas: 0x{:x}, stack: {:?}",
+								machine.position(),
+								machine.peek_opcode(),
+								machine.as_machine().state.gas(),
+								machine
+									.as_machine()
+									.stack
+									.data()
+									.clone()
+									.into_iter()
+									.map(|v| format!("0x{v:x}"))
+									.collect::<Vec<_>>(),
+							);
+						}
 					}
-				}
-				if let Err(Capture::Exit(result)) = stepper.step() {
-					break result;
-				}
-			},
-		);
+					if let Err(Capture::Exit(result)) = stepper.step() {
+						break result;
+					}
+				},
+			);
+		});
 		let step_changeset = step_backend.deconstruct().1;
 		let mut step_backend = base_backend.clone();
 		step_backend.apply_overlayed(&step_changeset);

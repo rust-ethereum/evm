@@ -12,9 +12,11 @@
 //! internally inside a backend.
 
 mod overlayed;
+mod in_memory;
 
 use evm_interpreter::ExitError;
 
+pub use self::in_memory::{InMemoryEnvironment, InMemoryAccount, InMemorySuicideInfo, InMemoryBackend};
 pub use self::overlayed::{OverlayedBackend, OverlayedChangeSet};
 pub use evm_interpreter::runtime::{RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment};
 
