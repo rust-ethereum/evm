@@ -22,7 +22,7 @@ pub use self::{
 	gasometer::{eval as eval_gasometer, GasometerState},
 	invoker::{
 		routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
-		TransactArgs, TransactInvoke, TransactValue, TransactValueCallCreate,
+		TransactArgs, TransactArgsCallCreate, TransactInvoke, TransactValue, TransactValueCallCreate,
 	},
 };
 use crate::{gasometer::GasMutState, MergeStrategy};
@@ -85,14 +85,17 @@ impl<'config> GasMutState for State<'config> {
 	}
 }
 
-impl<'config> InvokerState<'config> for State<'config> {
+impl<'config> InvokerState for State<'config> {
+	type TransactArgs = TransactArgs<'config>;
+
 	fn new_transact_call(
 		runtime: RuntimeState,
 		gas_limit: U256,
 		data: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		args: &TransactArgs<'config>,
 	) -> Result<Self, ExitError> {
+		let config = args.config;
 		Ok(Self {
 			runtime,
 			gasometer: GasometerState::new_transact_call(gas_limit, data, access_list, config)?,
@@ -105,8 +108,9 @@ impl<'config> InvokerState<'config> for State<'config> {
 		gas_limit: U256,
 		code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		args: &TransactArgs<'config>,
 	) -> Result<Self, ExitError> {
+		let config = args.config;
 		Ok(Self {
 			runtime,
 			gasometer: GasometerState::new_transact_create(gas_limit, code, access_list, config)?,

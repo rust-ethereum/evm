@@ -103,6 +103,14 @@ where
 		(self.state, self.retbuf)
 	}
 
+	fn state(&self) -> &S {
+		&self.state
+	}
+
+	fn state_mut(&mut self) -> &mut S {
+		&mut self.state
+	}
+
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap> {
 		let waker = Waker::noop();
 		let mut ctx = Context::from_waker(waker);

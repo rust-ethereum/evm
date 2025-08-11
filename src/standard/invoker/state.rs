@@ -8,20 +8,22 @@ use primitive_types::{H160, H256, U256};
 
 use crate::{standard::Config, MergeStrategy};
 
-pub trait InvokerState<'config>: GasState + Sized {
+pub trait InvokerState: GasState + Sized {
+	type TransactArgs;
+
 	fn new_transact_call(
 		runtime: RuntimeState,
 		gas_limit: U256,
 		data: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		args: &Self::TransactArgs,
 	) -> Result<Self, ExitError>;
 	fn new_transact_create(
 		runtime: RuntimeState,
 		gas_limit: U256,
 		code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		args: &Self::TransactArgs,
 	) -> Result<Self, ExitError>;
 
 	fn substate(

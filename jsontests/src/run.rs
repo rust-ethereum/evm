@@ -13,7 +13,7 @@ use evm::{
 		runtime::GasState,
 		utils::u256_to_h256,
 	},
-	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs},
+	standard::{Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate},
 };
 use evm_precompile::StandardPrecompileSet;
 use primitive_types::{H256, U256};
@@ -192,17 +192,19 @@ pub fn run_test(
 	let etable = Chained(gas_etable, exec_etable);
 	let precompiles = StandardPrecompileSet;
 	let resolver = EtableResolver::new(&precompiles, &etable);
-	let invoker = Invoker::new(&config, &resolver);
+	let invoker = Invoker::new(&resolver);
 	let args = if let Some(to) = test.transaction.to {
-		TransactArgs::Call {
+		TransactArgs {
+			call_create: TransactArgsCallCreate::Call {
+				address: to,
+				data: test.transaction.data.clone(),
+			},
 			caller: test.transaction.sender,
-			address: to,
 			value: test
 				.transaction
 				.value
 				.0
 				.map_err(|()| TestError::UnexpectedDecoding)?,
-			data: test.transaction.data.clone(),
 			gas_limit: test.transaction.gas_limit,
 			gas_price: test.transaction.gas_price,
 			access_list: test
@@ -212,17 +214,20 @@ pub fn run_test(
 				.into_iter()
 				.map(|access| (access.address, access.storage_keys))
 				.collect(),
+			config: &config,
 		}
 	} else {
-		TransactArgs::Create {
+		TransactArgs {
+			call_create: TransactArgsCallCreate::Create {
+				salt: None,
+				init_code: test.transaction.data.clone(),
+			},
 			caller: test.transaction.sender,
 			value: test
 				.transaction
 				.value
 				.0
 				.map_err(|()| TestError::UnexpectedDecoding)?,
-			salt: None,
-			init_code: test.transaction.data.clone(),
 			gas_limit: test.transaction.gas_limit,
 			gas_price: test.transaction.gas_price,
 			access_list: test
@@ -232,6 +237,7 @@ pub fn run_test(
 				.into_iter()
 				.map(|access| (access.address, access.storage_keys))
 				.collect(),
+			config: &config,
 		}
 	};
 

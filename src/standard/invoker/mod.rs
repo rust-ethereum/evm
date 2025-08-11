@@ -3,13 +3,12 @@ pub mod routines;
 mod state;
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
-use core::cmp::min;
+use core::{cmp::min, marker::PhantomData};
 use evm_interpreter::{
 	error::{
 		CallCreateTrap, CallFeedback, CallScheme, CallTrap, Capture, CreateFeedback, CreateScheme,
 		CreateTrap, ExitError, ExitException, ExitFatal, ExitSucceed, TrapConsume,
 	},
-	machine::{AsMachine, AsMachineMut},
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
@@ -65,91 +64,51 @@ pub struct TransactValue {
 }
 
 /// The invoke used in a top-layer transaction stack.
-pub struct TransactInvoke {
+pub struct TransactInvoke<'config> {
 	pub create_address: Option<H160>,
 	pub gas_limit: U256,
 	pub gas_price: U256,
 	pub caller: H160,
+	pub config: &'config Config,
 }
 
-/// Transaction arguments.
 #[derive(Clone, Debug)]
-pub enum TransactArgs {
-	/// A call transaction.
+pub enum TransactArgsCallCreate {
 	Call {
-		/// Transaction sender.
-		caller: H160,
 		/// Transaction target.
 		address: H160,
-		/// Transaction value.
-		value: U256,
 		/// Transaction call data.
 		data: Vec<u8>,
-		/// Transaction gas limit.
-		gas_limit: U256,
-		/// Transaction gas price.
-		gas_price: U256,
-		/// Access list information, in the format of (address, storage keys).
-		access_list: Vec<(H160, Vec<H256>)>,
 	},
-	/// A create transaction.
 	Create {
-		/// Transaction sender.
-		caller: H160,
-		/// Transaction value.
-		value: U256,
 		/// Init code.
 		init_code: Vec<u8>,
 		/// Salt of `CREATE2`. `None` for a normal create transaction.
 		salt: Option<H256>,
-		/// Transaction gas limit.
-		gas_limit: U256,
-		/// Transaction gas price.
-		gas_price: U256,
-		/// Access list information, in the format of (address, storage keys).
-		access_list: Vec<(H160, Vec<H256>)>,
-	},
+	}
 }
 
-impl TransactArgs {
-	/// Transaction gas limit.
-	pub fn gas_limit(&self) -> U256 {
-		match self {
-			Self::Call { gas_limit, .. } => *gas_limit,
-			Self::Create { gas_limit, .. } => *gas_limit,
-		}
-	}
-
-	/// Transaction gas price.
-	pub fn gas_price(&self) -> U256 {
-		match self {
-			Self::Call { gas_price, .. } => *gas_price,
-			Self::Create { gas_price, .. } => *gas_price,
-		}
-	}
-
-	/// Access list information.
-	pub fn access_list(&self) -> &Vec<(H160, Vec<H256>)> {
-		match self {
-			Self::Call { access_list, .. } => access_list,
-			Self::Create { access_list, .. } => access_list,
-		}
-	}
-
+/// Transaction arguments.
+#[derive(Clone, Debug)]
+pub struct TransactArgs<'config> {
+	pub call_create: TransactArgsCallCreate,
 	/// Transaction sender.
-	pub fn caller(&self) -> H160 {
-		match self {
-			Self::Call { caller, .. } => *caller,
-			Self::Create { caller, .. } => *caller,
-		}
-	}
-
+	pub caller: H160,
 	/// Transaction value.
-	pub fn value(&self) -> U256 {
-		match self {
-			Self::Call { value, .. } => *value,
-			Self::Create { value, .. } => *value,
-		}
+	pub value: U256,
+	/// Transaction gas limit.
+	pub gas_limit: U256,
+	/// Transaction gas price.
+	pub gas_price: U256,
+	/// Access list information, in the format of (address, storage keys).
+	pub access_list: Vec<(H160, Vec<H256>)>,
+	/// Config of this arg.
+	pub config: &'config Config,
+}
+
+impl<'config> AsRef<TransactArgs<'config>> for TransactArgs<'config> {
+	fn as_ref(&self) -> &TransactArgs<'config> {
+		self
 	}
 }
 
@@ -162,35 +121,34 @@ impl TransactArgs {
 ///   [EtableResolver] but can be customized.
 /// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
 pub struct Invoker<'config, 'resolver, R> {
-	config: &'config Config,
 	resolver: &'resolver R,
+	_marker: PhantomData<&'config Config>,
 }
 
 impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	/// Create a new standard invoker with the given config and resolver.
-	pub fn new(config: &'config Config, resolver: &'resolver R) -> Self {
-		Self { config, resolver }
+	pub fn new(resolver: &'resolver R) -> Self {
+		Self { resolver, _marker: PhantomData }
 	}
 }
 
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
 	<R::Interpreter as Interpreter<H>>::State:
-		InvokerState<'config> + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
+InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
+<<R::Interpreter as Interpreter<H>>::State as InvokerState>::TransactArgs: AsRef<TransactArgs<'config>>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,
-	R::Interpreter: AsMachine<State = <R::Interpreter as Interpreter<H>>::State>
-		+ AsMachineMut
-		+ FeedbackInterpreter<H, CallFeedback>
+	R::Interpreter: FeedbackInterpreter<H, CallFeedback>
 		+ FeedbackInterpreter<H, CreateFeedback>,
 {
 	type Interpreter = R::Interpreter;
 	type Interrupt =
 		<<R::Interpreter as Interpreter<H>>::Trap as TrapConsume<CallCreateTrap>>::Rest;
-	type TransactArgs = TransactArgs;
-	type TransactInvoke = TransactInvoke;
+	type TransactArgs = <<R::Interpreter as Interpreter<H>>::State as InvokerState>::TransactArgs;
 	type TransactValue = TransactValue;
+	type TransactInvoke = TransactInvoke<'config>;
 	type SubstackInvoke = SubstackInvoke;
 
 	fn new_transact(
@@ -204,43 +162,44 @@ where
 		),
 		ExitError,
 	> {
-		let caller = args.caller();
-		let gas_price = args.gas_price();
-		let gas_fee = args.gas_limit().saturating_mul(gas_price);
+		let caller = AsRef::<TransactArgs>::as_ref(&args).caller;
+		let gas_price = AsRef::<TransactArgs>::as_ref(&args).gas_price;
+		let gas_fee = AsRef::<TransactArgs>::as_ref(&args).gas_limit.saturating_mul(gas_price);
 		let coinbase = handler.block_coinbase();
 
-		let address = match &args {
-			TransactArgs::Call { address, .. } => *address,
-			TransactArgs::Create {
-				caller,
+		let address = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
+			TransactArgsCallCreate::Call { address, .. } => *address,
+			TransactArgsCallCreate::Create {
 				salt,
 				init_code,
 				..
 			} => match salt {
 				Some(salt) => {
 					let scheme = CreateScheme::Create2 {
-						caller: *caller,
+						caller,
 						code_hash: H256::from_slice(Keccak256::digest(init_code).as_slice()),
 						salt: *salt,
 					};
 					scheme.address(handler)
 				}
 				None => {
-					let scheme = CreateScheme::Legacy { caller: *caller };
+					let scheme = CreateScheme::Legacy { caller };
 					scheme.address(handler)
 				}
 			},
 		};
-		let value = args.value();
+		let value = AsRef::<TransactArgs>::as_ref(&args).value;
+		let gas_limit = AsRef::<TransactArgs>::as_ref(&args).gas_limit;
 
 		let invoke = TransactInvoke {
-			gas_limit: args.gas_limit(),
-			gas_price: args.gas_price(),
-			caller: args.caller(),
-			create_address: match &args {
-				TransactArgs::Call { .. } => None,
-				TransactArgs::Create { .. } => Some(address),
+			gas_limit,
+			gas_price: AsRef::<TransactArgs>::as_ref(&args).gas_price,
+			caller: AsRef::<TransactArgs>::as_ref(&args).caller,
+			create_address: match AsRef::<TransactArgs>::as_ref(&args).call_create {
+				TransactArgsCallCreate::Call { .. } => None,
+				TransactArgsCallCreate::Create { .. } => Some(address),
 			},
+			config: AsRef::<TransactArgs>::as_ref(&args).config,
 		};
 
 		if handler.code_size(caller) != U256::zero() {
@@ -307,13 +266,10 @@ where
 			retbuf: Vec::new(),
 		};
 
-		let machine = match args {
-			TransactArgs::Call {
-				caller,
-				address,
+		let access_list = AsRef::<TransactArgs>::as_ref(&args).access_list.clone();
+		let machine = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
+			TransactArgsCallCreate::Call {
 				data,
-				gas_limit,
-				access_list,
 				..
 			} => {
 				for (address, keys) in &access_list {
@@ -328,28 +284,24 @@ where
 					gas_limit,
 					&data,
 					&access_list,
-					self.config,
+					&args,
 				)?;
 
 				handler.mark_hot(coinbase, TouchKind::Coinbase);
 				handler.mark_hot(caller, TouchKind::StateChange);
 
 				routines::make_enter_call_machine(
-					self.config,
 					self.resolver,
 					CallScheme::Call,
 					address,
-					data,
+					data.clone(),
 					Some(transfer),
 					state,
 					handler,
 				)?
 			}
-			TransactArgs::Create {
-				caller,
+			TransactArgsCallCreate::Create {
 				init_code,
-				gas_limit,
-				access_list,
 				..
 			} => {
 				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_create(
@@ -357,17 +309,16 @@ where
 					gas_limit,
 					&init_code,
 					&access_list,
-					self.config,
+					&args,
 				)?;
 
 				handler.mark_hot(coinbase, TouchKind::Coinbase);
 				handler.mark_hot(caller, TouchKind::StateChange);
 
 				routines::make_enter_create_machine(
-					self.config,
 					self.resolver,
 					caller,
-					init_code,
+					init_code.clone(),
 					transfer,
 					state,
 					handler,
@@ -394,7 +345,7 @@ where
 
 						if let Some(substate) = substate {
 							routines::deploy_create_code(
-								self.config,
+								invoke.config,
 								address,
 								retbuf,
 								substate,
@@ -450,7 +401,7 @@ where
 		// Reward coinbase address
 		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
 		// The base fee is always burned.
-		let coinbase_gas_price = if self.config.eip_1559_enabled {
+		let coinbase_gas_price = if invoke.config.eip_1559_enabled {
 			invoke
 				.gas_price
 				.saturating_sub(handler.block_base_fee_per_gas())
@@ -504,13 +455,13 @@ where
 					address,
 					trap: create_trap_data,
 				}
-			}
+			},
 		};
 
-		let after_gas = if self.config.call_l64_after_gas {
-			l64(machine.as_machine().state.gas())
+		let after_gas = if AsRef::<Config>::as_ref(machine.state()).call_l64_after_gas {
+			l64(machine.state().gas())
 		} else {
-			machine.as_machine().state.gas()
+			machine.state().gas()
 		};
 		let target_gas = match &invoke {
 			SubstackInvoke::Call { trap, .. } => trap.gas,
@@ -520,7 +471,7 @@ where
 
 		let call_has_value = matches!(&invoke, SubstackInvoke::Call { trap: call_trap_data } if call_trap_data.has_value());
 
-		let is_static = if machine.as_machine().state.is_static() {
+		let is_static = if machine.state().is_static() {
 			true
 		} else {
 			match &invoke {
@@ -532,8 +483,7 @@ where
 		};
 
 		let transaction_context = {
-			let runtime_state: &RuntimeState = machine.as_machine().state.as_ref();
-			runtime_state.transaction_context
+			AsRef::<RuntimeState>::as_ref(machine.state()).transaction_context
 				.clone()
 		};
 
@@ -541,7 +491,7 @@ where
 			SubstackInvoke::Call {
 				trap: call_trap_data,
 			} => {
-				let substate = match machine.as_machine_mut().state.substate(
+				let substate = match machine.state_mut().substate(
 					RuntimeState {
 						context: call_trap_data.context.clone(),
 						transaction_context,
@@ -555,7 +505,7 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				if depth > self.config.call_stack_limit {
+				if depth > AsRef::<Config>::as_ref(machine.state()).call_stack_limit {
 					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Call {
@@ -590,7 +540,6 @@ where
 				let target = call_trap_data.target;
 
 				Capture::Exit(routines::enter_call_substack(
-					self.config,
 					self.resolver,
 					call_trap_data,
 					target,
@@ -606,7 +555,7 @@ where
 				let code = create_trap_data.code.clone();
 				let value = create_trap_data.value;
 
-				let substate = match machine.as_machine_mut().state.substate(
+				let substate = match machine.state_mut().substate(
 					RuntimeState {
 						context: Context {
 							address,
@@ -624,7 +573,7 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				if depth > self.config.call_stack_limit {
+				if depth > AsRef::<Config>::as_ref(machine.state()).call_stack_limit {
 					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Create {
@@ -673,7 +622,6 @@ where
 				}
 
 				Capture::Exit(routines::enter_create_substack(
-					self.config,
 					self.resolver,
 					code,
 					create_trap_data,
@@ -710,7 +658,7 @@ where
 					let result = match exit.result {
 						Ok(_) => {
 							match routines::deploy_create_code(
-								self.config,
+								parent.state().as_ref(),
 								address,
 								retbuf,
 								&mut substate,
@@ -731,7 +679,7 @@ where
 						Err(err) => Err(err),
 					};
 
-					parent.as_machine_mut().state.merge(substate, strategy);
+					parent.state_mut().merge(substate, strategy);
 					result
 				} else {
 					Err(ExitFatal::Unfinished.into())
@@ -750,7 +698,7 @@ where
 				let retbuf = exit.retval;
 
 				if let Some(substate) = exit.substate {
-					parent.as_machine_mut().state.merge(substate, strategy);
+					parent.state_mut().merge(substate, strategy);
 				}
 				handler.pop_substate(strategy)?;
 

@@ -120,6 +120,14 @@ impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter
 		(self.machine.state, self.machine.retval)
 	}
 
+	fn state(&self) -> &Self::State {
+		&self.machine.state
+	}
+
+	fn state_mut(&mut self) -> &mut Self::State {
+		&mut self.machine.state
+	}
+
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap> {
 		loop {
 			match self.step(handle) {

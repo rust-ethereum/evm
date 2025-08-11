@@ -11,6 +11,8 @@ pub trait Interpreter<H> {
 	type Trap;
 
 	fn deconstruct(self) -> (Self::State, Vec<u8>);
+	fn state(&self) -> &Self::State;
+	fn state_mut(&mut self) -> &mut Self::State;
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap>;
 }
 
