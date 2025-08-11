@@ -12,13 +12,9 @@ macro_rules! try_or_fail {
 	};
 }
 
-pub fn eval<'config, S, H, Tr>(
-	machine: &mut Machine<S>,
-	_handler: &mut H,
-	position: usize,
-) -> Control<Tr>
+pub fn eval<S, H, Tr>(machine: &mut Machine<S>, _handler: &mut H, position: usize) -> Control<Tr>
 where
-	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>>,
+	S: AsRef<GasometerState> + AsMut<GasometerState>,
 {
 	const _G_BASE64: u64 = 1;
 	const G_VERYLOW64: u64 = 2;

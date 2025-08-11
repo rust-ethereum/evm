@@ -77,32 +77,23 @@ impl<S, H> PrecompileSet<S, H> for () {
 
 /// The standard code resolver where the color is an [Etable]. This is usually
 /// what you need.
-pub struct EtableResolver<'config, 'precompile, 'etable, Pre, ES> {
-	config: &'config Config,
+pub struct EtableResolver<'precompile, 'etable, Pre, ES> {
 	etable: &'etable ES,
 	precompiles: &'precompile Pre,
 }
 
-impl<'config, 'precompile, 'etable, Pre, ES>
-	EtableResolver<'config, 'precompile, 'etable, Pre, ES>
-{
-	pub fn new(
-		config: &'config Config,
-		precompiles: &'precompile Pre,
-		etable: &'etable ES,
-	) -> Self {
+impl<'precompile, 'etable, Pre, ES> EtableResolver<'precompile, 'etable, Pre, ES> {
+	pub fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
 		Self {
-			config,
 			precompiles,
 			etable,
 		}
 	}
 }
 
-impl<'config, 'precompile, 'etable, H, Pre, ES> Resolver<H>
-	for EtableResolver<'config, 'precompile, 'etable, Pre, ES>
+impl<'precompile, 'etable, H, Pre, ES> Resolver<H> for EtableResolver<'precompile, 'etable, Pre, ES>
 where
-	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<ES::State, H>,
 	ES: EtableSet<Handle = H>,
@@ -134,12 +125,13 @@ where
 		}
 
 		let code = handler.code(code_address);
+		let config: &Config = state.as_ref();
 
 		let machine = Machine::<ES::State>::new(
 			Rc::new(code),
 			Rc::new(input),
-			self.config.stack_limit,
-			self.config.memory_limit,
+			config.stack_limit,
+			config.memory_limit,
 			state,
 		);
 
@@ -159,11 +151,12 @@ where
 		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
 		ExitError,
 	> {
+		let config: &Config = state.as_ref();
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
-			self.config.stack_limit,
-			self.config.memory_limit,
+			config.stack_limit,
+			config.memory_limit,
 			state,
 		);
 

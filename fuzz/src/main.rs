@@ -30,8 +30,8 @@ use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::etable::{Chained, Single},
 	standard::{
-		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactValue,
-		TransactValueCallCreate,
+		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
+		TransactValue, TransactValueCallCreate,
 	},
 };
 use evm_interpreter::error::ExitError;
@@ -77,14 +77,17 @@ fn main() {
 		);
 
 		// CREATE
-		let args = TransactArgs::Create {
+		let args = TransactArgs {
+			call_create: TransactArgsCallCreate::Create {
+				init_code: contract_one,
+				salt: None,
+			},
 			caller: H160::from_low_u64_be(1),
 			value: U256::zero(),
-			init_code: contract_one,
-			salt: None,
 			gas_limit,
 			gas_price,
 			access_list: vec![],
+			config: &config,
 		};
 		let (deployed, backend, new_balance, _memory_alloc, _storage_alloc) = fuzz_transact(
 			user_address,
@@ -106,14 +109,17 @@ fn main() {
 		else {
 			return;
 		};
-		let args = TransactArgs::Create {
+		let args = TransactArgs {
+			call_create: TransactArgsCallCreate::Create {
+				init_code: contract_two,
+				salt: None,
+			},
 			caller: H160::from_low_u64_be(1),
 			value: U256::zero(),
-			init_code: contract_two,
-			salt: None,
 			gas_limit,
 			gas_price,
 			access_list: vec![],
+			config: &config,
 		};
 		// CREATE SECOND CONTRACT
 		let (_deployed, backend, new_balance, _memory_alloc, _storage_alloc) = fuzz_transact(
@@ -127,14 +133,17 @@ fn main() {
 			gas_limit,
 		);
 		// CALL
-		let args = TransactArgs::Call {
+		let args = TransactArgs {
+			call_create: TransactArgsCallCreate::Call {
+				address,
+				data: calldata,
+			},
 			caller: user_address,
-			address,
 			value: U256::zero(),
-			data: calldata,
 			gas_limit,
 			gas_price,
 			access_list: vec![],
+			config: &config,
 		};
 		let (_result, _backend, _new_balance, _memory_alloc, _storage_alloc) = fuzz_transact(
 			user_address,
@@ -158,15 +167,14 @@ fn assert_no_mint(backend: &MockBackend, initial_balance: U256) -> U256 {
 }
 
 fn inner_transact(
-	config: &Config,
 	args: TransactArgs,
 	overlayed_backend: &mut OverlayedBackend<MockBackend>,
 ) -> (Result<TransactValue, ExitError>, usize, usize) {
 	let gas_etable = Single::new(evm::standard::eval_gasometer);
 	let exec_etable = Etable::runtime();
 	let etable = Chained(gas_etable, exec_etable);
-	let resolver = EtableResolver::new(config, &(), &etable);
-	let invoker = Invoker::new(config, &resolver);
+	let resolver = EtableResolver::new(&(), &etable);
+	let invoker = Invoker::new(&resolver);
 
 	#[cfg(not(feature = "fuzzing"))]
 	let allocated_before = GLOBAL.stats().bytes_allocated;
@@ -217,8 +225,7 @@ fn fuzz_transact(
 	#[cfg(not(feature = "fuzzing"))]
 	let now = std::time::Instant::now();
 
-	let (result, memory_alloc, storage_alloc) =
-		inner_transact(config, args, &mut overlayed_backend);
+	let (result, memory_alloc, storage_alloc) = inner_transact(args, &mut overlayed_backend);
 
 	#[cfg(not(feature = "fuzzing"))]
 	println!(

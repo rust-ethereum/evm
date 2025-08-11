@@ -17,16 +17,15 @@ use primitive_types::{H160, H256, U256};
 
 use crate::{standard::Config, MergeStrategy};
 
-pub struct GasometerState<'config> {
+pub struct GasometerState {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
 	refunded_gas: i64,
 	pub is_static: bool,
-	pub config: &'config Config,
 }
 
-impl<'config> GasometerState<'config> {
+impl GasometerState {
 	/// Perform any operation on the gasometer. Set the gasometer to `OutOfGas`
 	/// if the operation fails.
 	#[inline]
@@ -111,14 +110,13 @@ impl<'config> GasometerState<'config> {
 	}
 
 	/// Create a new gasometer with the given gas limit and chain config.
-	pub fn new(gas_limit: u64, is_static: bool, config: &'config Config) -> Self {
+	pub fn new(gas_limit: u64, is_static: bool) -> Self {
 		Self {
 			gas_limit,
 			memory_gas: 0,
 			used_gas: 0,
 			refunded_gas: 0,
 			is_static,
-			config,
 		}
 	}
 
@@ -126,7 +124,7 @@ impl<'config> GasometerState<'config> {
 		gas_limit: U256,
 		data: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		config: &Config,
 	) -> Result<Self, ExitError> {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
@@ -134,7 +132,7 @@ impl<'config> GasometerState<'config> {
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, false, config);
+		let mut s = Self::new(gas_limit, false);
 		let transaction_cost = TransactionCost::call(data, access_list).cost(config);
 
 		s.record_gas64(transaction_cost)?;
@@ -145,7 +143,7 @@ impl<'config> GasometerState<'config> {
 		gas_limit: U256,
 		code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		config: &Config,
 	) -> Result<Self, ExitError> {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
@@ -153,14 +151,14 @@ impl<'config> GasometerState<'config> {
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, false, config);
+		let mut s = Self::new(gas_limit, false);
 		let transaction_cost = TransactionCost::create(code, access_list).cost(config);
 
 		s.record_gas64(transaction_cost)?;
 		Ok(s)
 	}
 
-	pub fn effective_gas(&self, with_refund: bool) -> U256 {
+	pub fn effective_gas(&self, with_refund: bool, config: &Config) -> U256 {
 		let refunded_gas = if self.refunded_gas >= 0 {
 			self.refunded_gas as u64
 		} else {
@@ -171,7 +169,7 @@ impl<'config> GasometerState<'config> {
 			self.gas_limit
 				- (self.total_used_gas()
 					- min(
-						self.total_used_gas() / self.config.max_refund_quotient,
+						self.total_used_gas() / config.max_refund_quotient,
 						refunded_gas,
 					))
 		} else {
@@ -184,6 +182,7 @@ impl<'config> GasometerState<'config> {
 		gas_limit: U256,
 		is_static: bool,
 		call_has_value: bool,
+		config: &Config,
 	) -> Result<Self, ExitError> {
 		let mut gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
@@ -194,10 +193,10 @@ impl<'config> GasometerState<'config> {
 		self.record_gas64(gas_limit)?;
 
 		if call_has_value {
-			gas_limit = gas_limit.saturating_add(self.config.call_stipend);
+			gas_limit = gas_limit.saturating_add(config.call_stipend);
 		}
 
-		Ok(Self::new(gas_limit, is_static, self.config))
+		Ok(Self::new(gas_limit, is_static))
 	}
 
 	pub fn merge(&mut self, other: Self, strategy: MergeStrategy) {
@@ -214,13 +213,9 @@ impl<'config> GasometerState<'config> {
 	}
 }
 
-pub fn eval<'config, S, H, Tr>(
-	machine: &mut Machine<S>,
-	handler: &mut H,
-	position: usize,
-) -> Control<Tr>
+pub fn eval<S, H, Tr>(machine: &mut Machine<S>, handler: &mut H, position: usize) -> Control<Tr>
 where
-	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
+	S: AsRef<GasometerState> + AsMut<GasometerState> + AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,
 {
 	match eval_to_result(machine, handler, position) {
@@ -229,13 +224,13 @@ where
 	}
 }
 
-fn eval_to_result<'config, S, H>(
+fn eval_to_result<S, H>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 	position: usize,
 ) -> Result<(), ExitError>
 where
-	S: AsRef<GasometerState<'config>> + AsMut<GasometerState<'config>> + AsRef<RuntimeState>,
+	S: AsRef<GasometerState> + AsMut<GasometerState> + AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,
 {
 	let opcode = Opcode(machine.code()[position]);
@@ -244,37 +239,46 @@ where
 		.context
 		.address;
 
-	machine.state.as_mut().perform(|gasometer| {
+	let mut f = || {
 		if let Some(cost) = consts::STATIC_COST_TABLE[opcode.as_usize()] {
-			gasometer.record_gas64(cost)?;
+			machine.state.as_mut().record_gas64(cost)?;
 		} else {
 			let (gas, memory_gas) = dynamic_opcode_cost(
 				address,
 				opcode,
 				&machine.stack,
-				gasometer.is_static,
-				gasometer.config,
+				machine.state.as_mut().is_static,
+				machine.state.as_ref(),
 				handler,
 			)?;
-			let cost = gas.cost(gasometer.gas64(), gasometer.config)?;
-			let refund = gas.refund(gasometer.config);
+			let cost = gas.cost(machine.state.as_mut().gas64(), machine.state.as_ref())?;
+			let refund = gas.refund(machine.state.as_ref());
 
-			gasometer.record_gas64(cost)?;
-			gasometer.refunded_gas += refund;
+			machine.state.as_mut().record_gas64(cost)?;
+			machine.state.as_mut().refunded_gas += refund;
 
 			if let Some(memory_gas) = memory_gas {
 				let memory_cost = memory_gas.cost()?;
 				if let Some(memory_cost) = memory_cost {
-					gasometer.set_memory_gas(max(gasometer.memory_gas, memory_cost))?;
+					let memory_gas = max(machine.state.as_mut().memory_gas, memory_cost);
+					machine.state.as_mut().set_memory_gas(memory_gas)?;
 				}
 			}
 
-			let after_gas = gasometer.gas64();
-			gas.extra_check(after_gas, gasometer.config)?;
+			let after_gas = machine.state.as_mut().gas64();
+			gas.extra_check(after_gas, machine.state.as_ref())?;
 		}
 
 		Ok(())
-	})
+	};
+
+	match f() {
+		Ok(r) => Ok(r),
+		Err(e) => {
+			machine.state.as_mut().oog();
+			Err(e)
+		}
+	}
 }
 
 /// Calculate the opcode cost.

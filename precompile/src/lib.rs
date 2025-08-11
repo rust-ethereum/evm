@@ -43,18 +43,10 @@ pub trait PurePrecompile<G> {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);
 }
 
-pub struct StandardPrecompileSet<'config> {
-	_config: &'config Config,
-}
+pub struct StandardPrecompileSet;
 
-impl<'config> StandardPrecompileSet<'config> {
-	pub fn new(config: &'config Config) -> Self {
-		Self { _config: config }
-	}
-}
-
-impl<'config, G: AsRef<RuntimeState> + GasMutState, H> PrecompileSet<G, H>
-	for StandardPrecompileSet<'config>
+impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H>
+	for StandardPrecompileSet
 {
 	fn execute(
 		&self,

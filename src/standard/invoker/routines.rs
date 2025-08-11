@@ -17,7 +17,6 @@ use crate::{
 
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub fn make_enter_call_machine<H, R>(
-	_config: &Config,
 	resolver: &R,
 	scheme: CallScheme,
 	code_address: H160,
@@ -51,7 +50,6 @@ where
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn make_enter_create_machine<H, R>(
-	config: &Config,
 	resolver: &R,
 	_caller: H160,
 	init_code: Vec<u8>,
@@ -60,13 +58,16 @@ pub fn make_enter_create_machine<H, R>(
 	handler: &mut H,
 ) -> Result<InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>, ExitError>
 where
-	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
-	handler.mark_hot(state.as_ref().context.address, TouchKind::StateChange);
+	handler.mark_hot(
+		AsRef::<RuntimeState>::as_ref(&state).context.address,
+		TouchKind::StateChange,
+	);
 
-	if let Some(limit) = config.max_initcode_size {
+	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size {
 		if init_code.len() > limit {
 			return Ok(InvokerControl::DirectExit(InvokerExit {
 				result: Err(ExitException::CreateContractLimit.into()),
@@ -87,8 +88,8 @@ where
 		}
 	}
 
-	if handler.code_size(state.as_ref().context.address) != U256::zero()
-		|| handler.nonce(state.as_ref().context.address) > U256::zero()
+	if handler.code_size(AsRef::<RuntimeState>::as_ref(&state).context.address) != U256::zero()
+		|| handler.nonce(AsRef::<RuntimeState>::as_ref(&state).context.address) > U256::zero()
 	{
 		return Ok(InvokerControl::DirectExit(InvokerExit {
 			result: Err(ExitException::CreateCollision.into()),
@@ -97,8 +98,8 @@ where
 		}));
 	}
 
-	if config.create_increase_nonce {
-		match handler.inc_nonce(state.as_ref().context.address) {
+	if AsRef::<Config>::as_ref(&state).create_increase_nonce {
+		match handler.inc_nonce(AsRef::<RuntimeState>::as_ref(&state).context.address) {
 			Ok(()) => (),
 			Err(err) => {
 				return Ok(InvokerControl::DirectExit(InvokerExit {
@@ -110,15 +111,14 @@ where
 		}
 	}
 
-	handler.reset_storage(state.as_ref().context.address);
-	handler.mark_create(state.as_ref().context.address);
+	handler.reset_storage(AsRef::<RuntimeState>::as_ref(&state).context.address);
+	handler.mark_create(AsRef::<RuntimeState>::as_ref(&state).context.address);
 
 	resolver.resolve_create(init_code, state, handler)
 }
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn enter_call_substack<H, R>(
-	config: &Config,
 	resolver: &R,
 	trap_data: CallTrap,
 	code_address: H160,
@@ -140,7 +140,6 @@ where
 
 	let work = || -> Result<_, ExitError> {
 		let machine = make_enter_call_machine(
-			config,
 			resolver,
 			trap_data.scheme,
 			code_address,
@@ -171,7 +170,6 @@ where
 
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn enter_create_substack<H, R>(
-	config: &Config,
 	resolver: &R,
 	code: Vec<u8>,
 	trap_data: CreateTrap,
@@ -186,7 +184,7 @@ pub fn enter_create_substack<H, R>(
 	ExitError,
 >
 where
-	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
+	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -206,8 +204,7 @@ where
 		address,
 		trap: trap_data,
 	};
-	let machine =
-		make_enter_create_machine(config, resolver, caller, code, transfer, state, handler)?;
+	let machine = make_enter_create_machine(resolver, caller, code, transfer, state, handler)?;
 
 	Ok((invoke, machine))
 }
@@ -219,8 +216,7 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 	Ok(())
 }
 
-pub fn deploy_create_code<'config, S, H>(
-	config: &Config,
+pub fn deploy_create_code<S, H>(
 	address: H160,
 	retbuf: Vec<u8>,
 	state: &mut S,
@@ -228,12 +224,12 @@ pub fn deploy_create_code<'config, S, H>(
 	origin: SetCodeOrigin,
 ) -> Result<(), ExitError>
 where
-	S: InvokerState<'config>,
+	S: InvokerState + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 {
-	check_first_byte(config, &retbuf[..])?;
+	check_first_byte(state.as_ref(), &retbuf[..])?;
 
-	if let Some(limit) = config.create_contract_limit {
+	if let Some(limit) = AsRef::<Config>::as_ref(state).create_contract_limit {
 		if retbuf.len() > limit {
 			return Err(ExitException::CreateContractLimit.into());
 		}

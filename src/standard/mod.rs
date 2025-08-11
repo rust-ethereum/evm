@@ -22,7 +22,8 @@ pub use self::{
 	gasometer::{eval as eval_gasometer, GasometerState},
 	invoker::{
 		routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
-		TransactArgs, TransactInvoke, TransactValue, TransactValueCallCreate,
+		TransactArgs, TransactArgsCallCreate, TransactInvoke, TransactValue,
+		TransactValueCallCreate,
 	},
 };
 use crate::{gasometer::GasMutState, MergeStrategy};
@@ -39,7 +40,8 @@ pub type Etable<'config, H, F = Efn<'config, H>> =
 
 pub struct State<'config> {
 	pub runtime: RuntimeState,
-	pub gasometer: GasometerState<'config>,
+	pub gasometer: GasometerState,
+	pub config: &'config Config,
 }
 
 impl<'config> AsRef<RuntimeState> for State<'config> {
@@ -54,15 +56,21 @@ impl<'config> AsMut<RuntimeState> for State<'config> {
 	}
 }
 
-impl<'config> AsRef<GasometerState<'config>> for State<'config> {
-	fn as_ref(&self) -> &GasometerState<'config> {
+impl<'config> AsRef<GasometerState> for State<'config> {
+	fn as_ref(&self) -> &GasometerState {
 		&self.gasometer
 	}
 }
 
-impl<'config> AsMut<GasometerState<'config>> for State<'config> {
-	fn as_mut(&mut self) -> &mut GasometerState<'config> {
+impl<'config> AsMut<GasometerState> for State<'config> {
+	fn as_mut(&mut self) -> &mut GasometerState {
 		&mut self.gasometer
+	}
+}
+
+impl<'config> AsRef<Config> for State<'config> {
+	fn as_ref(&self) -> &Config {
+		self.config
 	}
 }
 
@@ -78,17 +86,21 @@ impl<'config> GasMutState for State<'config> {
 	}
 }
 
-impl<'config> InvokerState<'config> for State<'config> {
+impl<'config> InvokerState for State<'config> {
+	type TransactArgs = TransactArgs<'config>;
+
 	fn new_transact_call(
 		runtime: RuntimeState,
 		gas_limit: U256,
 		data: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		args: &TransactArgs<'config>,
 	) -> Result<Self, ExitError> {
+		let config = args.config;
 		Ok(Self {
 			runtime,
 			gasometer: GasometerState::new_transact_call(gas_limit, data, access_list, config)?,
+			config,
 		})
 	}
 
@@ -97,11 +109,13 @@ impl<'config> InvokerState<'config> for State<'config> {
 		gas_limit: U256,
 		code: &[u8],
 		access_list: &[(H160, Vec<H256>)],
-		config: &'config Config,
+		args: &TransactArgs<'config>,
 	) -> Result<Self, ExitError> {
+		let config = args.config;
 		Ok(Self {
 			runtime,
 			gasometer: GasometerState::new_transact_create(gas_limit, code, access_list, config)?,
+			config,
 		})
 	}
 
@@ -114,9 +128,13 @@ impl<'config> InvokerState<'config> for State<'config> {
 	) -> Result<Self, ExitError> {
 		Ok(Self {
 			runtime,
-			gasometer: self
-				.gasometer
-				.submeter(gas_limit, is_static, call_has_value)?,
+			gasometer: self.gasometer.submeter(
+				gas_limit,
+				is_static,
+				call_has_value,
+				self.config,
+			)?,
+			config: self.config,
 		})
 	}
 
@@ -133,10 +151,6 @@ impl<'config> InvokerState<'config> for State<'config> {
 	}
 
 	fn effective_gas(&self, with_refund: bool) -> U256 {
-		self.gasometer.effective_gas(with_refund)
-	}
-
-	fn config(&self) -> &Config {
-		self.gasometer.config
+		self.gasometer.effective_gas(with_refund, self.config)
 	}
 }
