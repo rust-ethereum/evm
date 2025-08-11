@@ -52,18 +52,6 @@ impl From<H160> for Delegation {
 	}
 }
 
-impl From<Delegation> for H160 {
-	fn from(designator: Delegation) -> Self {
-		designator.address
-	}
-}
-
-impl AsRef<H160> for Delegation {
-	fn as_ref(&self) -> &H160 {
-		&self.address
-	}
-}
-
 impl TryFrom<&[u8]> for Delegation {
 	type Error = DelegationError;
 
