@@ -17,8 +17,10 @@ pub struct InvokerExit<S> {
 
 /// An invoker, responsible for pushing/poping values in the call stack.
 pub trait Invoker<H> {
+	/// State type.
+	type State;
 	/// Interpreter type.
-	type Interpreter: Interpreter<H>;
+	type Interpreter: Interpreter<H, State = Self::State>;
 	/// Possible interrupt type that may be returned by the call stack.
 	type Interrupt;
 
@@ -42,7 +44,7 @@ pub trait Invoker<H> {
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+			InvokerControl<Self::Interpreter, Self::State>,
 		),
 		ExitError,
 	>;
@@ -51,7 +53,7 @@ pub trait Invoker<H> {
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		exit: InvokerExit<<Self::Interpreter as Interpreter<H>>::State>,
+		exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
 
@@ -67,7 +69,7 @@ pub trait Invoker<H> {
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
+				InvokerControl<Self::Interpreter, Self::State>,
 			),
 			ExitError,
 		>,
@@ -78,7 +80,7 @@ pub trait Invoker<H> {
 	fn exit_substack(
 		&self,
 		trap_data: Self::SubstackInvoke,
-		exit: InvokerExit<<Self::Interpreter as Interpreter<H>>::State>,
+		exit: InvokerExit<Self::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError>;

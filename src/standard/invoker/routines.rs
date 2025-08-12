@@ -14,7 +14,7 @@ use crate::{
 	standard::{Config, InvokerState, Resolver, SubstackInvoke},
 };
 
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[allow(clippy::too_many_arguments)]
 pub fn make_enter_call_machine<H, R>(
 	resolver: &R,
 	scheme: CallScheme,
@@ -23,9 +23,9 @@ pub fn make_enter_call_machine<H, R>(
 	transfer: Option<Transfer>,
 	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, R::State>, ExitError>
 where
-	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
+	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -47,7 +47,7 @@ where
 	resolver.resolve_call(scheme, code_address, input, state, handler)
 }
 
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+#[allow(clippy::too_many_arguments)]
 pub fn make_enter_create_machine<H, R>(
 	resolver: &R,
 	_caller: H160,
@@ -55,9 +55,9 @@ pub fn make_enter_create_machine<H, R>(
 	transfer: Transfer,
 	state: <R::Interpreter as Interpreter<H>>::State,
 	handler: &mut H,
-) -> Result<InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>, ExitError>
+) -> Result<InvokerControl<R::Interpreter, R::State>, ExitError>
 where
-	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState> + AsRef<Config>,
+	R::State: AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -121,17 +121,11 @@ pub fn enter_call_substack<H, R>(
 	resolver: &R,
 	trap_data: CallTrap,
 	code_address: H160,
-	state: <R::Interpreter as Interpreter<H>>::State,
+	state: R::State,
 	handler: &mut H,
-) -> Result<
-	(
-		SubstackInvoke,
-		InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
-	),
-	ExitError,
->
+) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, R::State>), ExitError>
 where
-	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState>,
+	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {
@@ -173,17 +167,11 @@ pub fn enter_create_substack<H, R>(
 	code: Vec<u8>,
 	trap_data: CreateTrap,
 	address: H160,
-	state: <R::Interpreter as Interpreter<H>>::State,
+	state: R::State,
 	handler: &mut H,
-) -> Result<
-	(
-		SubstackInvoke,
-		InvokerControl<R::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
-	),
-	ExitError,
->
+) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, R::State>), ExitError>
 where
-	<R::Interpreter as Interpreter<H>>::State: AsRef<RuntimeState> + AsRef<Config>,
+	R::State: AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 {

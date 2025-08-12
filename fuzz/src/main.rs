@@ -33,7 +33,7 @@ use evm::{
 		ExitError,
 	},
 	standard::{
-		Config, Etable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
+		Config, DispatchEtable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
 		TransactValue, TransactValueCallCreate,
 	},
 };
@@ -173,7 +173,7 @@ fn inner_transact(
 	overlayed_backend: &mut OverlayedBackend<MockBackend>,
 ) -> (Result<TransactValue, ExitError>, usize, usize) {
 	let gas_etable = Single::new(evm::standard::eval_gasometer);
-	let exec_etable = Etable::runtime();
+	let exec_etable = DispatchEtable::runtime();
 	let etable = Chained(gas_etable, exec_etable);
 	let resolver = EtableResolver::new(&(), &etable);
 	let invoker = Invoker::new(&resolver);

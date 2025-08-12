@@ -6,7 +6,7 @@ use std::{
 
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
-	interpreter::{runtime::GasState, utils::u256_to_h256, AsMachine, Capture},
+	interpreter::{runtime::GasState, utils::u256_to_h256, Capture},
 	standard::{Config, TransactArgs, TransactArgsCallCreate},
 	with_mainnet_invoker,
 };
@@ -262,9 +262,9 @@ pub fn run_test(
 								"pc: {}, opcode: {:?}, gas: 0x{:x}, stack: {:?}",
 								machine.position(),
 								machine.peek_opcode(),
-								machine.as_machine().state.gas(),
+								machine.as_ref().state.gas(),
 								machine
-									.as_machine()
+									.as_ref()
 									.stack
 									.data()
 									.clone()

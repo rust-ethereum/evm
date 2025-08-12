@@ -7,7 +7,7 @@ use sha3::{Digest, Keccak256};
 
 use crate::{
 	error::{ExitError, ExitException, ExitResult},
-	machine::{AsMachine, AsMachineMut, Machine, Memory},
+	machine::{Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
 	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
 };
@@ -265,12 +265,12 @@ pub struct CallFeedback {
 impl CallFeedback {
 	pub fn to_machine<
 		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-		I: AsMachine<State = S> + AsMachineMut,
+		I: AsRef<Machine<S>> + AsMut<Machine<S>>,
 	>(
 		self,
 		interpreter: &mut I,
 	) -> Result<(), ExitError> {
-		let machine = interpreter.as_machine_mut();
+		let machine: &mut Machine<S> = interpreter.as_mut();
 
 		let reason = self.reason;
 		let retbuf = self.retbuf;
@@ -487,12 +487,12 @@ pub struct CreateFeedback {
 impl CreateFeedback {
 	pub fn to_machine<
 		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
-		I: AsMachine<State = S> + AsMachineMut,
+		I: AsRef<Machine<S>> + AsMut<Machine<S>>,
 	>(
 		self,
 		interpreter: &mut I,
 	) -> Result<(), ExitError> {
-		let machine = interpreter.as_machine_mut();
+		let machine: &mut Machine<S> = interpreter.as_mut();
 
 		let reason = self.reason;
 		let retbuf = self.retbuf;

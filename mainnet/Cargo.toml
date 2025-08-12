@@ -1,0 +1,21 @@
+[package]
+name = "evm-mainnet"
+description = "Simple mainnet entrypoint for EVM calls."
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+keywords.workspace = true
+
+[dependencies]
+evm = { workspace = true }
+evm-precompile = { workspace = true }
+
+[features]
+default = ["std"]
+std = [
+	"evm/std",
+	"evm-precompile/std",
+]
