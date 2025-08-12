@@ -21,7 +21,7 @@ use crate::{
 /// precompile.
 pub trait Resolver<H> {
 	type State;
-	type Interpreter: Interpreter<H, State=Self::State>;
+	type Interpreter: Interpreter<H, State = Self::State>;
 
 	/// Resolve a call (with the target code address).
 	fn resolve_call(
@@ -31,10 +31,7 @@ pub trait Resolver<H> {
 		input: Vec<u8>,
 		state: Self::State,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, Self::State>,
-		ExitError,
-	>;
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError>;
 
 	/// Resolve a create (with the init code).
 	fn resolve_create(
@@ -42,10 +39,7 @@ pub trait Resolver<H> {
 		init_code: Vec<u8>,
 		state: Self::State,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, Self::State>,
-		ExitError,
-	>;
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError>;
 }
 
 /// A set of precompiles.
@@ -107,10 +101,7 @@ where
 		input: Vec<u8>,
 		mut state: ES::State,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, Self::State>,
-		ExitError,
-	> {
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
@@ -144,10 +135,7 @@ where
 		init_code: Vec<u8>,
 		state: ES::State,
 		_handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, Self::State>,
-		ExitError,
-	> {
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
 		let config: &Config = state.as_ref();
 		let machine = Machine::new(
 			Rc::new(init_code),

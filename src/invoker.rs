@@ -20,7 +20,7 @@ pub trait Invoker<H> {
 	/// State type.
 	type State;
 	/// Interpreter type.
-	type Interpreter: Interpreter<H, State=Self::State>;
+	type Interpreter: Interpreter<H, State = Self::State>;
 	/// Possible interrupt type that may be returned by the call stack.
 	type Interrupt;
 

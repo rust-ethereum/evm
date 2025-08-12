@@ -5,8 +5,8 @@ use crate::{
 	etable::EtableSet,
 	runtime::RuntimeState,
 	trap::{CallFeedback, CreateFeedback},
-	Capture, Control, ExitError, ExitException, ExitResult, ExitSucceed,
-	FeedbackInterpreter, Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
+	Capture, Control, ExitError, ExitException, ExitResult, ExitSucceed, FeedbackInterpreter,
+	Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
 };
 
 pub struct EtableInterpreter<'etable, S, ES> {
@@ -104,7 +104,9 @@ impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State=S>> Interpreter<H> for EtableInterpreter<'etable, S, ES> {
+impl<'etable, S, H, ES: EtableSet<H, State = S>> Interpreter<H>
+	for EtableInterpreter<'etable, S, ES>
+{
 	type State = S;
 	type Trap = ES::Trap;
 
@@ -130,7 +132,7 @@ impl<'etable, S, H, ES: EtableSet<H, State=S>> Interpreter<H> for EtableInterpre
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State=S>> FeedbackInterpreter<H, CallFeedback>
+impl<'etable, S, H, ES: EtableSet<H, State = S>> FeedbackInterpreter<H, CallFeedback>
 	for EtableInterpreter<'etable, S, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
@@ -146,7 +148,7 @@ where
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State=S>> FeedbackInterpreter<H, CreateFeedback>
+impl<'etable, S, H, ES: EtableSet<H, State = S>> FeedbackInterpreter<H, CreateFeedback>
 	for EtableInterpreter<'etable, S, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
@@ -162,7 +164,9 @@ where
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State=S>> StepInterpreter<H> for EtableInterpreter<'etable, S, ES> {
+impl<'etable, S, H, ES: EtableSet<H, State = S>> StepInterpreter<H>
+	for EtableInterpreter<'etable, S, ES>
+{
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, ES::Trap>> {
 		let position = self.position;

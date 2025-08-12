@@ -137,10 +137,8 @@ impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
-	R::State:
-		InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
-	<R::State as InvokerState>::TransactArgs:
-		AsRef<TransactArgs<'config>>,
+	R::State: InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
+	<R::State as InvokerState>::TransactArgs: AsRef<TransactArgs<'config>>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,

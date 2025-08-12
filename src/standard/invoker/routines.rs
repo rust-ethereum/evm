@@ -123,13 +123,7 @@ pub fn enter_call_substack<H, R>(
 	code_address: H160,
 	state: R::State,
 	handler: &mut H,
-) -> Result<
-	(
-		SubstackInvoke,
-		InvokerControl<R::Interpreter, R::State>,
-	),
-	ExitError,
->
+) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, R::State>), ExitError>
 where
 	R::State: AsRef<RuntimeState>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
@@ -175,13 +169,7 @@ pub fn enter_create_substack<H, R>(
 	address: H160,
 	state: R::State,
 	handler: &mut H,
-) -> Result<
-	(
-		SubstackInvoke,
-		InvokerControl<R::Interpreter, R::State>,
-	),
-	ExitError,
->
+) -> Result<(SubstackInvoke, InvokerControl<R::Interpreter, R::State>), ExitError>
 where
 	R::State: AsRef<RuntimeState> + AsRef<Config>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
