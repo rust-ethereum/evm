@@ -1,5 +1,5 @@
-use core::cmp::min;
 use alloc::vec::Vec;
+use core::cmp::min;
 
 use evm::{
 	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
