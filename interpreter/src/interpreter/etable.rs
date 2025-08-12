@@ -104,9 +104,7 @@ impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 	}
 }
 
-impl<'etable, S, H, ES: Etable<H, State = S>> Interpreter<H>
-	for EtableInterpreter<'etable, S, ES>
-{
+impl<'etable, S, H, ES: Etable<H, State = S>> Interpreter<H> for EtableInterpreter<'etable, S, ES> {
 	type State = S;
 	type Trap = ES::Trap;
 

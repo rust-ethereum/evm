@@ -8,14 +8,14 @@ mod config;
 mod gasometer;
 mod invoker;
 
-use core::marker::PhantomData;
 use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 use evm_interpreter::{
 	etable, eval,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
 	trap::CallCreateTrap,
-	ExitError, Control,
+	Control, ExitError,
 };
 use primitive_types::{H160, H256, U256};
 
@@ -49,13 +49,19 @@ impl<'config> GasometerEtable<'config> {
 	}
 }
 
-impl<'config, H> etable::Etable<H> for GasometerEtable<'config> where
+impl<'config, H> etable::Etable<H> for GasometerEtable<'config>
+where
 	H: RuntimeBackend,
 {
 	type State = State<'config>;
 	type Trap = CallCreateTrap;
 
-	fn eval(&self, machine: &mut Machine<'config>, handle: &mut H, position: usize) -> Control<Self::Trap> {
+	fn eval(
+		&self,
+		machine: &mut Machine<'config>,
+		handle: &mut H,
+		position: usize,
+	) -> Control<Self::Trap> {
 		eval_gasometer(machine, handle, position)
 	}
 }
@@ -69,13 +75,19 @@ impl<'config> ExecutionEtable<'config> {
 	}
 }
 
-impl<'config, H> etable::Etable<H> for ExecutionEtable<'config> where
+impl<'config, H> etable::Etable<H> for ExecutionEtable<'config>
+where
 	H: RuntimeBackend + RuntimeEnvironment,
 {
 	type State = State<'config>;
 	type Trap = CallCreateTrap;
 
-	fn eval(&self, machine: &mut Machine<'config>, handle: &mut H, position: usize) -> Control<Self::Trap> {
+	fn eval(
+		&self,
+		machine: &mut Machine<'config>,
+		handle: &mut H,
+		position: usize,
+	) -> Control<Self::Trap> {
 		eval::eval_any(machine, handle, position)
 	}
 }

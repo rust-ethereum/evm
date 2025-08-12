@@ -255,11 +255,15 @@ fn etable_multi() {
 	let data = hex::decode(DATA1).unwrap();
 	let mut handler = UnimplementedHandler;
 
-	let etable: DispatchEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> = DispatchEtable::runtime();
+	let etable: DispatchEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+		DispatchEtable::runtime();
 	let mut multi_etable: MultiEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
 		etable.into();
-	let prefix_etable =
-		MultiEtable::from(DispatchEtable::<RuntimeState, UnimplementedHandler, CallCreateTrap>::runtime());
+	let prefix_etable = MultiEtable::from(DispatchEtable::<
+		RuntimeState,
+		UnimplementedHandler,
+		CallCreateTrap,
+	>::runtime());
 	multi_etable[prefix.as_usize()] = MultiEfn::Node(Box::new(prefix_etable));
 
 	let machine = Machine::new(
