@@ -2,44 +2,53 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-	etable::EtableSet,
+	etable::Etable,
 	runtime::RuntimeState,
 	trap::{CallFeedback, CreateFeedback},
-	AsMachine, AsMachineMut, Capture, Control, ExitError, ExitException, ExitResult, ExitSucceed,
-	FeedbackInterpreter, Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
+	Capture, Control, ExitError, ExitException, ExitResult, ExitSucceed, FeedbackInterpreter,
+	Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
 };
 
-pub struct EtableInterpreter<'etable, ES: EtableSet> {
+pub struct EtableInterpreter<'etable, S, ES> {
 	valids: Valids,
 	position: usize,
-	machine: Machine<ES::State>,
+	machine: Machine<S>,
 	etable: &'etable ES,
 }
 
-impl<'etable, ES: EtableSet> Deref for EtableInterpreter<'etable, ES> {
-	type Target = Machine<ES::State>;
-
-	fn deref(&self) -> &Machine<ES::State> {
+impl<'etable, S, ES> AsRef<Machine<S>> for EtableInterpreter<'etable, S, ES> {
+	fn as_ref(&self) -> &Machine<S> {
 		&self.machine
 	}
 }
 
-impl<'etable, ES: EtableSet> DerefMut for EtableInterpreter<'etable, ES> {
-	fn deref_mut(&mut self) -> &mut Machine<ES::State> {
+impl<'etable, S, ES> AsMut<Machine<S>> for EtableInterpreter<'etable, S, ES> {
+	fn as_mut(&mut self) -> &mut Machine<S> {
 		&mut self.machine
 	}
 }
 
-impl<'etable, ES> EtableInterpreter<'etable, ES>
-where
-	ES: EtableSet,
-{
+impl<'etable, S, ES> Deref for EtableInterpreter<'etable, S, ES> {
+	type Target = Machine<S>;
+
+	fn deref(&self) -> &Machine<S> {
+		&self.machine
+	}
+}
+
+impl<'etable, S, ES> DerefMut for EtableInterpreter<'etable, S, ES> {
+	fn deref_mut(&mut self) -> &mut Machine<S> {
+		&mut self.machine
+	}
+}
+
+impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 	/// Return a reference of the program counter.
 	pub const fn position(&self) -> usize {
 		self.position
 	}
 
-	pub fn new(machine: Machine<ES::State>, etable: &'etable ES) -> Self {
+	pub fn new(machine: Machine<S>, etable: &'etable ES) -> Self {
 		let valids = Valids::new(&machine.code[..]);
 
 		Self {
@@ -50,7 +59,7 @@ where
 		}
 	}
 
-	pub fn deconstruct(self) -> Machine<ES::State> {
+	pub fn deconstruct(self) -> Machine<S> {
 		self.machine
 	}
 
@@ -95,22 +104,8 @@ where
 	}
 }
 
-impl<'etable, ES: EtableSet> AsMachine for EtableInterpreter<'etable, ES> {
-	type State = ES::State;
-
-	fn as_machine(&self) -> &Machine<Self::State> {
-		&self.machine
-	}
-}
-
-impl<'etable, ES: EtableSet> AsMachineMut for EtableInterpreter<'etable, ES> {
-	fn as_machine_mut(&mut self) -> &mut Machine<Self::State> {
-		&mut self.machine
-	}
-}
-
-impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter<'etable, ES> {
-	type State = ES::State;
+impl<'etable, S, H, ES: Etable<H, State = S>> Interpreter<H> for EtableInterpreter<'etable, S, ES> {
+	type State = S;
 	type Trap = ES::Trap;
 
 	fn deconstruct(self) -> (ES::State, Vec<u8>) {
@@ -135,10 +130,10 @@ impl<'etable, H, ES: EtableSet<Handle = H>> Interpreter<H> for EtableInterpreter
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> FeedbackInterpreter<H, CallFeedback>
-	for EtableInterpreter<'etable, ES>
+impl<'etable, S, H, ES: Etable<H, State = S>> FeedbackInterpreter<H, CallFeedback>
+	for EtableInterpreter<'etable, S, ES>
 where
-	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
 	fn feedback(&mut self, feedback: CallFeedback, _handler: &mut H) -> Result<(), ExitError> {
 		match feedback.to_machine(self) {
@@ -151,10 +146,10 @@ where
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> FeedbackInterpreter<H, CreateFeedback>
-	for EtableInterpreter<'etable, ES>
+impl<'etable, S, H, ES: Etable<H, State = S>> FeedbackInterpreter<H, CreateFeedback>
+	for EtableInterpreter<'etable, S, ES>
 where
-	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState>,
+	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 {
 	fn feedback(&mut self, feedback: CreateFeedback, _handler: &mut H) -> Result<(), ExitError> {
 		match feedback.to_machine(self) {
@@ -167,7 +162,9 @@ where
 	}
 }
 
-impl<'etable, H, ES: EtableSet<Handle = H>> StepInterpreter<H> for EtableInterpreter<'etable, ES> {
+impl<'etable, S, H, ES: Etable<H, State = S>> StepInterpreter<H>
+	for EtableInterpreter<'etable, S, ES>
+{
 	#[inline]
 	fn step(&mut self, handle: &mut H) -> Result<(), Capture<ExitResult, ES::Trap>> {
 		let position = self.position;

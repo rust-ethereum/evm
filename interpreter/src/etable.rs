@@ -13,9 +13,8 @@ use crate::{
 
 /// An etable "set" that can be evaluated. This is the generic trait to support
 /// all types of dispatching strategies (via `match` or an actual etable array).
-pub trait EtableSet {
+pub trait Etable<H> {
 	type State;
-	type Handle;
 	type Trap;
 
 	/// Evaluate the etable.
@@ -26,7 +25,7 @@ pub trait EtableSet {
 	fn eval(
 		&self,
 		machine: &mut Machine<Self::State>,
-		handle: &mut Self::Handle,
+		handle: &mut H,
 		position: usize,
 	) -> Control<Self::Trap>;
 }
@@ -35,13 +34,12 @@ pub trait EtableSet {
 /// `Control::NoAction`.
 pub struct Chained<E1, E2>(pub E1, pub E2);
 
-impl<S, H, Tr, E1, E2> EtableSet for Chained<E1, E2>
+impl<S, H, Tr, E1, E2> Etable<H> for Chained<E1, E2>
 where
-	E1: EtableSet<State = S, Handle = H, Trap = Tr>,
-	E2: EtableSet<State = S, Handle = H, Trap = Tr>,
+	E1: Etable<H, State = S, Trap = Tr>,
+	E2: Etable<H, State = S, Trap = Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -58,14 +56,13 @@ where
 /// A tracing Etable, with pre and post actions.
 pub struct Tracing<EPre, E, EPost>(pub EPre, pub E, pub EPost);
 
-impl<S, H, Tr, EPre, E, EPost> EtableSet for Tracing<EPre, E, EPost>
+impl<S, H, Tr, EPre, E, EPost> Etable<H> for Tracing<EPre, E, EPost>
 where
-	EPre: EtableSet<State = S, Handle = H, Trap = Tr>,
-	E: EtableSet<State = S, Handle = H, Trap = Tr>,
-	EPost: EtableSet<State = S, Handle = H, Trap = Tr>,
+	EPre: Etable<H, State = S, Trap = Tr>,
+	E: Etable<H, State = S, Trap = Tr>,
+	EPost: Etable<H, State = S, Trap = Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -107,12 +104,11 @@ impl<S, H, Tr, F> Single<S, H, Tr, F> {
 	}
 }
 
-impl<S, H, Tr, F> EtableSet for Single<S, H, Tr, F>
+impl<S, H, Tr, F> Etable<H> for Single<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -154,18 +150,17 @@ impl<S, H, Tr, F> DerefMut for MultiEtable<S, H, Tr, F> {
 	}
 }
 
-impl<S, H, Tr, F> From<Etable<S, H, Tr, F>> for MultiEtable<S, H, Tr, F> {
-	fn from(etable: Etable<S, H, Tr, F>) -> Self {
+impl<S, H, Tr, F> From<DispatchEtable<S, H, Tr, F>> for MultiEtable<S, H, Tr, F> {
+	fn from(etable: DispatchEtable<S, H, Tr, F>) -> Self {
 		Self(etable.0.map(|v| MultiEfn::Leaf(v)), PhantomData)
 	}
 }
 
-impl<S, H, Tr, F> EtableSet for MultiEtable<S, H, Tr, F>
+impl<S, H, Tr, F> Etable<H> for MultiEtable<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -189,12 +184,12 @@ where
 }
 
 /// The evaluation table for the EVM.
-pub struct Etable<S, H, Tr, F = Efn<S, H, Tr>>([F; 256], PhantomData<(S, H, Tr)>);
+pub struct DispatchEtable<S, H, Tr, F = Efn<S, H, Tr>>([F; 256], PhantomData<(S, H, Tr)>);
 
-unsafe impl<S, H, Tr, F: Send> Send for Etable<S, H, Tr, F> {}
-unsafe impl<S, H, Tr, F: Sync> Sync for Etable<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Send> Send for DispatchEtable<S, H, Tr, F> {}
+unsafe impl<S, H, Tr, F: Sync> Sync for DispatchEtable<S, H, Tr, F> {}
 
-impl<S, H, Tr, F> Deref for Etable<S, H, Tr, F> {
+impl<S, H, Tr, F> Deref for DispatchEtable<S, H, Tr, F> {
 	type Target = [F; 256];
 
 	fn deref(&self) -> &[F; 256] {
@@ -202,13 +197,13 @@ impl<S, H, Tr, F> Deref for Etable<S, H, Tr, F> {
 	}
 }
 
-impl<S, H, Tr, F> DerefMut for Etable<S, H, Tr, F> {
+impl<S, H, Tr, F> DerefMut for DispatchEtable<S, H, Tr, F> {
 	fn deref_mut(&mut self) -> &mut [F; 256] {
 		&mut self.0
 	}
 }
 
-impl<S, H, Tr, F> From<Single<S, H, Tr, F>> for Etable<S, H, Tr, F>
+impl<S, H, Tr, F> From<Single<S, H, Tr, F>> for DispatchEtable<S, H, Tr, F>
 where
 	F: Copy,
 {
@@ -217,12 +212,11 @@ where
 	}
 }
 
-impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
+impl<S, H, Tr, F> Etable<H> for DispatchEtable<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -232,18 +226,18 @@ where
 	}
 }
 
-impl<S, H, Tr, F> Etable<S, H, Tr, F>
+impl<S, H, Tr, F> DispatchEtable<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	/// Wrap to create a new Etable.
-	pub fn wrap<FW, FR>(self, wrapper: FW) -> Etable<S, H, Tr, FR>
+	pub fn wrap<FW, FR>(self, wrapper: FW) -> DispatchEtable<S, H, Tr, FR>
 	where
 		FW: Fn(F, Opcode) -> FR,
 		FR: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 	{
 		let mut current_opcode = Opcode(0);
-		Etable(
+		DispatchEtable(
 			self.0.map(|f| {
 				let fr = wrapper(f, current_opcode);
 				if current_opcode != Opcode(255) {
@@ -256,7 +250,7 @@ where
 	}
 }
 
-impl<S, H, Tr> Etable<S, H, Tr> {
+impl<S, H, Tr> DispatchEtable<S, H, Tr> {
 	#[must_use]
 	pub const fn none() -> Self {
 		Self([eval_unknown as _; 256], PhantomData)
@@ -398,7 +392,7 @@ impl<S, H, Tr> Etable<S, H, Tr> {
 	}
 }
 
-impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr> Etable<S, H, Tr>
+impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr> DispatchEtable<S, H, Tr>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState> + GasState,
 	Tr: From<CallCreateTrap>,

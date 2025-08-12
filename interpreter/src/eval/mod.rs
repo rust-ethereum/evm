@@ -694,3 +694,188 @@ pub fn eval_call_create_trap<
 
 	Control::Trap(Box::new(trap.into()))
 }
+
+pub fn eval_any<S, H, Tr>(machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr>
+where
+	S: AsRef<RuntimeState> + AsMut<RuntimeState> + GasState,
+	H: RuntimeEnvironment + RuntimeBackend,
+	Tr: From<CallCreateTrap>,
+{
+	let opcode = Opcode(machine.code()[position]);
+
+	match opcode {
+		Opcode::STOP => eval_stop(machine, handle, position),
+		Opcode::ADD => eval_add(machine, handle, position),
+		Opcode::MUL => eval_mul(machine, handle, position),
+		Opcode::SUB => eval_sub(machine, handle, position),
+		Opcode::DIV => eval_div(machine, handle, position),
+		Opcode::SDIV => eval_sdiv(machine, handle, position),
+		Opcode::MOD => eval_mod(machine, handle, position),
+		Opcode::SMOD => eval_smod(machine, handle, position),
+		Opcode::ADDMOD => eval_addmod(machine, handle, position),
+		Opcode::MULMOD => eval_mulmod(machine, handle, position),
+		Opcode::EXP => eval_exp(machine, handle, position),
+		Opcode::SIGNEXTEND => eval_signextend(machine, handle, position),
+
+		Opcode::LT => eval_lt(machine, handle, position),
+		Opcode::GT => eval_gt(machine, handle, position),
+		Opcode::SLT => eval_slt(machine, handle, position),
+		Opcode::SGT => eval_sgt(machine, handle, position),
+		Opcode::EQ => eval_eq(machine, handle, position),
+		Opcode::ISZERO => eval_iszero(machine, handle, position),
+		Opcode::AND => eval_and(machine, handle, position),
+		Opcode::OR => eval_or(machine, handle, position),
+		Opcode::XOR => eval_xor(machine, handle, position),
+		Opcode::NOT => eval_not(machine, handle, position),
+		Opcode::BYTE => eval_byte(machine, handle, position),
+
+		Opcode::SHL => eval_shl(machine, handle, position),
+		Opcode::SHR => eval_shr(machine, handle, position),
+		Opcode::SAR => eval_sar(machine, handle, position),
+
+		Opcode::CALLDATALOAD => eval_calldataload(machine, handle, position),
+		Opcode::CALLDATASIZE => eval_calldatasize(machine, handle, position),
+		Opcode::CALLDATACOPY => eval_calldatacopy(machine, handle, position),
+		Opcode::CODESIZE => eval_codesize(machine, handle, position),
+		Opcode::CODECOPY => eval_codecopy(machine, handle, position),
+
+		Opcode::POP => eval_pop(machine, handle, position),
+		Opcode::MLOAD => eval_mload(machine, handle, position),
+		Opcode::MSTORE => eval_mstore(machine, handle, position),
+		Opcode::MSTORE8 => eval_mstore8(machine, handle, position),
+
+		Opcode::JUMP => eval_jump(machine, handle, position),
+		Opcode::JUMPI => eval_jumpi(machine, handle, position),
+		Opcode::PC => eval_pc(machine, handle, position),
+		Opcode::MSIZE => eval_msize(machine, handle, position),
+
+		Opcode::JUMPDEST => eval_jumpdest(machine, handle, position),
+		Opcode::MCOPY => eval_mcopy(machine, handle, position),
+
+		Opcode::PUSH0 => eval_push0(machine, handle, position),
+		Opcode::PUSH1 => eval_push1(machine, handle, position),
+		Opcode::PUSH2 => eval_push2(machine, handle, position),
+		Opcode::PUSH3 => eval_push3(machine, handle, position),
+		Opcode::PUSH4 => eval_push4(machine, handle, position),
+		Opcode::PUSH5 => eval_push5(machine, handle, position),
+		Opcode::PUSH6 => eval_push6(machine, handle, position),
+		Opcode::PUSH7 => eval_push7(machine, handle, position),
+		Opcode::PUSH8 => eval_push8(machine, handle, position),
+		Opcode::PUSH9 => eval_push9(machine, handle, position),
+		Opcode::PUSH10 => eval_push10(machine, handle, position),
+		Opcode::PUSH11 => eval_push11(machine, handle, position),
+		Opcode::PUSH12 => eval_push12(machine, handle, position),
+		Opcode::PUSH13 => eval_push13(machine, handle, position),
+		Opcode::PUSH14 => eval_push14(machine, handle, position),
+		Opcode::PUSH15 => eval_push15(machine, handle, position),
+		Opcode::PUSH16 => eval_push16(machine, handle, position),
+		Opcode::PUSH17 => eval_push17(machine, handle, position),
+		Opcode::PUSH18 => eval_push18(machine, handle, position),
+		Opcode::PUSH19 => eval_push19(machine, handle, position),
+		Opcode::PUSH20 => eval_push20(machine, handle, position),
+		Opcode::PUSH21 => eval_push21(machine, handle, position),
+		Opcode::PUSH22 => eval_push22(machine, handle, position),
+		Opcode::PUSH23 => eval_push23(machine, handle, position),
+		Opcode::PUSH24 => eval_push24(machine, handle, position),
+		Opcode::PUSH25 => eval_push25(machine, handle, position),
+		Opcode::PUSH26 => eval_push26(machine, handle, position),
+		Opcode::PUSH27 => eval_push27(machine, handle, position),
+		Opcode::PUSH28 => eval_push28(machine, handle, position),
+		Opcode::PUSH29 => eval_push29(machine, handle, position),
+		Opcode::PUSH30 => eval_push30(machine, handle, position),
+		Opcode::PUSH31 => eval_push31(machine, handle, position),
+		Opcode::PUSH32 => eval_push32(machine, handle, position),
+
+		Opcode::DUP1 => eval_dup1(machine, handle, position),
+		Opcode::DUP2 => eval_dup2(machine, handle, position),
+		Opcode::DUP3 => eval_dup3(machine, handle, position),
+		Opcode::DUP4 => eval_dup4(machine, handle, position),
+		Opcode::DUP5 => eval_dup5(machine, handle, position),
+		Opcode::DUP6 => eval_dup6(machine, handle, position),
+		Opcode::DUP7 => eval_dup7(machine, handle, position),
+		Opcode::DUP8 => eval_dup8(machine, handle, position),
+		Opcode::DUP9 => eval_dup9(machine, handle, position),
+		Opcode::DUP10 => eval_dup10(machine, handle, position),
+		Opcode::DUP11 => eval_dup11(machine, handle, position),
+		Opcode::DUP12 => eval_dup12(machine, handle, position),
+		Opcode::DUP13 => eval_dup13(machine, handle, position),
+		Opcode::DUP14 => eval_dup14(machine, handle, position),
+		Opcode::DUP15 => eval_dup15(machine, handle, position),
+		Opcode::DUP16 => eval_dup16(machine, handle, position),
+
+		Opcode::SWAP1 => eval_swap1(machine, handle, position),
+		Opcode::SWAP2 => eval_swap2(machine, handle, position),
+		Opcode::SWAP3 => eval_swap3(machine, handle, position),
+		Opcode::SWAP4 => eval_swap4(machine, handle, position),
+		Opcode::SWAP5 => eval_swap5(machine, handle, position),
+		Opcode::SWAP6 => eval_swap6(machine, handle, position),
+		Opcode::SWAP7 => eval_swap7(machine, handle, position),
+		Opcode::SWAP8 => eval_swap8(machine, handle, position),
+		Opcode::SWAP9 => eval_swap9(machine, handle, position),
+		Opcode::SWAP10 => eval_swap10(machine, handle, position),
+		Opcode::SWAP11 => eval_swap11(machine, handle, position),
+		Opcode::SWAP12 => eval_swap12(machine, handle, position),
+		Opcode::SWAP13 => eval_swap13(machine, handle, position),
+		Opcode::SWAP14 => eval_swap14(machine, handle, position),
+		Opcode::SWAP15 => eval_swap15(machine, handle, position),
+		Opcode::SWAP16 => eval_swap16(machine, handle, position),
+
+		Opcode::RETURN => eval_return(machine, handle, position),
+
+		Opcode::REVERT => eval_revert(machine, handle, position),
+
+		Opcode::INVALID => eval_invalid(machine, handle, position),
+
+		Opcode::SHA3 => eval_sha3(machine, handle, position),
+
+		Opcode::ADDRESS => eval_address(machine, handle, position),
+		Opcode::BALANCE => eval_balance(machine, handle, position),
+		Opcode::ORIGIN => eval_origin(machine, handle, position),
+		Opcode::CALLER => eval_caller(machine, handle, position),
+		Opcode::CALLVALUE => eval_callvalue(machine, handle, position),
+
+		Opcode::GASPRICE => eval_gasprice(machine, handle, position),
+		Opcode::EXTCODESIZE => eval_extcodesize(machine, handle, position),
+		Opcode::EXTCODECOPY => eval_extcodecopy(machine, handle, position),
+		Opcode::RETURNDATASIZE => eval_returndatasize(machine, handle, position),
+		Opcode::RETURNDATACOPY => eval_returndatacopy(machine, handle, position),
+		Opcode::EXTCODEHASH => eval_extcodehash(machine, handle, position),
+
+		Opcode::BLOCKHASH => eval_blockhash(machine, handle, position),
+		Opcode::COINBASE => eval_coinbase(machine, handle, position),
+		Opcode::TIMESTAMP => eval_timestamp(machine, handle, position),
+		Opcode::NUMBER => eval_number(machine, handle, position),
+		Opcode::DIFFICULTY => eval_difficulty(machine, handle, position),
+		Opcode::GASLIMIT => eval_gaslimit(machine, handle, position),
+		Opcode::CHAINID => eval_chainid(machine, handle, position),
+		Opcode::SELFBALANCE => eval_selfbalance(machine, handle, position),
+		Opcode::BASEFEE => eval_basefee(machine, handle, position),
+
+		Opcode::SLOAD => eval_sload(machine, handle, position),
+		Opcode::SSTORE => eval_sstore(machine, handle, position),
+
+		Opcode::GAS => eval_gas(machine, handle, position),
+
+		Opcode::TLOAD => eval_tload(machine, handle, position),
+		Opcode::TSTORE => eval_tstore(machine, handle, position),
+
+		Opcode::LOG0 => eval_log0(machine, handle, position),
+		Opcode::LOG1 => eval_log1(machine, handle, position),
+		Opcode::LOG2 => eval_log2(machine, handle, position),
+		Opcode::LOG3 => eval_log3(machine, handle, position),
+		Opcode::LOG4 => eval_log4(machine, handle, position),
+
+		Opcode::CREATE => eval_call_create_trap(machine, handle, position),
+		Opcode::CALL => eval_call_create_trap(machine, handle, position),
+		Opcode::CALLCODE => eval_call_create_trap(machine, handle, position),
+
+		Opcode::DELEGATECALL => eval_call_create_trap(machine, handle, position),
+		Opcode::CREATE2 => eval_call_create_trap(machine, handle, position),
+
+		Opcode::STATICCALL => eval_call_create_trap(machine, handle, position),
+
+		Opcode::SUICIDE => eval_suicide(machine, handle, position),
+
+		_ => eval_unknown(machine, handle, position),
+	}
+}

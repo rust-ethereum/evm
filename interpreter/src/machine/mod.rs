@@ -5,16 +5,6 @@ use alloc::{rc::Rc, vec::Vec};
 
 pub use self::{memory::Memory, stack::Stack};
 
-pub trait AsMachine {
-	type State;
-
-	fn as_machine(&self) -> &Machine<Self::State>;
-}
-
-pub trait AsMachineMut: AsMachine {
-	fn as_machine_mut(&mut self) -> &mut Machine<Self::State>;
-}
-
 /// Core execution layer for EVM.
 pub struct Machine<S> {
 	/// Program data.

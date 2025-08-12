@@ -9,12 +9,13 @@ mod gasometer;
 mod invoker;
 
 use alloc::vec::Vec;
+use core::marker::PhantomData;
 
 use evm_interpreter::{
-	etable,
+	etable, eval,
 	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
 	trap::CallCreateTrap,
-	ExitError,
+	Control, ExitError,
 };
 use primitive_types::{H160, H256, U256};
 
@@ -36,8 +37,72 @@ pub type Machine<'config> = evm_interpreter::Machine<State<'config>>;
 pub type Efn<'config, H> = etable::Efn<State<'config>, H, CallCreateTrap>;
 
 /// Standard Etable.
-pub type Etable<'config, H, F = Efn<'config, H>> =
-	etable::Etable<State<'config>, H, CallCreateTrap, F>;
+pub type DispatchEtable<'config, H, F = Efn<'config, H>> =
+	etable::DispatchEtable<State<'config>, H, CallCreateTrap, F>;
+
+/// Gasometer Etable.
+pub struct GasometerEtable<'config>(PhantomData<&'config ()>);
+
+impl<'config> GasometerEtable<'config> {
+	pub const fn new() -> Self {
+		Self(PhantomData)
+	}
+}
+
+impl<'config> Default for GasometerEtable<'config> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl<'config, H> etable::Etable<H> for GasometerEtable<'config>
+where
+	H: RuntimeBackend,
+{
+	type State = State<'config>;
+	type Trap = CallCreateTrap;
+
+	fn eval(
+		&self,
+		machine: &mut Machine<'config>,
+		handle: &mut H,
+		position: usize,
+	) -> Control<Self::Trap> {
+		eval_gasometer(machine, handle, position)
+	}
+}
+
+/// Execution etable.
+pub struct ExecutionEtable<'config>(PhantomData<&'config ()>);
+
+impl<'config> ExecutionEtable<'config> {
+	pub const fn new() -> Self {
+		Self(PhantomData)
+	}
+}
+
+impl<'config> Default for ExecutionEtable<'config> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
+impl<'config, H> etable::Etable<H> for ExecutionEtable<'config>
+where
+	H: RuntimeBackend + RuntimeEnvironment,
+{
+	type State = State<'config>;
+	type Trap = CallCreateTrap;
+
+	fn eval(
+		&self,
+		machine: &mut Machine<'config>,
+		handle: &mut H,
+		position: usize,
+	) -> Control<Self::Trap> {
+		eval::eval_any(machine, handle, position)
+	}
+}
 
 pub struct State<'config> {
 	pub runtime: RuntimeState,
@@ -161,7 +226,7 @@ macro_rules! with_mainnet_invoker {
 	// This can technically be written as a normal function as well, but we then must explicitly write the complex type.
 	( $precompiles:expr, |$invoker:ident| $body:expr ) => {{
 		let gas_etable = $crate::interpreter::etable::Single::new($crate::standard::eval_gasometer);
-		let exec_etable = $crate::standard::Etable::runtime();
+		let exec_etable = $crate::standard::DispatchEtable::runtime();
 		let etable = $crate::interpreter::etable::Chained(gas_etable, exec_etable);
 		let resolver = $crate::standard::EtableResolver::new($precompiles, &etable);
 		let $invoker = $crate::standard::Invoker::new(&resolver);

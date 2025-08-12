@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	etable::EtableSet,
+	etable::Etable,
 	runtime::{RuntimeBackend, RuntimeState},
 	trap::CallScheme,
 	EtableInterpreter, ExitError, ExitResult, Interpreter, Machine,
@@ -20,33 +20,26 @@ use crate::{
 /// construct a machine, pushing the call stack, or directly exit, handling a
 /// precompile.
 pub trait Resolver<H> {
-	type Interpreter: Interpreter<H>;
+	type State;
+	type Interpreter: Interpreter<H, State = Self::State>;
 
 	/// Resolve a call (with the target code address).
-	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
 		scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
-		state: <Self::Interpreter as Interpreter<H>>::State,
+		state: Self::State,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
-		ExitError,
-	>;
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError>;
 
 	/// Resolve a create (with the init code).
-	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
-		state: <Self::Interpreter as Interpreter<H>>::State,
+		state: Self::State,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
-		ExitError,
-	>;
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError>;
 }
 
 /// A set of precompiles.
@@ -82,7 +75,7 @@ pub struct EtableResolver<'precompile, 'etable, Pre, ES> {
 }
 
 impl<'precompile, 'etable, Pre, ES> EtableResolver<'precompile, 'etable, Pre, ES> {
-	pub fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
+	pub const fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
 		Self {
 			precompiles,
 			etable,
@@ -95,12 +88,12 @@ where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<ES::State, H>,
-	ES: EtableSet<Handle = H>,
+	ES: Etable<H>,
 {
-	type Interpreter = EtableInterpreter<'etable, ES>;
+	type State = ES::State;
+	type Interpreter = EtableInterpreter<'etable, ES::State, ES>;
 
 	/// Resolve a call (with the target code address).
-	#[allow(clippy::type_complexity)]
 	fn resolve_call(
 		&self,
 		_scheme: CallScheme,
@@ -108,10 +101,7 @@ where
 		input: Vec<u8>,
 		mut state: ES::State,
 		handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
-		ExitError,
-	> {
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
@@ -140,16 +130,12 @@ where
 	}
 
 	/// Resolve a create (with the init code).
-	#[allow(clippy::type_complexity)]
 	fn resolve_create(
 		&self,
 		init_code: Vec<u8>,
 		state: ES::State,
 		_handler: &mut H,
-	) -> Result<
-		InvokerControl<Self::Interpreter, <Self::Interpreter as Interpreter<H>>::State>,
-		ExitError,
-	> {
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
 		let config: &Config = state.as_ref();
 		let machine = Machine::new(
 			Rc::new(init_code),

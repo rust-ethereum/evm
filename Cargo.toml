@@ -7,6 +7,7 @@ members = [
 	"tracer",
 	"future",
 	"compat",
+	"mainnet",
 
 	"features/evm64",
 ]
@@ -23,7 +24,7 @@ keywords = ["no_std", "ethereum", "evm"]
 [workspace.dependencies]
 evm = { version = "1.0.0-dev", path = ".", default-features = false }
 evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
-evm-precompile = { version = "0.1.0", path = "precompile", default-features = false }
+evm-precompile = { version = "1.0.0-dev", path = "precompile", default-features = false }
 
 [package]
 name = "evm"
