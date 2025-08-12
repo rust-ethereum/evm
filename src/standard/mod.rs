@@ -44,6 +44,7 @@ pub type DispatchEtable<'config, H, F = Efn<'config, H>> =
 pub struct GasometerEtable<'config>(PhantomData<&'config ()>);
 
 impl<'config> GasometerEtable<'config> {
+	/// Create a new gasometer etable.
 	pub const fn new() -> Self {
 		Self(PhantomData)
 	}
@@ -76,6 +77,7 @@ where
 pub struct ExecutionEtable<'config>(PhantomData<&'config ()>);
 
 impl<'config> ExecutionEtable<'config> {
+	/// Create a new execution etable.
 	pub const fn new() -> Self {
 		Self(PhantomData)
 	}
@@ -104,9 +106,13 @@ where
 	}
 }
 
+/// Standard state.
 pub struct State<'config> {
+	/// Runtime state.
 	pub runtime: RuntimeState,
+	/// Gasometer state.
 	pub gasometer: GasometerState,
+	/// Current config.
 	pub config: &'config Config,
 }
 

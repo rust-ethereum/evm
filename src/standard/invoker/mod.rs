@@ -31,13 +31,24 @@ use crate::{
 
 /// The invoke used in a substack.
 pub enum SubstackInvoke {
-	Call { trap: CallTrap },
-	Create { trap: CreateTrap, address: H160 },
+	/// CALL-alike opcode..
+	Call {
+		/// The trap of the call.
+		trap: CallTrap,
+	},
+	/// CREATE-alike opcodes.
+	Create {
+		/// The trap of CREATE/CREATE2.
+		trap: CreateTrap,
+		/// Resolved target address.
+		address: H160,
+	},
 }
 
 /// Return value of a transaction. Call and create status.
 #[derive(Clone, Debug)]
 pub enum TransactValueCallCreate {
+	/// Result of a call transaction.
 	Call {
 		/// The exit result. If we return a value, then it will be an
 		/// `ExitSucceed`.
@@ -45,6 +56,7 @@ pub enum TransactValueCallCreate {
 		/// The return value, if any.
 		retval: Vec<u8>,
 	},
+	/// Result of a create transaction.
 	Create {
 		/// The exit result. If we return a value, then it will be an
 		/// `ExitSucceed`.
@@ -65,21 +77,29 @@ pub struct TransactValue {
 
 /// The invoke used in a top-layer transaction stack.
 pub struct TransactInvoke<'config> {
+	/// Create address, if it is a create transaction.
 	pub create_address: Option<H160>,
+	/// Gas limit.
 	pub gas_limit: U256,
+	/// Gas price.
 	pub gas_price: U256,
+	/// Caller.
 	pub caller: H160,
+	/// Config used for the transaction.
 	pub config: &'config Config,
 }
 
 #[derive(Clone, Debug)]
+/// Call/Create information used by [TransactArgs].
 pub enum TransactArgsCallCreate {
+	/// A call transaction.
 	Call {
 		/// Transaction target.
 		address: H160,
 		/// Transaction call data.
 		data: Vec<u8>,
 	},
+	/// A create transaction.
 	Create {
 		/// Init code.
 		init_code: Vec<u8>,
@@ -91,6 +111,7 @@ pub enum TransactArgsCallCreate {
 /// Transaction arguments.
 #[derive(Clone, Debug)]
 pub struct TransactArgs<'config> {
+	/// Call/Create information.
 	pub call_create: TransactArgsCallCreate,
 	/// Transaction sender.
 	pub caller: H160,
@@ -119,7 +140,7 @@ impl<'config> AsRef<TransactArgs<'config>> for TransactArgs<'config> {
 /// * `H`: Backend type.
 /// * `R`: Code resolver type, also handle precompiles. Usually
 ///   [EtableResolver] but can be customized.
-/// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
+/// * `Tr`: Trap type, usually [crate::interpreter::Opcode] but can be customized.
 pub struct Invoker<'config, 'resolver, R> {
 	resolver: &'resolver R,
 	_marker: PhantomData<&'config Config>,

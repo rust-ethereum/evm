@@ -40,8 +40,11 @@ pub fn u256_to_usize(v: U256) -> Result<usize, ExitError> {
 /// Sign of [I256].
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Sign {
+	/// Plus
 	Plus,
+	/// Minus
 	Minus,
+	/// Zero
 	Zero,
 }
 

@@ -14,11 +14,13 @@ use primitive_types::{H160, H256, U256};
 
 use crate::{standard::Config, MergeStrategy};
 
+/// Gasometer state.
 pub struct GasometerState {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
 	refunded_gas: i64,
+	/// Whether the gasometer is in static context.
 	pub is_static: bool,
 }
 
@@ -56,6 +58,7 @@ impl GasometerState {
 		self.gas_limit - self.memory_gas - self.used_gas
 	}
 
+	/// Left gas. Same as [Self::gas64] but in [U256].
 	pub fn gas(&self) -> U256 {
 		self.gas64().into()
 	}
@@ -75,6 +78,7 @@ impl GasometerState {
 		}
 	}
 
+	/// Record an arbitrary gas.
 	pub fn record_gas(&mut self, cost: U256) -> Result<(), ExitError> {
 		if cost > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
@@ -83,6 +87,7 @@ impl GasometerState {
 		self.record_gas64(cost.as_u64())
 	}
 
+	/// Record code deposit gas.
 	pub fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
 		self.perform(|gasometer| {
 			let cost = len as u64 * consts::G_CODEDEPOSIT;
@@ -117,6 +122,7 @@ impl GasometerState {
 		}
 	}
 
+	/// Create a new gasometer for a call transaction.
 	pub fn new_transact_call(
 		gas_limit: U256,
 		data: &[u8],
@@ -136,6 +142,7 @@ impl GasometerState {
 		Ok(s)
 	}
 
+	/// Create a new gasometer for a create transaction.
 	pub fn new_transact_create(
 		gas_limit: U256,
 		code: &[u8],
@@ -155,6 +162,9 @@ impl GasometerState {
 		Ok(s)
 	}
 
+	/// The effective used gas at the end of the transaction.
+	///
+	/// In case of revert, refunded gas are not taken into account.
 	pub fn effective_gas(&self, with_refund: bool, config: &Config) -> U256 {
 		let refunded_gas = if self.refunded_gas >= 0 {
 			self.refunded_gas as u64
@@ -174,6 +184,7 @@ impl GasometerState {
 		})
 	}
 
+	/// Create a submeter.
 	pub fn submeter(
 		&mut self,
 		gas_limit: U256,
@@ -196,6 +207,7 @@ impl GasometerState {
 		Ok(Self::new(gas_limit, is_static))
 	}
 
+	/// Merge another gasometer to this one using the given merge strategy.
 	pub fn merge(&mut self, other: Self, strategy: MergeStrategy) {
 		match strategy {
 			MergeStrategy::Commit => {
@@ -210,6 +222,9 @@ impl GasometerState {
 	}
 }
 
+/// The eval function of the entire gasometer.
+///
+/// Usually wrapped by [crate::interpreter::etable::Single].
 pub fn eval<S, H, Tr>(machine: &mut Machine<S>, handler: &mut H, position: usize) -> Control<Tr>
 where
 	S: AsRef<GasometerState> + AsMut<GasometerState> + AsRef<RuntimeState> + AsRef<Config>,

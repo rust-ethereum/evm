@@ -4,7 +4,6 @@ members = [
 	"interpreter",
 	"jsontests",
 	"precompile",
-	"tracer",
 	"future",
 	"compat",
 	"mainnet",

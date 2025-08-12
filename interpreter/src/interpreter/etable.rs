@@ -9,6 +9,7 @@ use crate::{
 	Interpreter, Machine, Opcode, Stack, StepInterpreter, Valids,
 };
 
+/// Interpreter that uses [Etable].
 pub struct EtableInterpreter<'etable, S, ES> {
 	valids: Valids,
 	position: usize,
@@ -48,6 +49,7 @@ impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 		self.position
 	}
 
+	/// Create a new interpreter from the machine state and etable.
 	pub fn new(machine: Machine<S>, etable: &'etable ES) -> Self {
 		let valids = Valids::new(&machine.code[..]);
 
@@ -59,6 +61,7 @@ impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 		}
 	}
 
+	/// Deconstruct the interpreter to get the underlying machine state.
 	pub fn deconstruct(self) -> Machine<S> {
 		self.machine
 	}
@@ -95,6 +98,7 @@ impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 		self.code.get(self.position).map(|opcode| Opcode(*opcode))
 	}
 
+	/// Advance the PC by one.
 	pub fn advance(&mut self) {
 		if self.position == self.code.len() {
 			return;

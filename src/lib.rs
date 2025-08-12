@@ -5,15 +5,19 @@
 //!
 //! ## Basic usage
 //!
+//! If you want to simply run EVM against Ethereum mainnet, use the
+//! [evm-mainnet](https://docs.rs/evm-mainnet) crate.
+//!
 //! The entrypoint of a normal EVM execution is through the [transact] function.
 //! The [transact] function implements a hybrid (stack-based, and then
 //! heap-based) call stack.
 //!
 //! To use the [transact] function, you will need to first implement a
-//! backend. This is anything that implements [RuntimeEnvironment],
-//! [RuntimeBaseBackend] and [RuntimeBackend] traits. You will also need to
-//! select a few other components to construct the `invoker` parameter needed
-//! for the function.
+//! backend. This is anything that implements
+//! [interpreter::runtime::RuntimeEnvironment], and
+//! [interpreter::runtime::RuntimeBackend] traits. You will also need to select
+//! a few other components to construct the `invoker` parameter needed for the
+//! function.
 //!
 //! * Select an [Invoker]. The invoker defines all details of the execution
 //!   environment except the external backend. [standard::Invoker] is
@@ -40,9 +44,12 @@
 //!
 //! ### Tracing
 //!
-//! The interpreter machine uses information from an [Etable] to decide how each
-//! opcode behaves. An [Etable] is fully customizable and a helper function is
-//! also provided [Etable::wrap].
+//! The interpreter machine uses information from an
+//! [interpreter::etable::Etable] to decide how each opcode behaves. The default
+//! implementation is
+//! [interpreter::etable::DispatchEtable]. [interpreter::etable::DispatchEtable]
+//! is fully customizable and a helper function is also provided
+//! [interpreter::etable::DispatchEtable::wrap].
 //!
 //! If you also want to trace inside gasometers, simply create a wrapper struct
 //! of the gasometer you use, and pass that into the invoker.
@@ -51,16 +58,16 @@
 //!
 //! All aspects of the interpreter can be customized individually.
 //!
-//! * New opcodes can be added or customized through [Etable].
-//! * Gas metering behavior can be customized by wrapping [standard::Gasometer] or creating new
-//!   ones.
-//! * Code resolution and precompiles can be customized by [standard::Resolver].
+//! * New opcodes can be added or customized through [interpreter::etable::DispatchEtable].
+//! * Gas metering behavior can be customized by wrapping [standard::eval_gasometer] or
+//!   creating new ones.
+//! * Code resolution and precompiles can be customized by [standard::Resolver]. Async
+//!   precompile is also possible through the [evm-future](https://docs.rs/evm-future) crate.
 //! * Call invocation and transaction behavior can be customized via [standard::Invoker].
-//! * Finally, each machine on the call stack has the concept of [Color], which allows you to
-//!   implement account versioning, or specialized precompiles that invoke subcalls.
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables)]
+#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -75,7 +82,6 @@ mod invoker;
 pub use evm_interpreter as interpreter;
 
 pub use crate::{
-	backend::TransactionalBackend,
 	call_stack::{transact, HeapTransact},
 	gasometer::GasMutState,
 	invoker::{Invoker, InvokerControl},

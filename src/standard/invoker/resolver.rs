@@ -20,7 +20,9 @@ use crate::{
 /// construct a machine, pushing the call stack, or directly exit, handling a
 /// precompile.
 pub trait Resolver<H> {
+	/// State type of the resolver.
 	type State;
+	/// Interpreter type of the resolver.
 	type Interpreter: Interpreter<H, State = Self::State>;
 
 	/// Resolve a call (with the target code address).
@@ -75,6 +77,7 @@ pub struct EtableResolver<'precompile, 'etable, Pre, ES> {
 }
 
 impl<'precompile, 'etable, Pre, ES> EtableResolver<'precompile, 'etable, Pre, ES> {
+	/// Create a new [EtableResolver].
 	pub const fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
 		Self {
 			precompiles,

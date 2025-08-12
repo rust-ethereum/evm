@@ -6,41 +6,63 @@ use crate::{
 };
 use primitive_types::{H160, H256, U256};
 
+/// Environment information of an in-memory backend.
 #[derive(Clone, Debug)]
 pub struct InMemoryEnvironment {
+	/// Past block hashes.
 	pub block_hashes: BTreeMap<U256, H256>,
+	/// Block number.
 	pub block_number: U256,
+	/// Block coinbase.
 	pub block_coinbase: H160,
+	/// Block timestamp.
 	pub block_timestamp: U256,
+	/// Block difficulty.
 	pub block_difficulty: U256,
+	/// Block randomness.
 	pub block_randomness: Option<H256>,
+	/// Block gas limit.
 	pub block_gas_limit: U256,
+	/// Block base fee per gas.
 	pub block_base_fee_per_gas: U256,
+	/// Chain ID.
 	pub chain_id: U256,
 }
 
+/// In-memory account.
 #[derive(Clone, Debug, Default)]
 pub struct InMemoryAccount {
+	/// Balance.
 	pub balance: U256,
+	/// Code.
 	pub code: Vec<u8>,
+	/// Nonce.
 	pub nonce: U256,
+	/// Storage value mappings.
 	pub storage: BTreeMap<H256, H256>,
+	/// Transient storage values.
 	pub transient_storage: BTreeMap<H256, H256>,
 }
 
+/// Suicide information for in-memory backend.
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct InMemorySuicideInfo {
+	/// Address of the self-destructed account.
 	pub address: H160,
 }
 
+/// In-memory backend.
 #[derive(Clone, Debug)]
 pub struct InMemoryBackend {
+	/// Environment information.
 	pub environment: InMemoryEnvironment,
+	/// Address to account mapping.
 	pub state: BTreeMap<H160, InMemoryAccount>,
 }
 
 impl InMemoryBackend {
+	/// Apply an [OverlayedChangeSet] to the current state.
 	pub fn apply_overlayed(&mut self, changeset: &OverlayedChangeSet) {
 		for (address, balance) in changeset.balances.clone() {
 			self.state.entry(address).or_default().balance = balance;

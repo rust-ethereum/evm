@@ -15,6 +15,7 @@ pub enum Capture<E, T> {
 }
 
 impl<E, T> Capture<E, T> {
+	/// Exit value if it is [Capture::Exit].
 	pub fn exit(self) -> Option<E> {
 		match self {
 			Self::Exit(e) => Some(e),
@@ -22,6 +23,7 @@ impl<E, T> Capture<E, T> {
 		}
 	}
 
+	/// Trap value if it is [Capture::Trap].
 	pub fn trap(self) -> Option<Box<T>> {
 		match self {
 			Self::Exit(_) => None,

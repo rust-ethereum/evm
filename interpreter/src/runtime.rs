@@ -1,3 +1,5 @@
+//! Runtime state and related traits.
+
 use alloc::{rc::Rc, vec::Vec};
 
 use primitive_types::{H160, H256, U256};
@@ -7,6 +9,7 @@ use crate::error::ExitError;
 
 /// Gas state.
 pub trait GasState {
+	/// Left gas.
 	fn gas(&self) -> U256;
 }
 
@@ -50,6 +53,7 @@ pub struct Context {
 	pub apparent_value: U256,
 }
 
+/// Context of the transaction.
 #[derive(Clone, Debug)]
 pub struct TransactionContext {
 	/// Gas price.
@@ -72,18 +76,24 @@ pub struct Transfer {
 /// Log
 #[derive(Clone, Debug)]
 pub struct Log {
+	/// Address
 	pub address: H160,
+	/// Topics
 	pub topics: Vec<H256>,
+	/// Log data
 	pub data: Vec<u8>,
 }
 
-// Identify if the origin of set_code() comes from a transact or subcall.
+/// Identify if the origin of set_code() comes from a transaction or subcall.
 #[derive(Clone, Debug)]
 pub enum SetCodeOrigin {
+	/// Comes from a transaction.
 	Transaction,
+	/// Comes from a subcall.
 	Subcall(H160),
 }
 
+/// Runtime environment.
 #[auto_impl::auto_impl(&, Box)]
 pub trait RuntimeEnvironment {
 	/// Get environmental block hash.
@@ -106,6 +116,7 @@ pub trait RuntimeEnvironment {
 	fn chain_id(&self) -> U256;
 }
 
+/// Runtime base backend. The immutable and limited part of [RuntimeBackend].
 #[auto_impl::auto_impl(&, Box)]
 pub trait RuntimeBaseBackend {
 	/// Get balance of address.
@@ -142,10 +153,14 @@ pub trait RuntimeBaseBackend {
 	fn nonce(&self, address: H160) -> U256;
 }
 
+/// For what reason is the address marked hot.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum TouchKind {
+	/// State change according to EIP-161.
 	StateChange,
+	/// Coinbase address.
 	Coinbase,
+	/// A normal access.
 	Access,
 }
 
@@ -160,12 +175,14 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	fn created(&self, address: H160) -> bool;
 	/// Checks if the address or (address, index) pair has been previously accessed.
 	fn is_cold(&self, address: H160, index: Option<H256>) -> bool;
+	/// Checks if the address is hot. Opposite of [RuntimeBackend::is_cold].
 	fn is_hot(&self, address: H160, index: Option<H256>) -> bool {
 		!self.is_cold(address, index)
 	}
 
-	/// Mark an address or (address, index) pair as hot.
+	/// Mark an address as hot.
 	fn mark_hot(&mut self, address: H160, kind: TouchKind);
+	/// Mark an (address, index) pair as hot.
 	fn mark_storage_hot(&mut self, address: H160, index: H256);
 	/// Set storage value of address at index.
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError>;
@@ -180,7 +197,7 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 	fn log(&mut self, log: Log) -> Result<(), ExitError>;
 	/// Mark an address to be deleted and its balance to be reset.
 	fn mark_delete_reset(&mut self, address: H160);
-	// Mark an address as created in the current transaction.
+	/// Mark an address as created in the current transaction.
 	fn mark_create(&mut self, address: H160);
 	/// Fully delete storages of an account.
 	fn reset_storage(&mut self, address: H160);
@@ -191,7 +208,9 @@ pub trait RuntimeBackend: RuntimeBaseBackend {
 		code: Vec<u8>,
 		origin: SetCodeOrigin,
 	) -> Result<(), ExitError>;
+	/// Deposit value into the target.
 	fn deposit(&mut self, target: H160, value: U256);
+	/// Withdrawal value from the source.
 	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError>;
 	/// Initiate a transfer.
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError> {
