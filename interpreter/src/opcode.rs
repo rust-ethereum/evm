@@ -98,75 +98,137 @@ impl Opcode {
 	/// `MCOPY`
 	pub const MCOPY: Opcode = Opcode(0x5e);
 
-	/// `PUSHn`
+	/// `PUSH0`
 	pub const PUSH0: Opcode = Opcode(0x5f);
+	/// `PUSH1`
 	pub const PUSH1: Opcode = Opcode(0x60);
+	/// `PUSH2`
 	pub const PUSH2: Opcode = Opcode(0x61);
+	/// `PUSH3`
 	pub const PUSH3: Opcode = Opcode(0x62);
+	/// `PUSH4`
 	pub const PUSH4: Opcode = Opcode(0x63);
+	/// `PUSH5`
 	pub const PUSH5: Opcode = Opcode(0x64);
+	/// `PUSH6`
 	pub const PUSH6: Opcode = Opcode(0x65);
+	/// `PUSH7`
 	pub const PUSH7: Opcode = Opcode(0x66);
+	/// `PUSH8`
 	pub const PUSH8: Opcode = Opcode(0x67);
+	/// `PUSH9`
 	pub const PUSH9: Opcode = Opcode(0x68);
+	/// `PUSH10`
 	pub const PUSH10: Opcode = Opcode(0x69);
+	/// `PUSH11`
 	pub const PUSH11: Opcode = Opcode(0x6a);
+	/// `PUSH12`
 	pub const PUSH12: Opcode = Opcode(0x6b);
+	/// `PUSH13`
 	pub const PUSH13: Opcode = Opcode(0x6c);
+	/// `PUSH14`
 	pub const PUSH14: Opcode = Opcode(0x6d);
+	/// `PUSH15`
 	pub const PUSH15: Opcode = Opcode(0x6e);
+	/// `PUSH16`
 	pub const PUSH16: Opcode = Opcode(0x6f);
+	/// `PUSH17`
 	pub const PUSH17: Opcode = Opcode(0x70);
+	/// `PUSH18`
 	pub const PUSH18: Opcode = Opcode(0x71);
+	/// `PUSH19`
 	pub const PUSH19: Opcode = Opcode(0x72);
+	/// `PUSH20`
 	pub const PUSH20: Opcode = Opcode(0x73);
+	/// `PUSH21`
 	pub const PUSH21: Opcode = Opcode(0x74);
+	/// `PUSH22`
 	pub const PUSH22: Opcode = Opcode(0x75);
+	/// `PUSH23`
 	pub const PUSH23: Opcode = Opcode(0x76);
+	/// `PUSH24`
 	pub const PUSH24: Opcode = Opcode(0x77);
+	/// `PUSH25`
 	pub const PUSH25: Opcode = Opcode(0x78);
+	/// `PUSH26`
 	pub const PUSH26: Opcode = Opcode(0x79);
+	/// `PUSH27`
 	pub const PUSH27: Opcode = Opcode(0x7a);
+	/// `PUSH28`
 	pub const PUSH28: Opcode = Opcode(0x7b);
+	/// `PUSH29`
 	pub const PUSH29: Opcode = Opcode(0x7c);
+	/// `PUSH30`
 	pub const PUSH30: Opcode = Opcode(0x7d);
+	/// `PUSH31`
 	pub const PUSH31: Opcode = Opcode(0x7e);
+	/// `PUSH32`
 	pub const PUSH32: Opcode = Opcode(0x7f);
 
-	/// `DUPn`
+	/// `DUP1`
 	pub const DUP1: Opcode = Opcode(0x80);
+	/// `DUP2`
 	pub const DUP2: Opcode = Opcode(0x81);
+	/// `DUP3`
 	pub const DUP3: Opcode = Opcode(0x82);
+	/// `DUP4`
 	pub const DUP4: Opcode = Opcode(0x83);
+	/// `DUP5`
 	pub const DUP5: Opcode = Opcode(0x84);
+	/// `DUP6`
 	pub const DUP6: Opcode = Opcode(0x85);
+	/// `DUP7`
 	pub const DUP7: Opcode = Opcode(0x86);
+	/// `DUP8`
 	pub const DUP8: Opcode = Opcode(0x87);
+	/// `DUP9`
 	pub const DUP9: Opcode = Opcode(0x88);
+	/// `DUP10`
 	pub const DUP10: Opcode = Opcode(0x89);
+	/// `DUP11`
 	pub const DUP11: Opcode = Opcode(0x8a);
+	/// `DUP12`
 	pub const DUP12: Opcode = Opcode(0x8b);
+	/// `DUP13`
 	pub const DUP13: Opcode = Opcode(0x8c);
+	/// `DUP14`
 	pub const DUP14: Opcode = Opcode(0x8d);
+	/// `DUP15`
 	pub const DUP15: Opcode = Opcode(0x8e);
+	/// `DUP16`
 	pub const DUP16: Opcode = Opcode(0x8f);
 
-	/// `SWAPn`
+	/// `SWAP1`
 	pub const SWAP1: Opcode = Opcode(0x90);
+	/// `SWAP2`
 	pub const SWAP2: Opcode = Opcode(0x91);
+	/// `SWAP3`
 	pub const SWAP3: Opcode = Opcode(0x92);
+	/// `SWAP4`
 	pub const SWAP4: Opcode = Opcode(0x93);
+	/// `SWAP5`
 	pub const SWAP5: Opcode = Opcode(0x94);
+	/// `SWAP6`
 	pub const SWAP6: Opcode = Opcode(0x95);
+	/// `SWAP7`
 	pub const SWAP7: Opcode = Opcode(0x96);
+	/// `SWAP8`
 	pub const SWAP8: Opcode = Opcode(0x97);
+	/// `SWAP9`
 	pub const SWAP9: Opcode = Opcode(0x98);
+	/// `SWAP10`
 	pub const SWAP10: Opcode = Opcode(0x99);
+	/// `SWAP11`
 	pub const SWAP11: Opcode = Opcode(0x9a);
+	/// `SWAP12`
 	pub const SWAP12: Opcode = Opcode(0x9b);
+	/// `SWAP13`
 	pub const SWAP13: Opcode = Opcode(0x9c);
+	/// `SWAP14`
 	pub const SWAP14: Opcode = Opcode(0x9d);
+	/// `SWAP15`
 	pub const SWAP15: Opcode = Opcode(0x9e);
+	/// `SWAP16`
 	pub const SWAP16: Opcode = Opcode(0x9f);
 
 	/// See [EIP-3541](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3541.md)
@@ -243,11 +305,15 @@ impl Opcode {
 	/// `TSTORE`
 	pub const TSTORE: Opcode = Opcode(0x5d);
 
-	/// `LOGn`
+	/// `LOG0`
 	pub const LOG0: Opcode = Opcode(0xa0);
+	/// `LOG1`
 	pub const LOG1: Opcode = Opcode(0xa1);
+	/// `LOG2`
 	pub const LOG2: Opcode = Opcode(0xa2);
+	/// `LOG3`
 	pub const LOG3: Opcode = Opcode(0xa3);
+	/// `LOG4`
 	pub const LOG4: Opcode = Opcode(0xa4);
 
 	/// `CREATE`
@@ -281,12 +347,14 @@ impl Opcode {
 		}
 	}
 
+	/// Convert opcode to u8.
 	#[inline]
 	#[must_use]
 	pub const fn as_u8(&self) -> u8 {
 		self.0
 	}
 
+	/// Convert opcode to usize.
 	#[inline]
 	#[must_use]
 	pub const fn as_usize(&self) -> usize {

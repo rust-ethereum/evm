@@ -1,7 +1,8 @@
 //! Core layer for EVM.
 
-// #![deny(warnings)]
-// #![forbid(unsafe_code, unused_variables, unused_imports)]
+#![deny(warnings)]
+#![forbid(unused_variables, unused_imports)]
+#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;

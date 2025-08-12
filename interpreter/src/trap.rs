@@ -12,9 +12,17 @@ use crate::{
 	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
 };
 
+/// Consume `T` to get `Rest`.
+///
+/// For example, an interpreter may return two types of traps, a [CallCreateTrap], and another customized trap.
+/// The standard invoker, however, can only handle [CallCreateTrap]. By implementing this trait, the standard
+/// invoker can handle just the [CallCreateTrap], and then it returns `Rest` as an additional interrupt that
+/// is handled by the user.
 pub trait TrapConsume<T> {
+	/// Rest type.
 	type Rest;
 
+	/// Consume `T` to get `Rest`.
 	fn consume(self) -> Result<T, Self::Rest>;
 }
 
@@ -26,12 +34,19 @@ impl<T> TrapConsume<T> for T {
 	}
 }
 
+/// Call create opcodes.
 pub enum CallCreateOpcode {
+	/// `CALL`
 	Call,
+	/// `CALLCODE`
 	CallCode,
+	/// `DELEGATECALL`
 	DelegateCall,
+	/// `STATICCALL`
 	StaticCall,
+	/// `CREATE`
 	Create,
+	/// `CREATE2`
 	Create2,
 }
 
@@ -45,6 +60,7 @@ pub enum CallCreateTrap {
 }
 
 impl CallCreateTrap {
+	/// Target gas value.
 	#[must_use]
 	pub const fn target_gas(&self) -> Option<U256> {
 		match self {
@@ -53,6 +69,7 @@ impl CallCreateTrap {
 		}
 	}
 
+	/// Create a new trap from the given opcode and the machine state.
 	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		opcode: CallCreateOpcode,
 		machine: &mut Machine<S>,
@@ -78,6 +95,7 @@ impl CallCreateTrap {
 		}
 	}
 
+	/// Target code or init code.
 	pub fn code<H: RuntimeBackend>(&self, handler: &H) -> Vec<u8> {
 		match self {
 			Self::Call(trap) => handler.code(trap.target),
@@ -99,16 +117,26 @@ pub enum CallScheme {
 	StaticCall,
 }
 
+/// Trap for a call.
 #[derive(Debug)]
 pub struct CallTrap {
+	/// Call target.
 	pub target: H160,
+	/// Transfer instruction, if any.
 	pub transfer: Option<Transfer>,
+	/// Input data.
 	pub input: Vec<u8>,
+	/// Gas.
 	pub gas: U256,
+	/// Whether it is `STATICCALL`
 	pub is_static: bool,
+	/// Out value offset.
 	pub out_offset: U256,
+	/// Out value length.
 	pub out_len: U256,
+	/// Call context.
 	pub context: Context,
+	/// Call scheme.
 	pub scheme: CallScheme,
 }
 
@@ -203,6 +231,7 @@ impl CallTrap {
 		))
 	}
 
+	/// Create a new call trap from the given call scheme and the machine state.
 	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		scheme: CallScheme,
 		machine: &mut Machine<S>,
@@ -247,6 +276,7 @@ impl CallTrap {
 		}
 	}
 
+	/// Whether the call has value.
 	#[must_use]
 	pub fn has_value(&self) -> bool {
 		self.transfer
@@ -255,14 +285,19 @@ impl CallTrap {
 	}
 }
 
+/// Feedback value of a call trap.
 #[derive(Debug)]
 pub struct CallFeedback {
+	/// The original call trap.
 	pub trap: CallTrap,
+	/// Exit reason.
 	pub reason: ExitResult,
+	/// Return value.
 	pub retbuf: Vec<u8>,
 }
 
 impl CallFeedback {
+	/// Apply the call feedback into a machine state.
 	pub fn to_machine<
 		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 		I: AsRef<Machine<S>> + AsMut<Machine<S>>,
@@ -347,6 +382,7 @@ pub enum CreateScheme {
 }
 
 impl CreateScheme {
+	/// Resolved address.
 	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
 		match self {
 			Self::Create2 {
@@ -371,6 +407,7 @@ impl CreateScheme {
 		}
 	}
 
+	/// Caller address.
 	#[must_use]
 	pub const fn caller(&self) -> H160 {
 		match self {
@@ -380,14 +417,19 @@ impl CreateScheme {
 	}
 }
 
+/// Call trap.
 #[derive(Debug)]
 pub struct CreateTrap {
+	/// Call scheme.
 	pub scheme: CreateScheme,
+	/// Value passed to the call.
 	pub value: U256,
+	/// Init code.
 	pub code: Vec<u8>,
 }
 
 impl CreateTrap {
+	/// Create a new `CREATE` trap from the machine state.
 	pub fn new_create_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
@@ -431,6 +473,7 @@ impl CreateTrap {
 		})
 	}
 
+	/// Create a new `CREATE2` trap from the machine state.
 	pub fn new_create2_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
@@ -477,14 +520,19 @@ impl CreateTrap {
 	}
 }
 
+/// Feedback value of the create trap.
 #[derive(Debug)]
 pub struct CreateFeedback {
+	/// Original create trap.
 	pub trap: CreateTrap,
+	/// Exit reason and new contract address.
 	pub reason: Result<H160, ExitError>,
+	/// Return value.
 	pub retbuf: Vec<u8>,
 }
 
 impl CreateFeedback {
+	/// Apply the trap feedback to the machine state.
 	pub fn to_machine<
 		S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 		I: AsRef<Machine<S>> + AsMut<Machine<S>>,

@@ -1,3 +1,5 @@
+//! Internal routines that can be reused.
+
 use alloc::vec::Vec;
 use evm_interpreter::{
 	runtime::{
@@ -14,6 +16,12 @@ use crate::{
 	standard::{Config, InvokerState, Resolver, SubstackInvoke},
 };
 
+/// Routine for making a call interpreter.
+///
+/// It will:
+/// * Mark the current address as hot.
+/// * Attempt transfer.
+/// * Use [Resolver] to resolve the call into a new interpreter in the sub call stack.
 #[allow(clippy::too_many_arguments)]
 pub fn make_enter_call_machine<H, R>(
 	resolver: &R,
@@ -47,6 +55,16 @@ where
 	resolver.resolve_call(scheme, code_address, input, state, handler)
 }
 
+/// Routine for making a create interpreter.
+///
+/// It will:
+/// * Mark the current address as hot.
+/// * Check for init size limit.
+/// * Attempt transfer.
+/// * Check create collision.
+/// * Increase nonce of the current address.
+/// * Reset state of the current address.
+/// * And finally, use [Resolver] to resolve the call into a new interpreter in the sub call stack.
 #[allow(clippy::too_many_arguments)]
 pub fn make_enter_create_machine<H, R>(
 	resolver: &R,
@@ -116,6 +134,7 @@ where
 	resolver.resolve_create(init_code, state, handler)
 }
 
+/// Enter a call substack, which internally calls [make_enter_call_machine].
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn enter_call_substack<H, R>(
 	resolver: &R,
@@ -161,6 +180,7 @@ where
 	}
 }
 
+/// Enter a create substack, which internally calls [make_enter_create_machine].
 #[allow(clippy::type_complexity, clippy::too_many_arguments)]
 pub fn enter_create_substack<H, R>(
 	resolver: &R,
@@ -203,6 +223,7 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 	Ok(())
 }
 
+/// Routine for deploying the create code.
 pub fn deploy_create_code<S, H>(
 	address: H160,
 	retbuf: Vec<u8>,

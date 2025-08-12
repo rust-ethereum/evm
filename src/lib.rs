@@ -59,13 +59,15 @@
 //! All aspects of the interpreter can be customized individually.
 //!
 //! * New opcodes can be added or customized through [interpreter::etable::DispatchEtable].
-//! * Gas metering behavior can be customized by wrapping [standard::eval_gasometer] or creating new
-//!   ones.
-//! * Code resolution and precompiles can be customized by [standard::Resolver]. Async precompile is also possible through the [evm-future](https://docs.rs/evm-future) crate.
+//! * Gas metering behavior can be customized by wrapping [standard::eval_gasometer] or
+//!   creating new ones.
+//! * Code resolution and precompiles can be customized by [standard::Resolver]. Async
+//!   precompile is also possible through the [evm-future](https://docs.rs/evm-future) crate.
 //! * Call invocation and transaction behavior can be customized via [standard::Invoker].
 
 #![deny(warnings)]
 #![forbid(unsafe_code, unused_variables)]
+#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
@@ -80,7 +82,6 @@ mod invoker;
 pub use evm_interpreter as interpreter;
 
 pub use crate::{
-	backend::TransactionalBackend,
 	call_stack::{transact, HeapTransact},
 	gasometer::GasMutState,
 	invoker::{Invoker, InvokerControl},

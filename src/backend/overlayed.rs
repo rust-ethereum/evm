@@ -17,20 +17,32 @@ use crate::{backend::TransactionalBackend, standard::Config, MergeStrategy};
 
 const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
 
+/// Changeset of an [OverlayedBackend].
 #[derive(Clone, Debug)]
 pub struct OverlayedChangeSet {
+	/// Logs.
 	pub logs: Vec<Log>,
+	/// Balance changes.
 	pub balances: BTreeMap<H160, U256>,
+	/// Code changes.
 	pub codes: BTreeMap<H160, Vec<u8>>,
+	/// Nonce changes.
 	pub nonces: BTreeMap<H160, U256>,
+	/// Storage resets.
 	pub storage_resets: BTreeSet<H160>,
+	/// Storage changes.
 	pub storages: BTreeMap<(H160, H256), H256>,
+	/// Transient storage values.
 	pub transient_storage: BTreeMap<(H160, H256), H256>,
+	/// Accessed addresses or storage values.
 	pub accessed: BTreeSet<(H160, Option<H256>)>,
+	/// Touched accounts according to EIP-161.
 	pub touched: BTreeSet<H160>,
+	/// Deleted accounts.
 	pub deletes: BTreeSet<H160>,
 }
 
+/// Overlayed backend.
 pub struct OverlayedBackend<'config, B> {
 	backend: B,
 	substate: Box<Substate>,
@@ -40,6 +52,7 @@ pub struct OverlayedBackend<'config, B> {
 }
 
 impl<'config, B> OverlayedBackend<'config, B> {
+	/// Create a new overlayed backend, wrapping another backend.
 	pub fn new(
 		backend: B,
 		accessed: BTreeSet<(H160, Option<H256>)>,
@@ -54,6 +67,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 		}
 	}
 
+	/// Deconstruct the current overlayed backend. The change set can then be applied into the actual backend.
 	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet) {
 		if self.touched_ripemd {
 			self.substate.touched.insert(RIPEMD);

@@ -1,3 +1,5 @@
+//! Generic etable, used for opcode execution.
+
 use alloc::boxed::Box;
 use core::{
 	marker::PhantomData,
@@ -14,7 +16,9 @@ use crate::{
 /// An etable "set" that can be evaluated. This is the generic trait to support
 /// all types of dispatching strategies (via `match` or an actual etable array).
 pub trait Etable<H> {
+	/// Etable state.
 	type State;
+	/// Etable trap.
 	type Trap;
 
 	/// Evaluate the etable.
@@ -251,11 +255,13 @@ where
 }
 
 impl<S, H, Tr> DispatchEtable<S, H, Tr> {
+	/// All opcode returns error indicating an unknown opcode.
 	#[must_use]
 	pub const fn none() -> Self {
 		Self([eval_unknown as _; 256], PhantomData)
 	}
 
+	/// All opcode does nothing. Useful for chaining multiple etables together.
 	#[must_use]
 	pub const fn pass() -> Self {
 		Self([eval_pass as _; 256], PhantomData)

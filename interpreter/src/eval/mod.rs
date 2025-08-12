@@ -1,3 +1,5 @@
+//! Actual opcode evaluation implementations.
+
 #[macro_use]
 mod macros;
 mod arithmetic;
@@ -15,6 +17,7 @@ use crate::{
 	Control, ExitException, ExitSucceed, Machine, Opcode,
 };
 
+/// Do nothing, and continue to the next instruction.
 pub fn eval_pass<S, H, Tr>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -23,6 +26,7 @@ pub fn eval_pass<S, H, Tr>(
 	Control::Continue(1)
 }
 
+/// `STOP`
 pub fn eval_stop<S, H, Tr>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -31,6 +35,7 @@ pub fn eval_stop<S, H, Tr>(
 	Control::Exit(ExitSucceed::Stopped.into())
 }
 
+/// `ADD`
 pub fn eval_add<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -39,6 +44,7 @@ pub fn eval_add<S, H, Tr>(
 	op2_u256_tuple!(machine, overflowing_add)
 }
 
+/// `MUL`
 pub fn eval_mul<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -47,6 +53,7 @@ pub fn eval_mul<S, H, Tr>(
 	op2_u256_tuple!(machine, overflowing_mul)
 }
 
+/// `SUB`
 pub fn eval_sub<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -55,6 +62,7 @@ pub fn eval_sub<S, H, Tr>(
 	op2_u256_tuple!(machine, overflowing_sub)
 }
 
+/// `DIV`
 pub fn eval_div<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -63,6 +71,7 @@ pub fn eval_div<S, H, Tr>(
 	op2_u256_fn!(machine, self::arithmetic::div)
 }
 
+/// `SDIV`
 pub fn eval_sdiv<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -71,6 +80,7 @@ pub fn eval_sdiv<S, H, Tr>(
 	op2_u256_fn!(machine, self::arithmetic::sdiv)
 }
 
+/// `MOD`
 pub fn eval_mod<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -79,6 +89,7 @@ pub fn eval_mod<S, H, Tr>(
 	op2_u256_fn!(machine, self::arithmetic::rem)
 }
 
+/// `SMOD`
 pub fn eval_smod<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -87,6 +98,7 @@ pub fn eval_smod<S, H, Tr>(
 	op2_u256_fn!(machine, self::arithmetic::srem)
 }
 
+/// `ADDMOD`
 pub fn eval_addmod<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -95,6 +107,7 @@ pub fn eval_addmod<S, H, Tr>(
 	op3_u256_fn!(machine, self::arithmetic::addmod)
 }
 
+/// `MULMOD`
 pub fn eval_mulmod<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -103,6 +116,7 @@ pub fn eval_mulmod<S, H, Tr>(
 	op3_u256_fn!(machine, self::arithmetic::mulmod)
 }
 
+/// `EXP`
 pub fn eval_exp<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -111,6 +125,7 @@ pub fn eval_exp<S, H, Tr>(
 	op2_u256_fn!(machine, self::arithmetic::exp)
 }
 
+/// `SIGNEXTEND`
 pub fn eval_signextend<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -119,6 +134,7 @@ pub fn eval_signextend<S, H, Tr>(
 	op2_u256_fn!(machine, self::arithmetic::signextend)
 }
 
+/// `LT`
 pub fn eval_lt<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -127,6 +143,7 @@ pub fn eval_lt<S, H, Tr>(
 	op2_u256_bool_ref!(machine, lt)
 }
 
+/// `GT`
 pub fn eval_gt<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -135,6 +152,7 @@ pub fn eval_gt<S, H, Tr>(
 	op2_u256_bool_ref!(machine, gt)
 }
 
+/// `SLT`
 pub fn eval_slt<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -143,6 +161,7 @@ pub fn eval_slt<S, H, Tr>(
 	op2_u256_fn!(machine, self::bitwise::slt)
 }
 
+/// `SGT`
 pub fn eval_sgt<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -151,6 +170,7 @@ pub fn eval_sgt<S, H, Tr>(
 	op2_u256_fn!(machine, self::bitwise::sgt)
 }
 
+/// `EQ`
 pub fn eval_eq<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -159,6 +179,7 @@ pub fn eval_eq<S, H, Tr>(
 	op2_u256_bool_ref!(machine, eq)
 }
 
+/// `ISZERO`
 pub fn eval_iszero<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -167,6 +188,7 @@ pub fn eval_iszero<S, H, Tr>(
 	op1_u256_fn!(machine, self::bitwise::iszero)
 }
 
+/// `AND`
 pub fn eval_and<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -175,6 +197,7 @@ pub fn eval_and<S, H, Tr>(
 	op2_u256!(machine, bitand)
 }
 
+/// `OR`
 pub fn eval_or<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -183,6 +206,7 @@ pub fn eval_or<S, H, Tr>(
 	op2_u256!(machine, bitor)
 }
 
+/// `XOR`
 pub fn eval_xor<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -191,6 +215,7 @@ pub fn eval_xor<S, H, Tr>(
 	op2_u256!(machine, bitxor)
 }
 
+/// `NOT`
 pub fn eval_not<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -199,6 +224,7 @@ pub fn eval_not<S, H, Tr>(
 	op1_u256_fn!(machine, self::bitwise::not)
 }
 
+/// `BYTE`
 pub fn eval_byte<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -207,6 +233,7 @@ pub fn eval_byte<S, H, Tr>(
 	op2_u256_fn!(machine, self::bitwise::byte)
 }
 
+/// `SHL`
 pub fn eval_shl<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -215,6 +242,7 @@ pub fn eval_shl<S, H, Tr>(
 	op2_u256_fn!(machine, self::bitwise::shl)
 }
 
+/// `SHR`
 pub fn eval_shr<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -223,6 +251,7 @@ pub fn eval_shr<S, H, Tr>(
 	op2_u256_fn!(machine, self::bitwise::shr)
 }
 
+/// `SAR`
 pub fn eval_sar<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -231,6 +260,7 @@ pub fn eval_sar<S, H, Tr>(
 	op2_u256_fn!(machine, self::bitwise::sar)
 }
 
+/// `CODESIZE`
 pub fn eval_codesize<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -239,6 +269,7 @@ pub fn eval_codesize<S, H, Tr>(
 	self::misc::codesize(machine)
 }
 
+/// `CODECOPY`
 pub fn eval_codecopy<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -247,6 +278,7 @@ pub fn eval_codecopy<S, H, Tr>(
 	self::misc::codecopy(machine)
 }
 
+/// `CALLDATALOAD`
 pub fn eval_calldataload<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -255,6 +287,7 @@ pub fn eval_calldataload<S, H, Tr>(
 	self::misc::calldataload(machine)
 }
 
+/// `CALLDATASIZE`
 pub fn eval_calldatasize<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -263,6 +296,7 @@ pub fn eval_calldatasize<S, H, Tr>(
 	self::misc::calldatasize(machine)
 }
 
+/// `CALLDATACOPY`
 pub fn eval_calldatacopy<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -271,6 +305,7 @@ pub fn eval_calldatacopy<S, H, Tr>(
 	self::misc::calldatacopy(machine)
 }
 
+/// `POP`
 pub fn eval_pop<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -279,6 +314,7 @@ pub fn eval_pop<S, H, Tr>(
 	self::misc::pop(machine)
 }
 
+/// `MLOAD`
 pub fn eval_mload<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -287,6 +323,7 @@ pub fn eval_mload<S, H, Tr>(
 	self::misc::mload(machine)
 }
 
+/// `MSTORE`
 pub fn eval_mstore<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -295,6 +332,7 @@ pub fn eval_mstore<S, H, Tr>(
 	self::misc::mstore(machine)
 }
 
+/// `MSTORE8`
 pub fn eval_mstore8<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -303,6 +341,7 @@ pub fn eval_mstore8<S, H, Tr>(
 	self::misc::mstore8(machine)
 }
 
+/// `JUMP`
 pub fn eval_jump<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -311,6 +350,7 @@ pub fn eval_jump<S, H, Tr>(
 	self::misc::jump(machine)
 }
 
+/// `JUMPI`
 pub fn eval_jumpi<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -319,6 +359,7 @@ pub fn eval_jumpi<S, H, Tr>(
 	self::misc::jumpi(machine)
 }
 
+/// `PC`
 pub fn eval_pc<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -327,6 +368,7 @@ pub fn eval_pc<S, H, Tr>(
 	self::misc::pc(machine, position)
 }
 
+/// `MSIZE`
 pub fn eval_msize<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -335,6 +377,7 @@ pub fn eval_msize<S, H, Tr>(
 	self::misc::msize(machine)
 }
 
+/// `JUMPDEST`
 pub fn eval_jumpdest<S, H, Tr>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -343,6 +386,7 @@ pub fn eval_jumpdest<S, H, Tr>(
 	Control::Continue(1)
 }
 
+/// `MCOPY`
 pub fn eval_mcopy<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -354,6 +398,7 @@ pub fn eval_mcopy<S, H, Tr>(
 macro_rules! eval_push {
     ($($num:expr),*) => {
 		$(paste::paste! {
+			/// `PUSHn`
 			pub fn [<eval_push $num>]<S, H, Tr>(
 				machine: &mut Machine<S>,
 				_handle: &mut H,
@@ -373,6 +418,7 @@ eval_push! {
 macro_rules! eval_dup {
     ($($num:expr),*) => {
 		$(paste::paste! {
+			/// `DUPn`
 			pub fn [<eval_dup $num>]<S, H, Tr>(
 				machine: &mut Machine<S>,
 				_handle: &mut H,
@@ -389,6 +435,7 @@ eval_dup! { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
 macro_rules! eval_swap {
     ($($num:expr),*) => {
 		$(paste::paste! {
+			/// `SWAPn`
 			pub fn [<eval_swap $num>]<S, H, Tr>(
 				machine: &mut Machine<S>,
 				_handle: &mut H,
@@ -402,6 +449,7 @@ macro_rules! eval_swap {
 
 eval_swap! { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16 }
 
+/// `RETURN`
 pub fn eval_return<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -410,6 +458,7 @@ pub fn eval_return<S, H, Tr>(
 	self::misc::ret(machine)
 }
 
+/// `REVERT`
 pub fn eval_revert<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -418,6 +467,7 @@ pub fn eval_revert<S, H, Tr>(
 	self::misc::revert(machine)
 }
 
+/// `INVALID`
 pub fn eval_invalid<S, H, Tr>(
 	_machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -426,6 +476,7 @@ pub fn eval_invalid<S, H, Tr>(
 	Control::Exit(ExitException::DesignatedInvalid.into())
 }
 
+/// Any unknown opcode.
 pub fn eval_unknown<S, H, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -434,6 +485,7 @@ pub fn eval_unknown<S, H, Tr>(
 	Control::Exit(ExitException::InvalidOpcode(Opcode(machine.code()[position])).into())
 }
 
+/// `SHA3`
 pub fn eval_sha3<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -442,6 +494,7 @@ pub fn eval_sha3<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend,
 	self::system::sha3(machine)
 }
 
+/// `ADDRESS`
 pub fn eval_address<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -450,6 +503,7 @@ pub fn eval_address<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::address(machine)
 }
 
+/// `BLANACE`
 pub fn eval_balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -458,6 +512,7 @@ pub fn eval_balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::balance(machine, handle)
 }
 
+/// `SELFBALANCE`
 pub fn eval_selfbalance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -466,6 +521,7 @@ pub fn eval_selfbalance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeB
 	self::system::selfbalance(machine, handle)
 }
 
+/// `ORIGIN`
 pub fn eval_origin<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -474,6 +530,7 @@ pub fn eval_origin<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	self::system::origin(machine, handle)
 }
 
+/// `CALLER`
 pub fn eval_caller<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -482,6 +539,7 @@ pub fn eval_caller<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	self::system::caller(machine)
 }
 
+/// `CALLVALUE`
 pub fn eval_callvalue<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -490,6 +548,7 @@ pub fn eval_callvalue<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBac
 	self::system::callvalue(machine)
 }
 
+/// `GASPRICE`
 pub fn eval_gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -498,6 +557,7 @@ pub fn eval_gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBack
 	self::system::gasprice(machine, handle)
 }
 
+/// `EXTCODESIZE`
 pub fn eval_extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -506,6 +566,7 @@ pub fn eval_extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeB
 	self::system::extcodesize(machine, handle)
 }
 
+/// `EXTCODEHASH`
 pub fn eval_extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -514,6 +575,7 @@ pub fn eval_extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeB
 	self::system::extcodehash(machine, handle)
 }
 
+/// `EXTCODECOPY`
 pub fn eval_extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -522,6 +584,7 @@ pub fn eval_extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeB
 	self::system::extcodecopy(machine, handle)
 }
 
+/// `RETURNDATASIZE`
 pub fn eval_returndatasize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -530,6 +593,7 @@ pub fn eval_returndatasize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + Runti
 	self::system::returndatasize(machine)
 }
 
+/// `RETURNDATACOPY`
 pub fn eval_returndatacopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	_handle: &mut H,
@@ -538,6 +602,7 @@ pub fn eval_returndatacopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + Runti
 	self::system::returndatacopy(machine)
 }
 
+/// `BLOCKHASH`
 pub fn eval_blockhash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -546,6 +611,7 @@ pub fn eval_blockhash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBac
 	self::system::blockhash(machine, handle)
 }
 
+/// `COINBASE`
 pub fn eval_coinbase<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -554,6 +620,7 @@ pub fn eval_coinbase<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBack
 	self::system::coinbase(machine, handle)
 }
 
+/// `TIMESTAMP`
 pub fn eval_timestamp<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -562,6 +629,7 @@ pub fn eval_timestamp<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBac
 	self::system::timestamp(machine, handle)
 }
 
+/// `NUMBER`
 pub fn eval_number<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -570,6 +638,7 @@ pub fn eval_number<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	self::system::number(machine, handle)
 }
 
+/// `DIFFICULTY`
 pub fn eval_difficulty<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -578,6 +647,7 @@ pub fn eval_difficulty<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBa
 	self::system::prevrandao(machine, handle)
 }
 
+/// `GASLIMIT`
 pub fn eval_gaslimit<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -586,6 +656,7 @@ pub fn eval_gaslimit<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBack
 	self::system::gaslimit(machine, handle)
 }
 
+/// `SLOAD`
 pub fn eval_sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -594,6 +665,7 @@ pub fn eval_sload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend
 	self::system::sload(machine, handle)
 }
 
+/// `SSTORE`
 pub fn eval_sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -602,6 +674,7 @@ pub fn eval_sstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	self::system::sstore(machine, handle)
 }
 
+/// `GAS`
 pub fn eval_gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -610,6 +683,7 @@ pub fn eval_gas<S: GasState, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	self::system::gas(machine, handle)
 }
 
+/// `TLOAD`
 pub fn eval_tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -618,6 +692,7 @@ pub fn eval_tload<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend
 	self::system::tload(machine, handle)
 }
 
+/// `TSTORE`
 pub fn eval_tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -629,6 +704,7 @@ pub fn eval_tstore<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 macro_rules! eval_log {
     ($($num:expr),*) => {
 		$(paste::paste! {
+			/// `LOGn`
 			pub fn [<eval_log $num>]<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 				machine: &mut Machine<S>,
 				handle: &mut H,
@@ -642,6 +718,7 @@ macro_rules! eval_log {
 
 eval_log! { 0, 1, 2, 3, 4 }
 
+/// `SUICIDE`
 pub fn eval_suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -650,6 +727,7 @@ pub fn eval_suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::suicide(machine, handle)
 }
 
+/// `CHAINID`
 pub fn eval_chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -658,6 +736,7 @@ pub fn eval_chainid<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::chainid(machine, handle)
 }
 
+/// `BASEFEE`
 pub fn eval_basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
@@ -666,6 +745,7 @@ pub fn eval_basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::basefee(machine, handle)
 }
 
+/// `CREATE`, `CREATE2`, `CALL`, `CALLCODE`, `DELEGATECALL`, `STATICCALL`
 pub fn eval_call_create_trap<
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
 	H,
@@ -695,6 +775,7 @@ pub fn eval_call_create_trap<
 	Control::Trap(Box::new(trap.into()))
 }
 
+/// Eval any known opcode, uses `match`.
 pub fn eval_any<S, H, Tr>(machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState> + GasState,
