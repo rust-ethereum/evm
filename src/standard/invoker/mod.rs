@@ -1,6 +1,6 @@
 mod resolver;
-mod state;
 pub mod routines;
+mod state;
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, marker::PhantomData};
@@ -34,14 +34,14 @@ pub enum SubstackInvoke {
 	/// CALL-alike opcode..
 	Call {
 		/// The trap of the call.
-		trap: CallTrap
+		trap: CallTrap,
 	},
 	/// CREATE-alike opcodes.
 	Create {
 		/// The trap of CREATE/CREATE2.
 		trap: CreateTrap,
 		/// Resolved target address.
-		address: H160
+		address: H160,
 	},
 }
 
