@@ -1,5 +1,8 @@
+use core::convert::TryFrom;
+
 use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
 use alloc::vec::Vec;
+use evm_core::delegation::Delegation;
 use primitive_types::{H160, H256, U256};
 
 /// Transfer from source to target, with given value.
@@ -36,8 +39,9 @@ pub trait Handler {
 	/// Get code of address, following EIP-7702 delegations if enabled.
 	fn delegated_code(&self, address: H160) -> Option<Vec<u8>> {
 		let code = self.code(address);
-		evm_core::extract_delegation_address(&code)
-			.map(|delegated_address| self.code(delegated_address))
+		Delegation::try_from(&code[..])
+			.map(|delegation| self.code(delegation.into_address()))
+			.ok()
 	}
 	/// Get storage value of address at index.
 	fn storage(&self, address: H160, index: H256) -> H256;

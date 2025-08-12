@@ -10,7 +10,9 @@ use crate::{
 	Transfer,
 };
 use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
-use core::{cmp::min, convert::Infallible};
+use core::cmp::min;
+use core::convert::{Infallible, TryFrom};
+use evm_core::delegation::Delegation;
 use evm_core::ExitFatal;
 use evm_runtime::Resolve;
 use primitive_types::{H160, H256, U256};
@@ -218,6 +220,8 @@ pub trait StackState<'config>: Backend {
 		code: Vec<u8>,
 		caller: Option<H160>,
 	) -> Result<(), ExitError>;
+	fn set_delegation(&mut self, authority: H160, delegation: Delegation) -> Result<(), ExitError>;
+	fn reset_delegation(&mut self, authority: H160) -> Result<(), ExitError>;
 	fn transfer(&mut self, transfer: Transfer) -> Result<(), ExitError>;
 	fn reset_balance(&mut self, address: H160);
 	fn touch(&mut self, address: H160);
@@ -823,7 +827,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			// Skip if account has existing non-delegation code
 			let existing_code = self.state.code(authorizing_address);
-			if !existing_code.is_empty() && !evm_core::is_delegation_designator(&existing_code) {
+			if !existing_code.is_empty()
+				&& !evm_core::delegation::is_delegation_designator(&existing_code)
+			{
 				// Skip if account has non-delegation code
 				continue;
 			}
@@ -855,12 +861,12 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 
 			// Set account code: clear if delegating to zero address, otherwise set delegation designator
-			let code = if delegation_address == H160::zero() {
-				Vec::new()
+			if delegation_address == H160::zero() {
+				self.state.reset_delegation(authorizing_address)?;
 			} else {
-				evm_core::create_delegation_designator(delegation_address)
+				self.state
+					.set_delegation(authorizing_address, Delegation::new(delegation_address))?;
 			};
-			self.state.set_code(authorizing_address, code, None)?;
 
 			// Increment the nonce of the authorizing account
 			self.state.inc_nonce(authorizing_address)?;
@@ -1081,15 +1087,15 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		let code = if self.config.has_eip_7702 {
 			// Check for delegation and record external operation if needed
 			let original_code = self.code(code_address);
-			if let Some(delegated_address) = evm_core::extract_delegation_address(&original_code) {
+			if let Ok(delegation) = Delegation::try_from(&original_code[..]) {
 				if let Err(e) = self.record_external_operation(
-					crate::ExternalOperation::DelegationResolution(delegated_address),
+					crate::ExternalOperation::DelegationResolution(*delegation.address()),
 				) {
 					let _ = self.exit_substate(StackExitKind::Failed);
 					return Capture::Exit((ExitReason::Error(e), Vec::new()));
 				}
 
-				self.code(delegated_address)
+				self.code(*delegation.address())
 			} else {
 				original_code
 			}
