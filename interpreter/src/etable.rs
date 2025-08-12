@@ -13,9 +13,8 @@ use crate::{
 
 /// An etable "set" that can be evaluated. This is the generic trait to support
 /// all types of dispatching strategies (via `match` or an actual etable array).
-pub trait EtableSet {
+pub trait EtableSet<H> {
 	type State;
-	type Handle;
 	type Trap;
 
 	/// Evaluate the etable.
@@ -26,7 +25,7 @@ pub trait EtableSet {
 	fn eval(
 		&self,
 		machine: &mut Machine<Self::State>,
-		handle: &mut Self::Handle,
+		handle: &mut H,
 		position: usize,
 	) -> Control<Self::Trap>;
 }
@@ -35,13 +34,12 @@ pub trait EtableSet {
 /// `Control::NoAction`.
 pub struct Chained<E1, E2>(pub E1, pub E2);
 
-impl<S, H, Tr, E1, E2> EtableSet for Chained<E1, E2>
+impl<S, H, Tr, E1, E2> EtableSet<H> for Chained<E1, E2>
 where
-	E1: EtableSet<State = S, Handle = H, Trap = Tr>,
-	E2: EtableSet<State = S, Handle = H, Trap = Tr>,
+	E1: EtableSet<H, State = S, Trap = Tr>,
+	E2: EtableSet<H, State = S, Trap = Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -58,14 +56,13 @@ where
 /// A tracing Etable, with pre and post actions.
 pub struct Tracing<EPre, E, EPost>(pub EPre, pub E, pub EPost);
 
-impl<S, H, Tr, EPre, E, EPost> EtableSet for Tracing<EPre, E, EPost>
+impl<S, H, Tr, EPre, E, EPost> EtableSet<H> for Tracing<EPre, E, EPost>
 where
-	EPre: EtableSet<State = S, Handle = H, Trap = Tr>,
-	E: EtableSet<State = S, Handle = H, Trap = Tr>,
-	EPost: EtableSet<State = S, Handle = H, Trap = Tr>,
+	EPre: EtableSet<H, State = S, Trap = Tr>,
+	E: EtableSet<H, State = S, Trap = Tr>,
+	EPost: EtableSet<H, State = S, Trap = Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -107,12 +104,11 @@ impl<S, H, Tr, F> Single<S, H, Tr, F> {
 	}
 }
 
-impl<S, H, Tr, F> EtableSet for Single<S, H, Tr, F>
+impl<S, H, Tr, F> EtableSet<H> for Single<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -160,12 +156,11 @@ impl<S, H, Tr, F> From<Etable<S, H, Tr, F>> for MultiEtable<S, H, Tr, F> {
 	}
 }
 
-impl<S, H, Tr, F> EtableSet for MultiEtable<S, H, Tr, F>
+impl<S, H, Tr, F> EtableSet<H> for MultiEtable<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {
@@ -217,12 +212,11 @@ where
 	}
 }
 
-impl<S, H, Tr, F> EtableSet for Etable<S, H, Tr, F>
+impl<S, H, Tr, F> EtableSet<H> for Etable<S, H, Tr, F>
 where
 	F: Fn(&mut Machine<S>, &mut H, usize) -> Control<Tr>,
 {
 	type State = S;
-	type Handle = H;
 	type Trap = Tr;
 
 	fn eval(&self, machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr> {

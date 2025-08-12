@@ -137,15 +137,16 @@ impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
-	<R::Interpreter as Interpreter<H>>::State:
+	R::State:
 		InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
-	<<R::Interpreter as Interpreter<H>>::State as InvokerState>::TransactArgs:
+	<R::State as InvokerState>::TransactArgs:
 		AsRef<TransactArgs<'config>>,
 	H: RuntimeEnvironment + RuntimeBackend + TransactionalBackend,
 	R: Resolver<H>,
 	<R::Interpreter as Interpreter<H>>::Trap: TrapConsume<CallCreateTrap>,
 	R::Interpreter: FeedbackInterpreter<H, CallFeedback> + FeedbackInterpreter<H, CreateFeedback>,
 {
+	type State = R::State;
 	type Interpreter = R::Interpreter;
 	type Interrupt =
 		<<R::Interpreter as Interpreter<H>>::Trap as TrapConsume<CallCreateTrap>>::Rest;
@@ -161,7 +162,7 @@ where
 	) -> Result<
 		(
 			Self::TransactInvoke,
-			InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+			InvokerControl<Self::Interpreter, Self::State>,
 		),
 		ExitError,
 	> {
@@ -329,7 +330,7 @@ where
 	fn finalize_transact(
 		&self,
 		invoke: &Self::TransactInvoke,
-		mut exit: InvokerExit<<R::Interpreter as Interpreter<H>>::State>,
+		mut exit: InvokerExit<Self::State>,
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError> {
 		let substate = exit.substate.as_mut();
@@ -426,7 +427,7 @@ where
 		Result<
 			(
 				Self::SubstackInvoke,
-				InvokerControl<Self::Interpreter, <R::Interpreter as Interpreter<H>>::State>,
+				InvokerControl<Self::Interpreter, Self::State>,
 			),
 			ExitError,
 		>,
@@ -633,7 +634,7 @@ where
 	fn exit_substack(
 		&self,
 		trap_data: Self::SubstackInvoke,
-		exit: InvokerExit<<R::Interpreter as Interpreter<H>>::State>,
+		exit: InvokerExit<Self::State>,
 		parent: &mut Self::Interpreter,
 		handler: &mut H,
 	) -> Result<(), ExitError> {
