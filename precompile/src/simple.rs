@@ -1,3 +1,4 @@
+use alloc::vec::Vec;
 use core::cmp::min;
 
 use evm::{

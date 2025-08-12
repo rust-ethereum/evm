@@ -8,9 +8,8 @@ use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
 	interpreter::{runtime::GasState, utils::u256_to_h256, Capture},
 	standard::{Config, TransactArgs, TransactArgsCallCreate},
-	with_mainnet_invoker,
 };
-use evm_precompile::StandardPrecompileSet;
+use evm_mainnet::with_mainnet_invoker;
 use primitive_types::{H256, U256};
 
 use crate::{
@@ -246,14 +245,14 @@ pub fn run_test(
 	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config);
 
 	// Run
-	let run_result = evm::transact_mainnet(args.clone(), &StandardPrecompileSet, &mut run_backend);
+	let run_result = evm_mainnet::transact(args.clone(), &mut run_backend);
 	let run_changeset = run_backend.deconstruct().1;
 	let mut run_backend = base_backend.clone();
 	run_backend.apply_overlayed(&run_changeset);
 
 	// Step
 	if debug {
-		with_mainnet_invoker!(&StandardPrecompileSet, |invoker| {
+		with_mainnet_invoker!(|invoker| {
 			let _step_result = evm::HeapTransact::new(args, &invoker, &mut step_backend).and_then(
 				|mut stepper| loop {
 					{

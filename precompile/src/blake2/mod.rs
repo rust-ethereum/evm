@@ -1,5 +1,7 @@
 mod eip152;
 
+use alloc::vec::Vec;
+
 use evm::{
 	interpreter::{ExitException, ExitResult, ExitSucceed},
 	GasMutState,
