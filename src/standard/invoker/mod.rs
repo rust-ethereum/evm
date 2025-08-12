@@ -127,7 +127,7 @@ pub struct Invoker<'config, 'resolver, R> {
 
 impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	/// Create a new standard invoker with the given config and resolver.
-	pub fn new(resolver: &'resolver R) -> Self {
+	pub const fn new(resolver: &'resolver R) -> Self {
 		Self {
 			resolver,
 			_marker: PhantomData,

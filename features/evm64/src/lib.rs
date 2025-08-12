@@ -7,7 +7,7 @@ mod gasometer;
 
 use evm::{
 	interpreter::{
-		etable::{Etable, MultiEfn, MultiEtable, Single},
+		etable::{DispatchEtable, MultiEfn, MultiEtable, Single},
 		Opcode,
 	},
 	standard::GasometerState,
@@ -20,15 +20,15 @@ pub const OPCODE_EVM64_MODE: Opcode = Opcode(0xc0);
 /// Append a normal `(gasometer, runtime)` etable with EVM64 gasometer and
 /// opcodes.
 pub fn etable<S, H, Tr>(
-	orig: (Single<S, H, Tr>, Etable<S, H, Tr>),
-) -> (Etable<S, H, Tr>, MultiEtable<S, H, Tr>)
+	orig: (Single<S, H, Tr>, DispatchEtable<S, H, Tr>),
+) -> (DispatchEtable<S, H, Tr>, MultiEtable<S, H, Tr>)
 where
 	S: AsRef<GasometerState> + AsMut<GasometerState>,
 {
-	let mut gasometer_etable = Etable::from(orig.0);
+	let mut gasometer_etable = DispatchEtable::from(orig.0);
 	let mut eval_etable = MultiEtable::from(orig.1);
 
-	let mut mode_etable = Etable::none();
+	let mut mode_etable = DispatchEtable::none();
 	mode_etable[Opcode::ADD.as_usize()] = eval::eval_add;
 	mode_etable[Opcode::MUL.as_usize()] = eval::eval_mul;
 	mode_etable[Opcode::SUB.as_usize()] = eval::eval_sub;

@@ -1,5 +1,5 @@
 use evm_interpreter::{
-	etable::{Etable, MultiEfn, MultiEtable},
+	etable::{DispatchEtable, MultiEfn, MultiEtable},
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
 		SetCodeOrigin, TouchKind, TransactionContext,
@@ -19,7 +19,7 @@ fn etable_wrap() {
 	let code = hex::decode(CODE1).unwrap();
 	let data = hex::decode(DATA1).unwrap();
 
-	let wrapped_etable = Etable::<_, _, ()>::core().wrap(|f, opcode_t| {
+	let wrapped_etable = DispatchEtable::<_, _, ()>::core().wrap(|f, opcode_t| {
 		move |machine, handle, position| {
 			let opcode = Opcode(machine.code()[position]);
 			assert_eq!(opcode_t, opcode);
@@ -41,7 +41,7 @@ fn etable_wrap2() {
 	let code = hex::decode(CODE1).unwrap();
 	let data = hex::decode(DATA1).unwrap();
 
-	let wrapped_etable = Etable::core().wrap(
+	let wrapped_etable = DispatchEtable::core().wrap(
 		|f, opcode_t| -> Box<dyn Fn(&mut Machine<()>, &mut (), usize) -> Control<()>> {
 			if opcode_t != Opcode(0x50) {
 				Box::new(move |machine, handle, position| {
@@ -198,8 +198,8 @@ impl RuntimeBackend for UnimplementedHandler {
 	}
 }
 
-static RUNTIME_ETABLE: Etable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
-	Etable::runtime();
+static RUNTIME_ETABLE: DispatchEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+	DispatchEtable::runtime();
 
 #[test]
 fn etable_runtime() {
@@ -255,11 +255,11 @@ fn etable_multi() {
 	let data = hex::decode(DATA1).unwrap();
 	let mut handler = UnimplementedHandler;
 
-	let etable: Etable<RuntimeState, UnimplementedHandler, CallCreateTrap> = Etable::runtime();
+	let etable: DispatchEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> = DispatchEtable::runtime();
 	let mut multi_etable: MultiEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
 		etable.into();
 	let prefix_etable =
-		MultiEtable::from(Etable::<RuntimeState, UnimplementedHandler, CallCreateTrap>::runtime());
+		MultiEtable::from(DispatchEtable::<RuntimeState, UnimplementedHandler, CallCreateTrap>::runtime());
 	multi_etable[prefix.as_usize()] = MultiEfn::Node(Box::new(prefix_etable));
 
 	let machine = Machine::new(

@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
 
 use crate::{
-	etable::EtableSet,
+	etable::Etable,
 	runtime::RuntimeState,
 	trap::{CallFeedback, CreateFeedback},
 	Capture, Control, ExitError, ExitException, ExitResult, ExitSucceed, FeedbackInterpreter,
@@ -104,7 +104,7 @@ impl<'etable, S, ES> EtableInterpreter<'etable, S, ES> {
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State = S>> Interpreter<H>
+impl<'etable, S, H, ES: Etable<H, State = S>> Interpreter<H>
 	for EtableInterpreter<'etable, S, ES>
 {
 	type State = S;
@@ -132,7 +132,7 @@ impl<'etable, S, H, ES: EtableSet<H, State = S>> Interpreter<H>
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State = S>> FeedbackInterpreter<H, CallFeedback>
+impl<'etable, S, H, ES: Etable<H, State = S>> FeedbackInterpreter<H, CallFeedback>
 	for EtableInterpreter<'etable, S, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
@@ -148,7 +148,7 @@ where
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State = S>> FeedbackInterpreter<H, CreateFeedback>
+impl<'etable, S, H, ES: Etable<H, State = S>> FeedbackInterpreter<H, CreateFeedback>
 	for EtableInterpreter<'etable, S, ES>
 where
 	S: AsRef<RuntimeState> + AsMut<RuntimeState>,
@@ -164,7 +164,7 @@ where
 	}
 }
 
-impl<'etable, S, H, ES: EtableSet<H, State = S>> StepInterpreter<H>
+impl<'etable, S, H, ES: Etable<H, State = S>> StepInterpreter<H>
 	for EtableInterpreter<'etable, S, ES>
 {
 	#[inline]

@@ -1,10 +1,10 @@
 use std::rc::Rc;
 
 use evm_interpreter::{
-	etable::Etable, Capture, EtableInterpreter, ExitSucceed, Interpreter, Machine,
+	etable::DispatchEtable, Capture, EtableInterpreter, ExitSucceed, Interpreter, Machine,
 };
 
-static ETABLE: Etable<(), (), ()> = Etable::core();
+static ETABLE: DispatchEtable<(), (), ()> = DispatchEtable::core();
 
 macro_rules! ret_test {
 	($name:ident, $code:expr, $data:expr, $ret:expr) => {

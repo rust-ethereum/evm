@@ -1,7 +1,7 @@
 use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::{
-	etable::EtableSet,
+	etable::Etable,
 	runtime::{RuntimeBackend, RuntimeState},
 	trap::CallScheme,
 	EtableInterpreter, ExitError, ExitResult, Interpreter, Machine,
@@ -75,7 +75,7 @@ pub struct EtableResolver<'precompile, 'etable, Pre, ES> {
 }
 
 impl<'precompile, 'etable, Pre, ES> EtableResolver<'precompile, 'etable, Pre, ES> {
-	pub fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
+	pub const fn new(precompiles: &'precompile Pre, etable: &'etable ES) -> Self {
 		Self {
 			precompiles,
 			etable,
@@ -88,7 +88,7 @@ where
 	ES::State: AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
 	H: RuntimeBackend,
 	Pre: PrecompileSet<ES::State, H>,
-	ES: EtableSet<H>,
+	ES: Etable<H>,
 {
 	type State = ES::State;
 	type Interpreter = EtableInterpreter<'etable, ES::State, ES>;
