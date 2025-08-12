@@ -119,7 +119,7 @@ impl<'config> AsRef<TransactArgs<'config>> for TransactArgs<'config> {
 /// * `H`: Backend type.
 /// * `R`: Code resolver type, also handle precompiles. Usually
 ///   [EtableResolver] but can be customized.
-/// * `Tr`: Trap type, usually [crate::Opcode] but can be customized.
+/// * `Tr`: Trap type, usually [crate::interpreter::Opcode] but can be customized.
 pub struct Invoker<'config, 'resolver, R> {
 	resolver: &'resolver R,
 	_marker: PhantomData<&'config Config>,

@@ -122,7 +122,7 @@ pub enum ExitException {
 	CreateEmpty,
 
 	/// Nonce reached maximum value of 2^64-1
-	/// https://eips.ethereum.org/EIPS/eip-2681
+	/// See <https://eips.ethereum.org/EIPS/eip-2681>
 	#[cfg_attr(feature = "scale", codec(index = 14))]
 	MaxNonce,
 
