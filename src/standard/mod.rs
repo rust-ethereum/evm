@@ -49,6 +49,12 @@ impl<'config> GasometerEtable<'config> {
 	}
 }
 
+impl<'config> Default for GasometerEtable<'config> {
+	fn default() -> Self {
+		Self::new()
+	}
+}
+
 impl<'config, H> etable::Etable<H> for GasometerEtable<'config>
 where
 	H: RuntimeBackend,
@@ -72,6 +78,12 @@ pub struct ExecutionEtable<'config>(PhantomData<&'config ()>);
 impl<'config> ExecutionEtable<'config> {
 	pub const fn new() -> Self {
 		Self(PhantomData)
+	}
+}
+
+impl<'config> Default for ExecutionEtable<'config> {
+	fn default() -> Self {
+		Self::new()
 	}
 }
 
