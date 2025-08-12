@@ -12,7 +12,7 @@ keywords = { workspace = true }
 clap = { version = "4", features = ["derive"] }
 ethereum = "0.15.0"
 evm = { workspace = true }
-evm-precompile = { version = "1.0.0-dev", path = "../precompile" }
+evm-mainnet = { workspace = true }
 hex = { version = "0.4", features = ["serde"] }
 primitive-types = { version = "0.12", features = ["rlp", "serde"] }
 rlp = "0.5"
