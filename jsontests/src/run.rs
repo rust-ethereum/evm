@@ -34,7 +34,7 @@ fn get_short_file_name(filename: &str) -> String {
 }
 
 /// Run tests for specific json file with debug flag
-fn run_file(
+pub fn run_file(
 	filename: &str,
 	debug: bool,
 	write_failed: Option<&str>,
@@ -108,6 +108,52 @@ pub fn run_single(
 	}
 }
 
+/// Collect all test file names.
+pub fn collect_test_files(
+	folder: &str,
+) -> Result<Vec<(String, String)>, Error> {
+	let mut result = Vec::new();
+	collect_test_files_to(folder, folder, &mut result)?;
+	Ok(result)
+}
+
+fn collect_test_files_to(
+	top_level: &str,
+	folder: &str,
+	result: &mut Vec<(String, String)>,
+) -> Result<(), Error> {
+	if fs::metadata(folder)?.is_dir() {
+		for filename in fs::read_dir(folder)? {
+			let filepath = filename?.path();
+			let filename = filepath.to_str().ok_or(Error::NonUtf8Filename)?;
+
+			collect_test_files_to(top_level, filename, result)?;
+		}
+	} else if folder.ends_with(".json") {
+		let mut short_file_name = folder.to_string();
+		if let Some(res) = short_file_name.strip_prefix(top_level) {
+			short_file_name = res.to_string();
+		}
+		if let Some(res) = short_file_name.strip_suffix(".json") {
+			short_file_name = res.to_string();
+		}
+		if let Some(res) = short_file_name.strip_prefix("/") {
+			short_file_name = res.to_string();
+		}
+		short_file_name = short_file_name.replace("+", "_plus_");
+		short_file_name = short_file_name.replace("^", "_pow_");
+		short_file_name = short_file_name.replace("-", "_h_");
+		let normalized_name = if short_file_name == "" {
+			"single".to_string()
+		} else {
+			short_file_name
+		};
+		result.push((normalized_name, folder.to_string()));
+	}
+
+	Ok(())
+}
+
 /// Run single test
 pub fn run_test(
 	_filename: &str,
@@ -139,10 +185,12 @@ pub fn run_test(
 			// Add the previous block hash to the block_hashes map
 			// In EVM, BLOCKHASH opcode can access hashes of the last 256 blocks
 			if test.env.current_number > U256::zero() {
-				block_hashes.insert(
-					test.env.current_number - U256::one(),
-					test.env.previous_hash,
-				);
+				if let Some(previous_hash) = test.env.previous_hash {
+					block_hashes.insert(
+						test.env.current_number - U256::one(),
+						previous_hash,
+					);
+				}
 			}
 			block_hashes
 		},
@@ -150,7 +198,7 @@ pub fn run_test(
 		block_coinbase: test.env.current_coinbase,
 		block_timestamp: test.env.current_timestamp,
 		block_difficulty: test.env.current_difficulty,
-		block_randomness: Some(test.env.current_random),
+		block_randomness: test.env.current_random,
 		block_gas_limit: test.env.current_gas_limit,
 		block_base_fee_per_gas: test.transaction.gas_price,
 		chain_id: U256::one(),
