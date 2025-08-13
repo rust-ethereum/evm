@@ -204,6 +204,11 @@ pub enum TestExpectException {
 	TR_TipGtFeeCap,
 	TR_FeeCapLessThanBlocks,
 	TR_GasLimitReached,
+	TR_BLOBVERSION_INVALID,
+	TR_BLOBCREATE,
+	TR_BLOBLIST_OVERSIZE,
+	TR_EMPTYBLOB,
+	TR_InitCodeLimitExceeded,
 	IntrinsicGas,
 	SenderNotEOA,
 }
