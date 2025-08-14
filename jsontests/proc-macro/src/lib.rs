@@ -1,7 +1,11 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
-use syn::{LitStr, parse::{Parse, ParseStream}, parse_macro_input, Token};
 use quote::quote;
+use syn::{
+	LitStr, Token,
+	parse::{Parse, ParseStream},
+	parse_macro_input,
+};
 
 #[derive(Debug)]
 struct Input {
@@ -14,21 +18,28 @@ impl Parse for Input {
 		let prefix = input.parse()?;
 		input.parse::<Token![,]>()?;
 		let folder = input.parse()?;
-		Ok(Input {
-			prefix,
-			folder,
-		})
+		Ok(Input { prefix, folder })
 	}
 }
 
 #[proc_macro]
 pub fn statetest_folder(item: TokenStream) -> TokenStream {
-	let mut source_file = std::path::absolute(proc_macro::Span::call_site().local_file().expect("can only handle local file")).expect("cannot get absolute path");
+	let mut source_file = std::path::absolute(
+		proc_macro::Span::call_site()
+			.local_file()
+			.expect("can only handle local file"),
+	)
+	.expect("cannot get absolute path");
 	assert!(source_file.pop());
 	let input = parse_macro_input!(item as Input);
 	let prefix = input.prefix.value();
-	let folder = source_file.join(input.folder.value()).canonicalize().expect("failed to canonicalize");
-	let test_files = jsontests::run::collect_test_files(&folder.to_str().expect("non-utf8 filename")).expect("uninitialized submodule");
+	let folder = source_file
+		.join(input.folder.value())
+		.canonicalize()
+		.expect("failed to canonicalize");
+	let test_files =
+		jsontests::run::collect_test_files(folder.to_str().expect("non-utf8 filename"))
+			.expect("uninitialized submodule");
 
 	let mut tests = Vec::new();
 	for (test_file_name, test_file_path) in test_files {
@@ -56,5 +67,6 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 
 	quote! {
 		#( #tests )*
-	}.into()
+	}
+	.into()
 }

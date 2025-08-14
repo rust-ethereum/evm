@@ -1,6 +1,6 @@
 use primitive_types::U256;
 
-use crate::utils::{Sign, I256};
+use crate::utils::{I256, Sign};
 
 #[inline]
 pub fn slt(op1: U256, op2: U256) -> U256 {

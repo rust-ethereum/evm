@@ -6,13 +6,13 @@ use alloc::vec::Vec;
 use core::cmp::{max, min};
 
 use evm_interpreter::{
+	Control, ExitError, ExitException, Machine, Opcode, Stack,
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
 	utils::{u256_to_h160, u256_to_h256},
-	Control, ExitError, ExitException, Machine, Opcode, Stack,
 };
 use primitive_types::{H160, H256, U256};
 
-use crate::{standard::Config, MergeStrategy};
+use crate::{MergeStrategy, standard::Config};
 
 /// Gasometer state.
 pub struct GasometerState {
@@ -365,7 +365,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if config.empty_considered_exists {
+				target_exists: if !config.runtime.eip161 {
 					handler.exists(target)
 				} else {
 					!handler.is_empty(target)
@@ -382,7 +382,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::StaticCall {
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if config.empty_considered_exists {
+				target_exists: if !config.runtime.eip161 {
 					handler.exists(target)
 				} else {
 					!handler.is_empty(target)
@@ -434,7 +434,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::DelegateCall {
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if config.empty_considered_exists {
+				target_exists: if !config.runtime.eip161 {
 					handler.exists(target)
 				} else {
 					!handler.is_empty(target)
@@ -499,7 +499,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::Suicide {
 				value: handler.balance(address),
 				target_is_cold,
-				target_exists: if config.empty_considered_exists {
+				target_exists: if !config.runtime.eip161 {
 					handler.exists(target)
 				} else {
 					!handler.is_empty(target)
@@ -518,7 +518,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if config.empty_considered_exists {
+				target_exists: if !config.runtime.eip161 {
 					handler.exists(target)
 				} else {
 					!handler.is_empty(target)
@@ -885,11 +885,7 @@ impl MemoryCost {
 		let self_end = self.offset.saturating_add(self.len);
 		let other_end = other.offset.saturating_add(other.len);
 
-		if self_end >= other_end {
-			self
-		} else {
-			other
-		}
+		if self_end >= other_end { self } else { other }
 	}
 
 	/// Numeric value of the cost.

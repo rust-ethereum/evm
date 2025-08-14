@@ -111,11 +111,7 @@ pub fn signextend(op1: U256, op2: U256) -> U256 {
 		let bit_index = (8 * op1.low_u32() + 7) as usize;
 		let bit = op2.bit(bit_index);
 		let mask = (U256::one() << bit_index) - U256::one();
-		if bit {
-			op2 | !mask
-		} else {
-			op2 & mask
-		}
+		if bit { op2 | !mask } else { op2 & mask }
 	} else {
 		op2
 	}
@@ -123,7 +119,7 @@ pub fn signextend(op1: U256, op2: U256) -> U256 {
 
 #[cfg(test)]
 mod tests {
-	use super::{signextend, U256};
+	use super::{U256, signextend};
 
 	/// Test to ensure new (optimized) `signextend` implementation is equivalent to the previous
 	/// implementation.

@@ -1,6 +1,6 @@
 use clap::Parser;
 
-use jsontests::{error::Error, types::*, run};
+use jsontests::{error::Error, run, types::*};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

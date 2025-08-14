@@ -2,8 +2,8 @@ mod mock;
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::{
-		etable::{Chained, Single},
 		ExitError,
+		etable::{Chained, Single},
 	},
 	standard::{
 		Config, DispatchEtable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,

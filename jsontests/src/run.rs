@@ -6,7 +6,7 @@ use std::{
 
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
-	interpreter::{runtime::GasState, utils::u256_to_h256, Capture},
+	interpreter::{Capture, runtime::GasState, utils::u256_to_h256},
 	standard::{Config, TransactArgs, TransactArgsCallCreate},
 };
 use evm_mainnet::with_mainnet_invoker;
@@ -109,9 +109,7 @@ pub fn run_single(
 }
 
 /// Collect all test file names.
-pub fn collect_test_files(
-	folder: &str,
-) -> Result<Vec<(String, String)>, Error> {
+pub fn collect_test_files(folder: &str) -> Result<Vec<(String, String)>, Error> {
 	let mut result = Vec::new();
 	collect_test_files_to(folder, folder, &mut result)?;
 	Ok(result)
@@ -143,7 +141,7 @@ fn collect_test_files_to(
 		short_file_name = short_file_name.replace("+", "_plus_");
 		short_file_name = short_file_name.replace("^", "_pow_");
 		short_file_name = short_file_name.replace("-", "_h_");
-		let normalized_name = if short_file_name == "" {
+		let normalized_name = if short_file_name.is_empty() {
 			"single".to_string()
 		} else {
 			short_file_name
@@ -184,13 +182,10 @@ pub fn run_test(
 			let mut block_hashes = BTreeMap::new();
 			// Add the previous block hash to the block_hashes map
 			// In EVM, BLOCKHASH opcode can access hashes of the last 256 blocks
-			if test.env.current_number > U256::zero() {
-				if let Some(previous_hash) = test.env.previous_hash {
-					block_hashes.insert(
-						test.env.current_number - U256::one(),
-						previous_hash,
-					);
-				}
+			if test.env.current_number > U256::zero()
+				&& let Some(previous_hash) = test.env.previous_hash
+			{
+				block_hashes.insert(test.env.current_number - U256::one(), previous_hash);
 			}
 			block_hashes
 		},

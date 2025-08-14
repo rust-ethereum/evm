@@ -2,13 +2,13 @@
 
 use alloc::vec::Vec;
 use evm_interpreter::{
+	ExitError, ExitException, Interpreter, Opcode,
 	runtime::{
 		RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin, TouchKind, Transfer,
 	},
 	trap::{CallScheme, CallTrap, CreateTrap},
-	ExitError, ExitException, Interpreter, Opcode,
 };
-use primitive_types::{H160, U256};
+use primitive_types::H160;
 
 use crate::{
 	backend::TransactionalBackend,
@@ -47,7 +47,7 @@ where
 					result: Err(err),
 					substate: Some(state),
 					retval: Vec::new(),
-				}))
+				}));
 			}
 		}
 	}
@@ -84,14 +84,14 @@ where
 		TouchKind::StateChange,
 	);
 
-	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size {
-		if init_code.len() > limit {
-			return Ok(InvokerControl::DirectExit(InvokerExit {
-				result: Err(ExitException::CreateContractLimit.into()),
-				substate: Some(state),
-				retval: Vec::new(),
-			}));
-		}
+	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size
+		&& init_code.len() > limit
+	{
+		return Ok(InvokerControl::DirectExit(InvokerExit {
+			result: Err(ExitException::CreateContractLimit.into()),
+			substate: Some(state),
+			retval: Vec::new(),
+		}));
 	}
 
 	match handler.transfer(transfer) {
@@ -101,13 +101,11 @@ where
 				result: Err(err),
 				substate: Some(state),
 				retval: Vec::new(),
-			}))
+			}));
 		}
 	}
 
-	if handler.code_size(AsRef::<RuntimeState>::as_ref(&state).context.address) != U256::zero()
-		|| handler.nonce(AsRef::<RuntimeState>::as_ref(&state).context.address) > U256::zero()
-	{
+	if !handler.can_create(AsRef::<RuntimeState>::as_ref(&state).context.address) {
 		return Ok(InvokerControl::DirectExit(InvokerExit {
 			result: Err(ExitException::CreateCollision.into()),
 			substate: Some(state),
@@ -123,7 +121,7 @@ where
 					result: Err(err),
 					substate: Some(state),
 					retval: Vec::new(),
-				}))
+				}));
 			}
 		}
 	}
@@ -237,10 +235,10 @@ where
 {
 	check_first_byte(state.as_ref(), &retbuf[..])?;
 
-	if let Some(limit) = AsRef::<Config>::as_ref(state).create_contract_limit {
-		if retbuf.len() > limit {
-			return Err(ExitException::CreateContractLimit.into());
-		}
+	if let Some(limit) = AsRef::<Config>::as_ref(state).create_contract_limit
+		&& retbuf.len() > limit
+	{
+		return Err(ExitException::CreateContractLimit.into());
 	}
 
 	state.record_codedeposit(retbuf.len())?;

@@ -6,8 +6,10 @@ use sha3::{Digest, Keccak256};
 use crate::utils::u256_to_h256;
 
 use crate::{
-	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
 	Control, ExitException, ExitFatal, ExitSucceed, Machine,
+	runtime::{
+		GasState, Log, RuntimeBackend, RuntimeConfig, RuntimeEnvironment, RuntimeState, Transfer,
+	},
 };
 
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
@@ -135,12 +137,26 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	Control::Continue(1)
 }
 
-pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+pub fn extcodehash<
+	S: AsRef<RuntimeState> + AsRef<RuntimeConfig>,
+	H: RuntimeEnvironment + RuntimeBackend,
+	Tr,
+>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop_h256!(machine, address);
-	let code_hash = handler.code_hash(address.into());
+	let eip161 = AsRef::<RuntimeConfig>::as_ref(&machine.state).eip161;
+	let is_empty = if eip161 {
+		handler.is_empty(address.into())
+	} else {
+		!handler.exists(address.into())
+	};
+	let code_hash = if is_empty {
+		H256::default()
+	} else {
+		handler.code_hash(address.into())
+	};
 	push_h256!(machine, code_hash);
 
 	Control::Continue(1)

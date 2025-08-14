@@ -242,7 +242,7 @@ fn next_multiple_of_32(x: U256) -> Option<U256> {
 
 #[cfg(test)]
 mod tests {
-	use super::{next_multiple_of_32, Memory, U256};
+	use super::{Memory, U256, next_multiple_of_32};
 
 	#[test]
 	fn test_next_multiple_of_32() {

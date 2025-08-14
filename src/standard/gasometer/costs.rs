@@ -13,11 +13,7 @@ pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<()
 }
 
 pub fn suicide_refund(already_removed: bool) -> i64 {
-	if already_removed {
-		0
-	} else {
-		R_SUICIDE
-	}
+	if already_removed { 0 } else { R_SUICIDE }
 }
 
 #[allow(clippy::collapsible_else_if)]
@@ -250,7 +246,7 @@ pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
 }
 
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
-	let eip161 = !config.empty_considered_exists;
+	let eip161 = config.runtime.eip161;
 	let should_charge_topup = if eip161 {
 		value != U256::zero() && !target_exists
 	} else {
@@ -310,7 +306,7 @@ fn new_cost(
 	transfers_value: bool,
 	config: &Config,
 ) -> u64 {
-	let eip161 = !config.empty_considered_exists;
+	let eip161 = config.runtime.eip161;
 	if is_call_or_staticcall {
 		if eip161 {
 			if transfers_value && new_account {

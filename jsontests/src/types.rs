@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, str::FromStr};
 use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
 use primitive_types::{H160, H256, U256};
-use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]

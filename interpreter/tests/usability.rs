@@ -1,11 +1,11 @@
 use evm_interpreter::{
+	Capture, Control, EtableInterpreter, ExitError, ExitSucceed, Interpreter, Machine, Opcode,
 	etable::{DispatchEtable, MultiEfn, MultiEtable},
 	runtime::{
 		Context, Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, RuntimeState,
-		SetCodeOrigin, TouchKind, TransactionContext,
+		RuntimeStateAndConfig, SetCodeOrigin, TouchKind, TransactionContext,
 	},
 	trap::CallCreateTrap,
-	Capture, Control, EtableInterpreter, ExitError, ExitSucceed, Interpreter, Machine, Opcode,
 };
 use primitive_types::{H160, H256, U256};
 use std::rc::Rc;
@@ -198,7 +198,7 @@ impl RuntimeBackend for UnimplementedHandler {
 	}
 }
 
-static RUNTIME_ETABLE: DispatchEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+static RUNTIME_ETABLE: DispatchEtable<RuntimeStateAndConfig, UnimplementedHandler, CallCreateTrap> =
 	DispatchEtable::runtime();
 
 #[test]
@@ -212,7 +212,7 @@ fn etable_runtime() {
 		Rc::new(data),
 		1024,
 		10000,
-		RuntimeState {
+		RuntimeStateAndConfig::with_default_config(RuntimeState {
 			context: Context {
 				address: H160::default(),
 				caller: H160::default(),
@@ -224,7 +224,7 @@ fn etable_runtime() {
 			}
 			.into(),
 			retbuf: Vec::new(),
-		},
+		}),
 	);
 	let mut vm = EtableInterpreter::new(machine, &RUNTIME_ETABLE);
 
@@ -255,12 +255,12 @@ fn etable_multi() {
 	let data = hex::decode(DATA1).unwrap();
 	let mut handler = UnimplementedHandler;
 
-	let etable: DispatchEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+	let etable: DispatchEtable<RuntimeStateAndConfig, UnimplementedHandler, CallCreateTrap> =
 		DispatchEtable::runtime();
-	let mut multi_etable: MultiEtable<RuntimeState, UnimplementedHandler, CallCreateTrap> =
+	let mut multi_etable: MultiEtable<RuntimeStateAndConfig, UnimplementedHandler, CallCreateTrap> =
 		etable.into();
 	let prefix_etable = MultiEtable::from(DispatchEtable::<
-		RuntimeState,
+		RuntimeStateAndConfig,
 		UnimplementedHandler,
 		CallCreateTrap,
 	>::runtime());
@@ -271,7 +271,7 @@ fn etable_multi() {
 		Rc::new(data),
 		1024,
 		10000,
-		RuntimeState {
+		RuntimeStateAndConfig::with_default_config(RuntimeState {
 			context: Context {
 				address: H160::default(),
 				caller: H160::default(),
@@ -283,7 +283,7 @@ fn etable_multi() {
 			}
 			.into(),
 			retbuf: Vec::new(),
-		},
+		}),
 	);
 	let mut vm = EtableInterpreter::new(machine, &multi_etable);
 

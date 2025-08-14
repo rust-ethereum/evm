@@ -1,6 +1,6 @@
 //! EVM gasometer.
 
-use evm_interpreter::{runtime::GasState, ExitError};
+use evm_interpreter::{ExitError, runtime::GasState};
 use primitive_types::U256;
 
 /// Mutable [GasState]. This simply allows recording an arbitrary gas.

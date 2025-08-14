@@ -1,6 +1,10 @@
+use evm_interpreter::runtime::RuntimeConfig;
+
 /// Runtime configuration.
 #[derive(Clone, Debug)]
 pub struct Config {
+	/// Runtime config.
+	pub runtime: RuntimeConfig,
 	/// Gas paid for extcode.
 	pub gas_ext_code: u64,
 	/// Gas paid for extcodehash.
@@ -61,8 +65,6 @@ pub struct Config {
 	pub err_on_call_with_more_gas: bool,
 	/// Take l64 for callcreate after gas.
 	pub call_l64_after_gas: bool,
-	/// Whether empty account is considered exists.
-	pub empty_considered_exists: bool,
 	/// Whether create transactions and create opcode increases nonce by one.
 	pub create_increase_nonce: bool,
 	/// Stack limit.
@@ -111,6 +113,7 @@ impl Config {
 	/// Frontier hard fork configuration.
 	pub const fn frontier() -> Config {
 		Config {
+			runtime: RuntimeConfig { eip161: false },
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
 			gas_balance: 20,
@@ -139,7 +142,6 @@ impl Config {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			err_on_call_with_more_gas: true,
-			empty_considered_exists: true,
 			create_increase_nonce: false,
 			call_l64_after_gas: false,
 			stack_limit: 1024,
@@ -168,6 +170,7 @@ impl Config {
 	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
 		Config {
+			runtime: RuntimeConfig { eip161: true },
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
@@ -196,7 +199,6 @@ impl Config {
 			disallow_executable_format: false,
 			warm_coinbase_address: false,
 			err_on_call_with_more_gas: false,
-			empty_considered_exists: false,
 			create_increase_nonce: true,
 			call_l64_after_gas: true,
 			stack_limit: 1024,
@@ -277,6 +279,7 @@ impl Config {
 		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
 
 		Config {
+			runtime: RuntimeConfig { eip161: true },
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,
@@ -305,7 +308,6 @@ impl Config {
 			disallow_executable_format,
 			warm_coinbase_address,
 			err_on_call_with_more_gas: false,
-			empty_considered_exists: false,
 			create_increase_nonce: true,
 			call_l64_after_gas: true,
 			stack_limit: 1024,

@@ -469,42 +469,38 @@ where
 			mut call_stack,
 			transact_invoke,
 		}) = self.0.take()
+			&& let Some(mut last) = call_stack.last.take()
 		{
-			if let Some(mut last) = call_stack.last.take() {
-				while let Some(mut parent) = call_stack.stack.pop() {
-					let last_machine = last.machine.deconstruct();
-					let exit = InvokerExit {
-						result: ExitFatal::Unfinished.into(),
-						substate: Some(last_machine.0),
-						retval: last_machine.1,
-					};
-					let _ = call_stack.invoker.exit_substack(
-						parent.invoke,
-						exit,
-						&mut parent.machine,
-						call_stack.backend,
-					);
-
-					last = LastSubstack {
-						machine: parent.machine,
-						status: LastSubstackStatus::Exited(Capture::Exit(
-							ExitFatal::Unfinished.into(),
-						)),
-					};
-				}
-
+			while let Some(mut parent) = call_stack.stack.pop() {
 				let last_machine = last.machine.deconstruct();
 				let exit = InvokerExit {
 					result: ExitFatal::Unfinished.into(),
 					substate: Some(last_machine.0),
 					retval: last_machine.1,
 				};
-				let _ = call_stack.invoker.finalize_transact(
-					&transact_invoke,
+				let _ = call_stack.invoker.exit_substack(
+					parent.invoke,
 					exit,
+					&mut parent.machine,
 					call_stack.backend,
 				);
+
+				last = LastSubstack {
+					machine: parent.machine,
+					status: LastSubstackStatus::Exited(Capture::Exit(ExitFatal::Unfinished.into())),
+				};
 			}
+
+			let last_machine = last.machine.deconstruct();
+			let exit = InvokerExit {
+				result: ExitFatal::Unfinished.into(),
+				substate: Some(last_machine.0),
+				retval: last_machine.1,
+			};
+			let _ =
+				call_stack
+					.invoker
+					.finalize_transact(&transact_invoke, exit, call_stack.backend);
 		}
 	}
 }

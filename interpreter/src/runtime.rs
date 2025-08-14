@@ -24,19 +24,72 @@ pub struct RuntimeState {
 	pub retbuf: Vec<u8>,
 }
 
-impl AsRef<Self> for RuntimeState {
-	fn as_ref(&self) -> &Self {
+/// Runtime config.
+#[derive(Clone, Debug)]
+pub struct RuntimeConfig {
+	/// Whether EIP-161 is enabled.
+	pub eip161: bool,
+}
+
+/// Runtime state and config.
+#[derive(Clone, Debug)]
+pub struct RuntimeStateAndConfig<'config> {
+	/// Runtime state.
+	pub state: RuntimeState,
+	/// RuntimeConfig,
+	pub config: &'config RuntimeConfig,
+}
+
+static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig { eip161: true };
+
+impl RuntimeStateAndConfig<'static> {
+	/// Used for testing, if you don't care about the config but simply want to
+	/// use the "newest" one.
+	pub fn with_default_config(state: RuntimeState) -> Self {
+		Self {
+			state,
+			config: &DEFAULT_RUNTIME_CONFIG,
+		}
+	}
+}
+
+impl AsRef<RuntimeState> for RuntimeState {
+	fn as_ref(&self) -> &RuntimeState {
 		self
 	}
 }
 
-impl AsMut<Self> for RuntimeState {
-	fn as_mut(&mut self) -> &mut Self {
+impl<'config> AsRef<RuntimeState> for RuntimeStateAndConfig<'config> {
+	fn as_ref(&self) -> &RuntimeState {
+		&self.state
+	}
+}
+
+impl AsMut<RuntimeState> for RuntimeState {
+	fn as_mut(&mut self) -> &mut RuntimeState {
 		self
+	}
+}
+
+impl<'config> AsMut<RuntimeState> for RuntimeStateAndConfig<'config> {
+	fn as_mut(&mut self) -> &mut RuntimeState {
+		&mut self.state
+	}
+}
+
+impl<'config> AsRef<RuntimeConfig> for RuntimeStateAndConfig<'config> {
+	fn as_ref(&self) -> &RuntimeConfig {
+		self.config
 	}
 }
 
 impl GasState for RuntimeState {
+	fn gas(&self) -> U256 {
+		U256::zero()
+	}
+}
+
+impl<'config> GasState for RuntimeStateAndConfig<'config> {
 	fn gas(&self) -> U256 {
 		U256::zero()
 	}
@@ -126,6 +179,8 @@ pub trait RuntimeBaseBackend {
 		U256::from(self.code(address).len())
 	}
 	/// Get code hash of address.
+	///
+	/// The caller is responsible for checking whether the account is empty.
 	fn code_hash(&self, address: H160) -> H256 {
 		if !self.is_empty(address) {
 			H256::from_slice(&Keccak256::digest(&self.code(address)[..]))
@@ -147,6 +202,10 @@ pub trait RuntimeBaseBackend {
 		self.balance(address) == U256::zero()
 			&& self.code_size(address) == U256::zero()
 			&& self.nonce(address) == U256::zero()
+	}
+	/// Detect for create collision. Note EIP-7610.
+	fn can_create(&self, address: H160) -> bool {
+		self.code_size(address) == U256::zero() && self.nonce(address) == U256::zero()
 	}
 
 	/// Get the current nonce of an account.

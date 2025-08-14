@@ -111,11 +111,7 @@ pub fn eval_sub<S, H, Tr>(
 
 #[inline]
 fn div(op1: u64, op2: u64) -> u64 {
-	if op2 == 0 {
-		0
-	} else {
-		op1 / op2
-	}
+	if op2 == 0 { 0 } else { op1 / op2 }
 }
 
 pub fn eval_div<S, H, Tr>(
@@ -270,11 +266,7 @@ pub fn slt(op1: u64, op2: u64) -> u64 {
 	let op1 = op1 as i64;
 	let op2 = op2 as i64;
 
-	if op1.lt(&op2) {
-		1
-	} else {
-		0
-	}
+	if op1.lt(&op2) { 1 } else { 0 }
 }
 
 pub fn eval_slt<S, H, Tr>(
@@ -290,11 +282,7 @@ pub fn sgt(op1: u64, op2: u64) -> u64 {
 	let op1 = op1 as i64;
 	let op2 = op2 as i64;
 
-	if op1.gt(&op2) {
-		1
-	} else {
-		0
-	}
+	if op1.gt(&op2) { 1 } else { 0 }
 }
 
 pub fn eval_sgt<S, H, Tr>(
@@ -315,11 +303,7 @@ pub fn eval_eq<S, H, Tr>(
 
 #[inline]
 pub fn iszero(op1: u64) -> u64 {
-	if op1 == 0 {
-		1
-	} else {
-		0
-	}
+	if op1 == 0 { 1 } else { 0 }
 }
 
 pub fn eval_iszero<S, H, Tr>(
@@ -406,11 +390,7 @@ pub fn sar(shift: u64, value: u64) -> u64 {
 	let value = value as i64;
 
 	let ret = if value == 0 || shift >= 64 {
-		if value >= 0 {
-			0
-		} else {
-			-1
-		}
+		if value >= 0 { 0 } else { -1 }
 	} else {
 		value >> shift as usize
 	};
