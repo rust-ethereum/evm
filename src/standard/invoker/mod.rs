@@ -31,7 +31,7 @@ use crate::{
 
 /// The invoke used in a substack.
 pub enum SubstackInvoke {
-	/// CALL-alike opcode..
+	/// CALL-alike opcode.
 	Call {
 		/// The trap of the call.
 		trap: CallTrap,

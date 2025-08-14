@@ -37,9 +37,19 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 		let ident = Ident::new(&name, Span::call_site());
 		tests.push(quote! {
 			#[test]
-			fn #ident() {
-				let tests_status = jsontests::run::run_file(#test_file_path, false, None).expect("test failed");
-				tests_status.print_total();
+			fn #ident() -> Result<(), jsontests::error::Error> {
+				let tests_status = jsontests::run::run_file(#test_file_path, false, None);
+				match tests_status {
+					Ok(tests_status) => {
+						tests_status.print_total();
+						Ok(())
+					},
+					Err(err) => {
+						// Rerun tests with debug flag.
+						jsontests::run::run_file(#test_file_path, true, Some("failed.json"))?;
+						Err(err)
+					},
+				}
 			}
 		})
 	}
