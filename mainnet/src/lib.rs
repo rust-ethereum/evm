@@ -10,9 +10,8 @@ extern crate alloc;
 use evm::{
 	backend::TransactionalBackend,
 	interpreter::{
-		etable,
+		ExitError, etable,
 		runtime::{RuntimeBackend, RuntimeEnvironment},
-		ExitError,
 	},
 	standard::{
 		Config, EtableResolver, ExecutionEtable, GasometerEtable, Invoker, TransactArgs,

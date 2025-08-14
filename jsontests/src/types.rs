@@ -3,7 +3,7 @@ use std::{collections::BTreeMap, str::FromStr};
 use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
 use primitive_types::{H160, H256, U256};
-use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
 /// Statistic type to gather tests pass completion status
 #[derive(Default, Clone, Debug, Eq, PartialEq)]
@@ -95,7 +95,7 @@ impl TestMulti {
 						gas_price: self
 							.transaction
 							.gas_price
-							.unwrap_or(self.env.current_base_fee),
+							.unwrap_or(self.env.current_base_fee.unwrap_or_default()),
 						gas_priority_fee: self.transaction.max_priority_fee_per_gas,
 						nonce: self.transaction.nonce,
 						secret_key: self.transaction.secret_key,
@@ -135,12 +135,12 @@ pub struct TestData {
 pub struct TestInfo {
 	pub comment: String,
 	#[serde(rename = "filling-rpc-server")]
-	pub filling_rpc_server: String,
+	pub filling_rpc_server: Option<String>,
 	#[serde(rename = "filling-tool-version")]
-	pub filling_tool_version: String,
-	pub generated_test_hash: String,
+	pub filling_tool_version: Option<String>,
+	pub generated_test_hash: Option<String>,
 	pub lllcversion: String,
-	pub solidity: String,
+	pub solidity: Option<String>,
 	pub source: String,
 	pub source_hash: String,
 }
@@ -149,21 +149,22 @@ pub struct TestInfo {
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TestEnv {
-	pub current_base_fee: U256,
-	pub current_beacon_root: H256,
+	pub current_base_fee: Option<U256>,
+	pub current_beacon_root: Option<H256>,
 	pub current_coinbase: H160,
 	pub current_difficulty: U256,
 	pub current_gas_limit: U256,
 	pub current_number: U256,
-	pub current_random: H256,
+	pub current_random: Option<H256>,
 	pub current_timestamp: U256,
-	pub current_withdrawals_root: H256,
-	pub previous_hash: H256,
+	pub current_withdrawals_root: Option<H256>,
+	pub previous_hash: Option<H256>,
 }
 
 /// Available Ethereum forks for testing
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Deserialize, Serialize)]
 pub enum Fork {
+	Paris,
 	Berlin,
 	Cancun,
 	London,
@@ -185,7 +186,7 @@ pub struct TestPostState {
 	pub hash: H256,
 	pub indexes: TestPostStateIndexes,
 	pub logs: H256,
-	pub txbytes: HexBytes,
+	pub txbytes: Option<HexBytes>,
 	pub expect_exception: Option<TestExpectException>,
 }
 
@@ -203,6 +204,11 @@ pub enum TestExpectException {
 	TR_TipGtFeeCap,
 	TR_FeeCapLessThanBlocks,
 	TR_GasLimitReached,
+	TR_BLOBVERSION_INVALID,
+	TR_BLOBCREATE,
+	TR_BLOBLIST_OVERSIZE,
+	TR_EMPTYBLOB,
+	TR_InitCodeLimitExceeded,
 	IntrinsicGas,
 	SenderNotEOA,
 }

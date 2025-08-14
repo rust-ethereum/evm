@@ -1,8 +1,8 @@
 use alloc::{borrow::Cow, vec::Vec};
-use bn::{AffineG1, AffineG2, Fq, Fq2, Group, Gt, G1, G2};
+use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Group, Gt};
 use evm::{
-	interpreter::{utils::u256_to_h256, ExitError, ExitException, ExitResult, ExitSucceed},
 	GasMutState,
+	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed, utils::u256_to_h256},
 };
 use primitive_types::U256;
 
@@ -374,9 +374,5 @@ fn right_pad<const LEN: usize>(data: &[u8]) -> Cow<'_, [u8; LEN]> {
 
 #[inline]
 pub const fn bool_to_u256(value: bool) -> U256 {
-	if value {
-		U256::one()
-	} else {
-		U256::zero()
-	}
+	if value { U256::one() } else { U256::zero() }
 }

@@ -82,7 +82,7 @@ mod invoker;
 pub use evm_interpreter as interpreter;
 
 pub use crate::{
-	call_stack::{transact, HeapTransact},
+	call_stack::{HeapTransact, transact},
 	gasometer::GasMutState,
 	invoker::{Invoker, InvokerControl},
 };

@@ -11,8 +11,8 @@ keywords = { workspace = true }
 [dependencies]
 clap = { version = "4", features = ["derive"] }
 ethereum = "0.15.0"
-evm = { workspace = true }
-evm-mainnet = { workspace = true }
+evm = { workspace = true, features = ["std"] }
+evm-mainnet = { workspace = true, features = ["std"] }
 hex = { version = "0.4", features = ["serde"] }
 primitive-types = { version = "0.12", features = ["rlp", "serde"] }
 rlp = "0.5"
@@ -21,3 +21,6 @@ serde_json = "1"
 serde_with = "3"
 sha3 = "0.10"
 thiserror = "1"
+
+[dev-dependencies]
+jsontests-proc-macro = { path = "proc-macro" }

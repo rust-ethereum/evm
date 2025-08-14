@@ -6,3 +6,7 @@
 	path = jsontests/res/spectests
 	url = https://github.com/ethereum/execution-spec-tests
 	shallow = true
+[submodule "jsontests/res/legacytests"]
+	path = jsontests/res/legacytests
+	url = https://github.com/ethereum/legacytests
+	shallow = true

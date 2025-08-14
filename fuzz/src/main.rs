@@ -29,8 +29,8 @@ use backend::MockBackend;
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::{
-		etable::{Chained, Single},
 		ExitError,
+		etable::{Chained, Single},
 	},
 	standard::{
 		Config, DispatchEtable, EtableResolver, Invoker, TransactArgs, TransactArgsCallCreate,
@@ -39,7 +39,7 @@ use evm::{
 };
 use primitive_types::{H160, U256};
 #[cfg(not(feature = "fuzzing"))]
-use stats_alloc::{StatsAlloc, INSTRUMENTED_SYSTEM};
+use stats_alloc::{INSTRUMENTED_SYSTEM, StatsAlloc};
 
 use crate::grammar::FuzzData;
 #[cfg(not(feature = "fuzzing"))]

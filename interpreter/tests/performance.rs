@@ -1,7 +1,7 @@
 use std::rc::Rc;
 
 use evm_interpreter::{
-	etable::DispatchEtable, Capture, EtableInterpreter, ExitSucceed, Interpreter, Machine,
+	Capture, EtableInterpreter, ExitSucceed, Interpreter, Machine, etable::DispatchEtable,
 };
 
 static ETABLE: DispatchEtable<(), (), ()> = DispatchEtable::core();

@@ -12,23 +12,22 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 
 use evm_interpreter::{
-	etable, eval,
-	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
+	Control, ExitError, etable, eval,
+	runtime::{GasState, RuntimeBackend, RuntimeConfig, RuntimeEnvironment, RuntimeState},
 	trap::CallCreateTrap,
-	Control, ExitError,
 };
 use primitive_types::{H160, H256, U256};
 
 pub use self::{
 	config::Config,
-	gasometer::{eval as eval_gasometer, GasometerState},
+	gasometer::{GasometerState, eval as eval_gasometer},
 	invoker::{
-		routines, EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
+		EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, SubstackInvoke,
 		TransactArgs, TransactArgsCallCreate, TransactInvoke, TransactValue,
-		TransactValueCallCreate,
+		TransactValueCallCreate, routines,
 	},
 };
-use crate::{gasometer::GasMutState, MergeStrategy};
+use crate::{MergeStrategy, gasometer::GasMutState};
 
 /// Standard machine.
 pub type Machine<'config> = evm_interpreter::Machine<State<'config>>;
@@ -143,6 +142,12 @@ impl<'config> AsMut<GasometerState> for State<'config> {
 impl<'config> AsRef<Config> for State<'config> {
 	fn as_ref(&self) -> &Config {
 		self.config
+	}
+}
+
+impl<'config> AsRef<RuntimeConfig> for State<'config> {
+	fn as_ref(&self) -> &RuntimeConfig {
+		&self.config.runtime
 	}
 }
 

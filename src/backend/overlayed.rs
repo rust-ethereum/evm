@@ -6,14 +6,14 @@ use alloc::{
 use core::mem;
 
 use evm_interpreter::{
+	ExitError, ExitException, ExitFatal,
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
 	},
-	ExitError, ExitException, ExitFatal,
 };
 use primitive_types::{H160, H256, U256};
 
-use crate::{backend::TransactionalBackend, standard::Config, MergeStrategy};
+use crate::{MergeStrategy, backend::TransactionalBackend, standard::Config};
 
 const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
 

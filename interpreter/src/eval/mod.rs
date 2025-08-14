@@ -12,9 +12,9 @@ use core::ops::{BitAnd, BitOr, BitXor};
 use primitive_types::U256;
 
 use crate::{
-	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
-	trap::{CallCreateOpcode, CallCreateTrap},
 	Control, ExitException, ExitSucceed, Machine, Opcode,
+	runtime::{GasState, RuntimeBackend, RuntimeConfig, RuntimeEnvironment, RuntimeState},
+	trap::{CallCreateOpcode, CallCreateTrap},
 };
 
 /// Do nothing, and continue to the next instruction.
@@ -567,7 +567,11 @@ pub fn eval_extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeB
 }
 
 /// `EXTCODEHASH`
-pub fn eval_extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+pub fn eval_extcodehash<
+	S: AsRef<RuntimeState> + AsRef<RuntimeConfig>,
+	H: RuntimeEnvironment + RuntimeBackend,
+	Tr,
+>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
 	_position: usize,
@@ -778,7 +782,7 @@ pub fn eval_call_create_trap<
 /// Eval any known opcode, uses `match`.
 pub fn eval_any<S, H, Tr>(machine: &mut Machine<S>, handle: &mut H, position: usize) -> Control<Tr>
 where
-	S: AsRef<RuntimeState> + AsMut<RuntimeState> + GasState,
+	S: AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<RuntimeConfig> + GasState,
 	H: RuntimeEnvironment + RuntimeBackend,
 	Tr: From<CallCreateTrap>,
 {

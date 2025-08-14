@@ -56,10 +56,12 @@ where
 
 	let opcode = Opcode(machine.code()[position]);
 
-	try_or_fail!(machine
-		.state
-		.as_mut()
-		.record_gas64(STATIC_COST_TABLE[opcode.as_usize()]));
+	try_or_fail!(
+		machine
+			.state
+			.as_mut()
+			.record_gas64(STATIC_COST_TABLE[opcode.as_usize()])
+	);
 
 	#[allow(clippy::single_match)]
 	match opcode {
@@ -68,10 +70,12 @@ where
 			let cost = if power == 0 {
 				G_EXP64_STATIC
 			} else {
-				try_or_fail!(G_EXP64_DYNAMIC
-					.checked_mul(power.ilog2() as u64 / 8 + 1)
-					.and_then(|dynamic| G_EXP64_STATIC.checked_add(dynamic))
-					.ok_or(ExitException::OutOfGas))
+				try_or_fail!(
+					G_EXP64_DYNAMIC
+						.checked_mul(power.ilog2() as u64 / 8 + 1)
+						.and_then(|dynamic| G_EXP64_STATIC.checked_add(dynamic))
+						.ok_or(ExitException::OutOfGas)
+				)
 			};
 			try_or_fail!(machine.state.as_mut().record_gas64(cost));
 		}

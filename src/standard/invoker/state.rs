@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 
 use evm_interpreter::{
-	runtime::{GasState, RuntimeState},
 	ExitError,
+	runtime::{GasState, RuntimeState},
 };
 use primitive_types::{H160, H256, U256};
 

@@ -23,9 +23,9 @@ mod simple;
 use alloc::vec::Vec;
 
 use evm::{
-	interpreter::{runtime::RuntimeState, ExitError, ExitException, ExitResult},
-	standard::{Config, PrecompileSet},
 	GasMutState,
+	interpreter::{ExitError, ExitException, ExitResult, runtime::RuntimeState},
+	standard::{Config, PrecompileSet},
 };
 use primitive_types::H160;
 

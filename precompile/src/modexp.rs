@@ -1,8 +1,8 @@
 use alloc::{borrow::Cow, vec, vec::Vec};
 use core::cmp::{max, min};
 use evm::{
-	interpreter::{ExitException, ExitResult, ExitSucceed},
 	GasMutState,
+	interpreter::{ExitException, ExitResult, ExitSucceed},
 };
 use primitive_types::U256;
 

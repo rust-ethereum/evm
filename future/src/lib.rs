@@ -123,7 +123,7 @@ where
 						None => {
 							return Capture::Exit(
 								ExitFatal::Other("cannot advance future".into()).into(),
-							)
+							);
 						}
 					};
 

@@ -5,6 +5,7 @@ mod state;
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, marker::PhantomData};
 use evm_interpreter::{
+	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
@@ -13,7 +14,6 @@ use evm_interpreter::{
 		CallCreateTrap, CallFeedback, CallScheme, CallTrap, CreateFeedback, CreateScheme,
 		CreateTrap, TrapConsume,
 	},
-	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
 };
 use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
@@ -23,15 +23,15 @@ pub use self::{
 	state::InvokerState,
 };
 use crate::{
+	MergeStrategy,
 	backend::TransactionalBackend,
 	invoker::{Invoker as InvokerT, InvokerControl, InvokerExit},
 	standard::Config,
-	MergeStrategy,
 };
 
 /// The invoke used in a substack.
 pub enum SubstackInvoke {
-	/// CALL-alike opcode..
+	/// CALL-alike opcode.
 	Call {
 		/// The trap of the call.
 		trap: CallTrap,
@@ -536,22 +536,21 @@ where
 					)));
 				}
 
-				if let Some(transfer) = &call_trap_data.transfer {
-					if transfer.value != U256::zero()
-						&& handler.balance(transfer.source) < transfer.value
-					{
-						handler.push_substate();
-						return Capture::Exit(Ok((
-							SubstackInvoke::Call {
-								trap: call_trap_data,
-							},
-							InvokerControl::DirectExit(InvokerExit {
-								result: Err(ExitException::OutOfFund.into()),
-								substate: Some(substate),
-								retval: Vec::new(),
-							}),
-						)));
-					}
+				if let Some(transfer) = &call_trap_data.transfer
+					&& transfer.value != U256::zero()
+					&& handler.balance(transfer.source) < transfer.value
+				{
+					handler.push_substate();
+					return Capture::Exit(Ok((
+						SubstackInvoke::Call {
+							trap: call_trap_data,
+						},
+						InvokerControl::DirectExit(InvokerExit {
+							result: Err(ExitException::OutOfFund.into()),
+							substate: Some(substate),
+							retval: Vec::new(),
+						}),
+					)));
 				}
 
 				let target = call_trap_data.target;

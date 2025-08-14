@@ -1,11 +1,6 @@
-mod error;
-mod hash;
-mod run;
-mod types;
-
 use clap::Parser;
 
-use crate::{error::Error, types::*};
+use jsontests::{error::Error, run, types::*};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]

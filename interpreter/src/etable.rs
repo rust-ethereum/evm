@@ -7,10 +7,10 @@ use core::{
 };
 
 use crate::{
-	eval::*,
-	runtime::{GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState},
-	trap::CallCreateTrap,
 	Control, ExitException, Machine, Opcode,
+	eval::*,
+	runtime::{GasState, RuntimeBackend, RuntimeConfig, RuntimeEnvironment, RuntimeState},
+	trap::CallCreateTrap,
 };
 
 /// An etable "set" that can be evaluated. This is the generic trait to support
@@ -400,7 +400,7 @@ impl<S, H, Tr> DispatchEtable<S, H, Tr> {
 
 impl<S, H: RuntimeEnvironment + RuntimeBackend, Tr> DispatchEtable<S, H, Tr>
 where
-	S: AsRef<RuntimeState> + AsMut<RuntimeState> + GasState,
+	S: AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<RuntimeConfig> + GasState,
 	Tr: From<CallCreateTrap>,
 {
 	/// Runtime Etable.
