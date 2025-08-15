@@ -115,7 +115,9 @@ impl Config {
 	/// Frontier hard fork configuration.
 	pub const fn frontier() -> Config {
 		Config {
-			runtime: RuntimeConfig { eip161_empty_check: false },
+			runtime: RuntimeConfig {
+				eip161_empty_check: false,
+			},
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
 			gas_balance: 20,
@@ -173,7 +175,9 @@ impl Config {
 	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
 		Config {
-			runtime: RuntimeConfig { eip161_empty_check: true },
+			runtime: RuntimeConfig {
+				eip161_empty_check: true,
+			},
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
@@ -283,7 +287,9 @@ impl Config {
 		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
 
 		Config {
-			runtime: RuntimeConfig { eip161_empty_check: true },
+			runtime: RuntimeConfig {
+				eip161_empty_check: true,
+			},
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,

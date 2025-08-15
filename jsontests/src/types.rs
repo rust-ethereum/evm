@@ -217,7 +217,9 @@ pub enum TestExpectException {
 	TE_INSUFFICIENT_ACCOUNT_FUNDS,
 	#[serde(rename = "TransactionException.TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH")]
 	TE_TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH,
-	#[serde(rename = "TransactionException.TYPE_3_TX_PRE_FORK|TransactionException.TYPE_3_TX_ZERO_BLOBS")]
+	#[serde(
+		rename = "TransactionException.TYPE_3_TX_PRE_FORK|TransactionException.TYPE_3_TX_ZERO_BLOBS"
+	)]
 	TE_TYPE_3_TX_PER_FORK_OR_TX_ZERO_BLOBS,
 	#[serde(rename = "TransactionException.INSUFFICIENT_MAX_FEE_PER_GAS")]
 	TE_INSUFFICIENT_MAX_FEE_PER_GAS,

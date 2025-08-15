@@ -40,7 +40,9 @@ pub struct RuntimeStateAndConfig<'config> {
 	pub config: &'config RuntimeConfig,
 }
 
-static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig { eip161_empty_check: true };
+static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig {
+	eip161_empty_check: true,
+};
 
 impl RuntimeStateAndConfig<'static> {
 	/// Used for testing, if you don't care about the config but simply want to

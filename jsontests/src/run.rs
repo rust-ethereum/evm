@@ -39,7 +39,8 @@ pub fn run_file<F>(
 	debug: bool,
 	write_failed: Option<&str>,
 	config_change: &F,
-) -> Result<TestCompletionStatus, Error> where
+) -> Result<TestCompletionStatus, Error>
+where
 	F: Fn(&mut Config),
 {
 	let test_multi: BTreeMap<String, TestMulti> =
@@ -61,7 +62,14 @@ pub fn run_file<F>(
 					test.fork, short_file_name, test_name, test.index
 				);
 			}
-			match run_test(filename, &test_name, test.clone(), debug, write_failed, config_change) {
+			match run_test(
+				filename,
+				&test_name,
+				test.clone(),
+				debug,
+				write_failed,
+				config_change,
+			) {
 				Ok(()) => {
 					tests_status.inc_completed();
 					println!("ok")
@@ -92,7 +100,8 @@ pub fn run_single<F>(
 	debug: bool,
 	write_failed: Option<&str>,
 	config_change: &F,
-) -> Result<TestCompletionStatus, Error> where
+) -> Result<TestCompletionStatus, Error>
+where
 	F: Fn(&mut Config),
 {
 	if fs::metadata(filename)?.is_dir() {
@@ -166,7 +175,8 @@ pub fn run_test<F>(
 	debug: bool,
 	write_failed: Option<&str>,
 	config_change: &F,
-) -> Result<(), Error> where
+) -> Result<(), Error>
+where
 	F: Fn(&mut Config),
 {
 	let mut config = match test.fork {

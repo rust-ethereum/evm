@@ -21,12 +21,23 @@ impl Parse for Input {
 		let folder = input.parse()?;
 
 		if input.is_empty() {
-			return Ok(Input { prefix, folder, flags: Vec::new(), })
+			return Ok(Input {
+				prefix,
+				folder,
+				flags: Vec::new(),
+			});
 		}
 
 		input.parse::<Token![;]>()?;
-		let flags = input.parse_terminated(Ident::parse, Token![,])?.into_iter().collect();
-		Ok(Input { prefix, folder, flags })
+		let flags = input
+			.parse_terminated(Ident::parse, Token![,])?
+			.into_iter()
+			.collect();
+		Ok(Input {
+			prefix,
+			folder,
+			flags,
+		})
 	}
 }
 
@@ -47,11 +58,11 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 		.expect("failed to canonicalize");
 	let test_files =
 		jsontests::run::collect_test_files(folder.to_str().expect("non-utf8 filename"))
-		.expect("uninitialized submodule");
+			.expect("uninitialized submodule");
 
 	let mut disable_eip7610 = false;
 	for flag in input.flags {
-		if flag.to_string() == "disable_eip7610" {
+		if flag == "disable_eip7610" {
 			disable_eip7610 = true;
 		} else {
 			panic!("unknown flag");

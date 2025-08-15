@@ -180,14 +180,20 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 
 	fn can_create(&self, address: H160) -> bool {
 		if self.config.eip7610_create_check_storage {
-			if let Some(nonce) = self.substate.known_nonce(address) && nonce != U256::zero() {
-				return false
+			if let Some(nonce) = self.substate.known_nonce(address)
+				&& nonce != U256::zero()
+			{
+				return false;
 			}
-			if let Some(code) = self.substate.known_code(address) && code.len() != 0 {
-				return false
+			if let Some(code) = self.substate.known_code(address)
+				&& !code.is_empty()
+			{
+				return false;
 			}
-			if let Some(is_storage_empty) = self.substate.known_storage_empty(address) && !is_storage_empty {
-				return false
+			if let Some(is_storage_empty) = self.substate.known_storage_empty(address)
+				&& !is_storage_empty
+			{
+				return false;
 			}
 
 			self.backend.can_create(address)
@@ -490,11 +496,9 @@ impl Substate {
 	}
 
 	pub fn known_storage_empty(&self, address: H160) -> Option<bool> {
-		if self.storages.iter().filter(|((a, _), _)|  *a == address).next().is_some() {
+		if self.storages.iter().any(|((a, _), _)| *a == address) {
 			Some(false)
-		} else if self.deletes.contains(&address) {
-			Some(true)
-		} else if self.storage_resets.contains(&address) {
+		} else if self.deletes.contains(&address) || self.storage_resets.contains(&address) {
 			Some(true)
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_storage_empty(address)
