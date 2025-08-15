@@ -75,9 +75,9 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 		name = name.replace("/", "__");
 		let ident = Ident::new(&name, Span::call_site());
 		let modify_config = if disable_eip7610 {
-			quote! { &|config| { config.eip7610_create_check_storage = false; } }
+			quote! { jsontests::run::disable_eip7610 }
 		} else {
-			quote! { &|_| () }
+			quote! { jsontests::run::empty_config_change }
 		};
 		tests.push(quote! {
 			#[test]

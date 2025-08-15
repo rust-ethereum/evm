@@ -33,16 +33,21 @@ fn get_short_file_name(filename: &str) -> String {
 	short_file_name.clone().to_string()
 }
 
+/// Don't do any config change.
+pub fn empty_config_change(_config: &mut Config) {}
+
+/// Disable EIP-7610.
+pub fn disable_eip7610(config: &mut Config) {
+	config.eip7610_create_check_storage = false;
+}
+
 /// Run tests for specific json file with debug flag
-pub fn run_file<F>(
+pub fn run_file(
 	filename: &str,
 	debug: bool,
 	write_failed: Option<&str>,
-	config_change: &F,
-) -> Result<TestCompletionStatus, Error>
-where
-	F: Fn(&mut Config),
-{
+	config_change: fn(&mut Config),
+) -> Result<TestCompletionStatus, Error> {
 	let test_multi: BTreeMap<String, TestMulti> =
 		serde_json::from_reader(BufReader::new(File::open(filename)?))?;
 	let mut tests_status = TestCompletionStatus::default();
@@ -95,15 +100,12 @@ where
 }
 
 /// Run test for single json file or directory
-pub fn run_single<F>(
+pub fn run_single(
 	filename: &str,
 	debug: bool,
 	write_failed: Option<&str>,
-	config_change: &F,
-) -> Result<TestCompletionStatus, Error>
-where
-	F: Fn(&mut Config),
-{
+	config_change: fn(&mut Config),
+) -> Result<TestCompletionStatus, Error> {
 	if fs::metadata(filename)?.is_dir() {
 		let mut tests_status = TestCompletionStatus::default();
 
@@ -168,17 +170,14 @@ fn collect_test_files_to(
 }
 
 /// Run single test
-pub fn run_test<F>(
+pub fn run_test(
 	_filename: &str,
 	test_name: &str,
 	test: TestData,
 	debug: bool,
 	write_failed: Option<&str>,
-	config_change: &F,
-) -> Result<(), Error>
-where
-	F: Fn(&mut Config),
-{
+	config_change: fn(&mut Config),
+) -> Result<(), Error> {
 	let mut config = match test.fork {
 		Fork::Istanbul => Config::istanbul(),
 		_ => return Err(Error::UnsupportedFork),
