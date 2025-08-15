@@ -28,7 +28,7 @@ pub struct RuntimeState {
 #[derive(Clone, Debug)]
 pub struct RuntimeConfig {
 	/// Whether EIP-161 is enabled.
-	pub eip161: bool,
+	pub eip161_empty_check: bool,
 }
 
 /// Runtime state and config.
@@ -40,7 +40,9 @@ pub struct RuntimeStateAndConfig<'config> {
 	pub config: &'config RuntimeConfig,
 }
 
-static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig { eip161: true };
+static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig {
+	eip161_empty_check: true,
+};
 
 impl RuntimeStateAndConfig<'static> {
 	/// Used for testing, if you don't care about the config but simply want to

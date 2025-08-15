@@ -211,6 +211,28 @@ pub enum TestExpectException {
 	TR_InitCodeLimitExceeded,
 	IntrinsicGas,
 	SenderNotEOA,
+	#[serde(rename = "TransactionException.INSUFFICIENT_MAX_FEE_PER_BLOB_GAS")]
+	TE_INSUFFICIENT_MAX_FEE_PER_BLOB_GAS,
+	#[serde(rename = "TransactionException.INSUFFICIENT_ACCOUNT_FUNDS")]
+	TE_INSUFFICIENT_ACCOUNT_FUNDS,
+	#[serde(rename = "TransactionException.TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH")]
+	TE_TYPE_3_TX_INVALID_BLOB_VERSIONED_HASH,
+	#[serde(
+		rename = "TransactionException.TYPE_3_TX_PRE_FORK|TransactionException.TYPE_3_TX_ZERO_BLOBS"
+	)]
+	TE_TYPE_3_TX_PER_FORK_OR_TX_ZERO_BLOBS,
+	#[serde(rename = "TransactionException.INSUFFICIENT_MAX_FEE_PER_GAS")]
+	TE_INSUFFICIENT_MAX_FEE_PER_GAS,
+	#[serde(rename = "TransactionException.TYPE_3_TX_ZERO_BLOBS")]
+	TE_TYPE_3_TX_ZERO_BLOBS,
+	#[serde(rename = "TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED")]
+	TE_TYPE_3_TX_BLOB_COUNT_EXCEEDED,
+	#[serde(rename = "TransactionException.TYPE_3_TX_PRE_FORK")]
+	TE_TYPE_3_TX_PER_FORK,
+	#[serde(rename = "TransactionException.INITCODE_SIZE_EXCEEDED")]
+	TE_INITCODE_SIZE_EXCEEDED,
+	#[serde(rename = "TransactionException.INTRINSIC_GAS_TOO_LOW")]
+	TE_INTRINSIC_GAS_TOO_LOW,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]

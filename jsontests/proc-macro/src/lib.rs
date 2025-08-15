@@ -11,6 +11,7 @@ use syn::{
 struct Input {
 	prefix: LitStr,
 	folder: LitStr,
+	flags: Vec<Ident>,
 }
 
 impl Parse for Input {
@@ -18,7 +19,25 @@ impl Parse for Input {
 		let prefix = input.parse()?;
 		input.parse::<Token![,]>()?;
 		let folder = input.parse()?;
-		Ok(Input { prefix, folder })
+
+		if input.is_empty() {
+			return Ok(Input {
+				prefix,
+				folder,
+				flags: Vec::new(),
+			});
+		}
+
+		input.parse::<Token![;]>()?;
+		let flags = input
+			.parse_terminated(Ident::parse, Token![,])?
+			.into_iter()
+			.collect();
+		Ok(Input {
+			prefix,
+			folder,
+			flags,
+		})
 	}
 }
 
@@ -41,15 +60,29 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 		jsontests::run::collect_test_files(folder.to_str().expect("non-utf8 filename"))
 			.expect("uninitialized submodule");
 
+	let mut disable_eip7610 = false;
+	for flag in input.flags {
+		if flag == "disable_eip7610" {
+			disable_eip7610 = true;
+		} else {
+			panic!("unknown flag");
+		}
+	}
+
 	let mut tests = Vec::new();
 	for (test_file_name, test_file_path) in test_files {
 		let mut name = format!("{prefix:}/{test_file_name:}");
 		name = name.replace("/", "__");
 		let ident = Ident::new(&name, Span::call_site());
+		let modify_config = if disable_eip7610 {
+			quote! { jsontests::run::disable_eip7610 }
+		} else {
+			quote! { jsontests::run::empty_config_change }
+		};
 		tests.push(quote! {
 			#[test]
 			fn #ident() -> Result<(), jsontests::error::Error> {
-				let tests_status = jsontests::run::run_file(#test_file_path, false, None);
+				let tests_status = jsontests::run::run_file(#test_file_path, false, None, #modify_config);
 				match tests_status {
 					Ok(tests_status) => {
 						tests_status.print_total();
@@ -57,7 +90,7 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 					},
 					Err(err) => {
 						// Rerun tests with debug flag.
-						jsontests::run::run_file(#test_file_path, true, Some("failed.json"))?;
+						jsontests::run::run_file(#test_file_path, true, Some("failed.json"), #modify_config)?;
 						Err(err)
 					},
 				}

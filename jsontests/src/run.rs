@@ -33,11 +33,20 @@ fn get_short_file_name(filename: &str) -> String {
 	short_file_name.clone().to_string()
 }
 
+/// Don't do any config change.
+pub fn empty_config_change(_config: &mut Config) {}
+
+/// Disable EIP-7610.
+pub fn disable_eip7610(config: &mut Config) {
+	config.eip7610_create_check_storage = false;
+}
+
 /// Run tests for specific json file with debug flag
 pub fn run_file(
 	filename: &str,
 	debug: bool,
 	write_failed: Option<&str>,
+	config_change: fn(&mut Config),
 ) -> Result<TestCompletionStatus, Error> {
 	let test_multi: BTreeMap<String, TestMulti> =
 		serde_json::from_reader(BufReader::new(File::open(filename)?))?;
@@ -58,7 +67,14 @@ pub fn run_file(
 					test.fork, short_file_name, test_name, test.index
 				);
 			}
-			match run_test(filename, &test_name, test.clone(), debug, write_failed) {
+			match run_test(
+				filename,
+				&test_name,
+				test.clone(),
+				debug,
+				write_failed,
+				config_change,
+			) {
 				Ok(()) => {
 					tests_status.inc_completed();
 					println!("ok")
@@ -88,6 +104,7 @@ pub fn run_single(
 	filename: &str,
 	debug: bool,
 	write_failed: Option<&str>,
+	config_change: fn(&mut Config),
 ) -> Result<TestCompletionStatus, Error> {
 	if fs::metadata(filename)?.is_dir() {
 		let mut tests_status = TestCompletionStatus::default();
@@ -98,13 +115,13 @@ pub fn run_single(
 
 			if filename.ends_with(".json") {
 				println!("RUN for: {filename}");
-				tests_status += run_file(filename, debug, write_failed)?;
+				tests_status += run_file(filename, debug, write_failed, config_change)?;
 			}
 		}
 		tests_status.print_total_for_dir(filename);
 		Ok(tests_status)
 	} else {
-		run_file(filename, debug, write_failed)
+		run_file(filename, debug, write_failed, config_change)
 	}
 }
 
@@ -159,11 +176,13 @@ pub fn run_test(
 	test: TestData,
 	debug: bool,
 	write_failed: Option<&str>,
+	config_change: fn(&mut Config),
 ) -> Result<(), Error> {
-	let config = match test.fork {
+	let mut config = match test.fork {
 		Fork::Istanbul => Config::istanbul(),
 		_ => return Err(Error::UnsupportedFork),
 	};
+	config_change(&mut config);
 
 	if test.post.expect_exception == Some(TestExpectException::TR_TypeNotSupported) {
 		// The `evm` crate does not understand transaction format, only the `ethereum` crate. So

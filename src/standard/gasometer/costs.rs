@@ -246,7 +246,7 @@ pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
 }
 
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
-	let eip161 = config.runtime.eip161;
+	let eip161 = config.runtime.eip161_empty_check;
 	let should_charge_topup = if eip161 {
 		value != U256::zero() && !target_exists
 	} else {
@@ -306,7 +306,7 @@ fn new_cost(
 	transfers_value: bool,
 	config: &Config,
 ) -> u64 {
-	let eip161 = config.runtime.eip161;
+	let eip161 = config.runtime.eip161_empty_check;
 	if is_call_or_staticcall {
 		if eip161 {
 			if transfers_value && new_account {
