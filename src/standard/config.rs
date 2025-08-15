@@ -79,6 +79,9 @@ pub struct Config {
 	pub eip152_blake_2f_precompile: bool,
 	/// EIP-1108: Reduce EC ADD/MUL/Pairing costs.
 	pub eip1108_ec_add_mul_pairing_decrease: bool,
+	/// EIP-2565.
+	pub eip2565_lower_modexp: bool,
+
 }
 
 impl Config {
@@ -126,6 +129,7 @@ impl Config {
 			eip214_static_call: false,
 			eip1108_ec_add_mul_pairing_decrease: false,
 			eip2028_transaction_calldata_decrease: false,
+			eip2565_lower_modexp: false,
 		}
 	}
 
@@ -189,6 +193,43 @@ impl Config {
 		config.eip2028_transaction_calldata_decrease = true;
 		config.eip2200_sstore_gas_metering = true;
 		config.eip2200_sstore_revert_under_stipend = true;
+		config
+	}
+
+	/// Berlin
+	pub const fn berlin() -> Config {
+		let mut config = Self::istanbul();
+		config.eip2565_lower_modexp = true;
+		config.eip2929_increase_state_access_gas = true;
+		config
+	}
+
+	/// London
+	pub const fn london() -> Config {
+		let mut config = Self::berlin();
+		config.eip1559_fee_market = true;
+		config.eip3198_base_fee = true;
+		config.eip3529_decrease_clears_refund = true;
+		config.eip3541_disallow_executable_format = true;
+		config
+	}
+
+	/// Shanghai
+	pub const fn shanghai() -> Config {
+		let mut config = Self::london();
+		config.eip3651_warm_coinbase_address = true;
+		config.eip3855_push0 = true;
+		config.eip3860_max_initcode_size = true;
+		config
+	}
+
+	/// Cancun
+	pub const fn cancun() -> Config {
+		let mut config = Self::shanghai();
+		config.eip1153_transient_storage = true;
+		config.eip5656_mcopy = true;
+		config.runtime.eip6780_suicide_only_in_same_tx = true;
+		// TODO: EIP-7516.
 		config
 	}
 
