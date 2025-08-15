@@ -107,13 +107,15 @@ pub struct Config {
 	pub eip_1559_enabled: bool,
 	/// Selfdestruct deletet contract only if called in the same tx as creation [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
 	pub suicide_only_in_same_tx: bool,
+	/// EIP-7610.
+	pub eip7610_create_check_storage: bool,
 }
 
 impl Config {
 	/// Frontier hard fork configuration.
 	pub const fn frontier() -> Config {
 		Config {
-			runtime: RuntimeConfig { eip161: false },
+			runtime: RuntimeConfig { eip161_empty_check: false },
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
 			gas_balance: 20,
@@ -164,13 +166,14 @@ impl Config {
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
 			suicide_only_in_same_tx: false,
+			eip7610_create_check_storage: true,
 		}
 	}
 
 	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
 		Config {
-			runtime: RuntimeConfig { eip161: true },
+			runtime: RuntimeConfig { eip161_empty_check: true },
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
 			gas_balance: 700,
@@ -221,6 +224,7 @@ impl Config {
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
 			suicide_only_in_same_tx: false,
+			eip7610_create_check_storage: true,
 		}
 	}
 
@@ -279,7 +283,7 @@ impl Config {
 		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
 
 		Config {
-			runtime: RuntimeConfig { eip161: true },
+			runtime: RuntimeConfig { eip161_empty_check: true },
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
 			gas_balance: 0,
@@ -330,6 +334,7 @@ impl Config {
 			eip_5656_enabled,
 			eip_1559_enabled,
 			suicide_only_in_same_tx,
+			eip7610_create_check_storage: true,
 		}
 	}
 }

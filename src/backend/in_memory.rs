@@ -204,4 +204,9 @@ impl RuntimeBaseBackend for InMemoryBackend {
 			.unwrap_or(Default::default())
 			.nonce
 	}
+
+	fn can_create(&self, address: H160) -> bool {
+		self.nonce(address) == U256::zero() && self.code_size(address) == U256::zero()
+			&& self.state.get(&address).cloned().unwrap_or(Default::default()).storage.is_empty()
+	}
 }

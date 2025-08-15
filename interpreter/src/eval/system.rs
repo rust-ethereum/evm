@@ -146,7 +146,7 @@ pub fn extcodehash<
 	handler: &mut H,
 ) -> Control<Tr> {
 	pop_h256!(machine, address);
-	let eip161 = AsRef::<RuntimeConfig>::as_ref(&machine.state).eip161;
+	let eip161 = AsRef::<RuntimeConfig>::as_ref(&machine.state).eip161_empty_check;
 	let is_empty = if eip161 {
 		handler.is_empty(address.into())
 	} else {

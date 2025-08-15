@@ -19,7 +19,7 @@ fn main() -> Result<(), Error> {
 
 	let mut tests_status = TestCompletionStatus::default();
 	for filename in cli.filenames {
-		tests_status += run::run_single(&filename, cli.debug, cli.write_failed.as_deref())?;
+		tests_status += run::run_single(&filename, cli.debug, cli.write_failed.as_deref(), &|_| ())?;
 	}
 	tests_status.print_total();
 
