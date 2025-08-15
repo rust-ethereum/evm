@@ -215,7 +215,8 @@ where
 }
 
 fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-	if config.eip3541_disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
+	if config.eip3541_disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
+	{
 		return Err(ExitException::InvalidOpcode(Opcode::EOFMAGIC).into());
 	}
 	Ok(())

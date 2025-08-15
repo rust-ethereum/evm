@@ -314,7 +314,9 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::CHAINID if config.eip1344_chain_id => GasCost::Base,
 		Opcode::CHAINID => GasCost::Invalid(opcode),
 
-		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.eip145_bitwise_shifting => GasCost::VeryLow,
+		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.eip145_bitwise_shifting => {
+			GasCost::VeryLow
+		}
 		Opcode::SHL | Opcode::SHR | Opcode::SAR => GasCost::Invalid(opcode),
 
 		Opcode::SELFBALANCE if config.eip1884_self_balance => GasCost::Low,

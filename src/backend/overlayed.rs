@@ -8,8 +8,8 @@ use core::mem;
 use evm_interpreter::{
 	ExitError, ExitException, ExitFatal,
 	runtime::{
-		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
-		RuntimeConfig,
+		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeConfig, RuntimeEnvironment, SetCodeOrigin,
+		TouchKind,
 	},
 };
 use primitive_types::{H160, H256, U256};

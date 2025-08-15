@@ -304,8 +304,10 @@ pub fn run_test(
 		state,
 	};
 
-	let mut run_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
-	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
+	let mut run_backend =
+		OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
+	let mut step_backend =
+		OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
 
 	// Run
 	let run_result = evm_mainnet::transact(args.clone(), &mut run_backend);

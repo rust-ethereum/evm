@@ -60,15 +60,25 @@ impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H
 			Some(Ripemd160.execute(input, gasometer))
 		} else if code_address == address(4) {
 			Some(Identity.execute(input, gasometer))
-		} else if AsRef::<Config>::as_ref(gasometer).eip198_modexp_precompile && code_address == address(5) {
+		} else if AsRef::<Config>::as_ref(gasometer).eip198_modexp_precompile
+			&& code_address == address(5)
+		{
 			Some(Modexp.execute(input, gasometer))
-		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile && code_address == address(6) {
+		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile
+			&& code_address == address(6)
+		{
 			Some(Bn128AddIstanbul.execute(input, gasometer))
-		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile && code_address == address(7) {
+		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile
+			&& code_address == address(7)
+		{
 			Some(Bn128MulIstanbul.execute(input, gasometer))
-		} else if AsRef::<Config>::as_ref(gasometer).eip197_ec_pairing_precompile && code_address == address(8) {
+		} else if AsRef::<Config>::as_ref(gasometer).eip197_ec_pairing_precompile
+			&& code_address == address(8)
+		{
 			Some(Bn128PairingIstanbul.execute(input, gasometer))
-		} else if AsRef::<Config>::as_ref(gasometer).eip152_blake_2f_precompile && code_address == address(9) {
+		} else if AsRef::<Config>::as_ref(gasometer).eip152_blake_2f_precompile
+			&& code_address == address(9)
+		{
 			Some(Blake2F.execute(input, gasometer))
 		} else {
 			None

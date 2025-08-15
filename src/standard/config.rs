@@ -81,7 +81,6 @@ pub struct Config {
 	pub eip1108_ec_add_mul_pairing_decrease: bool,
 	/// EIP-2565.
 	pub eip2565_lower_modexp: bool,
-
 }
 
 impl Config {
@@ -235,20 +234,12 @@ impl Config {
 
 	/// Gas paid for extcode.
 	pub fn gas_ext_code(&self) -> u64 {
-		if self.eip1884_trie_repricing {
-			700
-		} else {
-			20
-		}
+		if self.eip1884_trie_repricing { 700 } else { 20 }
 	}
 
 	/// Gas paid for extcodehash.
 	pub fn gas_ext_code_hash(&self) -> u64 {
-		if self.eip1884_trie_repricing {
-			700
-		} else {
-			20
-		}
+		if self.eip1884_trie_repricing { 700 } else { 20 }
 	}
 
 	/// Gas paid for sstore set.
@@ -273,11 +264,7 @@ impl Config {
 
 	/// Gas paid for BALANCE opcode.
 	pub fn gas_balance(&self) -> u64 {
-		if self.eip1884_trie_repricing {
-			700
-		} else {
-			20
-		}
+		if self.eip1884_trie_repricing { 700 } else { 20 }
 	}
 
 	/// Gas paid for SLOAD opcode.
@@ -296,38 +283,22 @@ impl Config {
 
 	/// Gas paid for SUICIDE opcode.
 	pub fn gas_suicide(&self) -> u64 {
-		if self.eip150_gas_increase {
-			5000
-		} else {
-			0
-		}
+		if self.eip150_gas_increase { 5000 } else { 0 }
 	}
 
 	/// Gas paid for SUICIDE opcode when it hits a new account.
 	pub fn gas_suicide_new_account(&self) -> u64 {
-		if self.eip150_gas_increase {
-			25000
-		} else {
-			0
-		}
+		if self.eip150_gas_increase { 25000 } else { 0 }
 	}
 
 	/// Gas paid for CALL opcode.
 	pub fn gas_call(&self) -> u64 {
-		if self.eip150_gas_increase {
-			700
-		} else {
-			40
-		}
+		if self.eip150_gas_increase { 700 } else { 40 }
 	}
 
 	/// Gas paid for EXP opcode for every byte.
 	pub fn gas_expbyte(&self) -> u64 {
-		if self.eip160_exp_increase {
-			50
-		} else {
-			10
-		}
+		if self.eip160_exp_increase { 50 } else { 10 }
 	}
 
 	/// Gas paid for a contract creation transaction.
