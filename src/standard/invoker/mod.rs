@@ -417,7 +417,7 @@ where
 		// Reward coinbase address
 		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
 		// The base fee is always burned.
-		let coinbase_gas_price = if invoke.config.eip_1559_enabled {
+		let coinbase_gas_price = if invoke.config.eip1559_fee_market {
 			invoke
 				.gas_price
 				.saturating_sub(handler.block_base_fee_per_gas())
@@ -474,7 +474,7 @@ where
 			}
 		};
 
-		let after_gas = if AsRef::<Config>::as_ref(machine.state()).call_l64_after_gas {
+		let after_gas = if AsRef::<Config>::as_ref(machine.state()).eip150_call_l64_after_gas {
 			l64(machine.state().gas())
 		} else {
 			machine.state().gas()
@@ -522,7 +522,7 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				if depth > AsRef::<Config>::as_ref(machine.state()).call_stack_limit {
+				if depth > AsRef::<Config>::as_ref(machine.state()).call_stack_limit() {
 					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Call {
@@ -589,7 +589,7 @@ where
 					Err(err) => return Capture::Exit(Err(err)),
 				};
 
-				if depth > AsRef::<Config>::as_ref(machine.state()).call_stack_limit {
+				if depth > AsRef::<Config>::as_ref(machine.state()).call_stack_limit() {
 					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Create {

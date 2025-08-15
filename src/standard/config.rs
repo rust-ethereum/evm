@@ -5,106 +5,70 @@ use evm_interpreter::runtime::RuntimeConfig;
 pub struct Config {
 	/// Runtime config.
 	pub runtime: RuntimeConfig,
-	/// Gas paid for extcode.
-	pub gas_ext_code: u64,
-	/// Gas paid for extcodehash.
-	pub gas_ext_code_hash: u64,
-	/// Gas paid for sstore set.
-	pub gas_sstore_set: u64,
-	/// Gas paid for sstore reset.
-	pub gas_sstore_reset: u64,
-	/// Gas paid for sstore refund.
-	pub refund_sstore_clears: i64,
-	/// EIP-3529
-	pub max_refund_quotient: u64,
-	/// Gas paid for BALANCE opcode.
-	pub gas_balance: u64,
-	/// Gas paid for SLOAD opcode.
-	pub gas_sload: u64,
-	/// Gas paid for cold SLOAD opcode.
-	pub gas_sload_cold: u64,
-	/// Gas paid for SUICIDE opcode.
-	pub gas_suicide: u64,
-	/// Gas paid for SUICIDE opcode when it hits a new account.
-	pub gas_suicide_new_account: u64,
-	/// Gas paid for CALL opcode.
-	pub gas_call: u64,
-	/// Gas paid for EXP opcode for every byte.
-	pub gas_expbyte: u64,
-	/// Gas paid for a contract creation transaction.
-	pub gas_transaction_create: u64,
-	/// Gas paid for a message call transaction.
-	pub gas_transaction_call: u64,
-	/// Gas paid for zero data in a transaction.
-	pub gas_transaction_zero_data: u64,
-	/// Gas paid for non-zero data in a transaction.
-	pub gas_transaction_non_zero_data: u64,
-	/// Gas paid per address in transaction access list (see EIP-2930).
-	pub gas_access_list_address: u64,
-	/// Gas paid per storage key in transaction access list (see EIP-2930).
-	pub gas_access_list_storage_key: u64,
-	/// Gas paid for accessing cold account.
-	pub gas_account_access_cold: u64,
-	/// Gas paid for accessing ready storage.
-	pub gas_storage_read_warm: u64,
+	/// Disallow empty contract creation.
+	pub eip2_no_empty_contract: bool,
+	/// Increase contract creation transaction cost.
+	pub eip2_create_transaction_increase: bool,
+	/// EIP-1884: trie repricing.
+	pub eip1884_trie_repricing: bool,
 	/// EIP-1283.
-	pub sstore_gas_metering: bool,
+	pub eip2200_sstore_gas_metering: bool,
 	/// EIP-1706.
-	pub sstore_revert_under_stipend: bool,
+	pub eip2200_sstore_revert_under_stipend: bool,
 	/// EIP-2929
-	pub increase_state_access_gas: bool,
+	pub eip2929_increase_state_access_gas: bool,
 	/// EIP-3529
-	pub decrease_clears_refund: bool,
+	pub eip3529_decrease_clears_refund: bool,
 	/// EIP-3541
-	pub disallow_executable_format: bool,
+	pub eip3541_disallow_executable_format: bool,
 	/// EIP-3651
-	pub warm_coinbase_address: bool,
+	pub eip3651_warm_coinbase_address: bool,
+	/// Gas increases of EIP150.
+	pub eip150_gas_increase: bool,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
-	pub err_on_call_with_more_gas: bool,
+	pub eip150_no_err_on_call_with_more_gas: bool,
 	/// Take l64 for callcreate after gas.
-	pub call_l64_after_gas: bool,
+	pub eip150_call_l64_after_gas: bool,
 	/// Whether create transactions and create opcode increases nonce by one.
-	pub create_increase_nonce: bool,
-	/// Stack limit.
-	pub stack_limit: usize,
-	/// Memory limit.
-	pub memory_limit: usize,
-	/// Call limit.
-	pub call_stack_limit: usize,
-	/// Create contract limit.
-	pub create_contract_limit: Option<usize>,
+	pub eip161_create_increase_nonce: bool,
+	/// EIP170.
+	pub eip170_create_contract_limit: bool,
 	/// EIP-3860, maximum size limit of init_code.
-	pub max_initcode_size: Option<usize>,
-	/// Call stipend.
-	pub call_stipend: u64,
+	pub eip3860_max_initcode_size: bool,
 	/// Has delegate call.
-	pub has_delegate_call: bool,
+	pub eip7_delegate_call: bool,
 	/// Has create2.
-	pub has_create2: bool,
+	pub eip1014_create2: bool,
 	/// Has revert.
-	pub has_revert: bool,
+	pub eip140_revert: bool,
+	/// EIP160.
+	pub eip160_exp_increase: bool,
 	/// Has return data.
-	pub has_return_data: bool,
+	pub eip211_return_data: bool,
+	/// Static call.
+	pub eip214_static_call: bool,
 	/// Has bitwise shifting.
-	pub has_bitwise_shifting: bool,
+	pub eip145_bitwise_shifting: bool,
 	/// Has chain ID.
-	pub has_chain_id: bool,
+	pub eip1344_chain_id: bool,
 	/// Has self balance.
-	pub has_self_balance: bool,
+	pub eip1884_self_balance: bool,
 	/// Has ext code hash.
-	pub has_ext_code_hash: bool,
+	pub eip1052_ext_code_hash: bool,
 	/// Has ext block fee. See [EIP-3198](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3198.md)
-	pub has_base_fee: bool,
+	pub eip3198_base_fee: bool,
 	/// Has PUSH0 opcode. See [EIP-3855](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-3855.md)
-	pub has_push0: bool,
+	pub eip3855_push0: bool,
 	/// Enables transient storage. See [EIP-1153](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1153.md)
-	pub eip_1153_enabled: bool,
+	pub eip1153_transient_storage: bool,
 	/// Enables MCOPY instruction. See [EIP-5656](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-5656.md)
-	pub eip_5656_enabled: bool,
+	pub eip5656_mcopy: bool,
 	/// Uses EIP-1559 (Base fee is burned when this flag is enabled) [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md)
-	pub eip_1559_enabled: bool,
+	pub eip1559_fee_market: bool,
+	/// Call data gas cost reduction.
+	pub eip2028_transaction_calldata_decrease: bool,
 	/// EIP-198: Modexp precompile.
 	pub eip198_modexp_precompile: bool,
 	/// EIP-196: EC ADD/MUL precompile.
@@ -113,6 +77,8 @@ pub struct Config {
 	pub eip197_ec_pairing_precompile: bool,
 	/// EIP-152: Blake2F precompile.
 	pub eip152_blake_2f_precompile: bool,
+	/// EIP-1108: Reduce EC ADD/MUL/Pairing costs.
+	pub eip1108_ec_add_mul_pairing_decrease: bool,
 }
 
 impl Config {
@@ -124,353 +90,288 @@ impl Config {
 				eip6780_suicide_only_in_same_tx: false,
 				eip7610_create_check_storage: true,
 			},
-			gas_ext_code: 20,
-			gas_ext_code_hash: 20,
-			gas_balance: 20,
-			gas_sload: 50,
-			gas_sload_cold: 0,
-			gas_sstore_set: 20000,
-			gas_sstore_reset: 5000,
-			refund_sstore_clears: 15000,
-			max_refund_quotient: 2,
-			gas_suicide: 0,
-			gas_suicide_new_account: 0,
-			gas_call: 40,
-			gas_expbyte: 10,
-			gas_transaction_create: 21000,
-			gas_transaction_call: 21000,
-			gas_transaction_zero_data: 4,
-			gas_transaction_non_zero_data: 68,
-			gas_access_list_address: 0,
-			gas_access_list_storage_key: 0,
-			gas_account_access_cold: 0,
-			gas_storage_read_warm: 0,
-			sstore_gas_metering: false,
-			sstore_revert_under_stipend: false,
-			increase_state_access_gas: false,
-			decrease_clears_refund: false,
-			disallow_executable_format: false,
-			warm_coinbase_address: false,
-			err_on_call_with_more_gas: true,
-			create_increase_nonce: false,
-			call_l64_after_gas: false,
-			stack_limit: 1024,
-			memory_limit: usize::MAX,
-			call_stack_limit: 1024,
-			create_contract_limit: None,
-			max_initcode_size: None,
-			call_stipend: 2300,
-			has_delegate_call: false,
-			has_create2: false,
-			has_revert: false,
-			has_return_data: false,
-			has_bitwise_shifting: false,
-			has_chain_id: false,
-			has_self_balance: false,
-			has_ext_code_hash: false,
-			has_base_fee: false,
-			has_push0: false,
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: false,
+			eip2_no_empty_contract: false,
+			eip2_create_transaction_increase: false,
+			eip2200_sstore_gas_metering: false,
+			eip2200_sstore_revert_under_stipend: false,
+			eip2929_increase_state_access_gas: false,
+			eip3529_decrease_clears_refund: false,
+			eip3541_disallow_executable_format: false,
+			eip3651_warm_coinbase_address: false,
+			eip150_no_err_on_call_with_more_gas: true,
+			eip161_create_increase_nonce: false,
+			eip150_call_l64_after_gas: false,
+			eip170_create_contract_limit: false,
+			eip3860_max_initcode_size: false,
+			eip7_delegate_call: false,
+			eip1014_create2: false,
+			eip140_revert: false,
+			eip211_return_data: false,
+			eip145_bitwise_shifting: false,
+			eip1344_chain_id: false,
+			eip1884_self_balance: false,
+			eip1052_ext_code_hash: false,
+			eip3198_base_fee: false,
+			eip3855_push0: false,
+			eip1153_transient_storage: false,
+			eip5656_mcopy: false,
+			eip1559_fee_market: false,
 			eip198_modexp_precompile: false,
 			eip196_ec_add_mul_precompile: false,
 			eip197_ec_pairing_precompile: false,
 			eip152_blake_2f_precompile: false,
+			eip150_gas_increase: false,
+			eip160_exp_increase: false,
+			eip1884_trie_repricing: false,
+			eip214_static_call: false,
+			eip1108_ec_add_mul_pairing_decrease: false,
+			eip2028_transaction_calldata_decrease: false,
 		}
+	}
+
+	/// Homestead
+	pub const fn homestead() -> Config {
+		let mut config = Self::frontier();
+		config.eip2_no_empty_contract = true;
+		config.eip2_create_transaction_increase = true;
+		config.eip7_delegate_call = true;
+		config
+	}
+
+	/// Tangerine whistle
+	pub const fn tangerine_whistle() -> Config {
+		let mut config = Self::homestead();
+		config.eip150_gas_increase = true;
+		config.eip150_no_err_on_call_with_more_gas = true;
+		config.eip150_call_l64_after_gas = true;
+		config
+	}
+
+	/// Spurious dragon
+	pub const fn spurious_dragon() -> Config {
+		let mut config = Self::tangerine_whistle();
+		config.runtime.eip161_empty_check = true;
+		config.eip161_create_increase_nonce = true;
+		config.eip160_exp_increase = true;
+		config.eip170_create_contract_limit = true;
+		config
+	}
+
+	/// Byzantium
+	pub const fn byzantium() -> Config {
+		let mut config = Self::spurious_dragon();
+		config.eip140_revert = true;
+		config.eip196_ec_add_mul_precompile = true;
+		config.eip197_ec_pairing_precompile = true;
+		config.eip198_modexp_precompile = true;
+		config.eip211_return_data = true;
+		config.eip214_static_call = true;
+		config
+	}
+
+	/// Constantinople
+	pub const fn constantinople() -> Config {
+		let mut config = Self::byzantium();
+		config.eip145_bitwise_shifting = true;
+		config.eip1014_create2 = true;
+		config.eip1052_ext_code_hash = true;
+		config
 	}
 
 	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
-		Config {
-			runtime: RuntimeConfig {
-				eip161_empty_check: true,
-				eip6780_suicide_only_in_same_tx: false,
-				eip7610_create_check_storage: true,
-			},
-			gas_ext_code: 700,
-			gas_ext_code_hash: 700,
-			gas_balance: 700,
-			gas_sload: 800,
-			gas_sload_cold: 0,
-			gas_sstore_set: 20000,
-			gas_sstore_reset: 5000,
-			refund_sstore_clears: 15000,
-			max_refund_quotient: 2,
-			gas_suicide: 5000,
-			gas_suicide_new_account: 25000,
-			gas_call: 700,
-			gas_expbyte: 50,
-			gas_transaction_create: 53000,
-			gas_transaction_call: 21000,
-			gas_transaction_zero_data: 4,
-			gas_transaction_non_zero_data: 16,
-			gas_access_list_address: 0,
-			gas_access_list_storage_key: 0,
-			gas_account_access_cold: 0,
-			gas_storage_read_warm: 0,
-			sstore_gas_metering: true,
-			sstore_revert_under_stipend: true,
-			increase_state_access_gas: false,
-			decrease_clears_refund: false,
-			disallow_executable_format: false,
-			warm_coinbase_address: false,
-			err_on_call_with_more_gas: false,
-			create_increase_nonce: true,
-			call_l64_after_gas: true,
-			stack_limit: 1024,
-			memory_limit: usize::MAX,
-			call_stack_limit: 1024,
-			create_contract_limit: Some(0x6000),
-			max_initcode_size: None,
-			call_stipend: 2300,
-			has_delegate_call: true,
-			has_create2: true,
-			has_revert: true,
-			has_return_data: true,
-			has_bitwise_shifting: true,
-			has_chain_id: true,
-			has_self_balance: true,
-			has_ext_code_hash: true,
-			has_base_fee: false,
-			has_push0: false,
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: false,
-			eip198_modexp_precompile: true,
-			eip196_ec_add_mul_precompile: true,
-			eip197_ec_pairing_precompile: true,
-			eip152_blake_2f_precompile: true,
-		}
+		let mut config = Self::constantinople();
+		config.eip152_blake_2f_precompile = true;
+		config.eip1108_ec_add_mul_pairing_decrease = true;
+		config.eip1344_chain_id = true;
+		config.eip1884_trie_repricing = true;
+		config.eip1884_self_balance = true;
+		config.eip2028_transaction_calldata_decrease = true;
+		config.eip2200_sstore_gas_metering = true;
+		config.eip2200_sstore_revert_under_stipend = true;
+		config
 	}
 
-	/// Berlin hard fork configuration.
-	pub const fn berlin() -> Config {
-		Self::config_with_derived_values(DerivedConfigInputs::berlin())
-	}
-
-	/// london hard fork configuration.
-	pub const fn london() -> Config {
-		Self::config_with_derived_values(DerivedConfigInputs::london())
-	}
-
-	/// The Merge (Paris) hard fork configuration.
-	pub const fn merge() -> Config {
-		Self::config_with_derived_values(DerivedConfigInputs::merge())
-	}
-
-	/// Shanghai hard fork configuration.
-	pub const fn shanghai() -> Config {
-		Self::config_with_derived_values(DerivedConfigInputs::shanghai())
-	}
-
-	/// Cancun hard fork configuration.
-	pub const fn cancun() -> Config {
-		Self::config_with_derived_values(DerivedConfigInputs::cancun())
-	}
-
-	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
-		let DerivedConfigInputs {
-			gas_storage_read_warm,
-			gas_sload_cold,
-			gas_access_list_storage_key,
-			decrease_clears_refund,
-			has_base_fee,
-			has_push0,
-			disallow_executable_format,
-			warm_coinbase_address,
-			max_initcode_size,
-			eip_1153_enabled,
-			eip_5656_enabled,
-			eip_1559_enabled,
-			suicide_only_in_same_tx,
-		} = inputs;
-
-		// See https://eips.ethereum.org/EIPS/eip-2929
-		let gas_sload = gas_storage_read_warm;
-		let gas_sstore_reset = 5000 - gas_sload_cold;
-
-		// See https://eips.ethereum.org/EIPS/eip-3529
-		let refund_sstore_clears = if decrease_clears_refund {
-			(gas_sstore_reset + gas_access_list_storage_key) as i64
+	/// Gas paid for extcode.
+	pub fn gas_ext_code(&self) -> u64 {
+		if self.eip1884_trie_repricing {
+			700
 		} else {
-			15000
-		};
-		let max_refund_quotient = if decrease_clears_refund { 5 } else { 2 };
-
-		Config {
-			runtime: RuntimeConfig {
-				eip161_empty_check: true,
-				eip6780_suicide_only_in_same_tx: suicide_only_in_same_tx,
-				eip7610_create_check_storage: true,
-			},
-			gas_ext_code: 0,
-			gas_ext_code_hash: 0,
-			gas_balance: 0,
-			gas_sload,
-			gas_sload_cold,
-			gas_sstore_set: 20000,
-			gas_sstore_reset,
-			refund_sstore_clears,
-			max_refund_quotient,
-			gas_suicide: 5000,
-			gas_suicide_new_account: 25000,
-			gas_call: 0,
-			gas_expbyte: 50,
-			gas_transaction_create: 53000,
-			gas_transaction_call: 21000,
-			gas_transaction_zero_data: 4,
-			gas_transaction_non_zero_data: 16,
-			gas_access_list_address: 2400,
-			gas_access_list_storage_key,
-			gas_account_access_cold: 2600,
-			gas_storage_read_warm,
-			sstore_gas_metering: true,
-			sstore_revert_under_stipend: true,
-			increase_state_access_gas: true,
-			decrease_clears_refund,
-			disallow_executable_format,
-			warm_coinbase_address,
-			err_on_call_with_more_gas: false,
-			create_increase_nonce: true,
-			call_l64_after_gas: true,
-			stack_limit: 1024,
-			memory_limit: usize::MAX,
-			call_stack_limit: 1024,
-			create_contract_limit: Some(0x6000),
-			max_initcode_size,
-			call_stipend: 2300,
-			has_delegate_call: true,
-			has_create2: true,
-			has_revert: true,
-			has_return_data: true,
-			has_bitwise_shifting: true,
-			has_chain_id: true,
-			has_self_balance: true,
-			has_ext_code_hash: true,
-			has_base_fee,
-			has_push0,
-			eip_1153_enabled,
-			eip_5656_enabled,
-			eip_1559_enabled,
-			eip198_modexp_precompile: true,
-			eip196_ec_add_mul_precompile: true,
-			eip197_ec_pairing_precompile: true,
-			eip152_blake_2f_precompile: true,
-		}
-	}
-}
-
-/// Independent inputs that are used to derive other config values.
-/// See `Config::config_with_derived_values` implementation for details.
-struct DerivedConfigInputs {
-	/// `WARM_STORAGE_READ_COST` (see EIP-2929).
-	gas_storage_read_warm: u64,
-	/// `COLD_SLOAD_COST` (see EIP-2929).
-	gas_sload_cold: u64,
-	/// `ACCESS_LIST_STORAGE_KEY_COST` (see EIP-2930).
-	gas_access_list_storage_key: u64,
-	decrease_clears_refund: bool,
-	has_base_fee: bool,
-	has_push0: bool,
-	disallow_executable_format: bool,
-	warm_coinbase_address: bool,
-	max_initcode_size: Option<usize>,
-	eip_1153_enabled: bool,
-	eip_5656_enabled: bool,
-	eip_1559_enabled: bool,
-	suicide_only_in_same_tx: bool,
-}
-
-impl DerivedConfigInputs {
-	const fn berlin() -> Self {
-		Self {
-			gas_storage_read_warm: 100,
-			gas_sload_cold: 2100,
-			gas_access_list_storage_key: 1900,
-			decrease_clears_refund: false,
-			has_base_fee: false,
-			has_push0: false,
-			disallow_executable_format: false,
-			warm_coinbase_address: false,
-			max_initcode_size: None,
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: false,
-			suicide_only_in_same_tx: false,
+			20
 		}
 	}
 
-	const fn london() -> Self {
-		Self {
-			gas_storage_read_warm: 100,
-			gas_sload_cold: 2100,
-			gas_access_list_storage_key: 1900,
-			decrease_clears_refund: true,
-			has_base_fee: true,
-			has_push0: false,
-			disallow_executable_format: true,
-			warm_coinbase_address: false,
-			max_initcode_size: None,
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: true,
-			suicide_only_in_same_tx: false,
+	/// Gas paid for extcodehash.
+	pub fn gas_ext_code_hash(&self) -> u64 {
+		if self.eip1884_trie_repricing {
+			700
+		} else {
+			20
 		}
 	}
 
-	const fn merge() -> Self {
-		Self {
-			gas_storage_read_warm: 100,
-			gas_sload_cold: 2100,
-			gas_access_list_storage_key: 1900,
-			decrease_clears_refund: true,
-			has_base_fee: true,
-			has_push0: false,
-			disallow_executable_format: true,
-			warm_coinbase_address: false,
-			max_initcode_size: None,
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: true,
-			suicide_only_in_same_tx: false,
+	/// Gas paid for sstore set.
+	pub fn gas_sstore_set(&self) -> u64 {
+		20000
+	}
+
+	/// Gas paid for sstore reset.
+	pub fn gas_sstore_reset(&self) -> u64 {
+		5000
+	}
+
+	/// Gas paid for sstore refund.
+	pub fn refund_sstore_clears(&self) -> i64 {
+		15000
+	}
+
+	/// EIP-3529
+	pub fn max_refund_quotient(&self) -> u64 {
+		2
+	}
+
+	/// Gas paid for BALANCE opcode.
+	pub fn gas_balance(&self) -> u64 {
+		if self.eip1884_trie_repricing {
+			700
+		} else {
+			20
 		}
 	}
 
-	const fn shanghai() -> Self {
-		Self {
-			gas_storage_read_warm: 100,
-			gas_sload_cold: 2100,
-			gas_access_list_storage_key: 1900,
-			decrease_clears_refund: true,
-			has_base_fee: true,
-			has_push0: true,
-			disallow_executable_format: true,
-			warm_coinbase_address: true,
-			// 2 * 24576 as per EIP-3860
-			max_initcode_size: Some(0xC000),
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: true,
-			suicide_only_in_same_tx: false,
+	/// Gas paid for SLOAD opcode.
+	pub fn gas_sload(&self) -> u64 {
+		if self.eip2200_sstore_gas_metering {
+			800
+		} else {
+			50
 		}
 	}
-	const fn cancun() -> Self {
-		Self {
-			gas_storage_read_warm: 100,
-			gas_sload_cold: 2100,
-			gas_access_list_storage_key: 1900,
-			decrease_clears_refund: true,
-			has_base_fee: true,
-			has_push0: true,
-			disallow_executable_format: true,
-			warm_coinbase_address: true,
-			// 2 * (MAX_CODE_SIZE = `24576`) = (0xC000 = 49152) as per EIP-3860
-			max_initcode_size: Some(0xC000),
-			eip_1153_enabled: false,
-			eip_5656_enabled: false,
-			eip_1559_enabled: true,
-			suicide_only_in_same_tx: true,
+
+	/// Gas paid for cold SLOAD opcode.
+	pub fn gas_sload_cold(&self) -> u64 {
+		0
+	}
+
+	/// Gas paid for SUICIDE opcode.
+	pub fn gas_suicide(&self) -> u64 {
+		if self.eip150_gas_increase {
+			5000
+		} else {
+			0
+		}
+	}
+
+	/// Gas paid for SUICIDE opcode when it hits a new account.
+	pub fn gas_suicide_new_account(&self) -> u64 {
+		if self.eip150_gas_increase {
+			25000
+		} else {
+			0
+		}
+	}
+
+	/// Gas paid for CALL opcode.
+	pub fn gas_call(&self) -> u64 {
+		if self.eip150_gas_increase {
+			700
+		} else {
+			40
+		}
+	}
+
+	/// Gas paid for EXP opcode for every byte.
+	pub fn gas_expbyte(&self) -> u64 {
+		if self.eip160_exp_increase {
+			50
+		} else {
+			10
+		}
+	}
+
+	/// Gas paid for a contract creation transaction.
+	pub fn gas_transaction_create(&self) -> u64 {
+		if self.eip2_create_transaction_increase {
+			53000
+		} else {
+			21000
+		}
+	}
+
+	/// Gas paid for a message call transaction.
+	pub fn gas_transaction_call(&self) -> u64 {
+		21000
+	}
+
+	/// Gas paid for zero data in a transaction.
+	pub fn gas_transaction_zero_data(&self) -> u64 {
+		4
+	}
+
+	/// Gas paid for non-zero data in a transaction.
+	pub fn gas_transaction_non_zero_data(&self) -> u64 {
+		if self.eip2028_transaction_calldata_decrease {
+			16
+		} else {
+			68
+		}
+	}
+
+	/// Gas paid per address in transaction access list (see EIP-2930).
+	pub fn gas_access_list_address(&self) -> u64 {
+		0
+	}
+
+	/// Gas paid per storage key in transaction access list (see EIP-2930).
+	pub fn gas_access_list_storage_key(&self) -> u64 {
+		0
+	}
+
+	/// Gas paid for accessing cold account.
+	pub fn gas_account_access_cold(&self) -> u64 {
+		0
+	}
+
+	/// Gas paid for accessing ready storage.
+	pub fn gas_storage_read_warm(&self) -> u64 {
+		0
+	}
+
+	/// Stack limit.
+	pub fn stack_limit(&self) -> usize {
+		1024
+	}
+
+	/// Memory limit.
+	pub fn memory_limit(&self) -> usize {
+		usize::MAX
+	}
+
+	/// Call stack limit.
+	pub fn call_stack_limit(&self) -> usize {
+		1024
+	}
+
+	/// Call stipend.
+	pub fn call_stipend(&self) -> u64 {
+		2300
+	}
+
+	/// Maximum size limit of init code.
+	pub fn max_initcode_size(&self) -> Option<usize> {
+		if self.eip3860_max_initcode_size {
+			Some(0x6000)
+		} else {
+			None
+		}
+	}
+
+	/// Create contract limit.
+	pub fn create_contract_limit(&self) -> Option<usize> {
+		if self.eip170_create_contract_limit {
+			Some(0x6000)
+		} else {
+			None
 		}
 	}
 }

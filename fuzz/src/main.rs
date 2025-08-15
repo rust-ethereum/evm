@@ -52,7 +52,7 @@ fn main() {
 		let init_balance = U256::from(1_000_000_000);
 		let gas_limit = U256::from(400_000);
 		let gas_price = U256::from(30);
-		let config = Config::cancun();
+		let config = Config::istanbul();
 
 		let mut contract_one = vec![];
 		for op in &data.contract_one {

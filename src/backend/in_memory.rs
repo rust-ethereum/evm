@@ -110,6 +110,10 @@ impl InMemoryBackend {
 					self.state.remove(&address);
 				}
 			}
+		} else {
+			for address in changeset.touched.clone() {
+				self.state.entry(address).or_default();
+			}
 		}
 	}
 }
