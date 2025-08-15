@@ -225,7 +225,7 @@ fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
 /// Routine for deploying the create code.
 pub fn deploy_create_code<S, H>(
 	address: H160,
-	retbuf: Vec<u8>,
+	mut retbuf: Vec<u8>,
 	state: &mut S,
 	handler: &mut H,
 	origin: SetCodeOrigin,
@@ -242,7 +242,11 @@ where
 		return Err(ExitException::CreateContractLimit.into());
 	}
 
-	state.record_codedeposit(retbuf.len())?;
+	match state.record_codedeposit(retbuf.len()) {
+		Ok(()) => (),
+		Err(e) if AsRef::<Config>::as_ref(state).eip2_no_empty_contract => return Err(e),
+		Err(_) => { retbuf = Vec::new() },
+	}
 
 	handler.set_code(address, retbuf, origin)?;
 

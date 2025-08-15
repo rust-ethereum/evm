@@ -100,7 +100,7 @@ impl Config {
 			eip3529_decrease_clears_refund: false,
 			eip3541_disallow_executable_format: false,
 			eip3651_warm_coinbase_address: false,
-			eip150_no_err_on_call_with_more_gas: true,
+			eip150_no_err_on_call_with_more_gas: false,
 			eip161_create_increase_nonce: false,
 			eip150_call_l64_after_gas: false,
 			eip170_create_contract_limit: false,
