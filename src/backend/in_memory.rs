@@ -104,9 +104,15 @@ impl InMemoryBackend {
 			self.state.remove(&address);
 		}
 
-		for address in changeset.touched.clone() {
-			if self.is_empty(address) {
-				self.state.remove(&address);
+		if changeset.config.eip161_empty_check {
+			for address in changeset.touched.clone() {
+				if self.is_empty(address) {
+					self.state.remove(&address);
+				}
+			}
+		} else {
+			for address in changeset.touched.clone() {
+				self.state.entry(address).or_default();
 			}
 		}
 	}

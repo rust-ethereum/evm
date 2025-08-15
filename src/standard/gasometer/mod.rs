@@ -176,7 +176,7 @@ impl GasometerState {
 			self.gas_limit
 				- (self.total_used_gas()
 					- min(
-						self.total_used_gas() / config.max_refund_quotient,
+						self.total_used_gas() / config.max_refund_quotient(),
 						refunded_gas,
 					))
 		} else {
@@ -201,7 +201,7 @@ impl GasometerState {
 		self.record_gas64(gas_limit)?;
 
 		if call_has_value {
-			gas_limit = gas_limit.saturating_add(config.call_stipend);
+			gas_limit = gas_limit.saturating_add(config.call_stipend());
 		}
 
 		Ok(Self::new(gas_limit, is_static))
@@ -308,19 +308,21 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::MLOAD | Opcode::MSTORE | Opcode::MSTORE8 => GasCost::VeryLow,
 
-		Opcode::REVERT if config.has_revert => GasCost::Zero,
+		Opcode::REVERT if config.eip140_revert => GasCost::Zero,
 		Opcode::REVERT => GasCost::Invalid(opcode),
 
-		Opcode::CHAINID if config.has_chain_id => GasCost::Base,
+		Opcode::CHAINID if config.eip1344_chain_id => GasCost::Base,
 		Opcode::CHAINID => GasCost::Invalid(opcode),
 
-		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.has_bitwise_shifting => GasCost::VeryLow,
+		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.eip145_bitwise_shifting => {
+			GasCost::VeryLow
+		}
 		Opcode::SHL | Opcode::SHR | Opcode::SAR => GasCost::Invalid(opcode),
 
-		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
+		Opcode::SELFBALANCE if config.eip1884_self_balance => GasCost::Low,
 		Opcode::SELFBALANCE => GasCost::Invalid(opcode),
 
-		Opcode::BASEFEE if config.has_base_fee => GasCost::Base,
+		Opcode::BASEFEE if config.eip3198_base_fee => GasCost::Base,
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
@@ -343,7 +345,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		}
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
-		Opcode::EXTCODEHASH if config.has_ext_code_hash => {
+		Opcode::EXTCODEHASH if config.eip1052_ext_code_hash => {
 			let target = u256_to_h160(stack.peek(0)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -372,7 +374,8 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				},
 			}
 		}
-		Opcode::STATICCALL => {
+
+		Opcode::STATICCALL if config.eip214_static_call => {
 			let target = u256_to_h160(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -389,6 +392,8 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				},
 			}
 		}
+		Opcode::STATICCALL => GasCost::Invalid(opcode),
+
 		Opcode::SHA3 => GasCost::Sha3 {
 			len: stack.peek(1)?,
 		},
@@ -404,7 +409,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				len: stack.peek(3)?,
 			}
 		}
-		Opcode::MCOPY if config.eip_5656_enabled => GasCost::VeryLowCopy {
+		Opcode::MCOPY if config.eip5656_mcopy => GasCost::VeryLowCopy {
 			len: stack.peek(2)?,
 		},
 		Opcode::CALLDATACOPY | Opcode::CODECOPY => GasCost::VeryLowCopy {
@@ -422,9 +427,9 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			GasCost::SLoad { target_is_cold }
 		}
-		Opcode::TLOAD if config.eip_1153_enabled => GasCost::TLoad,
+		Opcode::TLOAD if config.eip1153_transient_storage => GasCost::TLoad,
 
-		Opcode::DELEGATECALL if config.has_delegate_call => {
+		Opcode::DELEGATECALL if config.eip7_delegate_call => {
 			let target = u256_to_h160(stack.peek(1)?);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -443,8 +448,8 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		}
 		Opcode::DELEGATECALL => GasCost::Invalid(opcode),
 
-		Opcode::RETURNDATASIZE if config.has_return_data => GasCost::Base,
-		Opcode::RETURNDATACOPY if config.has_return_data => GasCost::VeryLowCopy {
+		Opcode::RETURNDATASIZE if config.eip211_return_data => GasCost::Base,
+		Opcode::RETURNDATACOPY if config.eip211_return_data => GasCost::VeryLowCopy {
 			len: stack.peek(2)?,
 		},
 		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode),
@@ -464,7 +469,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				target_is_cold,
 			}
 		}
-		Opcode::TSTORE if !is_static && config.eip_1153_enabled => GasCost::TStore,
+		Opcode::TSTORE if !is_static && config.eip1153_transient_storage => GasCost::TStore,
 		Opcode::LOG0 if !is_static => GasCost::Log {
 			n: 0,
 			len: stack.peek(1)?,
@@ -486,7 +491,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			len: stack.peek(1)?,
 		},
 		Opcode::CREATE if !is_static => GasCost::Create,
-		Opcode::CREATE2 if !is_static && config.has_create2 => GasCost::Create2 {
+		Opcode::CREATE2 if !is_static && config.eip1014_create2 => GasCost::Create2 {
 			len: stack.peek(2)?,
 		},
 		Opcode::SUICIDE if !is_static => {
@@ -526,7 +531,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			}
 		}
 
-		Opcode::PUSH0 if config.has_push0 => GasCost::Base,
+		Opcode::PUSH0 if config.eip3855_push0 => GasCost::Base,
 
 		_ => GasCost::Invalid(opcode),
 	};
@@ -818,18 +823,18 @@ impl GasCost {
 			GasCost::Invalid(opcode) => return Err(ExitException::InvalidOpcode(opcode).into()),
 
 			GasCost::ExtCodeSize { target_is_cold } => {
-				costs::address_access_cost(target_is_cold, config.gas_ext_code, config)
+				costs::address_access_cost(target_is_cold, config.gas_ext_code(), config)
 			}
 			GasCost::ExtCodeCopy {
 				target_is_cold,
 				len,
 			} => costs::extcodecopy_cost(len, target_is_cold, config)?,
 			GasCost::Balance { target_is_cold } => {
-				costs::address_access_cost(target_is_cold, config.gas_balance, config)
+				costs::address_access_cost(target_is_cold, config.gas_balance(), config)
 			}
 			GasCost::BlockHash => consts::G_BLOCKHASH,
 			GasCost::ExtCodeHash { target_is_cold } => {
-				costs::address_access_cost(target_is_cold, config.gas_ext_code_hash, config)
+				costs::address_access_cost(target_is_cold, config.gas_ext_code_hash(), config)
 			}
 		})
 	}
@@ -845,7 +850,7 @@ impl GasCost {
 			} => costs::sstore_refund(original, current, new, config),
 			GasCost::Suicide {
 				already_removed, ..
-			} if !config.decrease_clears_refund => costs::suicide_refund(already_removed),
+			} if !config.eip3529_decrease_clears_refund => costs::suicide_refund(already_removed),
 			_ => 0,
 		}
 	}
@@ -978,11 +983,11 @@ impl TransactionCost {
 				access_list_storage_len,
 			} => {
 				#[deny(clippy::let_and_return)]
-				let cost = config.gas_transaction_call
-					+ *zero_data_len as u64 * config.gas_transaction_zero_data
-					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data
-					+ *access_list_address_len as u64 * config.gas_access_list_address
-					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key;
+				let cost = config.gas_transaction_call()
+					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
+					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
+					+ *access_list_address_len as u64 * config.gas_access_list_address()
+					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
 
 				cost
 			}
@@ -993,12 +998,12 @@ impl TransactionCost {
 				access_list_storage_len,
 				initcode_cost,
 			} => {
-				let mut cost = config.gas_transaction_create
-					+ *zero_data_len as u64 * config.gas_transaction_zero_data
-					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data
-					+ *access_list_address_len as u64 * config.gas_access_list_address
-					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key;
-				if config.max_initcode_size.is_some() {
+				let mut cost = config.gas_transaction_create()
+					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
+					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
+					+ *access_list_address_len as u64 * config.gas_access_list_address()
+					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
+				if config.max_initcode_size().is_some() {
 					cost += initcode_cost;
 				}
 

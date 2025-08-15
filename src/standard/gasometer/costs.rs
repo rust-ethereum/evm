@@ -5,7 +5,7 @@ use super::{consts::*, utils::log2floor};
 use crate::standard::Config;
 
 pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitException> {
-	if config.err_on_call_with_more_gas && U256::from(after_gas) < gas {
+	if !config.eip150_no_err_on_call_with_more_gas && U256::from(after_gas) < gas {
 		Err(ExitException::OutOfGas)
 	} else {
 		Ok(())
@@ -18,28 +18,28 @@ pub fn suicide_refund(already_removed: bool) -> i64 {
 
 #[allow(clippy::collapsible_else_if)]
 pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) -> i64 {
-	if config.sstore_gas_metering {
+	if config.eip2200_sstore_gas_metering {
 		if current == new {
 			0
 		} else {
 			if original == current && new == H256::default() {
-				config.refund_sstore_clears
+				config.refund_sstore_clears()
 			} else {
 				let mut refund = 0;
 
 				if original != H256::default() {
 					if current == H256::default() {
-						refund -= config.refund_sstore_clears;
+						refund -= config.refund_sstore_clears();
 					} else if new == H256::default() {
-						refund += config.refund_sstore_clears;
+						refund += config.refund_sstore_clears();
 					}
 				}
 
 				if original == new {
 					if original == H256::default() {
-						refund += (config.gas_sstore_set - config.gas_sload) as i64;
+						refund += (config.gas_sstore_set() - config.gas_sload()) as i64;
 					} else {
-						refund += (config.gas_sstore_reset - config.gas_sload) as i64;
+						refund += (config.gas_sstore_reset() - config.gas_sload()) as i64;
 					}
 				}
 
@@ -48,7 +48,7 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 		}
 	} else {
 		if current != H256::default() && new == H256::default() {
-			config.refund_sstore_clears
+			config.refund_sstore_clears()
 		} else {
 			0
 		}
@@ -82,7 +82,7 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
 	} else {
 		let gas = U256::from(G_EXP)
 			.checked_add(
-				U256::from(config.gas_expbyte)
+				U256::from(config.gas_expbyte())
 					.checked_mul(U256::from(log2floor(power) / 8 + 1))
 					.ok_or(ExitException::OutOfGas)?,
 			)
@@ -122,7 +122,7 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitException> {
 	let wordd = len / U256::from(32);
 	let wordr = len % U256::from(32);
-	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code, config))
+	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code(), config))
 		.checked_add(
 			U256::from(G_COPY)
 				.checked_mul(if wordr == U256::zero() {
@@ -183,14 +183,14 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
 }
 
 pub fn sload_cost(is_cold: bool, config: &Config) -> u64 {
-	if config.increase_state_access_gas {
+	if config.eip2929_increase_state_access_gas {
 		if is_cold {
-			config.gas_sload_cold
+			config.gas_sload_cold()
 		} else {
-			config.gas_storage_read_warm
+			config.gas_storage_read_warm()
 		}
 	} else {
-		config.gas_sload
+		config.gas_sload()
 	}
 }
 
@@ -203,46 +203,46 @@ pub fn sstore_cost(
 	is_cold: bool,
 	config: &Config,
 ) -> Result<u64, ExitException> {
-	let gas_cost = if config.sstore_gas_metering {
-		if config.sstore_revert_under_stipend && gas <= config.call_stipend {
+	let gas_cost = if config.eip2200_sstore_gas_metering {
+		if config.eip2200_sstore_revert_under_stipend && gas <= config.call_stipend() {
 			return Err(ExitException::OutOfGas);
 		}
 
 		if new == current {
-			config.gas_sload
+			config.gas_sload()
 		} else {
 			if original == current {
 				if original == H256::zero() {
-					config.gas_sstore_set
+					config.gas_sstore_set()
 				} else {
-					config.gas_sstore_reset
+					config.gas_sstore_reset()
 				}
 			} else {
-				config.gas_sload
+				config.gas_sload()
 			}
 		}
 	} else {
 		if current == H256::zero() && new != H256::zero() {
-			config.gas_sstore_set
+			config.gas_sstore_set()
 		} else {
-			config.gas_sstore_reset
+			config.gas_sstore_reset()
 		}
 	};
 	Ok(
 		// In EIP-2929 we charge extra if the slot has not been used yet in this transaction
 		if is_cold {
-			gas_cost + config.gas_sload_cold
+			gas_cost + config.gas_sload_cold()
 		} else {
 			gas_cost
 		},
 	)
 }
 pub fn tload_cost(config: &Config) -> Result<u64, ExitException> {
-	Ok(config.gas_storage_read_warm)
+	Ok(config.gas_storage_read_warm())
 }
 
 pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
-	Ok(config.gas_storage_read_warm)
+	Ok(config.gas_storage_read_warm())
 }
 
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
@@ -254,14 +254,14 @@ pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Co
 	};
 
 	let suicide_gas_topup = if should_charge_topup {
-		config.gas_suicide_new_account
+		config.gas_suicide_new_account()
 	} else {
 		0
 	};
 
-	let mut gas = config.gas_suicide + suicide_gas_topup;
-	if config.increase_state_access_gas && is_cold {
-		gas += config.gas_account_access_cold
+	let mut gas = config.gas_suicide() + suicide_gas_topup;
+	if config.eip2929_increase_state_access_gas && is_cold {
+		gas += config.gas_account_access_cold()
 	}
 	gas
 }
@@ -275,17 +275,17 @@ pub fn call_cost(
 	config: &Config,
 ) -> u64 {
 	let transfers_value = value != U256::default();
-	address_access_cost(is_cold, config.gas_call, config)
+	address_access_cost(is_cold, config.gas_call(), config)
 		+ xfer_cost(is_call_or_callcode, transfers_value)
 		+ new_cost(is_call_or_staticcall, new_account, transfers_value, config)
 }
 
 pub fn address_access_cost(is_cold: bool, regular_value: u64, config: &Config) -> u64 {
-	if config.increase_state_access_gas {
+	if config.eip2929_increase_state_access_gas {
 		if is_cold {
-			config.gas_account_access_cold
+			config.gas_account_access_cold()
 		} else {
-			config.gas_storage_read_warm
+			config.gas_storage_read_warm()
 		}
 	} else {
 		regular_value

@@ -122,8 +122,8 @@ where
 		let machine = Machine::<ES::State>::new(
 			Rc::new(code),
 			Rc::new(input),
-			config.stack_limit,
-			config.memory_limit,
+			config.stack_limit(),
+			config.memory_limit(),
 			state,
 		);
 
@@ -143,8 +143,8 @@ where
 		let machine = Machine::new(
 			Rc::new(init_code),
 			Rc::new(Vec::new()),
-			config.stack_limit,
-			config.memory_limit,
+			config.stack_limit(),
+			config.memory_limit(),
 			state,
 		);
 

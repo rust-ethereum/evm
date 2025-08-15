@@ -186,6 +186,7 @@ pub struct TestPostState {
 	pub hash: H256,
 	pub indexes: TestPostStateIndexes,
 	pub logs: H256,
+	#[serde(skip_serializing_if = "Option::is_none")]
 	pub txbytes: Option<HexBytes>,
 	pub expect_exception: Option<TestExpectException>,
 }

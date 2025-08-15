@@ -84,7 +84,7 @@ where
 		TouchKind::StateChange,
 	);
 
-	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size
+	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size()
 		&& init_code.len() > limit
 	{
 		return Ok(InvokerControl::DirectExit(InvokerExit {
@@ -113,7 +113,7 @@ where
 		}));
 	}
 
-	if AsRef::<Config>::as_ref(&state).create_increase_nonce {
+	if AsRef::<Config>::as_ref(&state).eip161_create_increase_nonce {
 		match handler.inc_nonce(AsRef::<RuntimeState>::as_ref(&state).context.address) {
 			Ok(()) => (),
 			Err(err) => {
@@ -215,7 +215,8 @@ where
 }
 
 fn check_first_byte(config: &Config, code: &[u8]) -> Result<(), ExitError> {
-	if config.disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first() {
+	if config.eip3541_disallow_executable_format && Some(&Opcode::EOFMAGIC.as_u8()) == code.first()
+	{
 		return Err(ExitException::InvalidOpcode(Opcode::EOFMAGIC).into());
 	}
 	Ok(())
@@ -235,7 +236,7 @@ where
 {
 	check_first_byte(state.as_ref(), &retbuf[..])?;
 
-	if let Some(limit) = AsRef::<Config>::as_ref(state).create_contract_limit
+	if let Some(limit) = AsRef::<Config>::as_ref(state).create_contract_limit()
 		&& retbuf.len() > limit
 	{
 		return Err(ExitException::CreateContractLimit.into());

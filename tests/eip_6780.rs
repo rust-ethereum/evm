@@ -43,7 +43,7 @@ fn self_destruct_before_cancun() {
 		},
 	);
 	let config = Config::shanghai();
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config.runtime);
 
 	let init_code = hex::decode(SIMPLE_CONTRACT_INITCODE.trim_end()).unwrap();
 	let args = TransactArgs {
@@ -77,7 +77,7 @@ fn self_destruct_before_cancun() {
 	backend.apply_overlayed(&changeset);
 
 	// Call Self destruct in anothor transaction
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config.runtime);
 	let args = TransactArgs {
 		call_create: TransactArgsCallCreate::Call {
 			address: contract_address,
@@ -115,7 +115,7 @@ fn self_destruct_cancun() {
 		},
 	);
 	let config = Config::cancun();
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config.runtime);
 
 	let init_code =
 		hex::decode(SIMPLE_CONTRACT_INITCODE.trim_end()).expect("Failed to decode contract");
@@ -149,7 +149,7 @@ fn self_destruct_cancun() {
 	let (mut backend, changeset) = overlayed_backend.deconstruct();
 	backend.apply_overlayed(&changeset);
 
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config.runtime);
 	// Self destruct contract in another transaction
 	let args = TransactArgs {
 		call_create: TransactArgsCallCreate::Call {
@@ -188,7 +188,7 @@ fn self_destruct_same_tx_cancun() {
 		},
 	);
 	let config = Config::cancun();
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config);
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config.runtime);
 
 	let init_code =
 		hex::decode(DEPLOY_AND_DESTROY_INITCODE.trim_end()).expect("Failed to decode contract");

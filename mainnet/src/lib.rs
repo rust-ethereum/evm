@@ -53,16 +53,6 @@ pub static MAINNET_INVOKER: Invoker<
 pub static FRONTIER_CONFIG: Config = Config::frontier();
 /// Config for the Istanbul hard fork.
 pub static ISTANBUL_CONFIG: Config = Config::istanbul();
-/// Config for the Berlin hard fork.
-pub static BERLIN_CONFIG: Config = Config::berlin();
-/// Config for the London hard fork.
-pub static LONDON_CONFIG: Config = Config::london();
-/// Config for the Merge hard fork.
-pub static MERGE_CONFIG: Config = Config::merge();
-/// Config for the Shanghai hard fork.
-pub static SHANGHAI_CONFIG: Config = Config::shanghai();
-/// Config for the Cancun hard fork.
-pub static CANCUN_CONFIG: Config = Config::cancun();
 
 const TRANSACT_MAINNET_HEAP_DEPTH: Option<usize> = Some(4);
 /// Same as [transact], but use all `'static` lifetime to avoid a few stack allocations.
