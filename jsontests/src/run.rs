@@ -38,7 +38,7 @@ pub fn empty_config_change(_config: &mut Config) {}
 
 /// Disable EIP-7610.
 pub fn disable_eip7610(config: &mut Config) {
-	config.eip7610_create_check_storage = false;
+	config.runtime.eip7610_create_check_storage = false;
 }
 
 /// Run tests for specific json file with debug flag
@@ -180,6 +180,7 @@ pub fn run_test(
 ) -> Result<(), Error> {
 	let mut config = match test.fork {
 		Fork::Istanbul => Config::istanbul(),
+		Fork::Frontier => Config::frontier(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
@@ -303,8 +304,8 @@ pub fn run_test(
 		state,
 	};
 
-	let mut run_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config);
-	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config);
+	let mut run_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
+	let mut step_backend = OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
 
 	// Run
 	let run_result = evm_mainnet::transact(args.clone(), &mut run_backend);

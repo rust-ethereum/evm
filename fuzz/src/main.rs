@@ -223,7 +223,7 @@ fn fuzz_transact(
 	usize,
 	usize,
 ) {
-	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), config);
+	let mut overlayed_backend = OverlayedBackend::new(backend, Default::default(), &config.runtime);
 	#[cfg(not(feature = "fuzzing"))]
 	let now = std::time::Instant::now();
 

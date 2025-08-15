@@ -27,8 +27,12 @@ pub struct RuntimeState {
 /// Runtime config.
 #[derive(Clone, Debug)]
 pub struct RuntimeConfig {
-	/// Whether EIP-161 is enabled.
+	/// EIP-161: new rules about empty accounts.
 	pub eip161_empty_check: bool,
+	/// EIP-7610: check whether storage is empty in create collision logic.
+	pub eip7610_create_check_storage: bool,
+	/// EIP-6780: selfdestruct deletet contract only if called in the same tx as creation
+	pub eip6780_suicide_only_in_same_tx: bool,
 }
 
 /// Runtime state and config.
@@ -42,11 +46,12 @@ pub struct RuntimeStateAndConfig<'config> {
 
 static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig {
 	eip161_empty_check: true,
+	eip7610_create_check_storage: false,
+	eip6780_suicide_only_in_same_tx: false,
 };
 
 impl RuntimeStateAndConfig<'static> {
-	/// Used for testing, if you don't care about the config but simply want to
-	/// use the "newest" one.
+	/// Used for testing.
 	pub fn with_default_config(state: RuntimeState) -> Self {
 		Self {
 			state,

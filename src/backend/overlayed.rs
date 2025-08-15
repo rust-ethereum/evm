@@ -9,17 +9,18 @@ use evm_interpreter::{
 	ExitError, ExitException, ExitFatal,
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeEnvironment, SetCodeOrigin, TouchKind,
+		RuntimeConfig,
 	},
 };
 use primitive_types::{H160, H256, U256};
 
-use crate::{MergeStrategy, backend::TransactionalBackend, standard::Config};
+use crate::{MergeStrategy, backend::TransactionalBackend};
 
 const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
 
 /// Changeset of an [OverlayedBackend].
 #[derive(Clone, Debug)]
-pub struct OverlayedChangeSet {
+pub struct OverlayedChangeSet<'config> {
 	/// Logs.
 	pub logs: Vec<Log>,
 	/// Balance changes.
@@ -40,6 +41,8 @@ pub struct OverlayedChangeSet {
 	pub touched: BTreeSet<H160>,
 	/// Deleted accounts.
 	pub deletes: BTreeSet<H160>,
+	/// Config of the overlay.
+	pub config: &'config RuntimeConfig,
 }
 
 /// Overlayed backend.
@@ -48,7 +51,7 @@ pub struct OverlayedBackend<'config, B> {
 	substate: Box<Substate>,
 	accessed: BTreeSet<(H160, Option<H256>)>,
 	touched_ripemd: bool,
-	config: &'config Config,
+	config: &'config RuntimeConfig,
 }
 
 impl<'config, B> OverlayedBackend<'config, B> {
@@ -56,7 +59,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 	pub fn new(
 		backend: B,
 		accessed: BTreeSet<(H160, Option<H256>)>,
-		config: &'config Config,
+		config: &'config RuntimeConfig,
 	) -> Self {
 		Self {
 			backend,
@@ -68,7 +71,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 	}
 
 	/// Deconstruct the current overlayed backend. The change set can then be applied into the actual backend.
-	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet) {
+	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet<'config>) {
 		if self.touched_ripemd {
 			self.substate.touched.insert(RIPEMD);
 		}
@@ -86,6 +89,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 				deletes: self.substate.deletes,
 				accessed: self.accessed,
 				touched: self.substate.touched,
+				config: self.config,
 			},
 		)
 	}
@@ -264,7 +268,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	fn mark_delete_reset(&mut self, address: H160) {
 		self.substate.balances.insert(address, U256::zero());
 
-		if self.config.suicide_only_in_same_tx {
+		if self.config.eip6780_suicide_only_in_same_tx {
 			if self.created(address) {
 				self.substate.deletes.insert(address);
 			}

@@ -105,10 +105,6 @@ pub struct Config {
 	pub eip_5656_enabled: bool,
 	/// Uses EIP-1559 (Base fee is burned when this flag is enabled) [EIP-1559](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1559.md)
 	pub eip_1559_enabled: bool,
-	/// Selfdestruct deletet contract only if called in the same tx as creation [EIP-6780](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-6780.md)
-	pub suicide_only_in_same_tx: bool,
-	/// EIP-7610.
-	pub eip7610_create_check_storage: bool,
 	/// EIP-198: Modexp precompile.
 	pub eip198_modexp_precompile: bool,
 	/// EIP-196: EC ADD/MUL precompile.
@@ -125,6 +121,8 @@ impl Config {
 		Config {
 			runtime: RuntimeConfig {
 				eip161_empty_check: false,
+				eip6780_suicide_only_in_same_tx: false,
+				eip7610_create_check_storage: true,
 			},
 			gas_ext_code: 20,
 			gas_ext_code_hash: 20,
@@ -175,8 +173,6 @@ impl Config {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
-			suicide_only_in_same_tx: false,
-			eip7610_create_check_storage: true,
 			eip198_modexp_precompile: false,
 			eip196_ec_add_mul_precompile: false,
 			eip197_ec_pairing_precompile: false,
@@ -189,6 +185,8 @@ impl Config {
 		Config {
 			runtime: RuntimeConfig {
 				eip161_empty_check: true,
+				eip6780_suicide_only_in_same_tx: false,
+				eip7610_create_check_storage: true,
 			},
 			gas_ext_code: 700,
 			gas_ext_code_hash: 700,
@@ -239,8 +237,6 @@ impl Config {
 			eip_1153_enabled: false,
 			eip_5656_enabled: false,
 			eip_1559_enabled: false,
-			suicide_only_in_same_tx: false,
-			eip7610_create_check_storage: true,
 			eip198_modexp_precompile: true,
 			eip196_ec_add_mul_precompile: true,
 			eip197_ec_pairing_precompile: true,
@@ -305,6 +301,8 @@ impl Config {
 		Config {
 			runtime: RuntimeConfig {
 				eip161_empty_check: true,
+				eip6780_suicide_only_in_same_tx: suicide_only_in_same_tx,
+				eip7610_create_check_storage: true,
 			},
 			gas_ext_code: 0,
 			gas_ext_code_hash: 0,
@@ -355,8 +353,6 @@ impl Config {
 			eip_1153_enabled,
 			eip_5656_enabled,
 			eip_1559_enabled,
-			suicide_only_in_same_tx,
-			eip7610_create_check_storage: true,
 			eip198_modexp_precompile: true,
 			eip196_ec_add_mul_precompile: true,
 			eip197_ec_pairing_precompile: true,
