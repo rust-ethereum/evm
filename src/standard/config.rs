@@ -109,6 +109,14 @@ pub struct Config {
 	pub suicide_only_in_same_tx: bool,
 	/// EIP-7610.
 	pub eip7610_create_check_storage: bool,
+	/// EIP-198: Modexp precompile.
+	pub eip198_modexp_precompile: bool,
+	/// EIP-196: EC ADD/MUL precompile.
+	pub eip196_ec_add_mul_precompile: bool,
+	/// EIP-197: EC Pairing precompile.
+	pub eip197_ec_pairing_precompile: bool,
+	/// EIP-152: Blake2F precompile.
+	pub eip152_blake_2f_precompile: bool,
 }
 
 impl Config {
@@ -169,6 +177,10 @@ impl Config {
 			eip_1559_enabled: false,
 			suicide_only_in_same_tx: false,
 			eip7610_create_check_storage: true,
+			eip198_modexp_precompile: false,
+			eip196_ec_add_mul_precompile: false,
+			eip197_ec_pairing_precompile: false,
+			eip152_blake_2f_precompile: false,
 		}
 	}
 
@@ -229,6 +241,10 @@ impl Config {
 			eip_1559_enabled: false,
 			suicide_only_in_same_tx: false,
 			eip7610_create_check_storage: true,
+			eip198_modexp_precompile: true,
+			eip196_ec_add_mul_precompile: true,
+			eip197_ec_pairing_precompile: true,
+			eip152_blake_2f_precompile: true,
 		}
 	}
 
@@ -341,6 +357,10 @@ impl Config {
 			eip_1559_enabled,
 			suicide_only_in_same_tx,
 			eip7610_create_check_storage: true,
+			eip198_modexp_precompile: true,
+			eip196_ec_add_mul_precompile: true,
+			eip197_ec_pairing_precompile: true,
+			eip152_blake_2f_precompile: true,
 		}
 	}
 }
