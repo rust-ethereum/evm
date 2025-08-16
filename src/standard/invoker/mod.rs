@@ -290,15 +290,18 @@ where
 		};
 
 		let access_list = AsRef::<TransactArgs>::as_ref(&args).access_list.clone();
+		for (address, keys) in &access_list {
+			handler.mark_hot(*address, TouchKind::Access);
+			for key in keys {
+				handler.mark_storage_hot(*address, *key);
+			}
+		}
+
+		handler.mark_hot(coinbase, TouchKind::Coinbase);
+		handler.mark_hot(caller, TouchKind::StateChange);
+
 		let machine = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
 			TransactArgsCallCreate::Call { data, .. } => {
-				for (address, keys) in &access_list {
-					handler.mark_hot(*address, TouchKind::Access);
-					for key in keys {
-						handler.mark_storage_hot(*address, *key);
-					}
-				}
-
 				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_call(
 					runtime_state,
 					gas_limit,
@@ -306,9 +309,6 @@ where
 					&access_list,
 					&args,
 				)?;
-
-				handler.mark_hot(coinbase, TouchKind::Coinbase);
-				handler.mark_hot(caller, TouchKind::StateChange);
 
 				routines::make_enter_call_machine(
 					self.resolver,
@@ -328,9 +328,6 @@ where
 					&access_list,
 					&args,
 				)?;
-
-				handler.mark_hot(coinbase, TouchKind::Coinbase);
-				handler.mark_hot(caller, TouchKind::StateChange);
 
 				routines::make_enter_create_machine(
 					self.resolver,
