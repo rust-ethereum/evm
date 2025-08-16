@@ -1,12 +1,12 @@
 use std::{
-	collections::{BTreeMap, BTreeSet},
+	collections::BTreeMap,
 	fs::{self, File},
 	io::{BufReader, BufWriter},
 };
 
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
-	interpreter::{Capture, runtime::GasState, utils::u256_to_h256},
+	interpreter::{Capture, runtime::GasState},
 	standard::{Config, TransactArgs, TransactArgsCallCreate},
 };
 use evm_mainnet::with_mainnet_invoker;
@@ -186,6 +186,7 @@ pub fn run_test(
 		Fork::Byzantium => Config::byzantium(),
 		Fork::ConstantinopleFix => Config::petersburg(),
 		Fork::Istanbul => Config::istanbul(),
+		// Fork::Berlin => Config::berlin(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
@@ -296,23 +297,13 @@ pub fn run_test(
 		}
 	};
 
-	let initial_accessed = {
-		let mut hots = BTreeSet::new();
-		for i in 1..10 {
-			hots.insert((u256_to_h256(U256::from(i)).into(), None));
-		}
-		hots
-	};
-
 	let base_backend = InMemoryBackend {
 		environment: env,
 		state,
 	};
 
-	let mut run_backend =
-		OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
-	let mut step_backend =
-		OverlayedBackend::new(&base_backend, initial_accessed.clone(), &config.runtime);
+	let mut run_backend = OverlayedBackend::new(&base_backend, &config.runtime);
+	let mut step_backend = OverlayedBackend::new(&base_backend, &config.runtime);
 
 	// Run
 	let run_result = evm_mainnet::transact(args.clone(), &mut run_backend);

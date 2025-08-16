@@ -48,22 +48,16 @@ pub struct OverlayedChangeSet {
 pub struct OverlayedBackend<'config, B> {
 	backend: B,
 	substate: Box<Substate>,
-	accessed: BTreeSet<(H160, Option<H256>)>,
 	touched_ripemd: bool,
 	config: &'config RuntimeConfig,
 }
 
 impl<'config, B> OverlayedBackend<'config, B> {
 	/// Create a new overlayed backend, wrapping another backend.
-	pub fn new(
-		backend: B,
-		accessed: BTreeSet<(H160, Option<H256>)>,
-		config: &'config RuntimeConfig,
-	) -> Self {
+	pub fn new(backend: B, config: &'config RuntimeConfig) -> Self {
 		Self {
 			backend,
 			substate: Box::new(Substate::new()),
-			accessed,
 			touched_ripemd: false,
 			config,
 		}
@@ -105,7 +99,7 @@ impl<B: RuntimeEnvironment + RuntimeBaseBackend> OverlayedBackend<'_, B> {
 				storages: self.substate.storages,
 				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
-				accessed: self.accessed,
+				accessed: self.substate.accessed,
 				touched,
 			},
 		)
@@ -255,11 +249,15 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn is_cold(&self, address: H160, index: Option<H256>) -> bool {
-		!self.accessed.contains(&(address, index))
+		let accessed = self
+			.substate
+			.known_accessed((address, index))
+			.unwrap_or(false);
+		!accessed
 	}
 
 	fn mark_hot(&mut self, address: H160, kind: TouchKind) {
-		self.accessed.insert((address, None));
+		self.substate.accessed.insert((address, None));
 
 		if kind == TouchKind::StateChange {
 			if address == RIPEMD {
@@ -270,7 +268,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn mark_storage_hot(&mut self, address: H160, index: H256) {
-		self.accessed.insert((address, Some(index)));
+		self.substate.accessed.insert((address, Some(index)));
 	}
 
 	fn set_storage(&mut self, address: H160, index: H256, value: H256) -> Result<(), ExitError> {
@@ -411,6 +409,9 @@ impl<'config, B: RuntimeBaseBackend> TransactionalBackend for OverlayedBackend<'
 				for address in child.touched {
 					self.substate.touched.insert(address);
 				}
+				for item in child.accessed {
+					self.substate.accessed.insert(item);
+				}
 			}
 			MergeStrategy::Revert | MergeStrategy::Discard => {}
 		}
@@ -431,6 +432,7 @@ struct Substate {
 	deletes: BTreeSet<H160>,
 	creates: BTreeSet<H160>,
 	touched: BTreeSet<H160>,
+	accessed: BTreeSet<(H160, Option<H256>)>,
 }
 
 impl Substate {
@@ -447,6 +449,7 @@ impl Substate {
 			deletes: Default::default(),
 			creates: Default::default(),
 			touched: Default::default(),
+			accessed: Default::default(),
 		}
 	}
 
@@ -475,6 +478,16 @@ impl Substate {
 			Some(*nonce)
 		} else if let Some(parent) = self.parent.as_ref() {
 			parent.known_nonce(address)
+		} else {
+			None
+		}
+	}
+
+	pub fn known_accessed(&self, item: (H160, Option<H256>)) -> Option<bool> {
+		if self.accessed.contains(&item) {
+			Some(true)
+		} else if let Some(parent) = self.parent.as_ref() {
+			parent.known_accessed(item)
 		} else {
 			None
 		}
