@@ -22,8 +22,6 @@ pub struct Config {
 	pub eip3529_decrease_clears_refund: bool,
 	/// EIP-3541
 	pub eip3541_disallow_executable_format: bool,
-	/// EIP-3651
-	pub eip3651_warm_coinbase_address: bool,
 	/// Gas increases of EIP150.
 	pub eip150_gas_increase: bool,
 	/// Whether to throw out of gas error when
@@ -98,7 +96,6 @@ impl Config {
 			eip2929_increase_state_access_gas: false,
 			eip3529_decrease_clears_refund: false,
 			eip3541_disallow_executable_format: false,
-			eip3651_warm_coinbase_address: false,
 			eip150_no_err_on_call_with_more_gas: false,
 			eip161_create_increase_nonce: false,
 			eip150_call_l64_after_gas: false,
@@ -217,7 +214,7 @@ impl Config {
 	/// Shanghai
 	pub const fn shanghai() -> Config {
 		let mut config = Self::london();
-		config.eip3651_warm_coinbase_address = true;
+		config.runtime.eip3651_warm_coinbase_address = true;
 		config.eip3855_push0 = true;
 		config.eip3860_max_initcode_size = true;
 		config
