@@ -13,7 +13,7 @@ use primitive_types::H160;
 use crate::{
 	backend::TransactionalBackend,
 	invoker::{InvokerControl, InvokerExit},
-	standard::{Config, InvokerState, Resolver, SubstackInvoke},
+	standard::{Config, InvokerState, Resolver, ResolverOrigin, SubstackInvoke},
 };
 
 /// Routine for making a call interpreter.
@@ -24,6 +24,7 @@ use crate::{
 /// * Use [Resolver] to resolve the call into a new interpreter in the sub call stack.
 #[allow(clippy::too_many_arguments)]
 pub fn make_enter_call_machine<H, R>(
+	origin: ResolverOrigin,
 	resolver: &R,
 	scheme: CallScheme,
 	code_address: H160,
@@ -52,7 +53,7 @@ where
 		}
 	}
 
-	resolver.resolve_call(scheme, code_address, input, state, handler)
+	resolver.resolve_call(origin, scheme, code_address, input, state, handler)
 }
 
 /// Routine for making a create interpreter.
@@ -67,6 +68,7 @@ where
 /// * And finally, use [Resolver] to resolve the call into a new interpreter in the sub call stack.
 #[allow(clippy::too_many_arguments)]
 pub fn make_enter_create_machine<H, R>(
+	origin: ResolverOrigin,
 	resolver: &R,
 	_caller: H160,
 	init_code: Vec<u8>,
@@ -129,7 +131,7 @@ where
 	handler.reset_storage(AsRef::<RuntimeState>::as_ref(&state).context.address);
 	handler.mark_create(AsRef::<RuntimeState>::as_ref(&state).context.address);
 
-	resolver.resolve_create(init_code, state, handler)
+	resolver.resolve_create(origin, init_code, state, handler)
 }
 
 /// Enter a call substack, which internally calls [make_enter_call_machine].
@@ -150,6 +152,7 @@ where
 
 	let work = || -> Result<_, ExitError> {
 		let machine = make_enter_call_machine(
+			ResolverOrigin::Substack,
 			resolver,
 			trap_data.scheme,
 			code_address,
@@ -209,7 +212,15 @@ where
 		address,
 		trap: trap_data,
 	};
-	let machine = make_enter_create_machine(resolver, caller, code, transfer, state, handler)?;
+	let machine = make_enter_create_machine(
+		ResolverOrigin::Substack,
+		resolver,
+		caller,
+		code,
+		transfer,
+		state,
+		handler,
+	)?;
 
 	Ok((invoke, machine))
 }

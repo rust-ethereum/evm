@@ -29,12 +29,15 @@ use crate::{
 		Bn128AddByzantium, Bn128AddIstanbul, Bn128MulByzantium, Bn128MulIstanbul,
 		Bn128PairingByzantium, Bn128PairingIstanbul,
 	},
-	modexp::Modexp,
+	modexp::{ModexpBerlin, ModexpByzantium},
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
 };
 use evm::{
 	GasMutState,
-	interpreter::{ExitError, ExitException, ExitResult, runtime::RuntimeState},
+	interpreter::{
+		ExitError, ExitException, ExitResult,
+		runtime::{RuntimeBackend, RuntimeState, TouchKind},
+	},
 	standard::{Config, PrecompileSet},
 };
 use primitive_types::H160;
@@ -46,9 +49,33 @@ trait PurePrecompile<G> {
 /// The standard precompile set on Ethereum mainnet.
 pub struct StandardPrecompileSet;
 
-impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H>
+impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H: RuntimeBackend> PrecompileSet<G, H>
 	for StandardPrecompileSet
 {
+	fn on_transaction(&self, state: &mut G, handler: &mut H) {
+		handler.mark_hot(address(1), TouchKind::Access);
+		handler.mark_hot(address(2), TouchKind::Access);
+		handler.mark_hot(address(3), TouchKind::Access);
+		handler.mark_hot(address(4), TouchKind::Access);
+
+		if AsRef::<Config>::as_ref(state).eip198_modexp_precompile {
+			handler.mark_hot(address(5), TouchKind::Access);
+		}
+
+		if AsRef::<Config>::as_ref(state).eip196_ec_add_mul_precompile {
+			handler.mark_hot(address(6), TouchKind::Access);
+			handler.mark_hot(address(7), TouchKind::Access);
+		}
+
+		if AsRef::<Config>::as_ref(state).eip197_ec_pairing_precompile {
+			handler.mark_hot(address(8), TouchKind::Access);
+		}
+
+		if AsRef::<Config>::as_ref(state).eip152_blake_2f_precompile {
+			handler.mark_hot(address(9), TouchKind::Access);
+		}
+	}
+
 	fn execute(
 		&self,
 		code_address: H160,
@@ -67,7 +94,11 @@ impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H
 		} else if AsRef::<Config>::as_ref(gasometer).eip198_modexp_precompile
 			&& code_address == address(5)
 		{
-			Some(Modexp.execute(input, gasometer))
+			if AsRef::<Config>::as_ref(gasometer).eip2565_lower_modexp {
+				Some(ModexpBerlin.execute(input, gasometer))
+			} else {
+				Some(ModexpByzantium.execute(input, gasometer))
+			}
 		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile
 			&& code_address == address(6)
 		{

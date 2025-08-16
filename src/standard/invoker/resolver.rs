@@ -13,6 +13,15 @@ use crate::{
 	standard::Config,
 };
 
+/// Origin of the resolver, either a substack or a transaction.
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
+pub enum ResolverOrigin {
+	/// Invoked by a CALL/CREATE-alike opcode.
+	Substack,
+	/// Invoked directly from a transaction.
+	Transaction,
+}
+
 /// A code resolver.
 ///
 /// The resolver handles how a call (with the target code address) or create
@@ -28,6 +37,7 @@ pub trait Resolver<H> {
 	/// Resolve a call (with the target code address).
 	fn resolve_call(
 		&self,
+		origin: ResolverOrigin,
 		scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
@@ -38,6 +48,7 @@ pub trait Resolver<H> {
 	/// Resolve a create (with the init code).
 	fn resolve_create(
 		&self,
+		origin: ResolverOrigin,
 		init_code: Vec<u8>,
 		state: Self::State,
 		handler: &mut H,
@@ -55,6 +66,9 @@ pub trait PrecompileSet<S, H> {
 		state: &mut S,
 		handler: &mut H,
 	) -> Option<(ExitResult, Vec<u8>)>;
+
+	/// Initialize before a transaction. Used to warm precompile addresses.
+	fn on_transaction(&self, _state: &mut S, _handler: &mut H) {}
 }
 
 impl<S, H> PrecompileSet<S, H> for () {
@@ -99,12 +113,17 @@ where
 	/// Resolve a call (with the target code address).
 	fn resolve_call(
 		&self,
+		origin: ResolverOrigin,
 		_scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
 		mut state: ES::State,
 		handler: &mut H,
 	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
+		if origin == ResolverOrigin::Transaction {
+			self.precompiles.on_transaction(&mut state, handler);
+		}
+
 		if let Some((r, retval)) =
 			self.precompiles
 				.execute(code_address, &input, &mut state, handler)
@@ -135,10 +154,15 @@ where
 	/// Resolve a create (with the init code).
 	fn resolve_create(
 		&self,
+		origin: ResolverOrigin,
 		init_code: Vec<u8>,
-		state: ES::State,
-		_handler: &mut H,
+		mut state: ES::State,
+		handler: &mut H,
 	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
+		if origin == ResolverOrigin::Transaction {
+			self.precompiles.on_transaction(&mut state, handler);
+		}
+
 		let config: &Config = state.as_ref();
 		let machine = Machine::new(
 			Rc::new(init_code),

@@ -34,6 +34,8 @@ pub struct RuntimeConfig {
 	pub eip7610_create_check_storage: bool,
 	/// EIP-6780: selfdestruct deletet contract only if called in the same tx as creation
 	pub eip6780_suicide_only_in_same_tx: bool,
+	/// EIP-3651
+	pub eip3651_warm_coinbase_address: bool,
 }
 
 impl RuntimeConfig {
@@ -43,6 +45,7 @@ impl RuntimeConfig {
 			eip161_empty_check: true,
 			eip7610_create_check_storage: true,
 			eip6780_suicide_only_in_same_tx: false,
+			eip3651_warm_coinbase_address: false,
 		}
 	}
 
@@ -52,6 +55,7 @@ impl RuntimeConfig {
 			eip161_empty_check: false,
 			eip6780_suicide_only_in_same_tx: false,
 			eip7610_create_check_storage: true,
+			eip3651_warm_coinbase_address: false,
 		}
 	}
 }

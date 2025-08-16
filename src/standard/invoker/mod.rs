@@ -19,7 +19,7 @@ use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub use self::{
-	resolver::{EtableResolver, PrecompileSet, Resolver},
+	resolver::{EtableResolver, PrecompileSet, Resolver, ResolverOrigin},
 	state::InvokerState,
 };
 use crate::{
@@ -290,15 +290,20 @@ where
 		};
 
 		let access_list = AsRef::<TransactArgs>::as_ref(&args).access_list.clone();
+		for (address, keys) in &access_list {
+			handler.mark_hot(*address, TouchKind::Access);
+			for key in keys {
+				handler.mark_storage_hot(*address, *key);
+			}
+		}
+
+		handler.mark_hot(coinbase, TouchKind::Coinbase);
+		handler.mark_hot(caller, TouchKind::Access);
+		handler.mark_hot(caller, TouchKind::StateChange);
+		handler.mark_hot(address, TouchKind::Access);
+
 		let machine = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
 			TransactArgsCallCreate::Call { data, .. } => {
-				for (address, keys) in &access_list {
-					handler.mark_hot(*address, TouchKind::Access);
-					for key in keys {
-						handler.mark_storage_hot(*address, *key);
-					}
-				}
-
 				let state = <<R::Interpreter as Interpreter<H>>::State>::new_transact_call(
 					runtime_state,
 					gas_limit,
@@ -307,10 +312,8 @@ where
 					&args,
 				)?;
 
-				handler.mark_hot(coinbase, TouchKind::Coinbase);
-				handler.mark_hot(caller, TouchKind::StateChange);
-
 				routines::make_enter_call_machine(
+					ResolverOrigin::Transaction,
 					self.resolver,
 					CallScheme::Call,
 					address,
@@ -329,10 +332,8 @@ where
 					&args,
 				)?;
 
-				handler.mark_hot(coinbase, TouchKind::Coinbase);
-				handler.mark_hot(caller, TouchKind::StateChange);
-
 				routines::make_enter_create_machine(
+					ResolverOrigin::Transaction,
 					self.resolver,
 					caller,
 					init_code.clone(),
@@ -563,6 +564,11 @@ where
 					)));
 				}
 
+				// EIP-2929 and EIP-161 has two different rules. In EIP-161, the
+				// touch is reverted if a call fails. In EIP-2929, the touch
+				// stays warm.
+				handler.mark_hot(call_trap_data.context.address, TouchKind::Access);
+
 				let target = call_trap_data.target;
 
 				Capture::Exit(routines::enter_call_substack(
@@ -646,6 +652,11 @@ where
 						)));
 					}
 				}
+
+				// EIP-2929 and EIP-161 has two different rules. In EIP-161, the
+				// touch is reverted if a call fails. In EIP-2929, the touch
+				// stays warm.
+				handler.mark_hot(address, TouchKind::Access);
 
 				Capture::Exit(routines::enter_create_substack(
 					self.resolver,
