@@ -227,7 +227,7 @@ pub enum TestExpectException {
 	#[serde(rename = "TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED")]
 	TE_TYPE_3_TX_BLOB_COUNT_EXCEEDED,
 	#[serde(rename = "TransactionException.TYPE_3_TX_PRE_FORK")]
-	TE_TYPE_3_TX_PER_FORK,
+	TE_TYPE_3_TX_PRE_FORK,
 	#[serde(rename = "TransactionException.INITCODE_SIZE_EXCEEDED")]
 	TE_INITCODE_SIZE_EXCEEDED,
 	#[serde(rename = "TransactionException.INTRINSIC_GAS_TOO_LOW")]

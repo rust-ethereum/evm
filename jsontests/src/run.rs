@@ -207,6 +207,7 @@ pub fn run_test(
 		Some(TestExpectException::TR_NoFunds) => return Ok(()),
 		Some(TestExpectException::TR_GasLimitReached) => return Ok(()),
 		Some(TestExpectException::TR_TipGtFeeCap) => return Ok(()),
+		Some(TestExpectException::TE_TYPE_3_TX_PRE_FORK) => return Ok(()),
 
 		_ => (),
 	}
