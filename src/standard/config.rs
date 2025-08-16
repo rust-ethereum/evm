@@ -169,8 +169,8 @@ impl Config {
 		config
 	}
 
-	/// Constantinople
-	pub const fn constantinople() -> Config {
+	/// Petersburg
+	pub const fn petersburg() -> Config {
 		let mut config = Self::byzantium();
 		config.eip145_bitwise_shifting = true;
 		config.eip1014_create2 = true;
@@ -180,7 +180,7 @@ impl Config {
 
 	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
-		let mut config = Self::constantinople();
+		let mut config = Self::petersburg();
 		config.eip152_blake_2f_precompile = true;
 		config.eip1108_ec_add_mul_pairing_decrease = true;
 		config.eip1344_chain_id = true;
