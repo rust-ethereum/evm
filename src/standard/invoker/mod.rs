@@ -298,7 +298,9 @@ where
 		}
 
 		handler.mark_hot(coinbase, TouchKind::Coinbase);
+		handler.mark_hot(caller, TouchKind::Access);
 		handler.mark_hot(caller, TouchKind::StateChange);
+		handler.mark_hot(address, TouchKind::Access);
 
 		let machine = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
 			TransactArgsCallCreate::Call { data, .. } => {
@@ -562,6 +564,11 @@ where
 					)));
 				}
 
+				// EIP-2929 and EIP-161 has two different rules. In EIP-161, the
+				// touch is reverted if a call fails. In EIP-2929, the touch
+				// stays warm.
+				handler.mark_hot(call_trap_data.context.address, TouchKind::Access);
+
 				let target = call_trap_data.target;
 
 				Capture::Exit(routines::enter_call_substack(
@@ -645,6 +652,14 @@ where
 						)));
 					}
 				}
+
+				// EIP-2929 and EIP-161 has two different rules. In EIP-161, the
+				// touch is reverted if a call fails. In EIP-2929, the touch
+				// stays warm.
+				handler.mark_hot(
+					address,
+					TouchKind::Access,
+				);
 
 				Capture::Exit(routines::enter_create_substack(
 					self.resolver,

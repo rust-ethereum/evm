@@ -473,6 +473,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
+			handler.mark_hot(target, TouchKind::Access);
 			handler.mark_hot(target, TouchKind::StateChange);
 
 			GasCost::Suicide {

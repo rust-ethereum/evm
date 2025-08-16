@@ -186,7 +186,7 @@ pub fn run_test(
 		Fork::Byzantium => Config::byzantium(),
 		Fork::ConstantinopleFix => Config::petersburg(),
 		Fork::Istanbul => Config::istanbul(),
-		// Fork::Berlin => Config::berlin(),
+		Fork::Berlin => Config::berlin(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
