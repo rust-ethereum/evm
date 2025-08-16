@@ -432,6 +432,7 @@ where
 		table.0[Opcode::CHAINID.as_usize()] = eval_chainid as _;
 		table.0[Opcode::SELFBALANCE.as_usize()] = eval_selfbalance as _;
 		table.0[Opcode::BASEFEE.as_usize()] = eval_basefee as _;
+		table.0[Opcode::BLOBBASEFEE.as_usize()] = eval_blobbasefee as _;
 
 		table.0[Opcode::SLOAD.as_usize()] = eval_sload as _;
 		table.0[Opcode::SSTORE.as_usize()] = eval_sstore as _;

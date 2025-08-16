@@ -139,6 +139,10 @@ impl<B: RuntimeEnvironment> RuntimeEnvironment for OverlayedBackend<'_, B> {
 		self.backend.block_base_fee_per_gas()
 	}
 
+	fn blob_base_fee_per_gas(&self) -> U256 {
+		self.backend.blob_base_fee_per_gas()
+	}
+
 	fn chain_id(&self) -> U256 {
 		self.backend.chain_id()
 	}

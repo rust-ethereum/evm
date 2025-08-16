@@ -82,6 +82,8 @@ pub struct Config {
 	pub eip2565_lower_modexp: bool,
 	/// EIP-2930: Optional access list.
 	pub eip2930_access_list: bool,
+	/// EIP-7516: Blob base fee per gas.
+	pub eip7516_blob_base_fee: bool,
 }
 
 impl Config {
@@ -126,6 +128,7 @@ impl Config {
 			eip2028_transaction_calldata_decrease: false,
 			eip2565_lower_modexp: false,
 			eip2930_access_list: false,
+			eip7516_blob_base_fee: false,
 		}
 	}
 

@@ -25,6 +25,8 @@ pub struct InMemoryEnvironment {
 	pub block_gas_limit: U256,
 	/// Block base fee per gas.
 	pub block_base_fee_per_gas: U256,
+	/// Blob base fee per gas.
+	pub blob_base_fee_per_gas: U256,
 	/// Chain ID.
 	pub chain_id: U256,
 }
@@ -145,6 +147,10 @@ impl RuntimeEnvironment for InMemoryBackend {
 
 	fn block_base_fee_per_gas(&self) -> U256 {
 		self.environment.block_base_fee_per_gas
+	}
+
+	fn blob_base_fee_per_gas(&self) -> U256 {
+		self.environment.blob_base_fee_per_gas
 	}
 
 	fn chain_id(&self) -> U256 {

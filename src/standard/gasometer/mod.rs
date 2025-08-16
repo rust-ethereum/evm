@@ -307,6 +307,9 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BASEFEE if config.eip3198_base_fee => GasCost::Base,
 		Opcode::BASEFEE => GasCost::Invalid(opcode),
 
+		Opcode::BLOBBASEFEE if config.eip7516_blob_base_fee => GasCost::Base,
+		Opcode::BLOBBASEFEE => GasCost::Invalid(opcode),
+
 		Opcode::EXTCODESIZE => {
 			let target = u256_to_h160(stack.peek(0)?);
 

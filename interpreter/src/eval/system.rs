@@ -124,6 +124,16 @@ pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	Control::Continue(1)
 }
 
+pub fn blobbasefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handler: &H,
+) -> Control<Tr> {
+	let blob_basefee = handler.blob_base_fee_per_gas();
+	push_u256!(machine, blob_basefee);
+
+	Control::Continue(1)
+}
+
 pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
