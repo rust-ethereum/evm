@@ -49,6 +49,7 @@ impl fmt::Display for ExitError {
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum ExitSucceed {
 	/// Machine encountered an explicit stop.
 	Stopped,
@@ -71,6 +72,7 @@ impl From<ExitSucceed> for ExitResult {
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum ExitException {
 	/// Trying to pop from an empty stack.
 	#[cfg_attr(feature = "scale", codec(index = 0))]
@@ -154,6 +156,7 @@ impl From<ExitException> for ExitError {
 	derive(scale_codec::Encode, scale_codec::Decode, scale_info::TypeInfo)
 )]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[non_exhaustive]
 pub enum ExitFatal {
 	/// The operation is not supported.
 	NotSupported,

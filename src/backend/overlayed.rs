@@ -72,7 +72,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 
 	/// Deconstruct the current overlayed backend. The change set can then be applied into the actual backend.
 	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet<'config>) {
-		if self.touched_ripemd {
+		if self.config.eip161_empty_check && self.touched_ripemd {
 			self.substate.touched.insert(RIPEMD);
 		}
 

@@ -25,22 +25,6 @@ pub struct GasometerState {
 }
 
 impl GasometerState {
-	/// Perform any operation on the gasometer. Set the gasometer to `OutOfGas`
-	/// if the operation fails.
-	#[inline]
-	pub fn perform<R, F: FnOnce(&mut Self) -> Result<R, ExitError>>(
-		&mut self,
-		f: F,
-	) -> Result<R, ExitError> {
-		match f(self) {
-			Ok(r) => Ok(r),
-			Err(e) => {
-				self.oog();
-				Err(e)
-			}
-		}
-	}
-
 	/// Set the current gasometer to `OutOfGas`.
 	pub fn oog(&mut self) {
 		self.memory_gas = 0;
@@ -89,11 +73,9 @@ impl GasometerState {
 
 	/// Record code deposit gas.
 	pub fn record_codedeposit(&mut self, len: usize) -> Result<(), ExitError> {
-		self.perform(|gasometer| {
-			let cost = len as u64 * consts::G_CODEDEPOSIT;
-			gasometer.record_gas64(cost)?;
-			Ok(())
-		})
+		let cost = len as u64 * consts::G_CODEDEPOSIT;
+		self.record_gas64(cost)?;
+		Ok(())
 	}
 
 	/// Set memory gas usage.
