@@ -169,8 +169,8 @@ impl Config {
 		config
 	}
 
-	/// Constantinople
-	pub const fn constantinople() -> Config {
+	/// Petersburg
+	pub const fn petersburg() -> Config {
 		let mut config = Self::byzantium();
 		config.eip145_bitwise_shifting = true;
 		config.eip1014_create2 = true;
@@ -180,7 +180,7 @@ impl Config {
 
 	/// Istanbul hard fork configuration.
 	pub const fn istanbul() -> Config {
-		let mut config = Self::constantinople();
+		let mut config = Self::petersburg();
 		config.eip152_blake_2f_precompile = true;
 		config.eip1108_ec_add_mul_pairing_decrease = true;
 		config.eip1344_chain_id = true;
@@ -231,12 +231,16 @@ impl Config {
 
 	/// Gas paid for extcode.
 	pub fn gas_ext_code(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 20 }
+		if self.eip150_gas_increase { 700 } else { 20 }
 	}
 
 	/// Gas paid for extcodehash.
 	pub fn gas_ext_code_hash(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 20 }
+		if self.eip1884_trie_repricing {
+			700
+		} else {
+			400
+		}
 	}
 
 	/// Gas paid for sstore set.
@@ -261,13 +265,21 @@ impl Config {
 
 	/// Gas paid for BALANCE opcode.
 	pub fn gas_balance(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 20 }
+		if self.eip1884_trie_repricing {
+			700
+		} else if self.eip150_gas_increase {
+			400
+		} else {
+			20
+		}
 	}
 
 	/// Gas paid for SLOAD opcode.
 	pub fn gas_sload(&self) -> u64 {
 		if self.eip2200_sstore_gas_metering {
 			800
+		} else if self.eip150_gas_increase {
+			200
 		} else {
 			50
 		}

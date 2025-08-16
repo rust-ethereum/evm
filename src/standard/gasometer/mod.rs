@@ -340,6 +340,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::CALLCODE => {
 			let target = u256_to_h160(stack.peek(1)?);
+			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -349,16 +350,13 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists,
 			}
 		}
 
 		Opcode::STATICCALL if config.eip214_static_call => {
 			let target = u256_to_h160(stack.peek(1)?);
+			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -367,11 +365,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::StaticCall {
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists,
 			}
 		}
 		Opcode::STATICCALL => GasCost::Invalid(opcode),
@@ -413,6 +407,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::DELEGATECALL if config.eip7_delegate_call => {
 			let target = u256_to_h160(stack.peek(1)?);
+			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -421,11 +416,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::DelegateCall {
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists,
 			}
 		}
 		Opcode::DELEGATECALL => GasCost::Invalid(opcode),
@@ -478,6 +469,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		},
 		Opcode::SUICIDE if !is_static => {
 			let target = u256_to_h160(stack.peek(0)?);
+			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -486,16 +478,13 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::Suicide {
 				value: handler.balance(address),
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists,
 				already_removed: handler.deleted(address),
 			}
 		}
 		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::zero()) => {
 			let target = u256_to_h160(stack.peek(1)?);
+			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -505,11 +494,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists,
 			}
 		}
 

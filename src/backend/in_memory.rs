@@ -100,20 +100,8 @@ impl InMemoryBackend {
 			}
 		}
 
-		if changeset.config.eip161_empty_check {
-			for address in changeset.touched.clone() {
-				if self.is_empty(address) {
-					self.state.remove(&address);
-				}
-			}
-		} else {
-			for address in changeset.touched.clone() {
-				self.state.entry(address).or_default();
-			}
-
-			self.state
-				.entry(self.environment.block_coinbase)
-				.or_default();
+		for address in changeset.touched.clone() {
+			self.state.entry(address).or_default();
 		}
 
 		for address in changeset.deletes.clone() {

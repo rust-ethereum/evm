@@ -13,6 +13,7 @@ use evm_interpreter::{
 	},
 };
 use primitive_types::{H160, H256, U256};
+use sha3::{Digest, Keccak256};
 
 use crate::{MergeStrategy, backend::TransactionalBackend};
 
@@ -20,7 +21,7 @@ const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 
 /// Changeset of an [OverlayedBackend].
 #[derive(Clone, Debug)]
-pub struct OverlayedChangeSet<'config> {
+pub struct OverlayedChangeSet {
 	/// Logs.
 	pub logs: Vec<Log>,
 	/// Balance changes.
@@ -37,12 +38,10 @@ pub struct OverlayedChangeSet<'config> {
 	pub transient_storage: BTreeMap<(H160, H256), H256>,
 	/// Accessed addresses or storage values.
 	pub accessed: BTreeSet<(H160, Option<H256>)>,
-	/// Touched accounts according to EIP-161.
+	/// Touch those account and create empty if necessary.
 	pub touched: BTreeSet<H160>,
 	/// Deleted accounts.
 	pub deletes: BTreeSet<H160>,
-	/// Config of the overlay.
-	pub config: &'config RuntimeConfig,
 }
 
 /// Overlayed backend.
@@ -69,11 +68,30 @@ impl<'config, B> OverlayedBackend<'config, B> {
 			config,
 		}
 	}
+}
 
+impl<B: RuntimeEnvironment + RuntimeBaseBackend> OverlayedBackend<'_, B> {
 	/// Deconstruct the current overlayed backend. The change set can then be applied into the actual backend.
-	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet<'config>) {
+	pub fn deconstruct(mut self) -> (B, OverlayedChangeSet) {
 		if self.config.eip161_empty_check && self.touched_ripemd {
 			self.substate.touched.insert(RIPEMD);
+		}
+
+		let mut touched = BTreeSet::new();
+
+		if self.config.eip161_empty_check {
+			for address in self.substate.touched.clone() {
+				if !self.exists(address) {
+					self.substate.deletes.insert(address);
+				}
+			}
+		} else {
+			for address in self.substate.touched.clone() {
+				if self.exists(address) {
+					touched.insert(address);
+				}
+			}
+			touched.insert(self.block_coinbase());
 		}
 
 		(
@@ -88,8 +106,7 @@ impl<'config, B> OverlayedBackend<'config, B> {
 				transient_storage: self.substate.transient_storage,
 				deletes: self.substate.deletes,
 				accessed: self.accessed,
-				touched: self.substate.touched,
-				config: self.config,
+				touched,
 			},
 		)
 	}
@@ -150,6 +167,14 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 		}
 	}
 
+	fn code_hash(&self, address: H160) -> H256 {
+		if self.exists(address) {
+			H256::from_slice(&Keccak256::digest(&self.code(address)[..]))
+		} else {
+			H256::default()
+		}
+	}
+
 	fn storage(&self, address: H160, index: H256) -> H256 {
 		if let Some(value) = self.substate.known_storage(address, index) {
 			value
@@ -167,7 +192,12 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn exists(&self, address: H160) -> bool {
-		if let Some(exists) = self.substate.known_exists(address) {
+		if self.config.eip161_empty_check {
+			let is_empty = self.balance(address) == U256::zero()
+				&& self.code_size(address) == U256::zero()
+				&& self.nonce(address) == U256::zero();
+			!is_empty
+		} else if let Some(exists) = self.substate.known_exists(address) {
 			exists
 		} else {
 			self.backend.exists(address)
@@ -486,10 +516,13 @@ impl Substate {
 		}
 	}
 
+	// Note that this is always pre-EIP161 rule. For post-EIP161, the handler would simply
+	// check nonce, balance, and code.
 	pub fn known_exists(&self, address: H160) -> Option<bool> {
 		if self.balances.contains_key(&address)
 			|| self.nonces.contains_key(&address)
 			|| self.codes.contains_key(&address)
+			|| self.touched.contains(&address)
 		{
 			Some(true)
 		} else if let Some(parent) = self.parent.as_ref() {

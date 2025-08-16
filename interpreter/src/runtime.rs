@@ -212,7 +212,7 @@ pub trait RuntimeBaseBackend {
 	///
 	/// The caller is responsible for checking whether the account is empty.
 	fn code_hash(&self, address: H160) -> H256 {
-		if !self.is_empty(address) {
+		if self.exists(address) {
 			H256::from_slice(&Keccak256::digest(&self.code(address)[..]))
 		} else {
 			H256::default()
@@ -225,14 +225,11 @@ pub trait RuntimeBaseBackend {
 	/// Get transient storage value of address at index.
 	fn transient_storage(&self, address: H160, index: H256) -> H256;
 
-	/// Check whether an address exists. Used pre EIP161.
+	/// Check whether an address exists.
+	///
+	/// If you are running Rust EVM on Ethereum mainnet, set the Backend to pre-EIP161 rule,
+	/// and the Overlay with config for post-EIP161 rule.
 	fn exists(&self, address: H160) -> bool;
-	/// Check whether an address is empty. Used after EIP161. Note that the meaning is opposite.
-	fn is_empty(&self, address: H160) -> bool {
-		self.balance(address) == U256::zero()
-			&& self.code_size(address) == U256::zero()
-			&& self.nonce(address) == U256::zero()
-	}
 	/// Detect for create collision. Note EIP-7610.
 	fn can_create(&self, address: H160) -> bool {
 		self.code_size(address) == U256::zero() && self.nonce(address) == U256::zero()

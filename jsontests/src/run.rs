@@ -179,8 +179,13 @@ pub fn run_test(
 	config_change: fn(&mut Config),
 ) -> Result<(), Error> {
 	let mut config = match test.fork {
-		Fork::Istanbul => Config::istanbul(),
 		Fork::Frontier => Config::frontier(),
+		Fork::Homestead => Config::homestead(),
+		Fork::EIP150 => Config::tangerine_whistle(),
+		Fork::EIP158 => Config::spurious_dragon(),
+		Fork::Byzantium => Config::byzantium(),
+		Fork::ConstantinopleFix => Config::petersburg(),
+		Fork::Istanbul => Config::istanbul(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
