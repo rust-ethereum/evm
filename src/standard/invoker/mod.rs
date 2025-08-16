@@ -19,7 +19,7 @@ use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub use self::{
-	resolver::{EtableResolver, PrecompileSet, Resolver},
+	resolver::{EtableResolver, PrecompileSet, Resolver, ResolverOrigin},
 	state::InvokerState,
 };
 use crate::{
@@ -311,6 +311,7 @@ where
 				)?;
 
 				routines::make_enter_call_machine(
+					ResolverOrigin::Transaction,
 					self.resolver,
 					CallScheme::Call,
 					address,
@@ -330,6 +331,7 @@ where
 				)?;
 
 				routines::make_enter_create_machine(
+					ResolverOrigin::Transaction,
 					self.resolver,
 					caller,
 					init_code.clone(),
