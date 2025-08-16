@@ -182,6 +182,7 @@ pub fn run_test(
 		Fork::Frontier => Config::frontier(),
 		Fork::Homestead => Config::homestead(),
 		Fork::EIP150 => Config::tangerine_whistle(),
+		Fork::EIP158 => Config::spurious_dragon(),
 		Fork::Istanbul => Config::istanbul(),
 		_ => return Err(Error::UnsupportedFork),
 	};
