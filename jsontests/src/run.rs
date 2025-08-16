@@ -180,7 +180,7 @@ pub fn run_test(
 ) -> Result<(), Error> {
 	let mut config = match test.fork {
 		Fork::Istanbul => Config::istanbul(),
-		// Fork::Frontier => Config::frontier(),
+		Fork::Frontier => Config::frontier(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
