@@ -86,24 +86,39 @@ pub enum TransactGasPrice {
 		max_priority: U256,
 		/// `max_fee_per_gas` according to EIP-1559.
 		max: U256,
-	}
+	},
 }
 
 impl TransactGasPrice {
 	/// Caller fee.
-	pub fn fee<H: RuntimeEnvironment>(&self, gas_limit: U256, config: &Config, handler: &H) -> U256 {
+	pub fn fee<H: RuntimeEnvironment>(
+		&self,
+		gas_limit: U256,
+		config: &Config,
+		handler: &H,
+	) -> U256 {
 		let effective_gas_price = self.effective_gas_price(config, handler);
 		gas_limit.saturating_mul(effective_gas_price)
 	}
 
 	/// Refunded caller fee after call.
-	pub fn refunded_fee<H: RuntimeEnvironment>(&self, refunded_gas: U256, config: &Config, handler: &H) -> U256 {
+	pub fn refunded_fee<H: RuntimeEnvironment>(
+		&self,
+		refunded_gas: U256,
+		config: &Config,
+		handler: &H,
+	) -> U256 {
 		let effective_gas_price = self.effective_gas_price(config, handler);
 		refunded_gas.saturating_mul(effective_gas_price)
 	}
 
 	/// Coinbase reward.
-	pub fn coinbase_reward<H: RuntimeEnvironment>(&self, used_gas: U256, config: &Config, handler: &H) -> U256 {
+	pub fn coinbase_reward<H: RuntimeEnvironment>(
+		&self,
+		used_gas: U256,
+		config: &Config,
+		handler: &H,
+	) -> U256 {
 		if config.eip1559_fee_market {
 			let max_priority = match self {
 				Self::Legacy(gas_price) => *gas_price,
@@ -113,7 +128,10 @@ impl TransactGasPrice {
 				Self::Legacy(gas_price) => *gas_price,
 				Self::FeeMarket { max, .. } => *max,
 			};
-			let priority = min(max_priority, max.saturating_sub(handler.block_base_fee_per_gas()));
+			let priority = min(
+				max_priority,
+				max.saturating_sub(handler.block_base_fee_per_gas()),
+			);
 			used_gas.saturating_mul(priority)
 		} else {
 			let effective_gas_price = self.effective_gas_price(config, handler);
@@ -133,14 +151,16 @@ impl TransactGasPrice {
 				Self::FeeMarket { max, .. } => *max,
 			};
 
-			let priority = min(max_priority, max.saturating_sub(handler.block_base_fee_per_gas()));
+			let priority = min(
+				max_priority,
+				max.saturating_sub(handler.block_base_fee_per_gas()),
+			);
 			priority.saturating_add(handler.block_base_fee_per_gas())
 		} else {
 			match self {
 				Self::Legacy(gas_price) => *gas_price,
 				Self::FeeMarket { max_priority, .. } => *max_priority,
 			}
-
 		}
 	}
 }
@@ -263,7 +283,11 @@ where
 	> {
 		let caller = AsRef::<TransactArgs>::as_ref(&args).caller;
 		let gas_price = AsRef::<TransactArgs>::as_ref(&args).gas_price;
-		let gas_fee = gas_price.fee(AsRef::<TransactArgs>::as_ref(&args).gas_limit, AsRef::<TransactArgs>::as_ref(&args).config, handler);
+		let gas_fee = gas_price.fee(
+			AsRef::<TransactArgs>::as_ref(&args).gas_limit,
+			AsRef::<TransactArgs>::as_ref(&args).config,
+			handler,
+		);
 		let coinbase = handler.block_coinbase();
 
 		let address = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
@@ -352,7 +376,8 @@ where
 		};
 		let transaction_context = TransactionContext {
 			origin: caller,
-			gas_price: gas_price.effective_gas_price(AsRef::<TransactArgs>::as_ref(&args).config, handler),
+			gas_price: gas_price
+				.effective_gas_price(AsRef::<TransactArgs>::as_ref(&args).config, handler),
 		};
 		let transfer = Transfer {
 			source: caller,
@@ -499,9 +524,13 @@ where
 		}
 
 		let used_gas = invoke.gas_limit.saturating_sub(effective_gas);
-		let refunded_fee = invoke.gas_price.refunded_fee(effective_gas, invoke.config, handler);
+		let refunded_fee = invoke
+			.gas_price
+			.refunded_fee(effective_gas, invoke.config, handler);
 		handler.deposit(invoke.caller, refunded_fee);
-		let coinbase_reward = invoke.gas_price.coinbase_reward(used_gas, invoke.config, handler);
+		let coinbase_reward = invoke
+			.gas_price
+			.coinbase_reward(used_gas, invoke.config, handler);
 		handler.deposit(handler.block_coinbase(), coinbase_reward);
 
 		result.map(|call_create| TransactValue {

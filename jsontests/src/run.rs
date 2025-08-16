@@ -197,7 +197,9 @@ pub fn run_test(
 		// there's nothing for us to test here for `TR_TypeNotSupported`.
 		Some(TestExpectException::TR_TypeNotSupported) => return Ok(()),
 
-		Some(TestExpectException::TR_RLP_WRONGVALUE) if test.transaction.value.0.is_err() => return Ok(()),
+		Some(TestExpectException::TR_RLP_WRONGVALUE) if test.transaction.value.0.is_err() => {
+			return Ok(());
+		}
 
 		// The responsibility to check gas limit / gas cap is on the block executor.
 		Some(TestExpectException::TR_FeeCapLessThanBlocks) => return Ok(()),
@@ -258,7 +260,10 @@ pub fn run_test(
 		TransactGasPrice::Legacy(gas_price)
 	} else {
 		TransactGasPrice::FeeMarket {
-			max_priority: test.transaction.max_priority_fee_per_gas.unwrap_or_default(),
+			max_priority: test
+				.transaction
+				.max_priority_fee_per_gas
+				.unwrap_or_default(),
 			max: test.transaction.max_fee_per_gas.unwrap_or_default(),
 		}
 	};

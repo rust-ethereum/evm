@@ -92,9 +92,7 @@ impl TestMulti {
 					transaction: TestTransaction {
 						data: self.transaction.data[post_state.indexes.data].0.clone(),
 						gas_limit: self.transaction.gas_limit[post_state.indexes.gas],
-						gas_price: self
-							.transaction
-							.gas_price,
+						gas_price: self.transaction.gas_price,
 						max_priority_fee_per_gas: self.transaction.max_priority_fee_per_gas,
 						max_fee_per_gas: self.transaction.max_fee_per_gas,
 						nonce: self.transaction.nonce,
