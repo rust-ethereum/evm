@@ -29,7 +29,7 @@ use crate::{
 		Bn128AddByzantium, Bn128AddIstanbul, Bn128MulByzantium, Bn128MulIstanbul,
 		Bn128PairingByzantium, Bn128PairingIstanbul,
 	},
-	modexp::Modexp,
+	modexp::{ModexpBerlin, ModexpByzantium},
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
 };
 use evm::{
@@ -67,7 +67,11 @@ impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H
 		} else if AsRef::<Config>::as_ref(gasometer).eip198_modexp_precompile
 			&& code_address == address(5)
 		{
-			Some(Modexp.execute(input, gasometer))
+			if AsRef::<Config>::as_ref(gasometer).eip2565_lower_modexp {
+				Some(ModexpBerlin.execute(input, gasometer))
+			} else {
+				Some(ModexpByzantium.execute(input, gasometer))
+			}
 		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile
 			&& code_address == address(6)
 		{

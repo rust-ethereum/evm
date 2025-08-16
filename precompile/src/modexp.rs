@@ -8,8 +8,6 @@ use primitive_types::U256;
 
 use crate::PurePrecompile;
 
-pub struct Modexp;
-
 fn modexp(base: &[u8], exponent: &[u8], modulus: &[u8]) -> Vec<u8> {
 	aurora_engine_modexp::modexp(base, exponent, modulus)
 }
@@ -49,30 +47,10 @@ pub fn byzantium_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: 
 
 /// Calculate gas cost according to EIP 2565:
 /// <https://eips.ethereum.org/EIPS/eip-2565>
-#[allow(unused)]
 fn berlin_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: &U256) -> u64 {
 	gas_calc::<200, 8, 3, _>(base_len, exp_len, mod_len, exp_highp, |max_len| -> U256 {
 		let words = U256::from(max_len.div_ceil(8));
 		words * words
-	})
-}
-
-/// Calculate gas cost according to EIP-7883:
-/// <https://eips.ethereum.org/EIPS/eip-7883>
-///
-/// There are three changes:
-/// 1. Increase minimal price from 200 to 500
-/// 2. Increase cost when exponent is larger than 32 bytes
-/// 3. Increase cost when base or modulus is larger than 32 bytes
-#[allow(unused)]
-fn osaka_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: &U256) -> u64 {
-	gas_calc::<500, 16, 1, _>(base_len, exp_len, mod_len, exp_highp, |max_len| -> U256 {
-		if max_len <= 32 {
-			return U256::from(16); // multiplication_complexity = 16
-		}
-
-		let words = U256::from(max_len.div_ceil(8));
-		words * words * U256::from(2) // multiplication_complexity = 2 * words**2
 	})
 }
 
@@ -162,63 +140,78 @@ pub fn left_pad_vec(data: &[u8], len: usize) -> Cow<'_, [u8]> {
 	}
 }
 
-impl<G: GasMutState> PurePrecompile<G> for Modexp {
+fn execute<G: GasMutState>(
+	input: &[u8],
+	gasometer: &mut G,
+	gas_calc: fn(u64, u64, u64, &U256) -> u64,
+) -> (ExitResult, Vec<u8>) {
+	// The format of input is:
+	// <length_of_BASE> <length_of_EXPONENT> <length_of_MODULUS> <BASE> <EXPONENT> <MODULUS>
+	// Where every length is a 32-byte left-padded integer representing the number of bytes
+	// to be taken up by the next value.
+	const HEADER_LENGTH: usize = 96;
+
+	// Extract the header
+	let base_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 0).into_owned());
+	let exp_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 32).into_owned());
+	let mod_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 64).into_owned());
+
+	// Cast base and modulus to usize, it does not make sense to handle larger values
+	let base_len = try_some!(usize::try_from(base_len).map_err(|_| ExitException::OutOfGas));
+	let mod_len = try_some!(usize::try_from(mod_len).map_err(|_| ExitException::OutOfGas));
+	// cast exp len to the max size, it will fail later in gas calculation if it is too large.
+	let exp_len = usize::try_from(exp_len).unwrap_or(usize::MAX);
+
+	// Used to extract ADJUSTED_EXPONENT_LENGTH.
+	let exp_highp_len = min(exp_len, 32);
+
+	// Throw away the header data as we already extracted lengths.
+	let input = input.get(HEADER_LENGTH..).unwrap_or_default();
+
+	let exp_highp = {
+		// Get right padded bytes so if data.len is less then exp_len we will get right padded zeroes.
+		let right_padded_highp = right_pad_with_offset::<32>(input, base_len);
+		// If exp_len is less then 32 bytes get only exp_len bytes and do left padding.
+		let out = left_pad::<32>(&right_padded_highp[..exp_highp_len]);
+		U256::from_big_endian(&out.into_owned())
+	};
+
+	// Check if we have enough gas.
+	let gas_cost = gas_calc(base_len as u64, exp_len as u64, mod_len as u64, &exp_highp);
+	try_some!(gasometer.record_gas(U256::from(gas_cost)));
+
+	if base_len == 0 && mod_len == 0 {
+		return (ExitSucceed::Returned.into(), Vec::new());
+	}
+
+	// Padding is needed if the input does not contain all 3 values.
+	let input_len = base_len.saturating_add(exp_len).saturating_add(mod_len);
+	let input = right_pad_vec(input, input_len);
+	let (base, input) = input.split_at(base_len);
+	let (exponent, modulus) = input.split_at(exp_len);
+	debug_assert_eq!(modulus.len(), mod_len);
+
+	// Call the modexp.
+	let output = modexp(base, exponent, modulus);
+
+	(
+		ExitSucceed::Returned.into(),
+		left_pad_vec(&output, mod_len).into_owned(),
+	)
+}
+
+pub struct ModexpByzantium;
+
+impl<G: GasMutState> PurePrecompile<G> for ModexpByzantium {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
-		// The format of input is:
-		// <length_of_BASE> <length_of_EXPONENT> <length_of_MODULUS> <BASE> <EXPONENT> <MODULUS>
-		// Where every length is a 32-byte left-padded integer representing the number of bytes
-		// to be taken up by the next value.
-		const HEADER_LENGTH: usize = 96;
+		execute(input, gasometer, byzantium_gas_calc)
+	}
+}
 
-		// Extract the header
-		let base_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 0).into_owned());
-		let exp_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 32).into_owned());
-		let mod_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 64).into_owned());
+pub struct ModexpBerlin;
 
-		// Cast base and modulus to usize, it does not make sense to handle larger values
-		let base_len = try_some!(usize::try_from(base_len).map_err(|_| ExitException::OutOfGas));
-		let mod_len = try_some!(usize::try_from(mod_len).map_err(|_| ExitException::OutOfGas));
-		// cast exp len to the max size, it will fail later in gas calculation if it is too large.
-		let exp_len = usize::try_from(exp_len).unwrap_or(usize::MAX);
-
-		// TODO: Check Osaka size limit.
-
-		// Used to extract ADJUSTED_EXPONENT_LENGTH.
-		let exp_highp_len = min(exp_len, 32);
-
-		// Throw away the header data as we already extracted lengths.
-		let input = input.get(HEADER_LENGTH..).unwrap_or_default();
-
-		let exp_highp = {
-			// Get right padded bytes so if data.len is less then exp_len we will get right padded zeroes.
-			let right_padded_highp = right_pad_with_offset::<32>(input, base_len);
-			// If exp_len is less then 32 bytes get only exp_len bytes and do left padding.
-			let out = left_pad::<32>(&right_padded_highp[..exp_highp_len]);
-			U256::from_big_endian(&out.into_owned())
-		};
-
-		// Check if we have enough gas.
-		let gas_cost =
-			byzantium_gas_calc(base_len as u64, exp_len as u64, mod_len as u64, &exp_highp);
-		try_some!(gasometer.record_gas(U256::from(gas_cost)));
-
-		if base_len == 0 && mod_len == 0 {
-			return (ExitSucceed::Returned.into(), Vec::new());
-		}
-
-		// Padding is needed if the input does not contain all 3 values.
-		let input_len = base_len.saturating_add(exp_len).saturating_add(mod_len);
-		let input = right_pad_vec(input, input_len);
-		let (base, input) = input.split_at(base_len);
-		let (exponent, modulus) = input.split_at(exp_len);
-		debug_assert_eq!(modulus.len(), mod_len);
-
-		// Call the modexp.
-		let output = modexp(base, exponent, modulus);
-
-		(
-			ExitSucceed::Returned.into(),
-			left_pad_vec(&output, mod_len).into_owned(),
-		)
+impl<G: GasMutState> PurePrecompile<G> for ModexpBerlin {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
+		execute(input, gasometer, berlin_gas_calc)
 	}
 }
