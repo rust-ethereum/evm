@@ -71,8 +71,104 @@ pub enum TransactValueCallCreate {
 pub struct TransactValue {
 	/// Call/Create status.
 	pub call_create: TransactValueCallCreate,
-	/// Used gas minus the refund.
-	pub effective_gas: U256,
+	/// Used gas.
+	pub used_gas: U256,
+}
+
+/// Transact gas price.
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
+pub enum TransactGasPrice {
+	/// Legacy gas price.
+	Legacy(U256),
+	/// EIP-1559 fee market.
+	FeeMarket {
+		/// `max_priority_fee_per_gas` according to EIP-1559.
+		max_priority: U256,
+		/// `max_fee_per_gas` according to EIP-1559.
+		max: U256,
+	},
+}
+
+impl TransactGasPrice {
+	/// Caller fee.
+	pub fn fee<H: RuntimeEnvironment>(
+		&self,
+		gas_limit: U256,
+		config: &Config,
+		handler: &H,
+	) -> U256 {
+		let effective_gas_price = self.effective_gas_price(config, handler);
+		gas_limit.saturating_mul(effective_gas_price)
+	}
+
+	/// Refunded caller fee after call.
+	pub fn refunded_fee<H: RuntimeEnvironment>(
+		&self,
+		refunded_gas: U256,
+		config: &Config,
+		handler: &H,
+	) -> U256 {
+		let effective_gas_price = self.effective_gas_price(config, handler);
+		refunded_gas.saturating_mul(effective_gas_price)
+	}
+
+	/// Coinbase reward.
+	pub fn coinbase_reward<H: RuntimeEnvironment>(
+		&self,
+		used_gas: U256,
+		config: &Config,
+		handler: &H,
+	) -> U256 {
+		if config.eip1559_fee_market {
+			let max_priority = match self {
+				Self::Legacy(gas_price) => *gas_price,
+				Self::FeeMarket { max_priority, .. } => *max_priority,
+			};
+			let max = match self {
+				Self::Legacy(gas_price) => *gas_price,
+				Self::FeeMarket { max, .. } => *max,
+			};
+			let priority = min(
+				max_priority,
+				max.saturating_sub(handler.block_base_fee_per_gas()),
+			);
+			used_gas.saturating_mul(priority)
+		} else {
+			let effective_gas_price = self.effective_gas_price(config, handler);
+			used_gas.saturating_mul(effective_gas_price)
+		}
+	}
+
+	/// Effective gas price as returned by `GASPRICE` opcode.
+	pub fn effective_gas_price<H: RuntimeEnvironment>(&self, config: &Config, handler: &H) -> U256 {
+		if config.eip1559_fee_market {
+			let max_priority = match self {
+				Self::Legacy(gas_price) => *gas_price,
+				Self::FeeMarket { max_priority, .. } => *max_priority,
+			};
+			let max = match self {
+				Self::Legacy(gas_price) => *gas_price,
+				Self::FeeMarket { max, .. } => *max,
+			};
+
+			let priority = min(
+				max_priority,
+				max.saturating_sub(handler.block_base_fee_per_gas()),
+			);
+			priority.saturating_add(handler.block_base_fee_per_gas())
+		} else {
+			match self {
+				Self::Legacy(gas_price) => *gas_price,
+				Self::FeeMarket { max_priority, .. } => *max_priority,
+			}
+		}
+	}
+}
+
+impl From<U256> for TransactGasPrice {
+	fn from(gas_price: U256) -> Self {
+		Self::Legacy(gas_price)
+	}
 }
 
 /// The invoke used in a top-layer transaction stack.
@@ -82,7 +178,7 @@ pub struct TransactInvoke<'config> {
 	/// Gas limit.
 	pub gas_limit: U256,
 	/// Gas price.
-	pub gas_price: U256,
+	pub gas_price: TransactGasPrice,
 	/// Caller.
 	pub caller: H160,
 	/// Config used for the transaction.
@@ -120,7 +216,7 @@ pub struct TransactArgs<'config> {
 	/// Transaction gas limit.
 	pub gas_limit: U256,
 	/// Transaction gas price.
-	pub gas_price: U256,
+	pub gas_price: TransactGasPrice,
 	/// Access list information, in the format of (address, storage keys).
 	pub access_list: Vec<(H160, Vec<H256>)>,
 	/// Config of this arg.
@@ -187,9 +283,11 @@ where
 	> {
 		let caller = AsRef::<TransactArgs>::as_ref(&args).caller;
 		let gas_price = AsRef::<TransactArgs>::as_ref(&args).gas_price;
-		let gas_fee = AsRef::<TransactArgs>::as_ref(&args)
-			.gas_limit
-			.saturating_mul(gas_price);
+		let gas_fee = gas_price.fee(
+			AsRef::<TransactArgs>::as_ref(&args).gas_limit,
+			AsRef::<TransactArgs>::as_ref(&args).config,
+			handler,
+		);
 		let coinbase = handler.block_coinbase();
 
 		let address = match &AsRef::<TransactArgs>::as_ref(&args).call_create {
@@ -224,6 +322,8 @@ where
 			},
 			config: AsRef::<TransactArgs>::as_ref(&args).config,
 		};
+
+		handler.mark_hot(coinbase, TouchKind::Coinbase);
 
 		if handler.code_size(caller) != U256::zero() {
 			handler.push_substate();
@@ -276,7 +376,8 @@ where
 		};
 		let transaction_context = TransactionContext {
 			origin: caller,
-			gas_price,
+			gas_price: gas_price
+				.effective_gas_price(AsRef::<TransactArgs>::as_ref(&args).config, handler),
 		};
 		let transfer = Transfer {
 			source: caller,
@@ -297,7 +398,6 @@ where
 			}
 		}
 
-		handler.mark_hot(coinbase, TouchKind::Coinbase);
 		handler.mark_hot(caller, TouchKind::Access);
 		handler.mark_hot(caller, TouchKind::StateChange);
 		handler.mark_hot(address, TouchKind::Access);
@@ -423,27 +523,19 @@ where
 			}
 		}
 
-		let refunded_fee = effective_gas.saturating_mul(invoke.gas_price);
+		let used_gas = invoke.gas_limit.saturating_sub(effective_gas);
+		let refunded_fee = invoke
+			.gas_price
+			.refunded_fee(effective_gas, invoke.config, handler);
 		handler.deposit(invoke.caller, refunded_fee);
-		// Reward coinbase address
-		// EIP-1559 updated the fee system so that miners only get to keep the priority fee.
-		// The base fee is always burned.
-		let coinbase_gas_price = if invoke.config.eip1559_fee_market {
-			invoke
-				.gas_price
-				.saturating_sub(handler.block_base_fee_per_gas())
-		} else {
-			invoke.gas_price
-		};
 		let coinbase_reward = invoke
-			.gas_limit
-			.saturating_mul(coinbase_gas_price)
-			.saturating_sub(refunded_fee);
+			.gas_price
+			.coinbase_reward(used_gas, invoke.config, handler);
 		handler.deposit(handler.block_coinbase(), coinbase_reward);
 
 		result.map(|call_create| TransactValue {
 			call_create,
-			effective_gas,
+			used_gas,
 		})
 	}
 

@@ -260,12 +260,20 @@ impl Config {
 
 	/// Gas paid for sstore refund.
 	pub fn refund_sstore_clears(&self) -> i64 {
-		15000
+		if self.eip3529_decrease_clears_refund {
+			4800
+		} else {
+			15000
+		}
 	}
 
 	/// EIP-3529
 	pub fn max_refund_quotient(&self) -> u64 {
-		2
+		if self.eip3529_decrease_clears_refund {
+			5
+		} else {
+			2
+		}
 	}
 
 	/// Gas paid for BALANCE opcode.

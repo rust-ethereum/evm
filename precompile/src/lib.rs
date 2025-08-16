@@ -1,7 +1,7 @@
 //! Standard EVM precompiles.
 
 #![deny(warnings)]
-// #![forbid(unsafe_code, unused_variables)]
+#![forbid(unsafe_code, unused_variables)]
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 

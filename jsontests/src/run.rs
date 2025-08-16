@@ -7,7 +7,7 @@ use std::{
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
 	interpreter::{Capture, runtime::GasState},
-	standard::{Config, TransactArgs, TransactArgsCallCreate},
+	standard::{Config, TransactArgs, TransactArgsCallCreate, TransactGasPrice},
 };
 use evm_mainnet::with_mainnet_invoker;
 use primitive_types::{H256, U256};
@@ -187,20 +187,27 @@ pub fn run_test(
 		Fork::ConstantinopleFix => Config::petersburg(),
 		Fork::Istanbul => Config::istanbul(),
 		Fork::Berlin => Config::berlin(),
+		Fork::London => Config::london(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
 
-	if test.post.expect_exception == Some(TestExpectException::TR_TypeNotSupported) {
+	match test.post.expect_exception {
 		// The `evm` crate does not understand transaction format, only the `ethereum` crate. So
 		// there's nothing for us to test here for `TR_TypeNotSupported`.
-		return Ok(());
-	}
+		Some(TestExpectException::TR_TypeNotSupported) => return Ok(()),
 
-	if test.post.expect_exception == Some(TestExpectException::TR_RLP_WRONGVALUE)
-		&& test.transaction.value.0.is_err()
-	{
-		return Ok(());
+		Some(TestExpectException::TR_RLP_WRONGVALUE) if test.transaction.value.0.is_err() => {
+			return Ok(());
+		}
+
+		// The responsibility to check gas limit / gas cap is on the block executor.
+		Some(TestExpectException::TR_FeeCapLessThanBlocks) => return Ok(()),
+		Some(TestExpectException::TR_NoFunds) => return Ok(()),
+		Some(TestExpectException::TR_GasLimitReached) => return Ok(()),
+		Some(TestExpectException::TR_TipGtFeeCap) => return Ok(()),
+
+		_ => (),
 	}
 
 	let env = InMemoryEnvironment {
@@ -221,7 +228,7 @@ pub fn run_test(
 		block_difficulty: test.env.current_difficulty,
 		block_randomness: test.env.current_random,
 		block_gas_limit: test.env.current_gas_limit,
-		block_base_fee_per_gas: test.transaction.gas_price,
+		block_base_fee_per_gas: test.env.current_base_fee.unwrap_or_default(),
 		chain_id: U256::one(),
 	};
 
@@ -249,6 +256,18 @@ pub fn run_test(
 		})
 		.collect::<BTreeMap<_, _>>();
 
+	let gas_price = if let Some(gas_price) = test.transaction.gas_price {
+		TransactGasPrice::Legacy(gas_price)
+	} else {
+		TransactGasPrice::FeeMarket {
+			max_priority: test
+				.transaction
+				.max_priority_fee_per_gas
+				.unwrap_or_default(),
+			max: test.transaction.max_fee_per_gas.unwrap_or_default(),
+		}
+	};
+
 	let args = if let Some(to) = test.transaction.to {
 		TransactArgs {
 			call_create: TransactArgsCallCreate::Call {
@@ -262,7 +281,7 @@ pub fn run_test(
 				.0
 				.map_err(|()| TestError::UnexpectedDecoding)?,
 			gas_limit: test.transaction.gas_limit,
-			gas_price: test.transaction.gas_price,
+			gas_price,
 			access_list: test
 				.transaction
 				.access_list
@@ -285,7 +304,7 @@ pub fn run_test(
 				.0
 				.map_err(|()| TestError::UnexpectedDecoding)?,
 			gas_limit: test.transaction.gas_limit,
-			gas_price: test.transaction.gas_price,
+			gas_price,
 			access_list: test
 				.transaction
 				.access_list
@@ -393,9 +412,9 @@ pub fn run_test(
 						transaction: TestMultiTransaction {
 							data: vec![HexBytes(test.transaction.data)],
 							gas_limit: vec![test.transaction.gas_limit],
-							gas_price: Some(test.transaction.gas_price),
-							max_fee_per_gas: None,
-							max_priority_fee_per_gas: test.transaction.gas_priority_fee,
+							gas_price: test.transaction.gas_price,
+							max_fee_per_gas: test.transaction.max_fee_per_gas,
+							max_priority_fee_per_gas: test.transaction.max_priority_fee_per_gas,
 							nonce: test.transaction.nonce,
 							secret_key: test.transaction.secret_key,
 							sender: test.transaction.sender,
