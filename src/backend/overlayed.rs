@@ -197,12 +197,10 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 				&& self.code_size(address) == U256::zero()
 				&& self.nonce(address) == U256::zero();
 			!is_empty
+		} else if let Some(exists) = self.substate.known_exists(address) {
+			exists
 		} else {
-			if let Some(exists) = self.substate.known_exists(address) {
-				exists
-			} else {
-				self.backend.exists(address)
-			}
+			self.backend.exists(address)
 		}
 	}
 

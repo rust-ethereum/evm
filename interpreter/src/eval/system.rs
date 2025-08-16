@@ -7,9 +7,7 @@ use crate::utils::u256_to_h256;
 
 use crate::{
 	Control, ExitException, ExitFatal, ExitSucceed, Machine,
-	runtime::{
-		GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer,
-	},
+	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
 };
 
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
@@ -137,11 +135,7 @@ pub fn extcodesize<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 	Control::Continue(1)
 }
 
-pub fn extcodehash<
-	S: AsRef<RuntimeState>,
-	H: RuntimeEnvironment + RuntimeBackend,
-	Tr,
->(
+pub fn extcodehash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handler: &mut H,
 ) -> Control<Tr> {

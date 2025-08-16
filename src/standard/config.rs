@@ -236,7 +236,11 @@ impl Config {
 
 	/// Gas paid for extcodehash.
 	pub fn gas_ext_code_hash(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 400 }
+		if self.eip1884_trie_repricing {
+			700
+		} else {
+			400
+		}
 	}
 
 	/// Gas paid for sstore set.
