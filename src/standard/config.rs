@@ -2,6 +2,7 @@ use evm_interpreter::runtime::RuntimeConfig;
 
 /// Runtime configuration.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct Config {
 	/// Runtime config.
 	pub runtime: RuntimeConfig,
@@ -87,11 +88,7 @@ impl Config {
 	/// Frontier hard fork configuration.
 	pub const fn frontier() -> Config {
 		Config {
-			runtime: RuntimeConfig {
-				eip161_empty_check: false,
-				eip6780_suicide_only_in_same_tx: false,
-				eip7610_create_check_storage: true,
-			},
+			runtime: RuntimeConfig::frontier(),
 			eip2_no_empty_contract: false,
 			eip2_create_transaction_increase: false,
 			eip2200_sstore_gas_metering: false,

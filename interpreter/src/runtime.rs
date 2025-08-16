@@ -26,6 +26,7 @@ pub struct RuntimeState {
 
 /// Runtime config.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct RuntimeConfig {
 	/// EIP-161: new rules about empty accounts.
 	pub eip161_empty_check: bool,
@@ -33,6 +34,32 @@ pub struct RuntimeConfig {
 	pub eip7610_create_check_storage: bool,
 	/// EIP-6780: selfdestruct deletet contract only if called in the same tx as creation
 	pub eip6780_suicide_only_in_same_tx: bool,
+}
+
+impl RuntimeConfig {
+	/// Create a new Runtime config with default settings.
+	pub const fn new() -> Self {
+		Self {
+			eip161_empty_check: true,
+			eip7610_create_check_storage: false,
+			eip6780_suicide_only_in_same_tx: false,
+		}
+	}
+
+	/// Create a new Runtime config with Frontier settings (everything disabled).
+	pub const fn frontier() -> Self {
+		Self {
+			eip161_empty_check: false,
+			eip6780_suicide_only_in_same_tx: false,
+			eip7610_create_check_storage: true,
+		}
+	}
+}
+
+impl Default for RuntimeConfig {
+	fn default() -> Self {
+		Self::new()
+	}
 }
 
 /// Runtime state and config.
@@ -44,11 +71,7 @@ pub struct RuntimeStateAndConfig<'config> {
 	pub config: &'config RuntimeConfig,
 }
 
-static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig {
-	eip161_empty_check: true,
-	eip7610_create_check_storage: false,
-	eip6780_suicide_only_in_same_tx: false,
-};
+static DEFAULT_RUNTIME_CONFIG: RuntimeConfig = RuntimeConfig::new();
 
 impl RuntimeStateAndConfig<'static> {
 	/// Used for testing.
