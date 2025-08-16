@@ -361,18 +361,23 @@ where
 						let retbuf = exit.retval;
 
 						if let Some(substate) = substate {
-							routines::deploy_create_code(
+							match routines::deploy_create_code(
 								address,
 								retbuf,
 								substate,
 								handler,
 								SetCodeOrigin::Transaction,
-							)?;
-
-							Ok(TransactValueCallCreate::Create {
-								succeed: result,
-								address,
-							})
+							) {
+								Ok(()) => Ok(TransactValueCallCreate::Create {
+									succeed: result,
+									address,
+								}),
+								Err(e) if AsRef::<Config>::as_ref(&substate).eip2_no_empty_contract => Err(e),
+								Err(_) => Ok(TransactValueCallCreate::Create {
+									succeed: result,
+									address,
+								}),
+							}
 						} else {
 							Err(ExitFatal::Unfinished.into())
 						}
@@ -683,12 +688,16 @@ where
 								Ok(()) => {
 									retbuf = Vec::new();
 									Ok(address)
-								}
-								Err(err) => {
+								},
+								Err(err) if AsRef::<Config>::as_ref(&substate).eip2_no_empty_contract => {
 									retbuf = Vec::new();
 									strategy = MergeStrategy::Discard;
 									Err(err)
-								}
+								},
+								Err(_) => {
+									retbuf = Vec::new();
+									Ok(address)
+								},
 							}
 						}
 						Err(err) => Err(err),
