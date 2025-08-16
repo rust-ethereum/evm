@@ -231,12 +231,12 @@ impl Config {
 
 	/// Gas paid for extcode.
 	pub fn gas_ext_code(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 20 }
+		if self.eip150_gas_increase { 700 } else { 20 }
 	}
 
 	/// Gas paid for extcodehash.
 	pub fn gas_ext_code_hash(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 20 }
+		if self.eip1884_trie_repricing { 700 } else { 400 }
 	}
 
 	/// Gas paid for sstore set.
@@ -261,13 +261,21 @@ impl Config {
 
 	/// Gas paid for BALANCE opcode.
 	pub fn gas_balance(&self) -> u64 {
-		if self.eip1884_trie_repricing { 700 } else { 20 }
+		if self.eip1884_trie_repricing {
+			700
+		} else if self.eip150_gas_increase {
+			400
+		} else {
+			20
+		}
 	}
 
 	/// Gas paid for SLOAD opcode.
 	pub fn gas_sload(&self) -> u64 {
 		if self.eip2200_sstore_gas_metering {
 			800
+		} else if self.eip150_gas_increase {
+			200
 		} else {
 			50
 		}
