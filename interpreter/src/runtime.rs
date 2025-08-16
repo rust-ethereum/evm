@@ -41,7 +41,7 @@ impl RuntimeConfig {
 	pub const fn new() -> Self {
 		Self {
 			eip161_empty_check: true,
-			eip7610_create_check_storage: false,
+			eip7610_create_check_storage: true,
 			eip6780_suicide_only_in_same_tx: false,
 		}
 	}
