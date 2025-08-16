@@ -87,7 +87,7 @@ fn main() {
 			caller: H160::from_low_u64_be(1),
 			value: U256::zero(),
 			gas_limit,
-			gas_price,
+			gas_price: gas_price.into(),
 			access_list: vec![],
 			config: &config,
 		};
@@ -119,7 +119,7 @@ fn main() {
 			caller: H160::from_low_u64_be(1),
 			value: U256::zero(),
 			gas_limit,
-			gas_price,
+			gas_price: gas_price.into(),
 			access_list: vec![],
 			config: &config,
 		};
@@ -143,7 +143,7 @@ fn main() {
 			caller: user_address,
 			value: U256::zero(),
 			gas_limit,
-			gas_price,
+			gas_price: gas_price.into(),
 			access_list: vec![],
 			config: &config,
 		};

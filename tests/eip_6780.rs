@@ -54,7 +54,7 @@ fn self_destruct_before_cancun() {
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),
 		gas_limit: U256::from(400_000),
-		gas_price: U256::from(1),
+		gas_price: U256::from(1).into(),
 		access_list: vec![],
 		config: &config,
 	};
@@ -89,7 +89,7 @@ fn self_destruct_before_cancun() {
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),
 		gas_limit: U256::from(400_000),
-		gas_price: U256::one(),
+		gas_price: U256::one().into(),
 		access_list: vec![],
 		config: &config,
 	};
@@ -127,7 +127,7 @@ fn self_destruct_cancun() {
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),
 		gas_limit: U256::from(400_000),
-		gas_price: U256::from(1),
+		gas_price: U256::from(1).into(),
 		access_list: vec![],
 		config: &config,
 	};
@@ -162,7 +162,7 @@ fn self_destruct_cancun() {
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),
 		gas_limit: U256::from(400_000),
-		gas_price: U256::one(),
+		gas_price: U256::one().into(),
 		access_list: vec![],
 		config: &config,
 	};
@@ -200,7 +200,7 @@ fn self_destruct_same_tx_cancun() {
 		caller: H160::from_low_u64_be(1),
 		value: U256::zero(),
 		gas_limit: U256::from(400_000),
-		gas_price: U256::from(1),
+		gas_price: U256::from(1).into(),
 		access_list: vec![],
 		config: &config,
 	};

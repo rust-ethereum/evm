@@ -24,7 +24,7 @@ pub use self::{
 	invoker::{
 		EtableResolver, Invoker, InvokerState, PrecompileSet, Resolver, ResolverOrigin,
 		SubstackInvoke, TransactArgs, TransactArgsCallCreate, TransactInvoke, TransactValue,
-		TransactValueCallCreate, routines,
+		TransactValueCallCreate, routines, TransactGasPrice,
 	},
 };
 use crate::{MergeStrategy, gasometer::GasMutState};
