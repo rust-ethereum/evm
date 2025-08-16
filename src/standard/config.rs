@@ -82,6 +82,8 @@ pub struct Config {
 	pub eip1108_ec_add_mul_pairing_decrease: bool,
 	/// EIP-2565.
 	pub eip2565_lower_modexp: bool,
+	/// EIP-2930: Optional access list.
+	pub eip2930_access_list: bool,
 }
 
 impl Config {
@@ -126,6 +128,7 @@ impl Config {
 			eip1108_ec_add_mul_pairing_decrease: false,
 			eip2028_transaction_calldata_decrease: false,
 			eip2565_lower_modexp: false,
+			eip2930_access_list: false,
 		}
 	}
 
@@ -197,6 +200,7 @@ impl Config {
 		let mut config = Self::istanbul();
 		config.eip2565_lower_modexp = true;
 		config.eip2929_increase_state_access_gas = true;
+		config.eip2930_access_list = true;
 		config
 	}
 
@@ -250,7 +254,11 @@ impl Config {
 
 	/// Gas paid for sstore reset.
 	pub fn gas_sstore_reset(&self) -> u64 {
-		5000
+		if self.eip2929_increase_state_access_gas {
+			2900
+		} else {
+			5000
+		}
 	}
 
 	/// Gas paid for sstore refund.
@@ -276,7 +284,9 @@ impl Config {
 
 	/// Gas paid for SLOAD opcode.
 	pub fn gas_sload(&self) -> u64 {
-		if self.eip2200_sstore_gas_metering {
+		if self.eip2929_increase_state_access_gas {
+			100
+		} else if self.eip2200_sstore_gas_metering {
 			800
 		} else if self.eip150_gas_increase {
 			200
@@ -287,7 +297,11 @@ impl Config {
 
 	/// Gas paid for cold SLOAD opcode.
 	pub fn gas_sload_cold(&self) -> u64 {
-		0
+		if self.eip2929_increase_state_access_gas {
+			2100
+		} else {
+			0
+		}
 	}
 
 	/// Gas paid for SUICIDE opcode.
@@ -340,22 +354,38 @@ impl Config {
 
 	/// Gas paid per address in transaction access list (see EIP-2930).
 	pub fn gas_access_list_address(&self) -> u64 {
-		0
+		if self.eip2930_access_list {
+			2400
+		} else {
+			0
+		}
 	}
 
 	/// Gas paid per storage key in transaction access list (see EIP-2930).
 	pub fn gas_access_list_storage_key(&self) -> u64 {
-		0
+		if self.eip2930_access_list {
+			1900
+		} else {
+			0
+		}
 	}
 
 	/// Gas paid for accessing cold account.
 	pub fn gas_account_access_cold(&self) -> u64 {
-		0
+		if self.eip2929_increase_state_access_gas {
+			2600
+		} else {
+			0
+		}
 	}
 
 	/// Gas paid for accessing ready storage.
 	pub fn gas_storage_read_warm(&self) -> u64 {
-		0
+		if self.eip2929_increase_state_access_gas {
+			100
+		} else {
+			0
+		}
 	}
 
 	/// Stack limit.
