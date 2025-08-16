@@ -23,18 +23,21 @@ mod simple;
 
 use alloc::vec::Vec;
 
+use crate::{
+	blake2::Blake2F,
+	bn128::{
+		Bn128AddByzantium, Bn128AddIstanbul, Bn128MulByzantium, Bn128MulIstanbul,
+		Bn128PairingByzantium, Bn128PairingIstanbul,
+	},
+	modexp::Modexp,
+	simple::{ECRecover, Identity, Ripemd160, Sha256},
+};
 use evm::{
 	GasMutState,
 	interpreter::{ExitError, ExitException, ExitResult, runtime::RuntimeState},
 	standard::{Config, PrecompileSet},
 };
 use primitive_types::H160;
-use crate::{
-	blake2::Blake2F,
-	bn128::{Bn128AddIstanbul, Bn128MulIstanbul, Bn128PairingIstanbul, Bn128AddByzantium, Bn128MulByzantium, Bn128PairingByzantium},
-	modexp::Modexp,
-	simple::{ECRecover, Identity, Ripemd160, Sha256},
-};
 
 trait PurePrecompile<G> {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);
