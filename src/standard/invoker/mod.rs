@@ -656,10 +656,7 @@ where
 				// EIP-2929 and EIP-161 has two different rules. In EIP-161, the
 				// touch is reverted if a call fails. In EIP-2929, the touch
 				// stays warm.
-				handler.mark_hot(
-					address,
-					TouchKind::Access,
-				);
+				handler.mark_hot(address, TouchKind::Access);
 
 				Capture::Exit(routines::enter_create_substack(
 					self.resolver,

@@ -260,13 +260,13 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		match kind {
 			TouchKind::Access => {
 				self.substate.accessed.insert((address, None));
-			},
+			}
 			TouchKind::StateChange => {
 				if address == RIPEMD {
 					self.touched_ripemd = true;
 				}
 				self.substate.touched.insert(address);
-			},
+			}
 			TouchKind::Coinbase => {
 				if self.config.eip3651_warm_coinbase_address {
 					self.substate.accessed.insert((address, None));
