@@ -111,7 +111,9 @@ impl InMemoryBackend {
 				self.state.entry(address).or_default();
 			}
 
-			self.state.entry(self.environment.block_coinbase).or_default();
+			self.state
+				.entry(self.environment.block_coinbase)
+				.or_default();
 		}
 
 		for address in changeset.deletes.clone() {
