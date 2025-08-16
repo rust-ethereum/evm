@@ -1,7 +1,8 @@
 //! Standard EVM precompiles.
 
-// #![deny(warnings)]
+#![deny(warnings)]
 // #![forbid(unsafe_code, unused_variables)]
+#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
 macro_rules! try_some {
@@ -28,18 +29,18 @@ use evm::{
 	standard::{Config, PrecompileSet},
 };
 use primitive_types::H160;
-
-pub use crate::{
+use crate::{
 	blake2::Blake2F,
-	bn128::{Bn128AddIstanbul, Bn128MulIstanbul, Bn128PairingIstanbul},
+	bn128::{Bn128AddIstanbul, Bn128MulIstanbul, Bn128PairingIstanbul, Bn128AddByzantium, Bn128MulByzantium, Bn128PairingByzantium},
 	modexp::Modexp,
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
 };
 
-pub trait PurePrecompile<G> {
+trait PurePrecompile<G> {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);
 }
 
+/// The standard precompile set on Ethereum mainnet.
 pub struct StandardPrecompileSet;
 
 impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H>
@@ -67,15 +68,27 @@ impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H> PrecompileSet<G, H
 		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile
 			&& code_address == address(6)
 		{
-			Some(Bn128AddIstanbul.execute(input, gasometer))
+			if AsRef::<Config>::as_ref(gasometer).eip1108_ec_add_mul_pairing_decrease {
+				Some(Bn128AddIstanbul.execute(input, gasometer))
+			} else {
+				Some(Bn128AddByzantium.execute(input, gasometer))
+			}
 		} else if AsRef::<Config>::as_ref(gasometer).eip196_ec_add_mul_precompile
 			&& code_address == address(7)
 		{
-			Some(Bn128MulIstanbul.execute(input, gasometer))
+			if AsRef::<Config>::as_ref(gasometer).eip1108_ec_add_mul_pairing_decrease {
+				Some(Bn128MulIstanbul.execute(input, gasometer))
+			} else {
+				Some(Bn128MulByzantium.execute(input, gasometer))
+			}
 		} else if AsRef::<Config>::as_ref(gasometer).eip197_ec_pairing_precompile
 			&& code_address == address(8)
 		{
-			Some(Bn128PairingIstanbul.execute(input, gasometer))
+			if AsRef::<Config>::as_ref(gasometer).eip1108_ec_add_mul_pairing_decrease {
+				Some(Bn128PairingIstanbul.execute(input, gasometer))
+			} else {
+				Some(Bn128PairingByzantium.execute(input, gasometer))
+			}
 		} else if AsRef::<Config>::as_ref(gasometer).eip152_blake_2f_precompile
 			&& code_address == address(9)
 		{

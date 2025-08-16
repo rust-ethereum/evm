@@ -8,6 +8,19 @@ use primitive_types::U256;
 
 use crate::PurePrecompile;
 
+pub struct Bn128AddByzantium;
+
+impl<G: GasMutState> PurePrecompile<G> for Bn128AddByzantium {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
+		const BYZANTIUM_ADD_GAS_COST: u64 = 500;
+
+		match run_add(input, BYZANTIUM_ADD_GAS_COST, gasometer) {
+			Ok((res, out)) => (Ok(res), out),
+			Err(err) => (Err(err), Vec::new()),
+		}
+	}
+}
+
 pub struct Bn128AddIstanbul;
 
 impl<G: GasMutState> PurePrecompile<G> for Bn128AddIstanbul {
@@ -15,6 +28,19 @@ impl<G: GasMutState> PurePrecompile<G> for Bn128AddIstanbul {
 		const ISTANBUL_ADD_GAS_COST: u64 = 150;
 
 		match run_add(input, ISTANBUL_ADD_GAS_COST, gasometer) {
+			Ok((res, out)) => (Ok(res), out),
+			Err(err) => (Err(err), Vec::new()),
+		}
+	}
+}
+
+pub struct Bn128MulByzantium;
+
+impl<G: GasMutState> PurePrecompile<G> for Bn128MulByzantium {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
+		const BYZANTIUM_MUL_GAS_COST: u64 = 40_000;
+
+		match run_mul(input, BYZANTIUM_MUL_GAS_COST, gasometer) {
 			Ok((res, out)) => (Ok(res), out),
 			Err(err) => (Err(err), Vec::new()),
 		}
@@ -34,14 +60,30 @@ impl<G: GasMutState> PurePrecompile<G> for Bn128MulIstanbul {
 	}
 }
 
+pub struct Bn128PairingByzantium;
+
+impl<G: GasMutState> PurePrecompile<G> for Bn128PairingByzantium {
+	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
+		const BYZANTIUM_PAIR_PER_POINT: u64 = 80_000;
+		const BYZANTIUM_PAIR_BASE: u64 = 100_000;
+
+		match run_pair(
+			input,
+			BYZANTIUM_PAIR_PER_POINT,
+			BYZANTIUM_PAIR_BASE,
+			gasometer,
+		) {
+			Ok((res, out)) => (Ok(res), out),
+			Err(err) => (Err(err), Vec::new()),
+		}
+	}
+}
+
 pub struct Bn128PairingIstanbul;
 
 impl<G: GasMutState> PurePrecompile<G> for Bn128PairingIstanbul {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
-		/// Bn254 pair precompile with ISTANBUL gas rules
 		const ISTANBUL_PAIR_PER_POINT: u64 = 34_000;
-
-		/// Bn254 pair precompile with ISTANBUL gas rules
 		const ISTANBUL_PAIR_BASE: u64 = 45_000;
 
 		match run_pair(
