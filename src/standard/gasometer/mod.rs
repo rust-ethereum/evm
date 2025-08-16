@@ -8,7 +8,7 @@ use core::cmp::{max, min};
 use evm_interpreter::{
 	Control, ExitError, ExitException, Machine, Opcode, Stack,
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
-	utils::{u256_to_h160, u256_to_h256},
+	utils::{u256_to_h160, u256_to_h256, u256_to_usize},
 };
 use primitive_types::{H160, H256, U256};
 
@@ -463,7 +463,9 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			n: 4,
 			len: stack.peek(1)?,
 		},
-		Opcode::CREATE if !is_static => GasCost::Create,
+		Opcode::CREATE if !is_static => GasCost::Create {
+			len: stack.peek(2)?,
+		},
 		Opcode::CREATE2 if !is_static && config.eip1014_create2 => GasCost::Create2 {
 			len: stack.peek(2)?,
 		},
@@ -708,7 +710,10 @@ enum GasCost {
 		power: U256,
 	},
 	/// Gas cost for `CREATE`.
-	Create,
+	Create {
+		/// Length.
+		len: U256,
+	},
 	/// Gas cost for `CREATE2`.
 	Create2 {
 		/// Length.
@@ -780,8 +785,24 @@ impl GasCost {
 			GasCost::Log { n, len } => costs::log_cost(n, len)?,
 			GasCost::VeryLowCopy { len } => costs::verylowcopy_cost(len)?,
 			GasCost::Exp { power } => costs::exp_cost(power, config)?,
-			GasCost::Create => consts::G_CREATE,
-			GasCost::Create2 { len } => costs::create2_cost(len)?,
+			GasCost::Create { len } => {
+				let base = consts::G_CREATE;
+				if config.eip3860_max_initcode_size {
+					let len = u256_to_usize(len)?;
+					base + init_code_cost(len)
+				} else {
+					base
+				}
+			},
+			GasCost::Create2 { len } => {
+				let base = costs::create2_cost(len)?;
+				if config.eip3860_max_initcode_size {
+					let len = u256_to_usize(len)?;
+					base + init_code_cost(len)
+				} else {
+					base
+				}
+			},
 			GasCost::SLoad { target_is_cold } => costs::sload_cost(target_is_cold, config),
 
 			GasCost::Zero => consts::G_ZERO,
@@ -931,7 +952,7 @@ impl TransactionCost {
 		let zero_data_len = data.iter().filter(|v| **v == 0).count();
 		let non_zero_data_len = data.len() - zero_data_len;
 		let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
-		let initcode_cost = init_code_cost(data);
+		let initcode_cost = init_code_cost(data.len());
 
 		TransactionCost::Create {
 			zero_data_len,
@@ -989,9 +1010,9 @@ fn count_access_list(access_list: &[(H160, Vec<H256>)]) -> (usize, usize) {
 	(access_list_address_len, access_list_storage_len)
 }
 
-fn init_code_cost(data: &[u8]) -> u64 {
+fn init_code_cost(len: usize) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.
-	2 * ((data.len() as u64).div_ceil(32))
+	2 * ((len as u64).div_ceil(32))
 }

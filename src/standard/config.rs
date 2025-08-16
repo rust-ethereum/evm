@@ -408,7 +408,7 @@ impl Config {
 	/// Maximum size limit of init code.
 	pub fn max_initcode_size(&self) -> Option<usize> {
 		if self.eip3860_max_initcode_size {
-			Some(0x6000)
+			Some(0xc000)
 		} else {
 			None
 		}

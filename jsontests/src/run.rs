@@ -188,6 +188,7 @@ pub fn run_test(
 		Fork::Istanbul => Config::istanbul(),
 		Fork::Berlin => Config::berlin(),
 		Fork::London => Config::london(),
+		Fork::Shanghai => Config::shanghai(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
