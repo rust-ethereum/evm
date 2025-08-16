@@ -295,7 +295,9 @@ where
 			TransactArgsCallCreate::Create {
 				salt, init_code, ..
 			} => {
-				if let Some(limit) = AsRef::<TransactArgs<'config>>::as_ref(&args).config.max_initcode_size()
+				if let Some(limit) = AsRef::<TransactArgs<'config>>::as_ref(&args)
+					.config
+					.max_initcode_size()
 					&& init_code.len() > limit
 				{
 					return Err(ExitException::CreateContractLimit.into());

@@ -793,7 +793,7 @@ impl GasCost {
 				} else {
 					base
 				}
-			},
+			}
 			GasCost::Create2 { len } => {
 				let base = costs::create2_cost(len)?;
 				if config.eip3860_max_initcode_size {
@@ -802,7 +802,7 @@ impl GasCost {
 				} else {
 					base
 				}
-			},
+			}
 			GasCost::SLoad { target_is_cold } => costs::sload_cost(target_is_cold, config),
 
 			GasCost::Zero => consts::G_ZERO,
