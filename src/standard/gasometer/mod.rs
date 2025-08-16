@@ -349,11 +349,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists: handler.exists(target),
 			}
 		}
 
@@ -367,11 +363,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::StaticCall {
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists: handler.exists(target),
 			}
 		}
 		Opcode::STATICCALL => GasCost::Invalid(opcode),
@@ -421,11 +413,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::DelegateCall {
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists: handler.exists(target),
 			}
 		}
 		Opcode::DELEGATECALL => GasCost::Invalid(opcode),
@@ -486,11 +474,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::Suicide {
 				value: handler.balance(address),
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists: handler.exists(target),
 				already_removed: handler.deleted(address),
 			}
 		}
@@ -505,11 +489,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				value: stack.peek(2)?,
 				gas: stack.peek(0)?,
 				target_is_cold,
-				target_exists: if !config.runtime.eip161_empty_check {
-					handler.exists(target)
-				} else {
-					!handler.is_empty(target)
-				},
+				target_exists: handler.exists(target)
 			}
 		}
 
