@@ -518,6 +518,8 @@ impl Substate {
 		}
 	}
 
+	// Note that this is always pre-EIP161 rule. For post-EIP161, the handler would simply
+	// check nonce, balance, and code.
 	pub fn known_exists(&self, address: H160) -> Option<bool> {
 		if self.balances.contains_key(&address)
 			|| self.nonces.contains_key(&address)
