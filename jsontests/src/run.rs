@@ -2,7 +2,6 @@ use std::{
 	collections::BTreeMap,
 	fs::{self, File},
 	io::{BufReader, BufWriter},
-	cmp::min,
 };
 
 use evm::{
