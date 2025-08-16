@@ -34,7 +34,10 @@ use crate::{
 };
 use evm::{
 	GasMutState,
-	interpreter::{ExitError, ExitException, ExitResult, runtime::{RuntimeState, RuntimeBackend, TouchKind}},
+	interpreter::{
+		ExitError, ExitException, ExitResult,
+		runtime::{RuntimeBackend, RuntimeState, TouchKind},
+	},
 	standard::{Config, PrecompileSet},
 };
 use primitive_types::H160;

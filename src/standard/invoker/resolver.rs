@@ -68,7 +68,7 @@ pub trait PrecompileSet<S, H> {
 	) -> Option<(ExitResult, Vec<u8>)>;
 
 	/// Initialize before a transaction. Used to warm precompile addresses.
-	fn on_transaction(&self, _state: &mut S, _handler: &mut H) { }
+	fn on_transaction(&self, _state: &mut S, _handler: &mut H) {}
 }
 
 impl<S, H> PrecompileSet<S, H> for () {

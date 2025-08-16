@@ -354,20 +354,12 @@ impl Config {
 
 	/// Gas paid per address in transaction access list (see EIP-2930).
 	pub fn gas_access_list_address(&self) -> u64 {
-		if self.eip2930_access_list {
-			2400
-		} else {
-			0
-		}
+		if self.eip2930_access_list { 2400 } else { 0 }
 	}
 
 	/// Gas paid per storage key in transaction access list (see EIP-2930).
 	pub fn gas_access_list_storage_key(&self) -> u64 {
-		if self.eip2930_access_list {
-			1900
-		} else {
-			0
-		}
+		if self.eip2930_access_list { 1900 } else { 0 }
 	}
 
 	/// Gas paid for accessing cold account.

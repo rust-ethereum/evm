@@ -13,7 +13,7 @@ use primitive_types::H160;
 use crate::{
 	backend::TransactionalBackend,
 	invoker::{InvokerControl, InvokerExit},
-	standard::{Config, InvokerState, Resolver, SubstackInvoke, ResolverOrigin},
+	standard::{Config, InvokerState, Resolver, ResolverOrigin, SubstackInvoke},
 };
 
 /// Routine for making a call interpreter.
@@ -212,7 +212,15 @@ where
 		address,
 		trap: trap_data,
 	};
-	let machine = make_enter_create_machine(ResolverOrigin::Substack, resolver, caller, code, transfer, state, handler)?;
+	let machine = make_enter_create_machine(
+		ResolverOrigin::Substack,
+		resolver,
+		caller,
+		code,
+		transfer,
+		state,
+		handler,
+	)?;
 
 	Ok((invoke, machine))
 }
