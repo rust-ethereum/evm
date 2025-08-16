@@ -20,6 +20,7 @@ mod blake2;
 mod bn128;
 mod modexp;
 mod simple;
+mod kzg;
 
 use alloc::vec::Vec;
 
@@ -31,6 +32,7 @@ use crate::{
 	},
 	modexp::{ModexpBerlin, ModexpByzantium},
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
+	kzg::KZGPointEvaluation,
 };
 use evm::{
 	GasMutState,
@@ -73,6 +75,10 @@ impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H: RuntimeBackend> Pr
 
 		if AsRef::<Config>::as_ref(state).eip152_blake_2f_precompile {
 			handler.mark_hot(address(9), TouchKind::Access);
+		}
+
+		if AsRef::<Config>::as_ref(state).eip4844_shard_blob {
+			handler.mark_hot(address(10), TouchKind::Access);
 		}
 	}
 
@@ -127,6 +133,10 @@ impl<G: AsRef<RuntimeState> + AsRef<Config> + GasMutState, H: RuntimeBackend> Pr
 			&& code_address == address(9)
 		{
 			Some(Blake2F.execute(input, gasometer))
+		} else if AsRef::<Config>::as_ref(gasometer).eip4844_shard_blob
+			&& code_address == address(10)
+		{
+			Some(KZGPointEvaluation.execute(input, gasometer))
 		} else {
 			None
 		}
