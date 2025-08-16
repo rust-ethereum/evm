@@ -104,6 +104,14 @@ impl RuntimeEnvironment for MockBackend {
 		Default::default()
 	}
 
+	fn blob_base_fee_per_gas(&self) -> U256 {
+		Default::default()
+	}
+
+	fn blob_versioned_hash(&self, _index: U256) -> H256 {
+		Default::default()
+	}
+
 	fn chain_id(&self) -> U256 {
 		Default::default()
 	}

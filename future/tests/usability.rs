@@ -61,6 +61,12 @@ impl RuntimeEnvironment for UnimplementedHandler {
 	fn block_base_fee_per_gas(&self) -> U256 {
 		unimplemented!()
 	}
+	fn blob_base_fee_per_gas(&self) -> U256 {
+		unimplemented!()
+	}
+	fn blob_versioned_hash(&self, _index: U256) -> H256 {
+		unimplemented!()
+	}
 	fn chain_id(&self) -> U256 {
 		unimplemented!()
 	}

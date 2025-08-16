@@ -1,10 +1,12 @@
+use crate::types::TestExpectException;
+
 #[derive(Debug, thiserror::Error)]
 #[allow(dead_code)]
 pub enum TestError {
 	#[error("state root is different")]
 	StateMismatch,
 	#[error("expect error, but got okay")]
-	ExpectException,
+	ExpectException(TestExpectException),
 	#[error("unexpected decoding error")]
 	UnexpectedDecoding,
 }

@@ -199,6 +199,8 @@ pub trait RuntimeEnvironment {
 	fn block_gas_limit(&self) -> U256;
 	/// Environmental block base fee.
 	fn block_base_fee_per_gas(&self) -> U256;
+	/// Blob hash.
+	fn blob_versioned_hash(&self, index: U256) -> H256;
 	/// Blob base fee per gas.
 	fn blob_base_fee_per_gas(&self) -> U256;
 	/// Get environmental chain ID.

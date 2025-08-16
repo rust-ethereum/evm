@@ -660,6 +660,15 @@ pub fn eval_gaslimit<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBack
 	self::system::gaslimit(machine, handle)
 }
 
+/// `BLOBHASH`
+pub fn eval_blobhash<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
+	machine: &mut Machine<S>,
+	handle: &mut H,
+	_position: usize,
+) -> Control<Tr> {
+	self::system::blobhash(machine, handle)
+}
+
 /// `BLOBBASEFEE`
 pub fn eval_blobbasefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
@@ -944,6 +953,7 @@ where
 		Opcode::CHAINID => eval_chainid(machine, handle, position),
 		Opcode::SELFBALANCE => eval_selfbalance(machine, handle, position),
 		Opcode::BASEFEE => eval_basefee(machine, handle, position),
+		Opcode::BLOBHASH => eval_blobhash(machine, handle, position),
 		Opcode::BLOBBASEFEE => eval_blobbasefee(machine, handle, position),
 
 		Opcode::SLOAD => eval_sload(machine, handle, position),
