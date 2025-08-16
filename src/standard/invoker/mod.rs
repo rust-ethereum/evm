@@ -372,7 +372,12 @@ where
 									succeed: result,
 									address,
 								}),
-								Err(e) if AsRef::<Config>::as_ref(&substate).eip2_no_empty_contract => Err(e),
+								Err(e)
+									if AsRef::<Config>::as_ref(&substate)
+										.eip2_no_empty_contract =>
+								{
+									Err(e)
+								}
 								Err(_) => Ok(TransactValueCallCreate::Create {
 									succeed: result,
 									address,
@@ -688,16 +693,19 @@ where
 								Ok(()) => {
 									retbuf = Vec::new();
 									Ok(address)
-								},
-								Err(err) if AsRef::<Config>::as_ref(&substate).eip2_no_empty_contract => {
+								}
+								Err(err)
+									if AsRef::<Config>::as_ref(&substate)
+										.eip2_no_empty_contract =>
+								{
 									retbuf = Vec::new();
 									strategy = MergeStrategy::Discard;
 									Err(err)
-								},
+								}
 								Err(_) => {
 									retbuf = Vec::new();
 									Ok(address)
-								},
+								}
 							}
 						}
 						Err(err) => Err(err),
