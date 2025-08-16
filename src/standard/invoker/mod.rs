@@ -299,6 +299,8 @@ where
 			config: AsRef::<TransactArgs>::as_ref(&args).config,
 		};
 
+		handler.mark_hot(coinbase, TouchKind::Coinbase);
+
 		if handler.code_size(caller) != U256::zero() {
 			handler.push_substate();
 			return Ok((
@@ -371,7 +373,6 @@ where
 			}
 		}
 
-		handler.mark_hot(coinbase, TouchKind::Coinbase);
 		handler.mark_hot(caller, TouchKind::Access);
 		handler.mark_hot(caller, TouchKind::StateChange);
 		handler.mark_hot(address, TouchKind::Access);

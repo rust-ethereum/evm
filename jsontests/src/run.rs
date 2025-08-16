@@ -187,21 +187,25 @@ pub fn run_test(
 		Fork::ConstantinopleFix => Config::petersburg(),
 		Fork::Istanbul => Config::istanbul(),
 		Fork::Berlin => Config::berlin(),
-		// Fork::London => Config::london(),
+		Fork::London => Config::london(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
 
-	if test.post.expect_exception == Some(TestExpectException::TR_TypeNotSupported) {
+	match test.post.expect_exception {
 		// The `evm` crate does not understand transaction format, only the `ethereum` crate. So
 		// there's nothing for us to test here for `TR_TypeNotSupported`.
-		return Ok(());
-	}
+		Some(TestExpectException::TR_TypeNotSupported) => return Ok(()),
 
-	if test.post.expect_exception == Some(TestExpectException::TR_RLP_WRONGVALUE)
-		&& test.transaction.value.0.is_err()
-	{
-		return Ok(());
+		Some(TestExpectException::TR_RLP_WRONGVALUE) if test.transaction.value.0.is_err() => return Ok(()),
+
+		// The responsibility to check gas limit / gas cap is on the block executor.
+		Some(TestExpectException::TR_FeeCapLessThanBlocks) => return Ok(()),
+		Some(TestExpectException::TR_NoFunds) => return Ok(()),
+		Some(TestExpectException::TR_GasLimitReached) => return Ok(()),
+		Some(TestExpectException::TR_TipGtFeeCap) => return Ok(()),
+
+		_ => (),
 	}
 
 	let env = InMemoryEnvironment {

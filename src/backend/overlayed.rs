@@ -268,6 +268,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 				self.substate.touched.insert(address);
 			}
 			TouchKind::Coinbase => {
+				self.substate.touched.insert(address);
 				if self.config.eip3651_warm_coinbase_address {
 					self.substate.accessed.insert((address, None));
 				}
