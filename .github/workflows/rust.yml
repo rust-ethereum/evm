@@ -36,6 +36,20 @@ jobs:
       run: cargo build --all-features
     - name: Run tests
       run: cargo test --verbose
+  semver:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install cargo-semver-checks
+      run: cargo install cargo-semver-checks --locked
+    - name: SemVer evm-interpreter
+      run: cargo semver-checks -p evm-interpreter
+    - name: SemVer evm
+      run: cargo semver-checks -p evm
+    - name: SemVer evm-precompile
+      run: cargo semver-checks -p evm-precompile
+    - name: SemVer evm-mainnet
+      run: cargo semver-checks -p evm-mainnet
   tests:
     runs-on: ubuntu-latest
     steps:
