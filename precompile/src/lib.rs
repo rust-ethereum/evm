@@ -18,9 +18,9 @@ extern crate alloc;
 
 mod blake2;
 mod bn128;
+mod kzg;
 mod modexp;
 mod simple;
-mod kzg;
 
 use alloc::vec::Vec;
 
@@ -30,9 +30,9 @@ use crate::{
 		Bn128AddByzantium, Bn128AddIstanbul, Bn128MulByzantium, Bn128MulIstanbul,
 		Bn128PairingByzantium, Bn128PairingIstanbul,
 	},
+	kzg::KZGPointEvaluation,
 	modexp::{ModexpBerlin, ModexpByzantium},
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
-	kzg::KZGPointEvaluation,
 };
 use evm::{
 	GasMutState,

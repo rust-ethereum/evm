@@ -220,7 +220,7 @@ pub fn run_test(
 		// Rust EVM doesn't deal directly with transactions. Currently we expect
 		// users of Rust EVM to deduct blob costs themselves for TYPE 3
 		// transactions, but this may change in the future.
-		return Ok(())
+		return Ok(());
 	}
 
 	let env = InMemoryEnvironment {
@@ -243,7 +243,11 @@ pub fn run_test(
 		block_gas_limit: test.env.current_gas_limit,
 		block_base_fee_per_gas: test.env.current_base_fee.unwrap_or_default(),
 		blob_base_fee_per_gas: U256::zero(),
-		blob_versioned_hashes: test.transaction.blob_versioned_hashes.clone().unwrap_or_default(),
+		blob_versioned_hashes: test
+			.transaction
+			.blob_versioned_hashes
+			.clone()
+			.unwrap_or_default(),
 		chain_id: U256::one(),
 	};
 
