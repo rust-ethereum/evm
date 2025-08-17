@@ -189,6 +189,7 @@ pub fn run_test(
 		Fork::Berlin => Config::berlin(),
 		Fork::London => Config::london(),
 		Fork::Shanghai => Config::shanghai(),
+		Fork::Cancun => Config::cancun(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
@@ -213,6 +214,13 @@ pub fn run_test(
 		Some(TestExpectException::TE_INSUFFICIENT_ACCOUNT_FUNDS) => return Ok(()),
 
 		_ => (),
+	}
+
+	if test.transaction.blob_versioned_hashes.is_some() {
+		// Rust EVM doesn't deal directly with transactions. Currently we expect
+		// users of Rust EVM to deduct blob costs themselves for TYPE 3
+		// transactions, but this may change in the future.
+		return Ok(())
 	}
 
 	let env = InMemoryEnvironment {
