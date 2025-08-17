@@ -59,7 +59,7 @@ pub static TAGERINE_WHISTLE_CONFIG: Config = Config::tangerine_whistle();
 pub static SPURIOUS_DRAGON_CONFIG: Config = Config::spurious_dragon();
 /// Config for the Byzantium hard fork.
 pub static BYZANTIUM_CONFIG: Config = Config::byzantium();
-/// Config for the Frontier hard fork.
+/// Config for the Petersburg hard fork.
 pub static PETERSBURG_CONFIG: Config = Config::petersburg();
 /// Config for the Istanbul hard fork.
 pub static ISTANBUL_CONFIG: Config = Config::istanbul();
