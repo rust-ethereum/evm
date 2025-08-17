@@ -2,6 +2,9 @@
 
 [![Build Status](https://github.com/rust-ethereum/evm/workflows/Rust/badge.svg)](https://github.com/rust-ethereum/evm/actions?query=workflow%3ARust)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](./LICENSE)
+[![Matrix](https://img.shields.io/matrix/evm%3Amatrix.org)](https://matrix.to/#/#evm:matrix.org)
+[![Crates.io Version](https://img.shields.io/crates/v/evm)](https://crates.io/crates/evm)
+[![docs.rs](https://img.shields.io/docsrs/evm)](https://docs.rs/evm)
 
 Rust EVM, also known as SputnikVM, is a flexible Ethereum Virtual Machine
 interpreter that can be easily customized.
