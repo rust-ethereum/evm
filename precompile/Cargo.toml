@@ -1,6 +1,6 @@
 [package]
 name = "evm-precompile"
-version = "1.0.0"
+version = "1.0.0-dev"
 edition = { workspace = true }
 rust-version = "1.87.0"
 authors = { workspace = true }

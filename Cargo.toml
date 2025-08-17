@@ -22,15 +22,15 @@ repository = "https://github.com/rust-ethereum/evm"
 keywords = ["no_std", "ethereum", "evm"]
 
 [workspace.dependencies]
-evm = { version = "1.0.0", path = ".", default-features = false }
-evm-interpreter = { version = "1.0.0", path = "interpreter", default-features = false }
-evm-precompile = { version = "1.0.0", path = "precompile", default-features = false }
-evm-mainnet = { version = "1.0.0", path = "mainnet", default-features = false }
+evm = { version = "1.0.0-dev", path = ".", default-features = false }
+evm-interpreter = { version = "1.0.0-dev", path = "interpreter", default-features = false }
+evm-precompile = { version = "1.0.0-dev", path = "precompile", default-features = false }
+evm-mainnet = { version = "1.0.0-dev", path = "mainnet", default-features = false }
 evm-compat = { version = "0.1.0", path = "compat", default-features = false }
 
 [package]
 name = "evm"
-version = "1.0.0"
+version = "1.0.0-dev"
 edition = { workspace = true }
 rust-version = { workspace = true }
 license = { workspace = true }
