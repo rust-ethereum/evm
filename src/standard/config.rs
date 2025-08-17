@@ -82,6 +82,10 @@ pub struct Config {
 	pub eip2565_lower_modexp: bool,
 	/// EIP-2930: Optional access list.
 	pub eip2930_access_list: bool,
+	/// EIP-4844: Shard blob.
+	pub eip4844_shard_blob: bool,
+	/// EIP-7516: Blob base fee per gas.
+	pub eip7516_blob_base_fee: bool,
 }
 
 impl Config {
@@ -126,6 +130,8 @@ impl Config {
 			eip2028_transaction_calldata_decrease: false,
 			eip2565_lower_modexp: false,
 			eip2930_access_list: false,
+			eip4844_shard_blob: false,
+			eip7516_blob_base_fee: false,
 		}
 	}
 
@@ -226,7 +232,8 @@ impl Config {
 		config.eip1153_transient_storage = true;
 		config.eip5656_mcopy = true;
 		config.runtime.eip6780_suicide_only_in_same_tx = true;
-		// TODO: EIP-7516.
+		config.eip4844_shard_blob = true;
+		config.eip7516_blob_base_fee = true;
 		config
 	}
 
@@ -408,7 +415,7 @@ impl Config {
 	/// Maximum size limit of init code.
 	pub fn max_initcode_size(&self) -> Option<usize> {
 		if self.eip3860_max_initcode_size {
-			Some(0x6000)
+			Some(0xc000)
 		} else {
 			None
 		}

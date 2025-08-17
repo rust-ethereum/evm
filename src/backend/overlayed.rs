@@ -139,6 +139,14 @@ impl<B: RuntimeEnvironment> RuntimeEnvironment for OverlayedBackend<'_, B> {
 		self.backend.block_base_fee_per_gas()
 	}
 
+	fn blob_base_fee_per_gas(&self) -> U256 {
+		self.backend.blob_base_fee_per_gas()
+	}
+
+	fn blob_versioned_hash(&self, index: U256) -> H256 {
+		self.backend.blob_versioned_hash(index)
+	}
+
 	fn chain_id(&self) -> U256 {
 		self.backend.chain_id()
 	}
@@ -303,14 +311,14 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn mark_delete_reset(&mut self, address: H160) {
-		self.substate.balances.insert(address, U256::zero());
-
 		if self.config.eip6780_suicide_only_in_same_tx {
 			if self.created(address) {
 				self.substate.deletes.insert(address);
+				self.substate.balances.insert(address, U256::zero());
 			}
 		} else {
 			self.substate.deletes.insert(address);
+			self.substate.balances.insert(address, U256::zero());
 		}
 	}
 

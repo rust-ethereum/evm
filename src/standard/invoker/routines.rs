@@ -86,16 +86,6 @@ where
 		TouchKind::StateChange,
 	);
 
-	if let Some(limit) = AsRef::<Config>::as_ref(&state).max_initcode_size()
-		&& init_code.len() > limit
-	{
-		return Ok(InvokerControl::DirectExit(InvokerExit {
-			result: Err(ExitException::CreateContractLimit.into()),
-			substate: Some(state),
-			retval: Vec::new(),
-		}));
-	}
-
 	match handler.transfer(transfer) {
 		Ok(()) => (),
 		Err(err) => {

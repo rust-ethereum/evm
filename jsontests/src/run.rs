@@ -188,6 +188,8 @@ pub fn run_test(
 		Fork::Istanbul => Config::istanbul(),
 		Fork::Berlin => Config::berlin(),
 		Fork::London => Config::london(),
+		Fork::Shanghai => Config::shanghai(),
+		Fork::Cancun => Config::cancun(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
@@ -206,8 +208,19 @@ pub fn run_test(
 		Some(TestExpectException::TR_NoFunds) => return Ok(()),
 		Some(TestExpectException::TR_GasLimitReached) => return Ok(()),
 		Some(TestExpectException::TR_TipGtFeeCap) => return Ok(()),
+		Some(TestExpectException::TE_TYPE_3_TX_PRE_FORK) => return Ok(()),
+		Some(TestExpectException::TE_TYPE_3_TX_PRE_FORK_OR_TX_ZERO_BLOBS) => return Ok(()),
+		Some(TestExpectException::TE_TYPE_3_TX_BLOB_COUNT_EXCEEDED) => return Ok(()),
+		Some(TestExpectException::TE_INSUFFICIENT_ACCOUNT_FUNDS) => return Ok(()),
 
 		_ => (),
+	}
+
+	if test.transaction.blob_versioned_hashes.is_some() {
+		// Rust EVM doesn't deal directly with transactions. Currently we expect
+		// users of Rust EVM to deduct blob costs themselves for TYPE 3
+		// transactions, but this may change in the future.
+		return Ok(());
 	}
 
 	let env = InMemoryEnvironment {
@@ -229,6 +242,12 @@ pub fn run_test(
 		block_randomness: test.env.current_random,
 		block_gas_limit: test.env.current_gas_limit,
 		block_base_fee_per_gas: test.env.current_base_fee.unwrap_or_default(),
+		blob_base_fee_per_gas: U256::zero(),
+		blob_versioned_hashes: test
+			.transaction
+			.blob_versioned_hashes
+			.clone()
+			.unwrap_or_default(),
 		chain_id: U256::one(),
 	};
 
@@ -366,11 +385,11 @@ pub fn run_test(
 
 	let state_root = crate::hash::state_root(&run_backend);
 
-	if test.post.expect_exception.is_some() {
+	if let Some(expect_exception) = test.post.expect_exception {
 		if run_result.is_err() {
 			return Ok(());
 		} else {
-			return Err(TestError::ExpectException.into());
+			return Err(TestError::ExpectException(expect_exception).into());
 		}
 	}
 
@@ -421,6 +440,7 @@ pub fn run_test(
 							to: test.transaction.to,
 							value: vec![test.transaction.value],
 							access_lists: Some(vec![Some(test.transaction.access_list)]),
+							blob_versioned_hashes: test.transaction.blob_versioned_hashes,
 						},
 					},
 				);

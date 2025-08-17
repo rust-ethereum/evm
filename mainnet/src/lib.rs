@@ -51,8 +51,26 @@ pub static MAINNET_INVOKER: Invoker<
 
 /// Config for the Frontier hard fork.
 pub static FRONTIER_CONFIG: Config = Config::frontier();
+/// Config for the Homestead hard fork.
+pub static HOMESTEAD_CONFIG: Config = Config::homestead();
+/// Config for the TangerineWhistle hard fork.
+pub static TAGERINE_WHISTLE_CONFIG: Config = Config::tangerine_whistle();
+/// Config for the SpuriousDragon hard fork.
+pub static SPURIOUS_DRAGON_CONFIG: Config = Config::spurious_dragon();
+/// Config for the Byzantium hard fork.
+pub static BYZANTIUM_CONFIG: Config = Config::byzantium();
+/// Config for the Frontier hard fork.
+pub static PETERSBURG_CONFIG: Config = Config::petersburg();
 /// Config for the Istanbul hard fork.
 pub static ISTANBUL_CONFIG: Config = Config::istanbul();
+/// Config for the Berlin hard fork.
+pub static BERLIN_CONFIG: Config = Config::berlin();
+/// Config for the London hard fork.
+pub static LONDON_CONFIG: Config = Config::london();
+/// Config for the Shanghai hard fork.
+pub static SHANGHAI_CONFIG: Config = Config::shanghai();
+/// Config for the Cancun hard fork.
+pub static CANCUN_CONFIG: Config = Config::cancun();
 
 const TRANSACT_MAINNET_HEAP_DEPTH: Option<usize> = Some(4);
 /// Same as [transact], but use all `'static` lifetime to avoid a few stack allocations.

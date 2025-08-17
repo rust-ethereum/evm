@@ -106,6 +106,7 @@ impl TestMulti {
 								.unwrap_or_default(),
 							None => Vec::new(),
 						},
+						blob_versioned_hashes: self.transaction.blob_versioned_hashes.clone(),
 					},
 				});
 			}
@@ -219,7 +220,7 @@ pub enum TestExpectException {
 	#[serde(
 		rename = "TransactionException.TYPE_3_TX_PRE_FORK|TransactionException.TYPE_3_TX_ZERO_BLOBS"
 	)]
-	TE_TYPE_3_TX_PER_FORK_OR_TX_ZERO_BLOBS,
+	TE_TYPE_3_TX_PRE_FORK_OR_TX_ZERO_BLOBS,
 	#[serde(rename = "TransactionException.INSUFFICIENT_MAX_FEE_PER_GAS")]
 	TE_INSUFFICIENT_MAX_FEE_PER_GAS,
 	#[serde(rename = "TransactionException.TYPE_3_TX_ZERO_BLOBS")]
@@ -227,7 +228,7 @@ pub enum TestExpectException {
 	#[serde(rename = "TransactionException.TYPE_3_TX_BLOB_COUNT_EXCEEDED")]
 	TE_TYPE_3_TX_BLOB_COUNT_EXCEEDED,
 	#[serde(rename = "TransactionException.TYPE_3_TX_PRE_FORK")]
-	TE_TYPE_3_TX_PER_FORK,
+	TE_TYPE_3_TX_PRE_FORK,
 	#[serde(rename = "TransactionException.INITCODE_SIZE_EXCEEDED")]
 	TE_INITCODE_SIZE_EXCEEDED,
 	#[serde(rename = "TransactionException.INTRINSIC_GAS_TOO_LOW")]
@@ -268,6 +269,7 @@ pub struct TestMultiTransaction {
 	pub gas_price: Option<U256>,
 	pub max_fee_per_gas: Option<U256>,
 	pub max_priority_fee_per_gas: Option<U256>,
+	pub blob_versioned_hashes: Option<Vec<H256>>,
 	pub nonce: U256,
 	pub secret_key: H256,
 	pub sender: H160,
@@ -322,6 +324,7 @@ pub struct TestTransaction {
 	pub to: Option<H160>,
 	pub value: MaybeError<U256>,
 	pub access_list: Vec<TestAccessListItem>,
+	pub blob_versioned_hashes: Option<Vec<H256>>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Deserialize, Serialize)]

@@ -294,20 +294,30 @@ where
 			TransactArgsCallCreate::Call { address, .. } => *address,
 			TransactArgsCallCreate::Create {
 				salt, init_code, ..
-			} => match salt {
-				Some(salt) => {
-					let scheme = CreateScheme::Create2 {
-						caller,
-						code_hash: H256::from_slice(Keccak256::digest(init_code).as_slice()),
-						salt: *salt,
-					};
-					scheme.address(handler)
+			} => {
+				if let Some(limit) = AsRef::<TransactArgs<'config>>::as_ref(&args)
+					.config
+					.max_initcode_size()
+					&& init_code.len() > limit
+				{
+					return Err(ExitException::CreateContractLimit.into());
 				}
-				None => {
-					let scheme = CreateScheme::Legacy { caller };
-					scheme.address(handler)
+
+				match salt {
+					Some(salt) => {
+						let scheme = CreateScheme::Create2 {
+							caller,
+							code_hash: H256::from_slice(Keccak256::digest(init_code).as_slice()),
+							salt: *salt,
+						};
+						scheme.address(handler)
+					}
+					None => {
+						let scheme = CreateScheme::Legacy { caller };
+						scheme.address(handler)
+					}
 				}
-			},
+			}
 		};
 		let value = AsRef::<TransactArgs>::as_ref(&args).value;
 		let gas_limit = AsRef::<TransactArgs>::as_ref(&args).gas_limit;
@@ -678,6 +688,12 @@ where
 				let caller = create_trap_data.scheme.caller();
 				let code = create_trap_data.code.clone();
 				let value = create_trap_data.value;
+
+				if let Some(limit) = AsRef::<Config>::as_ref(&machine.state()).max_initcode_size()
+					&& code.len() > limit
+				{
+					return Capture::Exit(Err(ExitException::CreateContractLimit.into()));
+				}
 
 				let substate = match machine.state_mut().substate(
 					RuntimeState {

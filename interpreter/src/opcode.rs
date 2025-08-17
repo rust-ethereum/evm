@@ -291,6 +291,10 @@ impl Opcode {
 	pub const SELFBALANCE: Opcode = Opcode(0x47);
 	/// `BASEFEE`
 	pub const BASEFEE: Opcode = Opcode(0x48);
+	/// `BLOBHASH`
+	pub const BLOBHASH: Opcode = Opcode(0x49);
+	/// `BLOBBASEFEE`
+	pub const BLOBBASEFEE: Opcode = Opcode(0x4a);
 
 	/// `SLOAD`
 	pub const SLOAD: Opcode = Opcode(0x54);

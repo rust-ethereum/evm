@@ -25,6 +25,10 @@ pub struct InMemoryEnvironment {
 	pub block_gas_limit: U256,
 	/// Block base fee per gas.
 	pub block_base_fee_per_gas: U256,
+	/// Blob base fee per gas.
+	pub blob_base_fee_per_gas: U256,
+	/// Blob versioned hashes.
+	pub blob_versioned_hashes: Vec<H256>,
 	/// Chain ID.
 	pub chain_id: U256,
 }
@@ -145,6 +149,18 @@ impl RuntimeEnvironment for InMemoryBackend {
 
 	fn block_base_fee_per_gas(&self) -> U256 {
 		self.environment.block_base_fee_per_gas
+	}
+
+	fn blob_base_fee_per_gas(&self) -> U256 {
+		self.environment.blob_base_fee_per_gas
+	}
+
+	fn blob_versioned_hash(&self, index: U256) -> H256 {
+		if index < U256::from(self.environment.blob_versioned_hashes.len()) {
+			self.environment.blob_versioned_hashes[index.as_usize()]
+		} else {
+			H256::default()
+		}
 	}
 
 	fn chain_id(&self) -> U256 {
