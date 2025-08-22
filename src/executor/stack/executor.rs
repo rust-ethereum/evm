@@ -852,8 +852,10 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 
 			if !is_empty_account {
 				// Issue refund for this non-empty account
-				let refund_amount =
-					self.config.gas_per_empty_account_cost - self.config.gas_auth_base_cost;
+				let refund_amount = self
+					.config
+					.gas_per_empty_account_cost
+					.saturating_sub(self.config.gas_auth_base_cost);
 				self.state
 					.metadata_mut()
 					.gasometer
