@@ -32,7 +32,7 @@ pub struct RuntimeConfig {
 	pub eip161_empty_check: bool,
 	/// EIP-7610: check whether storage is empty in create collision logic.
 	pub eip7610_create_check_storage: bool,
-	/// EIP-6780: selfdestruct deletet contract only if called in the same tx as creation
+	/// EIP-6780: selfdestruct deletes contract only if called in the same tx as creation
 	pub eip6780_suicide_only_in_same_tx: bool,
 	/// EIP-3651
 	pub eip3651_warm_coinbase_address: bool,
