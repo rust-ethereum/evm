@@ -49,7 +49,7 @@ impl<G: GasMutState> PurePrecompile<G> for ECRecover {
 			}
 
 			let recid = RecoveryId::from_byte(raw_recid)
-				.ok_or(ExitException::Other("invalid recoverty id".into()))?; // v
+				.ok_or(ExitException::Other("invalid recovery id".into()))?; // v
 
 			let pubkey = VerifyingKey::recover_from_prehash(&msg[..], &sig, recid)
 				.map_err(|_| ExitException::Other("recover key failed".into()))?;
