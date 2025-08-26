@@ -503,7 +503,7 @@ pub fn eval_address<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacke
 	self::system::address(machine)
 }
 
-/// `BLANACE`
+/// `BALANCE`
 pub fn eval_balance<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	machine: &mut Machine<S>,
 	handle: &mut H,
