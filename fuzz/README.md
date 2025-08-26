@@ -12,7 +12,7 @@ The harness has four invariants:
 4. The execution time MUST be within a reasonable threshold.
 
 ## Analysis
-Additionally, the harness is instrumented with memory profiling to spot anomoalies.
+Additionally, the harness is instrumented with memory profiling to spot anomalies.
 When the inputs are run with ``cargo ziggy run``, the harness will print
 execution time, and consumption of memory and storage. This can be analyzed
 manually to spot any anomalies.
