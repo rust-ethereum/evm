@@ -17,7 +17,7 @@ multiple rewrites over the years to accommodate for different requirements,
 when we successfully tested it by integrating Geth to sync the mainnet.
 
 The current rewrite is used in production for the Frontier project (the
-Ethereum-compatibility layer for Polkadot). We pass the Ethereum test suite. PR
+Ethereum-compatibility layer for Polkadot). We pass the Ethereum test suite. PRs
 for fixes are welcomed.
 
 ## Features
