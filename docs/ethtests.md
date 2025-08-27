@@ -4,7 +4,7 @@ When encountering a failed Ethereum test in the test suite repo, the following
 method can be used for debugging.
 
 Run the `jsontests` tool with `--debug` and `--write-failed` flag. This will
-point out the entire trace and write the last failed test in to the file
+point out the entire trace and write the last failed test into the file
 specified. For example:
 
 ```bash
