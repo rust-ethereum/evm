@@ -329,6 +329,28 @@ impl<'config> Gasometer<'config> {
 			snapshot: self.snapshot(),
 		});
 
+		// EIP-7623 validation: Check if gas limit meets floor requirement
+		if self.config.has_eip_7623 {
+			let tokens_in_calldata = match cost {
+				TransactionCost::Call { zero_data_len, non_zero_data_len, .. } => {
+					zero_data_len as u64 + non_zero_data_len as u64 * 4
+				}
+				TransactionCost::Create { zero_data_len, non_zero_data_len, .. } => {
+					zero_data_len as u64 + non_zero_data_len as u64 * 4
+				}
+			};
+			
+			if tokens_in_calldata > 0 {
+				let min_floor_cost = 21000 + tokens_in_calldata * self.config.gas_calldata_floor_per_token;
+				let required_gas_limit = gas_cost.max(min_floor_cost);
+				
+				if self.gas_limit < required_gas_limit {
+					self.inner = Err(ExitError::OutOfGas);
+					return Err(ExitError::OutOfGas);
+				}
+			}
+		}
+
 		if self.gas() < gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
 			return Err(ExitError::OutOfGas);
@@ -392,18 +414,17 @@ impl<'config> Gasometer<'config> {
 			.saturating_sub(base_cost)
 			.saturating_sub(standard_calldata_cost);
 
-		// Calculate floor cost
-		let tokens_in_calldata = (inner.zero_data_len + inner.non_zero_data_len) as u64;
+		// Calculate floor cost using EIP-7623 token formula
+		let tokens_in_calldata = inner.zero_data_len as u64 + inner.non_zero_data_len as u64 * 4;
 		let floor_cost = tokens_in_calldata * gas_calldata_floor_per_token;
 
-		// Apply EIP-7623 formula
+		// Apply EIP-7623 formula: 21000 + max(standard_calldata + execution, floor_calldata)
 		let standard_total = standard_calldata_cost + execution_gas;
 		if floor_cost > standard_total {
-			// Add the difference to used_gas
-			// Note: We don't check gas_limit here since we're post-execution
-			// and the transaction has already completed successfully
-			let adjustment = floor_cost - standard_total;
-			inner.used_gas += adjustment;
+			// Calculate what the final cost should be
+			let target_total = base_cost + floor_cost;
+			// Adjust used_gas to match the target
+			inner.used_gas = target_total;
 		}
 
 		Ok(())

@@ -17,8 +17,9 @@ mod eip7623_tests {
 		assert!(gasometer.record_transaction(cost).is_ok());
 
 		// Standard cost: 21000 + 5*4 + 5*16 = 21000 + 20 + 80 = 21100
-		// Floor cost: 10 * 10 = 100
-		// Max(21100, 100) = 21100
+		// Tokens: 5 + 5*4 = 25
+		// Floor cost: 25 * 10 = 250
+		// Max(21100, 250) = 21100
 		assert_eq!(gasometer.total_used_gas(), 21100);
 	}
 
@@ -93,8 +94,9 @@ mod eip7623_tests {
 		assert!(gasometer.record_transaction(cost).is_ok());
 
 		// Standard cost: 53000 + 5*4 + 5*16 = 53000 + 20 + 80 = 53100
-		// Floor cost: 10 * 10 = 100
-		// Max(53100, 100) = 53100
+		// Tokens: 5 + 5*4 = 25
+		// Floor cost: 25 * 10 = 250
+		// Max(53100, 250) = 53100
 		assert_eq!(gasometer.total_used_gas(), 53102);
 	}
 
@@ -124,13 +126,21 @@ mod eip7623_tests {
 		data.extend(vec![0xFF; 1000]);
 		let cost = call_transaction_cost(&data, &[], &[]);
 
-		let mut gasometer = Gasometer::new(100_000, &config);
+		let mut gasometer = Gasometer::new(80_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
 
 		// Standard cost: 21000 + 1000*4 + 1000*16 = 21000 + 4000 + 16000 = 41000
-		// Floor cost: 2000 * 10 = 20000
-		// Max(41000, 20000) = 41000
+		// Tokens: 1000 + 1000*4 = 5000
+		// Floor cost: 5000 * 10 = 50000
+		// Since floor cost (50000) > standard cost (41000), floor wins
+		// But this happens in post_execution, so initial cost is still 41000
 		assert_eq!(gasometer.total_used_gas(), 41000);
+		
+		// Apply post-execution adjustment
+		assert!(gasometer.post_execution().is_ok());
+		
+		// After adjustment: 21000 + floor cost of 50000 = 71000
+		assert_eq!(gasometer.total_used_gas(), 71000);
 	}
 
 	#[test]
@@ -150,8 +160,9 @@ mod eip7623_tests {
 		assert!(gasometer.record_transaction(cost).is_ok());
 
 		// Standard cost: 21000 + 0*4 + 5*16 + 2*2400 + 3*1900 = 21000 + 80 + 4800 + 5700 = 31580
-		// Floor cost: 5 * 10 = 50
-		// Max(31580, 50) = 31580
+		// Tokens: 0 + 5*4 = 20
+		// Floor cost: 20 * 10 = 200
+		// Max(31580, 200) = 31580
 		assert_eq!(gasometer.total_used_gas(), 31580);
 	}
 
@@ -186,5 +197,56 @@ mod eip7623_tests {
 		// No adjustment needed (they're equal)
 		// Total: 35000 + 21000 = 56000
 		assert_eq!(gasometer.total_used_gas(), 56000);
+	}
+
+	#[test]
+	fn test_eip7623_insufficient_gas_limit() {
+		// Test that transactions with insufficient gas limit are rejected
+		let config = Config::pectra();
+
+		// Large calldata that requires high floor cost
+		let data = vec![0; 5000]; // 5000 tokens
+		let cost = call_transaction_cost(&data, &[], &[]);
+
+		// Tokens: 5000 + 0*4 = 5000
+		// Floor cost: 21000 + 5000 * 10 = 71000
+		// Set gas limit below floor requirement
+		let mut gasometer = Gasometer::new(70_000, &config);
+		
+		// Should fail with OutOfGas due to insufficient gas limit
+		assert!(gasometer.record_transaction(cost).is_err());
+	}
+
+	#[test]
+	fn test_eip7623_sufficient_gas_limit_with_floor() {
+		// Test that transactions with sufficient gas limit but requiring floor adjustment work
+		let config = Config::pectra();
+
+		// Large calldata requiring floor cost
+		let data = vec![0; 5000]; // 5000 tokens
+		let cost = call_transaction_cost(&data, &[], &[]);
+
+		// Tokens: 5000 + 0*4 = 5000
+		// Floor cost: 21000 + 5000 * 10 = 71000
+		// Set gas limit above floor requirement
+		let mut gasometer = Gasometer::new(80_000, &config);
+		assert!(gasometer.record_transaction(cost).is_ok());
+		
+		// Initially: 21000 + 5000*4 = 41000
+		assert_eq!(gasometer.total_used_gas(), 41000);
+		
+		// Add some execution gas
+		assert!(gasometer.record_cost(5000).is_ok());
+		
+		// Apply EIP-7623 adjustment
+		assert!(gasometer.post_execution().is_ok());
+
+		// After adjustment:
+		// Standard: 5000*4 + 5000 = 25000
+		// Tokens: 5000 + 0*4 = 5000
+		// Floor: 5000 * 10 = 50000
+		// Adjustment: 50000 - 25000 = 25000
+		// Total: 41000 + 5000 + 25000 = 71000
+		assert_eq!(gasometer.total_used_gas(), 71000);
 	}
 }
