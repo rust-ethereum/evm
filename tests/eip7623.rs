@@ -33,11 +33,21 @@ mod eip7623_tests {
 
 		let mut gasometer = Gasometer::new(100_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
+		
+		// Initially only standard cost is applied: 21000 + 3000*4 = 33000
+		assert_eq!(gasometer.total_used_gas(), 33000);
+		
+		// Simulate some execution gas (e.g., 5000)
+		assert!(gasometer.record_cost(5000).is_ok());
+		
+		// Apply post-execution adjustments
+		assert!(gasometer.post_execution().is_ok());
 
-		// Standard calldata cost: 3000*4 = 12000
-		// Floor calldata cost: 3000 * 10 = 30000
-		// Calldata cost: Max(12000, 30000) = 30000
-		// Total: 21000 + 30000 = 51000
+		// After adjustment:
+		// Standard: 3000*4 + 5000 = 17000
+		// Floor: 3000 * 10 = 30000
+		// Adjustment: 30000 - 17000 = 13000
+		// Total: 33000 + 5000 + 13000 = 51000
 		assert_eq!(gasometer.total_used_gas(), 51000);
 	}
 
@@ -52,11 +62,21 @@ mod eip7623_tests {
 
 		let mut gasometer = Gasometer::new(200_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
+		
+		// Initially only standard cost: 21000 + 10000*4 = 61000
+		assert_eq!(gasometer.total_used_gas(), 61000);
+		
+		// Simulate some execution gas
+		assert!(gasometer.record_cost(5000).is_ok());
+		
+		// Apply EIP-7623 adjustment
+		assert!(gasometer.post_execution().is_ok());
 
-		// Standard calldata cost: 10000*4 = 40000
-		// Floor calldata cost: 10000 * 10 = 100000
-		// Calldata cost: Max(40000, 100000) = 100000
-		// Total: 21000 + 100000 = 121000
+		// After adjustment:
+		// Standard: 10000*4 + 5000 = 45000
+		// Floor: 10000 * 10 = 100000
+		// Adjustment: 100000 - 45000 = 55000
+		// Total: 61000 + 5000 + 55000 = 121000
 		assert_eq!(gasometer.total_used_gas(), 121000);
 	}
 
@@ -141,19 +161,30 @@ mod eip7623_tests {
 		let config = Config::pectra();
 
 		// For zero bytes: standard = 4, floor = 10
-		// At equilibrium for calldata: n*4 = n*10
-		// This never happens since 10 > 4
-		// So let's test a case where they're close
+		// With execution gas, we can reach equilibrium
 		let data = vec![0; 3500];
 		let cost = call_transaction_cost(&data, &[], &[]);
 
 		let mut gasometer = Gasometer::new(100_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
+		
+		// Initially: 21000 + 3500*4 = 35000
+		assert_eq!(gasometer.total_used_gas(), 35000);
+		
+		// Add execution gas to reach equilibrium
+		// Floor: 3500 * 10 = 35000
+		// Standard calldata: 3500 * 4 = 14000
+		// Need execution gas: 35000 - 14000 = 21000
+		assert!(gasometer.record_cost(21000).is_ok());
+		
+		// Apply EIP-7623 adjustment
+		assert!(gasometer.post_execution().is_ok());
 
-		// Standard calldata cost: 3500*4 = 14000
-		// Floor calldata cost: 3500 * 10 = 35000
-		// Calldata cost: Max(14000, 35000) = 35000
-		// Total: 21000 + 35000 = 56000
+		// After adjustment:
+		// Standard: 14000 + 21000 = 35000
+		// Floor: 35000
+		// No adjustment needed (they're equal)
+		// Total: 35000 + 21000 = 56000
 		assert_eq!(gasometer.total_used_gas(), 56000);
 	}
 }

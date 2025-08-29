@@ -496,7 +496,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		match self.create_inner(
+		let result = match self.create_inner(
 			caller,
 			CreateScheme::Legacy { caller },
 			value,
@@ -504,14 +504,21 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Some(gas_limit),
 			false,
 		) {
-			Capture::Exit((s, _, v)) => emit_exit!(s, v),
+			Capture::Exit((s, _, v)) => (s, v),
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs, None);
-				emit_exit!(s, v)
+				(s, v)
 			}
+		};
+
+		// Apply post-execution adjustments
+		if let Err(e) = self.state.metadata_mut().gasometer.post_execution() {
+			return emit_exit!(e.into(), Vec::new());
 		}
+
+		emit_exit!(result.0, result.1)
 	}
 
 	/// Execute a `CREATE2` transaction.
@@ -560,7 +567,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		match self.create_inner(
+		let result = match self.create_inner(
 			caller,
 			CreateScheme::Create2 {
 				caller,
@@ -572,14 +579,21 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			Some(gas_limit),
 			false,
 		) {
-			Capture::Exit((s, _, v)) => emit_exit!(s, v),
+			Capture::Exit((s, _, v)) => (s, v),
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs, None);
-				emit_exit!(s, v)
+				(s, v)
 			}
+		};
+
+		// Apply post-execution adjustments
+		if let Err(e) = self.state.metadata_mut().gasometer.post_execution() {
+			return emit_exit!(e.into(), Vec::new());
 		}
+
+		emit_exit!(result.0, result.1)
 	}
 
 	/// Execute a `CREATE` transaction that force the contract address
@@ -714,7 +728,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			apparent_value: value,
 		};
 
-		match self.call_inner(
+		let result = match self.call_inner(
 			address,
 			Some(Transfer {
 				source: caller,
@@ -728,14 +742,21 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			false,
 			context,
 		) {
-			Capture::Exit((s, v)) => emit_exit!(s, v),
+			Capture::Exit((s, v)) => (s, v),
 			Capture::Trap(rt) => {
 				let mut cs = Vec::with_capacity(DEFAULT_CALL_STACK_CAPACITY);
 				cs.push(rt.0);
 				let (s, _, v) = self.execute_with_call_stack(&mut cs, Some(caller));
-				emit_exit!(s, v)
+				(s, v)
 			}
+		};
+
+		// Apply post-execution adjustments
+		if let Err(e) = self.state.metadata_mut().gasometer.post_execution() {
+			return emit_exit!(e.into(), Vec::new());
 		}
+
+		emit_exit!(result.0, result.1)
 	}
 
 	/// Get used gas for the current executor, given the price.

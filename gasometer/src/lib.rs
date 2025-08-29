@@ -83,6 +83,8 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
+				zero_data_len: 0,
+				non_zero_data_len: 0,
 			}),
 		}
 	}
@@ -249,15 +251,13 @@ impl<'config> Gasometer<'config> {
 				access_list_storage_len,
 				authorization_list_len,
 			} => {
-				let mut calldata_cost = zero_data_len as u64
-					* self.config.gas_transaction_zero_data
+				let calldata_cost = zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
-				// EIP-7623: Apply floor cost for calldata if enabled
+				// Store calldata info for EIP-7623 adjustment after execution
 				if self.config.has_eip_7623 {
-					let tokens_in_calldata = (zero_data_len + non_zero_data_len) as u64;
-					let floor_cost = tokens_in_calldata * self.config.gas_calldata_floor_per_token;
-					calldata_cost = calldata_cost.max(floor_cost);
+					self.inner_mut()?.zero_data_len = zero_data_len;
+					self.inner_mut()?.non_zero_data_len = non_zero_data_len;
 				}
 
 				#[deny(clippy::let_and_return)]
@@ -289,15 +289,13 @@ impl<'config> Gasometer<'config> {
 				initcode_cost,
 				authorization_list_len,
 			} => {
-				let mut calldata_cost = zero_data_len as u64
-					* self.config.gas_transaction_zero_data
+				let calldata_cost = zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
-				// EIP-7623: Apply floor cost for calldata if enabled
+				// Store calldata info for EIP-7623 adjustment after execution
 				if self.config.has_eip_7623 {
-					let tokens_in_calldata = (zero_data_len + non_zero_data_len) as u64;
-					let floor_cost = tokens_in_calldata * self.config.gas_calldata_floor_per_token;
-					calldata_cost = calldata_cost.max(floor_cost);
+					self.inner_mut()?.zero_data_len = zero_data_len;
+					self.inner_mut()?.non_zero_data_len = non_zero_data_len;
 				}
 
 				let mut cost = self.config.gas_transaction_create
@@ -348,6 +346,67 @@ impl<'config> Gasometer<'config> {
 			used_gas: inner.used_gas,
 			refunded_gas: inner.refunded_gas,
 		})
+	}
+
+	/// Apply post-execution adjustments for various EIPs.
+	/// This method handles gas adjustments that need to be calculated after transaction execution.
+	pub fn post_execution(&mut self) -> Result<(), ExitError> {
+		// Apply EIP-7623 adjustments
+		if self.config.has_eip_7623 {
+			self.apply_eip_7623_adjustment()?;
+		}
+
+		Ok(())
+	}
+
+	/// Apply EIP-7623 adjustment after execution.
+	fn apply_eip_7623_adjustment(&mut self) -> Result<(), ExitError> {
+		// Get values from config before borrowing inner
+		let gas_transaction_call = self.config.gas_transaction_call;
+		let gas_transaction_create = self.config.gas_transaction_create;
+		let gas_transaction_zero_data = self.config.gas_transaction_zero_data;
+		let gas_transaction_non_zero_data = self.config.gas_transaction_non_zero_data;
+		let gas_calldata_floor_per_token = self.config.gas_calldata_floor_per_token;
+
+		let inner = self.inner_mut()?;
+
+		// Skip if no calldata was recorded
+		if inner.zero_data_len == 0 && inner.non_zero_data_len == 0 {
+			return Ok(());
+		}
+
+		// Calculate standard calldata cost
+		let standard_calldata_cost = inner.zero_data_len as u64 * gas_transaction_zero_data
+			+ inner.non_zero_data_len as u64 * gas_transaction_non_zero_data;
+
+		// Calculate execution gas (excluding the initial 21000 and calldata costs)
+		let base_cost = if gas_transaction_call == 21000 {
+			21000
+		} else {
+			gas_transaction_create // For create transactions
+		};
+
+		// execution_gas = total_used_gas - base_cost - standard_calldata_cost
+		let execution_gas = inner
+			.used_gas
+			.saturating_sub(base_cost)
+			.saturating_sub(standard_calldata_cost);
+
+		// Calculate floor cost
+		let tokens_in_calldata = (inner.zero_data_len + inner.non_zero_data_len) as u64;
+		let floor_cost = tokens_in_calldata * gas_calldata_floor_per_token;
+
+		// Apply EIP-7623 formula
+		let standard_total = standard_calldata_cost + execution_gas;
+		if floor_cost > standard_total {
+			// Add the difference to used_gas
+			// Note: We don't check gas_limit here since we're post-execution
+			// and the transaction has already completed successfully
+			let adjustment = floor_cost - standard_total;
+			inner.used_gas += adjustment;
+		}
+
+		Ok(())
 	}
 }
 
@@ -822,6 +881,10 @@ struct Inner<'config> {
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
+	/// EIP-7623: Track zero data length for floor cost calculation
+	zero_data_len: usize,
+	/// EIP-7623: Track non-zero data length for floor cost calculation
+	non_zero_data_len: usize,
 }
 
 impl Inner<'_> {
