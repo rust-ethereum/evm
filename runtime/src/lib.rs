@@ -248,6 +248,8 @@ pub struct Config {
 	pub gas_auth_base_cost: u64,
 	/// EIP-7702: Gas cost per empty account in authorization list
 	pub gas_per_empty_account_cost: u64,
+	/// EIP-7623: Gas cost floor per calldata token (zero or non-zero byte)
+	pub gas_calldata_floor_per_token: u64,
 	/// Whether to throw out of gas error when
 	/// CALL/CALLCODE/DELEGATECALL requires more than maximum amount
 	/// of gas.
@@ -300,6 +302,8 @@ pub struct Config {
 	pub has_eip_6780: bool,
 	/// Has EIP-7702. See [EIP-7702](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7702.md)
 	pub has_eip_7702: bool,
+	/// Has EIP-7623. See [EIP-7623](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7623.md)
+	pub has_eip_7623: bool,
 }
 
 impl Config {
@@ -360,6 +364,8 @@ impl Config {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -420,6 +426,8 @@ impl Config {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -470,6 +478,8 @@ impl Config {
 			has_eip_7702,
 			gas_auth_base_cost,
 			gas_per_empty_account_cost,
+			has_eip_7623,
+			gas_calldata_floor_per_token,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -539,6 +549,8 @@ impl Config {
 			has_eip_7702,
 			gas_auth_base_cost,
 			gas_per_empty_account_cost,
+			has_eip_7623,
+			gas_calldata_floor_per_token,
 		}
 	}
 }
@@ -561,6 +573,8 @@ struct DerivedConfigInputs {
 	has_eip_7702: bool,
 	gas_auth_base_cost: u64,
 	gas_per_empty_account_cost: u64,
+	has_eip_7623: bool,
+	gas_calldata_floor_per_token: u64,
 }
 
 impl DerivedConfigInputs {
@@ -581,6 +595,8 @@ impl DerivedConfigInputs {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -601,6 +617,8 @@ impl DerivedConfigInputs {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -621,6 +639,8 @@ impl DerivedConfigInputs {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -642,6 +662,8 @@ impl DerivedConfigInputs {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -663,6 +685,8 @@ impl DerivedConfigInputs {
 			has_eip_7702: false,
 			gas_auth_base_cost: 0,
 			gas_per_empty_account_cost: 0,
+			has_eip_7623: false,
+			gas_calldata_floor_per_token: 0,
 		}
 	}
 
@@ -687,6 +711,8 @@ impl DerivedConfigInputs {
 			gas_auth_base_cost: 12500,
 			// PER_EMPTY_ACCOUNT_COST from EIP-7702
 			gas_per_empty_account_cost: 25000,
+			has_eip_7623: true,
+			gas_calldata_floor_per_token: 10,
 		}
 	}
 }

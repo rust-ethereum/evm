@@ -249,11 +249,21 @@ impl<'config> Gasometer<'config> {
 				access_list_storage_len,
 				authorization_list_len,
 			} => {
+				let mut calldata_cost = zero_data_len as u64
+					* self.config.gas_transaction_zero_data
+					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
+
+				// EIP-7623: Apply floor cost for calldata if enabled
+				if self.config.has_eip_7623 {
+					let tokens_in_calldata = (zero_data_len + non_zero_data_len) as u64;
+					let floor_cost = tokens_in_calldata * self.config.gas_calldata_floor_per_token;
+					calldata_cost = calldata_cost.max(floor_cost);
+				}
+
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
-					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
-					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
-					+ access_list_address_len as u64 * self.config.gas_access_list_address
+					+ calldata_cost + access_list_address_len as u64
+					* self.config.gas_access_list_address
 					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
 					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
 
@@ -279,12 +289,23 @@ impl<'config> Gasometer<'config> {
 				initcode_cost,
 				authorization_list_len,
 			} => {
+				let mut calldata_cost = zero_data_len as u64
+					* self.config.gas_transaction_zero_data
+					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
+
+				// EIP-7623: Apply floor cost for calldata if enabled
+				if self.config.has_eip_7623 {
+					let tokens_in_calldata = (zero_data_len + non_zero_data_len) as u64;
+					let floor_cost = tokens_in_calldata * self.config.gas_calldata_floor_per_token;
+					calldata_cost = calldata_cost.max(floor_cost);
+				}
+
 				let mut cost = self.config.gas_transaction_create
-					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
-					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
-					+ access_list_address_len as u64 * self.config.gas_access_list_address
+					+ calldata_cost + access_list_address_len as u64
+					* self.config.gas_access_list_address
 					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
 					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
+
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
 				}
