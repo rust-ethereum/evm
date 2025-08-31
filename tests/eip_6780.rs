@@ -76,7 +76,7 @@ fn self_destruct_before_cancun() {
 	let (mut backend, changeset) = overlayed_backend.deconstruct();
 	backend.apply_overlayed(&changeset);
 
-	// Call Self destruct in anothor transaction
+	// Call Self destruct in another transaction
 	let mut overlayed_backend = OverlayedBackend::new(backend, &config.runtime);
 	let args = TransactArgs {
 		call_create: TransactArgsCallCreate::Call {
