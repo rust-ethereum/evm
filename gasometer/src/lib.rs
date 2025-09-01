@@ -83,8 +83,7 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
-				zero_data_len: 0,
-				non_zero_data_len: 0,
+				tracker: GasTracker::new(),
 			}),
 		}
 	}
@@ -254,11 +253,8 @@ impl<'config> Gasometer<'config> {
 				let calldata_cost = zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
-				// Store calldata info for EIP-7623 adjustment after execution
-				if self.config.has_eip_7623 {
-					self.inner_mut()?.zero_data_len = zero_data_len;
-					self.inner_mut()?.non_zero_data_len = non_zero_data_len;
-				}
+				self.inner_mut()?.tracker.zero_bytes_in_calldata = zero_data_len;
+				self.inner_mut()?.tracker.non_zero_bytes_in_calldata = non_zero_data_len;
 
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
@@ -292,11 +288,9 @@ impl<'config> Gasometer<'config> {
 				let calldata_cost = zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
-				// Store calldata info for EIP-7623 adjustment after execution
-				if self.config.has_eip_7623 {
-					self.inner_mut()?.zero_data_len = zero_data_len;
-					self.inner_mut()?.non_zero_data_len = non_zero_data_len;
-				}
+				self.inner_mut()?.tracker.zero_bytes_in_calldata = zero_data_len;
+				self.inner_mut()?.tracker.non_zero_bytes_in_calldata = non_zero_data_len;
+				self.inner_mut()?.tracker.is_contract_creation = true;
 
 				let mut cost = self.config.gas_transaction_create
 					+ calldata_cost + access_list_address_len as u64
@@ -331,23 +325,16 @@ impl<'config> Gasometer<'config> {
 
 		// EIP-7623 validation: Check if gas limit meets floor requirement
 		if self.config.has_eip_7623 {
-			let tokens_in_calldata = match cost {
-				TransactionCost::Call { zero_data_len, non_zero_data_len, .. } => {
-					zero_data_len as u64 + non_zero_data_len as u64 * 4
-				}
-				TransactionCost::Create { zero_data_len, non_zero_data_len, .. } => {
-					zero_data_len as u64 + non_zero_data_len as u64 * 4
-				}
-			};
-			
-			if tokens_in_calldata > 0 {
-				let min_floor_cost = 21000 + tokens_in_calldata * self.config.gas_calldata_floor_per_token;
-				let required_gas_limit = gas_cost.max(min_floor_cost);
-				
-				if self.gas_limit < required_gas_limit {
-					self.inner = Err(ExitError::OutOfGas);
-					return Err(ExitError::OutOfGas);
-				}
+			// Any transaction with a gas limit below:
+			// 21000 + TOTAL_COST_FLOOR_PER_TOKEN * tokens_in_calldata
+			// or below its intrinsic gas cost (take the maximum of these two calculations)
+			// is considered invalid.
+			// TODO check intrinsic gas cost
+			if self.gas_limit
+				< self.config().gas_transaction_call + self.inner_mut()?.floor_calldata_cost()
+			{
+				self.inner = Err(ExitError::OutOfGas);
+				return Err(ExitError::OutOfGas);
 			}
 		}
 
@@ -383,48 +370,18 @@ impl<'config> Gasometer<'config> {
 
 	/// Apply EIP-7623 adjustment after execution.
 	fn apply_eip_7623_adjustment(&mut self) -> Result<(), ExitError> {
-		// Get values from config before borrowing inner
-		let gas_transaction_call = self.config.gas_transaction_call;
-		let gas_transaction_create = self.config.gas_transaction_create;
-		let gas_transaction_zero_data = self.config.gas_transaction_zero_data;
-		let gas_transaction_non_zero_data = self.config.gas_transaction_non_zero_data;
-		let gas_calldata_floor_per_token = self.config.gas_calldata_floor_per_token;
-
 		let inner = self.inner_mut()?;
 
-		// Skip if no calldata was recorded
-		if inner.zero_data_len == 0 && inner.non_zero_data_len == 0 {
-			return Ok(());
-		}
+		// Apply EIP-7623
+		let standard_cost = inner.standard_calldata_cost();
+		let floor_cost = inner.floor_calldata_cost();
+		let execution_cost = inner.execution_cost();
+		let eip_7623_cost = max(standard_cost + execution_cost, floor_cost);
 
-		// Calculate standard calldata cost
-		let standard_calldata_cost = inner.zero_data_len as u64 * gas_transaction_zero_data
-			+ inner.non_zero_data_len as u64 * gas_transaction_non_zero_data;
-
-		// Calculate execution gas (excluding the initial 21000 and calldata costs)
-		let base_cost = if gas_transaction_call == 21000 {
-			21000
-		} else {
-			gas_transaction_create // For create transactions
-		};
-
-		// execution_gas = total_used_gas - base_cost - standard_calldata_cost
-		let execution_gas = inner
-			.used_gas
-			.saturating_sub(base_cost)
-			.saturating_sub(standard_calldata_cost);
-
-		// Calculate floor cost using EIP-7623 token formula
-		let tokens_in_calldata = inner.zero_data_len as u64 + inner.non_zero_data_len as u64 * 4;
-		let floor_cost = tokens_in_calldata * gas_calldata_floor_per_token;
-
-		// Apply EIP-7623 formula: 21000 + max(standard_calldata + execution, floor_calldata)
-		let standard_total = standard_calldata_cost + execution_gas;
-		if floor_cost > standard_total {
-			// Calculate what the final cost should be
-			let target_total = base_cost + floor_cost;
+		if floor_cost > standard_cost {
 			// Adjust used_gas to match the target
-			inner.used_gas = target_total;
+			inner.used_gas -= standard_cost + execution_cost;
+			inner.used_gas += eip_7623_cost;
 		}
 
 		Ok(())
@@ -895,6 +852,24 @@ pub fn dynamic_opcode_cost<H: Handler>(
 	Ok((gas_cost, storage_target, memory_cost))
 }
 
+/// Tracks gas parameters for a Gasometer instance.
+#[derive(Clone, Debug)]
+struct GasTracker {
+	zero_bytes_in_calldata: usize,
+	non_zero_bytes_in_calldata: usize,
+	is_contract_creation: bool,
+}
+
+impl GasTracker {
+	fn new() -> Self {
+		Self {
+			zero_bytes_in_calldata: 0,
+			non_zero_bytes_in_calldata: 0,
+			is_contract_creation: false,
+		}
+	}
+}
+
 /// Holds the gas consumption for a Gasometer instance.
 #[derive(Clone, Debug)]
 struct Inner<'config> {
@@ -902,10 +877,7 @@ struct Inner<'config> {
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
-	/// EIP-7623: Track zero data length for floor cost calculation
-	zero_data_len: usize,
-	/// EIP-7623: Track non-zero data length for floor cost calculation
-	non_zero_data_len: usize,
+	tracker: GasTracker,
 }
 
 impl Inner<'_> {
@@ -1059,6 +1031,40 @@ impl Inner<'_> {
 				already_removed, ..
 			} if !self.config.decrease_clears_refund => costs::suicide_refund(already_removed),
 			_ => 0,
+		}
+	}
+
+	fn standard_calldata_cost(&self) -> u64 {
+		(self.config.gas_transaction_zero_data * (self.tracker.zero_bytes_in_calldata as u64))
+			+ (self.config.gas_transaction_non_zero_data
+				* (self.tracker.non_zero_bytes_in_calldata as u64))
+	}
+
+	fn floor_calldata_cost(&self) -> u64 {
+		(self.config.gas_calldata_zero_floor * (self.tracker.zero_bytes_in_calldata as u64))
+			+ (self.config.gas_calldata_non_zero_floor
+				* (self.tracker.non_zero_bytes_in_calldata as u64))
+	}
+
+	fn base_cost(&self) -> u64 {
+		if self.tracker.is_contract_creation {
+			self.config.gas_transaction_call as u64
+		} else {
+			self.config.gas_transaction_create as u64
+		}
+	}
+
+	fn init_code_cost(&self) -> u64 {
+		2 * (((self.tracker.zero_bytes_in_calldata as u64
+			+ self.tracker.non_zero_bytes_in_calldata as u64)
+			+ 31) / 32)
+	}
+
+	fn execution_cost(&self) -> u64 {
+		if self.tracker.is_contract_creation {
+			self.used_gas - self.base_cost() - self.standard_calldata_cost()
+		} else {
+			self.used_gas - self.base_cost() - self.init_code_cost() - self.standard_calldata_cost()
 		}
 	}
 }
