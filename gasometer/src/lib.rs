@@ -1062,9 +1062,14 @@ impl Inner<'_> {
 
 	fn execution_cost(&self) -> u64 {
 		if self.tracker.is_contract_creation {
-			self.used_gas - self.base_cost() - self.standard_calldata_cost()
+			self.used_gas
+				.saturating_sub(self.base_cost())
+				.saturating_sub(self.standard_calldata_cost())
 		} else {
-			self.used_gas - self.base_cost() - self.init_code_cost() - self.standard_calldata_cost()
+			self.used_gas
+				.saturating_sub(self.base_cost())
+				.saturating_sub(self.init_code_cost())
+				.saturating_sub(self.standard_calldata_cost())
 		}
 	}
 }
