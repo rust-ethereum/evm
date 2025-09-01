@@ -34,13 +34,13 @@ mod eip7623_tests {
 
 		let mut gasometer = Gasometer::new(100_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
-		
+
 		// Initially only standard cost is applied: 21000 + 3000*4 = 33000
 		assert_eq!(gasometer.total_used_gas(), 33000);
-		
+
 		// Simulate some execution gas (e.g., 5000)
 		assert!(gasometer.record_cost(5000).is_ok());
-		
+
 		// Apply post-execution adjustments
 		assert!(gasometer.post_execution().is_ok());
 
@@ -63,13 +63,13 @@ mod eip7623_tests {
 
 		let mut gasometer = Gasometer::new(200_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
-		
+
 		// Initially only standard cost: 21000 + 10000*4 = 61000
 		assert_eq!(gasometer.total_used_gas(), 61000);
-		
+
 		// Simulate some execution gas
 		assert!(gasometer.record_cost(5000).is_ok());
-		
+
 		// Apply EIP-7623 adjustment
 		assert!(gasometer.post_execution().is_ok());
 
@@ -135,10 +135,10 @@ mod eip7623_tests {
 		// Since floor cost (50000) > standard cost (41000), floor wins
 		// But this happens in post_execution, so initial cost is still 41000
 		assert_eq!(gasometer.total_used_gas(), 41000);
-		
+
 		// Apply post-execution adjustment
 		assert!(gasometer.post_execution().is_ok());
-		
+
 		// After adjustment: 21000 + floor cost of 50000 = 71000
 		assert_eq!(gasometer.total_used_gas(), 71000);
 	}
@@ -178,16 +178,16 @@ mod eip7623_tests {
 
 		let mut gasometer = Gasometer::new(100_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
-		
+
 		// Initially: 21000 + 3500*4 = 35000
 		assert_eq!(gasometer.total_used_gas(), 35000);
-		
+
 		// Add execution gas to reach equilibrium
 		// Floor: 3500 * 10 = 35000
 		// Standard calldata: 3500 * 4 = 14000
 		// Need execution gas: 35000 - 14000 = 21000
 		assert!(gasometer.record_cost(21000).is_ok());
-		
+
 		// Apply EIP-7623 adjustment
 		assert!(gasometer.post_execution().is_ok());
 
@@ -212,7 +212,7 @@ mod eip7623_tests {
 		// Floor cost: 21000 + 5000 * 10 = 71000
 		// Set gas limit below floor requirement
 		let mut gasometer = Gasometer::new(70_000, &config);
-		
+
 		// Should fail with OutOfGas due to insufficient gas limit
 		assert!(gasometer.record_transaction(cost).is_err());
 	}
@@ -231,13 +231,13 @@ mod eip7623_tests {
 		// Set gas limit above floor requirement
 		let mut gasometer = Gasometer::new(80_000, &config);
 		assert!(gasometer.record_transaction(cost).is_ok());
-		
+
 		// Initially: 21000 + 5000*4 = 41000
 		assert_eq!(gasometer.total_used_gas(), 41000);
-		
+
 		// Add some execution gas
 		assert!(gasometer.record_cost(5000).is_ok());
-		
+
 		// Apply EIP-7623 adjustment
 		assert!(gasometer.post_execution().is_ok());
 
