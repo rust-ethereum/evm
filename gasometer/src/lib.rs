@@ -255,6 +255,7 @@ impl<'config> Gasometer<'config> {
 
 				self.inner_mut()?.tracker.zero_bytes_in_calldata = zero_data_len;
 				self.inner_mut()?.tracker.non_zero_bytes_in_calldata = non_zero_data_len;
+				self.inner_mut()?.tracker.has_recorded_transaction = true;
 
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
@@ -290,6 +291,7 @@ impl<'config> Gasometer<'config> {
 
 				self.inner_mut()?.tracker.zero_bytes_in_calldata = zero_data_len;
 				self.inner_mut()?.tracker.non_zero_bytes_in_calldata = non_zero_data_len;
+				self.inner_mut()?.tracker.has_recorded_transaction = true;
 				self.inner_mut()?.tracker.is_contract_creation = true;
 
 				let mut cost = self.config.gas_transaction_create
@@ -375,7 +377,7 @@ impl<'config> Gasometer<'config> {
 		// Apply EIP-7623
 		let standard_cost = inner.standard_calldata_cost();
 		let floor_cost = inner.floor_calldata_cost();
-		let execution_cost = inner.execution_cost();
+		let execution_cost = inner.execution_cost()?;
 		let eip_7623_cost = max(standard_cost + execution_cost, floor_cost);
 
 		if floor_cost > standard_cost {
@@ -857,6 +859,7 @@ pub fn dynamic_opcode_cost<H: Handler>(
 struct GasTracker {
 	zero_bytes_in_calldata: usize,
 	non_zero_bytes_in_calldata: usize,
+	has_recorded_transaction: bool,
 	is_contract_creation: bool,
 }
 
@@ -865,6 +868,7 @@ impl GasTracker {
 		Self {
 			zero_bytes_in_calldata: 0,
 			non_zero_bytes_in_calldata: 0,
+			has_recorded_transaction: false,
 			is_contract_creation: false,
 		}
 	}
@@ -1060,11 +1064,19 @@ impl Inner<'_> {
 			+ 31) / 32)
 	}
 
-	fn execution_cost(&self) -> u64 {
+	fn execution_cost(&self) -> Result<u64, ExitError> {
+		if !self.tracker.has_recorded_transaction {
+			// TODO: Implement proper error handling
+			return Err(ExitError::OutOfGas);
+		}
+
 		if self.tracker.is_contract_creation {
-			self.used_gas - self.base_cost() - self.standard_calldata_cost()
+			Ok(self.used_gas - self.base_cost() - self.standard_calldata_cost())
 		} else {
-			self.used_gas - self.base_cost() - self.init_code_cost() - self.standard_calldata_cost()
+			Ok(self.used_gas
+				- self.base_cost()
+				- self.init_code_cost()
+				- self.standard_calldata_cost())
 		}
 	}
 }
