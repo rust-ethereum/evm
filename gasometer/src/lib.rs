@@ -362,26 +362,17 @@ impl<'config> Gasometer<'config> {
 	pub fn post_execution(&mut self) -> Result<(), ExitError> {
 		// Apply EIP-7623 adjustments
 		if self.config.has_eip_7623 {
-			self.apply_eip_7623_adjustment()?;
-		}
+			let inner = self.inner_mut()?;
+			let standard_cost = inner.standard_calldata_cost();
+			let floor_cost = inner.floor_calldata_cost();
+			let execution_cost = inner.execution_cost();
+			let eip_7623_cost = max(standard_cost + execution_cost, floor_cost);
 
-		Ok(())
-	}
-
-	/// Apply EIP-7623 adjustment after execution.
-	fn apply_eip_7623_adjustment(&mut self) -> Result<(), ExitError> {
-		let inner = self.inner_mut()?;
-
-		// Apply EIP-7623
-		let standard_cost = inner.standard_calldata_cost();
-		let floor_cost = inner.floor_calldata_cost();
-		let execution_cost = inner.execution_cost();
-		let eip_7623_cost = max(standard_cost + execution_cost, floor_cost);
-
-		if floor_cost > standard_cost {
-			// Adjust used_gas to match the target
-			inner.used_gas -= standard_cost + execution_cost;
-			inner.used_gas += eip_7623_cost;
+			if floor_cost > standard_cost {
+				// Adjust used_gas to match the target
+				inner.used_gas -= standard_cost + execution_cost;
+				inner.used_gas += eip_7623_cost;
+			}
 		}
 
 		Ok(())
