@@ -363,16 +363,16 @@ impl<'config> Gasometer<'config> {
 		// Apply EIP-7623 adjustments
 		if self.config.has_eip_7623 {
 			let inner = self.inner_mut()?;
-			let standard_cost = inner.standard_calldata_cost();
-			let floor_cost = inner.floor_calldata_cost();
+			let standard_calldata_cost = inner.standard_calldata_cost();
+			let floor_calldata_cost = inner.floor_calldata_cost();
+			let contract_creation_cost = inner.contract_creation_cost();
 			let execution_cost = inner.execution_cost();
-			let eip_7623_cost = max(standard_cost + execution_cost, floor_cost);
+			let cost = standard_calldata_cost + execution_cost + contract_creation_cost;
+			let eip_7623_cost = max(cost, floor_calldata_cost);
 
-			if floor_cost > standard_cost {
-				// Adjust used_gas to match the target
-				inner.used_gas -= standard_cost + execution_cost;
-				inner.used_gas += eip_7623_cost;
-			}
+			// Adjust used_gas to match the target
+			inner.used_gas -= cost;
+			inner.used_gas += eip_7623_cost;
 		}
 
 		Ok(())
@@ -1049,6 +1049,15 @@ impl Inner<'_> {
 		2 * (((self.tracker.zero_bytes_in_calldata as u64
 			+ self.tracker.non_zero_bytes_in_calldata as u64)
 			+ 31) / 32)
+	}
+
+	fn contract_creation_cost(&self) -> u64 {
+		if self.tracker.is_contract_creation {
+			return (self.config.gas_transaction_create - self.config.gas_transaction_call)
+				+ self.init_code_cost();
+		}
+
+		0
 	}
 
 	fn execution_cost(&self) -> u64 {
