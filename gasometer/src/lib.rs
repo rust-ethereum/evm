@@ -253,8 +253,9 @@ impl<'config> Gasometer<'config> {
 				let calldata_cost = zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
-				self.inner_mut()?.tracker.zero_bytes_in_calldata = zero_data_len;
-				self.inner_mut()?.tracker.non_zero_bytes_in_calldata = non_zero_data_len;
+				self.inner_mut()?
+					.tracker
+					.set_calldata_params(zero_data_len, non_zero_data_len);
 
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
@@ -288,9 +289,10 @@ impl<'config> Gasometer<'config> {
 				let calldata_cost = zero_data_len as u64 * self.config.gas_transaction_zero_data
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
-				self.inner_mut()?.tracker.zero_bytes_in_calldata = zero_data_len;
-				self.inner_mut()?.tracker.non_zero_bytes_in_calldata = non_zero_data_len;
-				self.inner_mut()?.tracker.is_contract_creation = true;
+				self.inner_mut()?
+					.tracker
+					.set_calldata_params(zero_data_len, non_zero_data_len);
+				self.inner_mut()?.tracker.set_contract_creation(true);
 
 				let mut cost = self.config.gas_transaction_create
 					+ calldata_cost + access_list_address_len as u64
@@ -849,6 +851,12 @@ struct GasTracker {
 	zero_bytes_in_calldata: usize,
 	non_zero_bytes_in_calldata: usize,
 	is_contract_creation: bool,
+	// Cached values
+	cached_standard_calldata_cost: Option<u64>,
+	cached_floor_calldata_cost: Option<u64>,
+	cached_base_cost: Option<u64>,
+	cached_init_code_cost: Option<u64>,
+	cached_contract_creation_cost: Option<u64>,
 }
 
 impl GasTracker {
@@ -857,47 +865,100 @@ impl GasTracker {
 			zero_bytes_in_calldata: 0,
 			non_zero_bytes_in_calldata: 0,
 			is_contract_creation: false,
+			cached_standard_calldata_cost: None,
+			cached_floor_calldata_cost: None,
+			cached_base_cost: None,
+			cached_init_code_cost: None,
+			cached_contract_creation_cost: None,
 		}
 	}
 
-	fn standard_calldata_cost(&self, config: &Config) -> u64 {
-		(config.gas_transaction_zero_data * (self.zero_bytes_in_calldata as u64))
-			+ (config.gas_transaction_non_zero_data * (self.non_zero_bytes_in_calldata as u64))
+	fn invalidate_cache(&mut self) {
+		self.cached_standard_calldata_cost = None;
+		self.cached_floor_calldata_cost = None;
+		self.cached_base_cost = None;
+		self.cached_init_code_cost = None;
+		self.cached_contract_creation_cost = None;
 	}
 
-	fn floor_calldata_cost(&self, config: &Config) -> u64 {
-		(config.gas_calldata_zero_floor * (self.zero_bytes_in_calldata as u64))
-			+ (config.gas_calldata_non_zero_floor * (self.non_zero_bytes_in_calldata as u64))
+	fn set_calldata_params(&mut self, zero_bytes: usize, non_zero_bytes: usize) {
+		self.zero_bytes_in_calldata = zero_bytes;
+		self.non_zero_bytes_in_calldata = non_zero_bytes;
+		self.invalidate_cache();
 	}
 
-	fn base_cost(&self, config: &Config) -> u64 {
-		if self.is_contract_creation {
-			config.gas_transaction_call as u64
-		} else {
+	fn set_contract_creation(&mut self, is_creation: bool) {
+		self.is_contract_creation = is_creation;
+		self.invalidate_cache();
+	}
+
+	fn standard_calldata_cost(&mut self, config: &Config) -> u64 {
+		if let Some(cached) = self.cached_standard_calldata_cost {
+			return cached;
+		}
+
+		let cost = (config.gas_transaction_zero_data * (self.zero_bytes_in_calldata as u64))
+			+ (config.gas_transaction_non_zero_data * (self.non_zero_bytes_in_calldata as u64));
+		self.cached_standard_calldata_cost = Some(cost);
+		cost
+	}
+
+	fn floor_calldata_cost(&mut self, config: &Config) -> u64 {
+		if let Some(cached) = self.cached_floor_calldata_cost {
+			return cached;
+		}
+
+		let cost = (config.gas_calldata_zero_floor * (self.zero_bytes_in_calldata as u64))
+			+ (config.gas_calldata_non_zero_floor * (self.non_zero_bytes_in_calldata as u64));
+		self.cached_floor_calldata_cost = Some(cost);
+		cost
+	}
+
+	fn base_cost(&mut self, config: &Config) -> u64 {
+		if let Some(cached) = self.cached_base_cost {
+			return cached;
+		}
+
+		let cost = if self.is_contract_creation {
 			config.gas_transaction_create as u64
-		}
+		} else {
+			config.gas_transaction_call as u64
+		};
+		self.cached_base_cost = Some(cost);
+		cost
 	}
 
-	fn init_code_cost(&self) -> u64 {
-		if self.is_contract_creation {
-			return init_code_cost(
+	fn init_code_cost(&mut self) -> u64 {
+		if let Some(cached) = self.cached_init_code_cost {
+			return cached;
+		}
+
+		let cost = if self.is_contract_creation {
+			init_code_cost(
 				self.zero_bytes_in_calldata as u64 + self.non_zero_bytes_in_calldata as u64,
-			);
-		}
-
-		0
+			)
+		} else {
+			0
+		};
+		self.cached_init_code_cost = Some(cost);
+		cost
 	}
 
-	fn contract_creation_cost(&self, config: &Config) -> u64 {
-		if self.is_contract_creation {
-			return (config.gas_transaction_create - config.gas_transaction_call)
-				+ self.init_code_cost();
+	fn contract_creation_cost(&mut self, config: &Config) -> u64 {
+		if let Some(cached) = self.cached_contract_creation_cost {
+			return cached;
 		}
 
-		0
+		let cost = if self.is_contract_creation {
+			(config.gas_transaction_create - config.gas_transaction_call) + self.init_code_cost()
+		} else {
+			0
+		};
+		self.cached_contract_creation_cost = Some(cost);
+		cost
 	}
 
-	fn execution_cost(&self, used_gas: u64, config: &Config) -> u64 {
+	fn execution_cost(&mut self, used_gas: u64, config: &Config) -> u64 {
 		used_gas
 			.saturating_sub(self.base_cost(config))
 			.saturating_sub(self.init_code_cost())
@@ -1069,19 +1130,19 @@ impl Inner<'_> {
 		}
 	}
 
-	fn standard_calldata_cost(&self) -> u64 {
+	fn standard_calldata_cost(&mut self) -> u64 {
 		self.tracker.standard_calldata_cost(self.config)
 	}
 
-	fn floor_calldata_cost(&self) -> u64 {
+	fn floor_calldata_cost(&mut self) -> u64 {
 		self.tracker.floor_calldata_cost(self.config)
 	}
 
-	fn contract_creation_cost(&self) -> u64 {
+	fn contract_creation_cost(&mut self) -> u64 {
 		self.tracker.contract_creation_cost(self.config)
 	}
 
-	fn execution_cost(&self) -> u64 {
+	fn execution_cost(&mut self) -> u64 {
 		self.tracker.execution_cost(self.used_gas, self.config)
 	}
 }
