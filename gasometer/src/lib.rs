@@ -415,7 +415,7 @@ pub fn create_transaction_cost(
 	// Per EIP-7702: Initially charge PER_EMPTY_ACCOUNT_COST for all authorizations
 	// Non-empty accounts will be refunded later when we have access to account state
 	let authorization_list_len = authorization_list.len();
-	let initcode_cost = init_code_cost(data);
+	let initcode_cost = init_code_cost(data.len() as u64);
 
 	TransactionCost::Create {
 		zero_data_len,
@@ -427,11 +427,11 @@ pub fn create_transaction_cost(
 	}
 }
 
-pub fn init_code_cost(data: &[u8]) -> u64 {
+pub fn init_code_cost(code_length: u64) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.
-	2 * ((data.len() as u64 + 31) / 32)
+	2 * ((code_length + 31) / 32)
 }
 
 /// Counts the number of addresses and storage keys in the access list
@@ -859,6 +859,50 @@ impl GasTracker {
 			is_contract_creation: false,
 		}
 	}
+
+	fn standard_calldata_cost(&self, config: &Config) -> u64 {
+		(config.gas_transaction_zero_data * (self.zero_bytes_in_calldata as u64))
+			+ (config.gas_transaction_non_zero_data * (self.non_zero_bytes_in_calldata as u64))
+	}
+
+	fn floor_calldata_cost(&self, config: &Config) -> u64 {
+		(config.gas_calldata_zero_floor * (self.zero_bytes_in_calldata as u64))
+			+ (config.gas_calldata_non_zero_floor * (self.non_zero_bytes_in_calldata as u64))
+	}
+
+	fn base_cost(&self, config: &Config) -> u64 {
+		if self.is_contract_creation {
+			config.gas_transaction_call as u64
+		} else {
+			config.gas_transaction_create as u64
+		}
+	}
+
+	fn init_code_cost(&self) -> u64 {
+		if self.is_contract_creation {
+			return init_code_cost(
+				self.zero_bytes_in_calldata as u64 + self.non_zero_bytes_in_calldata as u64,
+			);
+		}
+
+		0
+	}
+
+	fn contract_creation_cost(&self, config: &Config) -> u64 {
+		if self.is_contract_creation {
+			return (config.gas_transaction_create - config.gas_transaction_call)
+				+ self.init_code_cost();
+		}
+
+		0
+	}
+
+	fn execution_cost(&self, used_gas: u64, config: &Config) -> u64 {
+		used_gas
+			.saturating_sub(self.base_cost(config))
+			.saturating_sub(self.init_code_cost())
+			.saturating_sub(self.standard_calldata_cost(config))
+	}
 }
 
 /// Holds the gas consumption for a Gasometer instance.
@@ -1026,50 +1070,19 @@ impl Inner<'_> {
 	}
 
 	fn standard_calldata_cost(&self) -> u64 {
-		(self.config.gas_transaction_zero_data * (self.tracker.zero_bytes_in_calldata as u64))
-			+ (self.config.gas_transaction_non_zero_data
-				* (self.tracker.non_zero_bytes_in_calldata as u64))
+		self.tracker.standard_calldata_cost(self.config)
 	}
 
 	fn floor_calldata_cost(&self) -> u64 {
-		(self.config.gas_calldata_zero_floor * (self.tracker.zero_bytes_in_calldata as u64))
-			+ (self.config.gas_calldata_non_zero_floor
-				* (self.tracker.non_zero_bytes_in_calldata as u64))
-	}
-
-	fn base_cost(&self) -> u64 {
-		if self.tracker.is_contract_creation {
-			self.config.gas_transaction_call as u64
-		} else {
-			self.config.gas_transaction_create as u64
-		}
-	}
-
-	fn init_code_cost(&self) -> u64 {
-		if self.tracker.is_contract_creation {
-			return 2
-				* (((self.tracker.zero_bytes_in_calldata as u64
-					+ self.tracker.non_zero_bytes_in_calldata as u64)
-					+ 31) / 32);
-		}
-
-		0
+		self.tracker.floor_calldata_cost(self.config)
 	}
 
 	fn contract_creation_cost(&self) -> u64 {
-		if self.tracker.is_contract_creation {
-			return (self.config.gas_transaction_create - self.config.gas_transaction_call)
-				+ self.init_code_cost();
-		}
-
-		0
+		self.tracker.contract_creation_cost(self.config)
 	}
 
 	fn execution_cost(&self) -> u64 {
-		self.used_gas
-			.saturating_sub(self.base_cost())
-			.saturating_sub(self.init_code_cost())
-			.saturating_sub(self.standard_calldata_cost())
+		self.tracker.execution_cost(self.used_gas, self.config)
 	}
 }
 
