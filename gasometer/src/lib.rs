@@ -1046,9 +1046,14 @@ impl Inner<'_> {
 	}
 
 	fn init_code_cost(&self) -> u64 {
-		2 * (((self.tracker.zero_bytes_in_calldata as u64
-			+ self.tracker.non_zero_bytes_in_calldata as u64)
-			+ 31) / 32)
+		if self.tracker.is_contract_creation {
+			return 2
+				* (((self.tracker.zero_bytes_in_calldata as u64
+					+ self.tracker.non_zero_bytes_in_calldata as u64)
+					+ 31) / 32);
+		}
+
+		0
 	}
 
 	fn contract_creation_cost(&self) -> u64 {
@@ -1061,16 +1066,10 @@ impl Inner<'_> {
 	}
 
 	fn execution_cost(&self) -> u64 {
-		if self.tracker.is_contract_creation {
-			self.used_gas
-				.saturating_sub(self.base_cost())
-				.saturating_sub(self.standard_calldata_cost())
-		} else {
-			self.used_gas
-				.saturating_sub(self.base_cost())
-				.saturating_sub(self.init_code_cost())
-				.saturating_sub(self.standard_calldata_cost())
-		}
+		self.used_gas
+			.saturating_sub(self.base_cost())
+			.saturating_sub(self.init_code_cost())
+			.saturating_sub(self.standard_calldata_cost())
 	}
 }
 
