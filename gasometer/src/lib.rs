@@ -256,6 +256,12 @@ impl<'config> Gasometer<'config> {
 				self.inner_mut()?
 					.metrics
 					.set_calldata_params(zero_data_len, non_zero_data_len);
+				self.inner_mut()?
+					.metrics
+					.set_access_list_len(access_list_address_len, access_list_storage_len);
+				self.inner_mut()?
+					.metrics
+					.set_authorization_list_len(authorization_list_len);
 
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
@@ -290,6 +296,12 @@ impl<'config> Gasometer<'config> {
 				self.inner_mut()?
 					.metrics
 					.set_calldata_params(zero_data_len, non_zero_data_len);
+				self.inner_mut()?
+					.metrics
+					.set_access_list_len(access_list_address_len, access_list_storage_len);
+				self.inner_mut()?
+					.metrics
+					.set_authorization_list_len(authorization_list_len);
 				self.inner_mut()?.metrics.set_contract_creation(true);
 
 				let mut cost = self.config.gas_transaction_create
@@ -330,10 +342,10 @@ impl<'config> Gasometer<'config> {
 			// 21000 + TOTAL_COST_FLOOR_PER_TOKEN * tokens_in_calldata
 			// or below its intrinsic gas cost (take the maximum of these two calculations)
 			// is considered invalid.
-			// TODO check intrinsic gas cost
 			if self.gas_limit
 				< self.config().gas_transaction_call
 					+ self.inner_mut()?.floor_calldata_cost_metrics()
+				|| self.gas_limit < self.inner_mut()?.intrinsic_cost_metrics()
 			{
 				self.inner = Err(ExitError::OutOfGas);
 				return Err(ExitError::OutOfGas);
@@ -368,7 +380,7 @@ impl<'config> Gasometer<'config> {
 			let standard_calldata_cost = inner.standard_calldata_cost_metrics();
 			let floor_calldata_cost = inner.floor_calldata_cost_metrics();
 			let contract_creation_cost = inner.contract_creation_cost_metrics();
-			let execution_cost = inner.non_intrinsic_cost_metrics();
+			let execution_cost = inner.execution_cost_metrics();
 			let cost = standard_calldata_cost + execution_cost + contract_creation_cost;
 			let eip_7623_cost = max(cost, floor_calldata_cost);
 
@@ -1028,11 +1040,15 @@ impl Inner<'_> {
 		self.metrics.contract_creation_cost(self.config)
 	}
 
+	fn intrinsic_cost_metrics(&mut self) -> u64 {
+		self.metrics.intrinsic_cost(self.config)
+	}
+
 	/// Gas consumed during transaction execution, excluding base transaction costs,
 	/// calldata costs, and contract creation costs. This value represents
 	/// the actual execution cost only when called from within [`Gasometer::post_execution`].
-	fn non_intrinsic_cost_metrics(&mut self) -> u64 {
-		self.metrics.non_intrinsic_cost(self.used_gas, self.config)
+	fn execution_cost_metrics(&mut self) -> u64 {
+		self.metrics.execution_cost(self.used_gas, self.config)
 	}
 }
 

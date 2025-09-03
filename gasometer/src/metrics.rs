@@ -5,6 +5,9 @@ use evm_runtime::Config;
 pub struct GasMetrics {
 	zero_bytes_in_calldata: usize,
 	non_zero_bytes_in_calldata: usize,
+	access_list_address_len: usize,
+	access_list_storage_len: usize,
+	authorization_list_len: usize,
 	is_contract_creation: bool,
 	// Cached values
 	cached_standard_calldata_cost: Option<u64>,
@@ -12,6 +15,8 @@ pub struct GasMetrics {
 	cached_base_cost: Option<u64>,
 	cached_init_code_cost: Option<u64>,
 	cached_contract_creation_cost: Option<u64>,
+	cached_access_list_cost: Option<u64>,
+	cached_authorization_list_cost: Option<u64>,
 }
 
 impl GasMetrics {
@@ -19,12 +24,17 @@ impl GasMetrics {
 		Self {
 			zero_bytes_in_calldata: 0,
 			non_zero_bytes_in_calldata: 0,
+			access_list_address_len: 0,
+			access_list_storage_len: 0,
+			authorization_list_len: 0,
 			is_contract_creation: false,
 			cached_standard_calldata_cost: None,
 			cached_floor_calldata_cost: None,
 			cached_base_cost: None,
 			cached_init_code_cost: None,
 			cached_contract_creation_cost: None,
+			cached_access_list_cost: None,
+			cached_authorization_list_cost: None,
 		}
 	}
 
@@ -34,11 +44,28 @@ impl GasMetrics {
 		self.cached_base_cost = None;
 		self.cached_init_code_cost = None;
 		self.cached_contract_creation_cost = None;
+		self.cached_access_list_cost = None;
+		self.cached_authorization_list_cost = None;
 	}
 
 	pub fn set_calldata_params(&mut self, zero_bytes: usize, non_zero_bytes: usize) {
 		self.zero_bytes_in_calldata = zero_bytes;
 		self.non_zero_bytes_in_calldata = non_zero_bytes;
+		self.invalidate_cache();
+	}
+
+	pub fn set_access_list_len(
+		&mut self,
+		access_list_address_len: usize,
+		access_list_storage_len: usize,
+	) {
+		self.access_list_address_len = access_list_address_len;
+		self.access_list_storage_len = access_list_storage_len;
+		self.invalidate_cache();
+	}
+
+	pub fn set_authorization_list_len(&mut self, authorization_list_len: usize) {
+		self.authorization_list_len = authorization_list_len;
 		self.invalidate_cache();
 	}
 
@@ -83,6 +110,27 @@ impl GasMetrics {
 		cost
 	}
 
+	fn access_list_cost(&mut self, config: &Config) -> u64 {
+		if let Some(cached) = self.cached_access_list_cost {
+			return cached;
+		}
+
+		let cost = self.access_list_address_len as u64 * config.gas_access_list_address
+			+ self.access_list_storage_len as u64 * config.gas_access_list_storage_key;
+		self.cached_access_list_cost = Some(cost);
+		cost
+	}
+
+	fn authorization_list_cost(&mut self, config: &Config) -> u64 {
+		if let Some(cached) = self.cached_authorization_list_cost {
+			return cached;
+		}
+
+		let cost = self.authorization_list_len as u64 * config.gas_per_empty_account_cost;
+		self.cached_authorization_list_cost = Some(cost);
+		cost
+	}
+
 	pub fn init_code_cost(&mut self) -> u64 {
 		if let Some(cached) = self.cached_init_code_cost {
 			return cached;
@@ -113,10 +161,19 @@ impl GasMetrics {
 		cost
 	}
 
+	/// Intrinsic gas costs of a transaction.
+	pub fn intrinsic_cost(&mut self, config: &Config) -> u64 {
+		self.base_cost(config)
+			.saturating_add(self.init_code_cost())
+			.saturating_add(self.standard_calldata_cost(config))
+			.saturating_add(self.access_list_cost(config))
+			.saturating_add(self.authorization_list_cost(config))
+	}
+
 	/// Gas consumed during transaction execution, excluding base transaction costs,
 	/// calldata costs, and contract creation costs. This value only represents
 	/// the actual execution cost within post_execution() invocation.
-	pub fn non_intrinsic_cost(&mut self, used_gas: u64, config: &Config) -> u64 {
+	pub fn execution_cost(&mut self, used_gas: u64, config: &Config) -> u64 {
 		used_gas
 			.saturating_sub(self.base_cost(config))
 			.saturating_sub(self.init_code_cost())
