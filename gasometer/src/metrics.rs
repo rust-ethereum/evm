@@ -48,29 +48,21 @@ impl GasMetrics {
 		self.cached_authorization_list_cost = None;
 	}
 
-	pub fn set_calldata_params(&mut self, zero_bytes: usize, non_zero_bytes: usize) {
-		self.zero_bytes_in_calldata = zero_bytes;
-		self.non_zero_bytes_in_calldata = non_zero_bytes;
-		self.invalidate_cache();
-	}
-
-	pub fn set_access_list_len(
+	pub fn init(
 		&mut self,
+		zero_bytes_in_calldata: usize,
+		non_zero_bytes_in_calldata: usize,
 		access_list_address_len: usize,
 		access_list_storage_len: usize,
+		authorization_list_len: usize,
+		is_contract_creation: bool,
 	) {
+		self.zero_bytes_in_calldata = zero_bytes_in_calldata;
+		self.non_zero_bytes_in_calldata = non_zero_bytes_in_calldata;
 		self.access_list_address_len = access_list_address_len;
 		self.access_list_storage_len = access_list_storage_len;
-		self.invalidate_cache();
-	}
-
-	pub fn set_authorization_list_len(&mut self, authorization_list_len: usize) {
 		self.authorization_list_len = authorization_list_len;
-		self.invalidate_cache();
-	}
-
-	pub fn set_contract_creation(&mut self, is_creation: bool) {
-		self.is_contract_creation = is_creation;
+		self.is_contract_creation = is_contract_creation;
 		self.invalidate_cache();
 	}
 
