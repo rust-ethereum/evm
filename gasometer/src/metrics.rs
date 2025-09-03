@@ -169,6 +169,7 @@ impl GasMetrics {
 			.saturating_add(self.standard_calldata_cost(config))
 			.saturating_add(self.access_list_cost(config))
 			.saturating_add(self.authorization_list_cost(config))
+			.saturating_add(self.init_code_cost())
 	}
 
 	/// Gas consumed during transaction execution, excluding base transaction costs,
