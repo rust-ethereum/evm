@@ -342,10 +342,11 @@ impl<'config> Gasometer<'config> {
 			// or below its intrinsic gas cost (take the maximum of these two calculations)
 			// is considered invalid.
 			if self.gas_limit
-				< self.config().gas_transaction_call
-					+ self.inner_mut()?.floor_calldata_cost_metrics()
-				|| self.gas_limit < self.inner_mut()?.intrinsic_cost_metrics()
-			{
+				< max(
+					self.config().gas_transaction_call
+						+ self.inner_mut()?.floor_calldata_cost_metrics(),
+					self.inner_mut()?.intrinsic_cost_metrics(),
+				) {
 				self.inner = Err(ExitError::OutOfGas);
 				return Err(ExitError::OutOfGas);
 			}
