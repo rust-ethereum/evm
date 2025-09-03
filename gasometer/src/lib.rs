@@ -1040,6 +1040,16 @@ impl Inner<'_> {
 		self.metrics.contract_creation_cost(self.config)
 	}
 
+	/// Calculates the intrinsic gas cost for the transaction.
+	/// 
+	/// The intrinsic cost includes:
+	/// - Base transaction cost
+	/// - Calldata costs
+	/// - Access list costs (per EIP-2930)
+	/// - Authorization list costs (per EIP-7702)
+	/// - Contract creation costs if applicable (per EIP-3860)
+	/// 
+	/// This represents the minimum gas required before any code execution begins.
 	fn intrinsic_cost_metrics(&mut self) -> u64 {
 		self.metrics.intrinsic_cost(self.config)
 	}
