@@ -920,9 +920,9 @@ impl GasTracker {
 		}
 
 		let cost = if self.is_contract_creation {
-			config.gas_transaction_create as u64
+			config.gas_transaction_create
 		} else {
-			config.gas_transaction_call as u64
+			config.gas_transaction_call
 		};
 		self.cached_base_cost = Some(cost);
 		cost
