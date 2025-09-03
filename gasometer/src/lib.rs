@@ -371,7 +371,7 @@ impl<'config> Gasometer<'config> {
 			let standard_calldata_cost = inner.standard_calldata_cost();
 			let floor_calldata_cost = inner.floor_calldata_cost();
 			let contract_creation_cost = inner.contract_creation_cost();
-			let execution_cost = inner.execution_cost();
+			let execution_cost = inner.non_intrinsic_cost();
 			let cost = standard_calldata_cost + execution_cost + contract_creation_cost;
 			let eip_7623_cost = max(cost, floor_calldata_cost);
 
@@ -1024,8 +1024,11 @@ impl Inner<'_> {
 		self.tracker.contract_creation_cost(self.config)
 	}
 
-	fn execution_cost(&mut self) -> u64 {
-		self.tracker.execution_cost(self.used_gas, self.config)
+	/// Gas consumed during transaction execution, excluding base transaction costs,
+	/// calldata costs, and contract creation costs. This value only represents
+	/// the actual execution cost within post_execution() invocation
+	fn non_intrinsic_cost(&mut self) -> u64 {
+		self.tracker.non_intrinsic_cost(self.used_gas, self.config)
 	}
 }
 

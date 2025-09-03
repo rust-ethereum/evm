@@ -113,7 +113,10 @@ impl GasMetrics {
 		cost
 	}
 
-	pub fn execution_cost(&mut self, used_gas: u64, config: &Config) -> u64 {
+	/// Gas consumed during transaction execution, excluding base transaction costs,
+	/// calldata costs, and contract creation costs. This value only represents
+	/// the actual execution cost within post_execution() invocation.
+	pub fn non_intrinsic_cost(&mut self, used_gas: u64, config: &Config) -> u64 {
 		used_gas
 			.saturating_sub(self.base_cost(config))
 			.saturating_sub(self.init_code_cost())
