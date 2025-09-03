@@ -86,7 +86,7 @@ impl<'config> Gasometer<'config> {
 				used_gas: 0,
 				refunded_gas: 0,
 				config,
-				tracker: GasMetrics::new(),
+				metrics: GasMetrics::new(),
 			}),
 		}
 	}
@@ -257,7 +257,7 @@ impl<'config> Gasometer<'config> {
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
 				self.inner_mut()?
-					.tracker
+					.metrics
 					.set_calldata_params(zero_data_len, non_zero_data_len);
 
 				#[deny(clippy::let_and_return)]
@@ -293,9 +293,9 @@ impl<'config> Gasometer<'config> {
 					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data;
 
 				self.inner_mut()?
-					.tracker
+					.metrics
 					.set_calldata_params(zero_data_len, non_zero_data_len);
-				self.inner_mut()?.tracker.set_contract_creation(true);
+				self.inner_mut()?.metrics.set_contract_creation(true);
 
 				let mut cost = self.config.gas_transaction_create
 					+ calldata_cost + access_list_address_len as u64
@@ -855,7 +855,7 @@ struct Inner<'config> {
 	used_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
-	tracker: GasMetrics,
+	metrics: GasMetrics,
 }
 
 impl Inner<'_> {
@@ -1013,22 +1013,22 @@ impl Inner<'_> {
 	}
 
 	fn standard_calldata_cost(&mut self) -> u64 {
-		self.tracker.standard_calldata_cost(self.config)
+		self.metrics.standard_calldata_cost(self.config)
 	}
 
 	fn floor_calldata_cost(&mut self) -> u64 {
-		self.tracker.floor_calldata_cost(self.config)
+		self.metrics.floor_calldata_cost(self.config)
 	}
 
 	fn contract_creation_cost(&mut self) -> u64 {
-		self.tracker.contract_creation_cost(self.config)
+		self.metrics.contract_creation_cost(self.config)
 	}
 
 	/// Gas consumed during transaction execution, excluding base transaction costs,
 	/// calldata costs, and contract creation costs. This value only represents
 	/// the actual execution cost within post_execution() invocation
 	fn non_intrinsic_cost(&mut self) -> u64 {
-		self.tracker.non_intrinsic_cost(self.used_gas, self.config)
+		self.metrics.non_intrinsic_cost(self.used_gas, self.config)
 	}
 }
 
