@@ -165,7 +165,6 @@ impl GasMetrics {
 	/// Intrinsic gas costs of a transaction.
 	pub fn intrinsic_cost(&mut self, config: &Config) -> u64 {
 		self.base_cost(config)
-			.saturating_add(self.init_code_cost())
 			.saturating_add(self.standard_calldata_cost(config))
 			.saturating_add(self.access_list_cost(config))
 			.saturating_add(self.authorization_list_cost(config))
