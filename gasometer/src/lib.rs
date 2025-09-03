@@ -253,14 +253,9 @@ impl<'config> Gasometer<'config> {
 				access_list_storage_len,
 				authorization_list_len,
 			} => {
-				self.inner_mut()?.metrics.init(
-					zero_data_len,
-					non_zero_data_len,
-					access_list_address_len,
-					access_list_storage_len,
-					authorization_list_len,
-					false,
-				);
+				self.inner_mut()?
+					.metrics
+					.init(zero_data_len, non_zero_data_len, false);
 
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
@@ -293,14 +288,9 @@ impl<'config> Gasometer<'config> {
 				initcode_cost,
 				authorization_list_len,
 			} => {
-				self.inner_mut()?.metrics.init(
-					zero_data_len,
-					non_zero_data_len,
-					access_list_address_len,
-					access_list_storage_len,
-					authorization_list_len,
-					true,
-				);
+				self.inner_mut()?
+					.metrics
+					.init(zero_data_len, non_zero_data_len, true);
 
 				let mut cost = self.config.gas_transaction_create
 					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
@@ -339,19 +329,17 @@ impl<'config> Gasometer<'config> {
 		if self.config.has_eip_7623 {
 			// Any transaction with a gas limit below:
 			// 21000 + TOTAL_COST_FLOOR_PER_TOKEN * tokens_in_calldata
-			// or below its intrinsic gas cost (take the maximum of these two calculations)
-			// is considered invalid.
-			if self.gas_limit
-				< max(
-					self.config().gas_transaction_call
-						+ self.inner_mut()?.floor_calldata_cost_metrics(),
-					self.inner_mut()?.intrinsic_cost_metrics(),
-				) {
+			if self.gas()
+				< self.config().gas_transaction_call
+					+ self.inner_mut()?.floor_calldata_cost_metrics()
+			{
 				self.inner = Err(ExitError::OutOfGas);
 				return Err(ExitError::OutOfGas);
 			}
 		}
 
+		// Any transaction with a gas limit below its intrinsic gas cost
+		// is considered invalid.
 		if self.gas() < gas_cost {
 			self.inner = Err(ExitError::OutOfGas);
 			return Err(ExitError::OutOfGas);
@@ -1062,20 +1050,6 @@ impl Inner<'_> {
 	/// Valid only after [`GasMetrics::init`] has been called with `is_contract_creation` set to true.
 	fn contract_creation_cost_metrics(&mut self) -> u64 {
 		self.metrics.contract_creation_cost(self.config)
-	}
-
-	/// Calculates the intrinsic gas cost for the transaction.
-	///
-	/// The intrinsic cost includes:
-	/// - Base transaction cost
-	/// - Calldata costs
-	/// - Access list costs (per EIP-2930)
-	/// - Authorization list costs (per EIP-7702)
-	/// - Contract creation costs if applicable (per EIP-3860)
-	///
-	/// This represents the minimum gas required before any code execution begins.
-	fn intrinsic_cost_metrics(&mut self) -> u64 {
-		self.metrics.intrinsic_cost(self.config)
 	}
 
 	/// Gas consumed during transaction execution, excluding base transaction costs,
