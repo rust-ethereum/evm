@@ -264,11 +264,12 @@ impl<'config> Gasometer<'config> {
 
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
-					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
-					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
-					+ access_list_address_len as u64 * self.config.gas_access_list_address
-					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
-					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
+					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
+					+ access_list_cost(
+						access_list_address_len,
+						access_list_storage_len,
+						self.config,
+					) + authorization_list_cost(authorization_list_len, self.config);
 
 				log_gas!(
 					self,
@@ -302,11 +303,12 @@ impl<'config> Gasometer<'config> {
 				);
 
 				let mut cost = self.config.gas_transaction_create
-					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
-					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
-					+ access_list_address_len as u64 * self.config.gas_access_list_address
-					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
-					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
+					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
+					+ access_list_cost(
+						access_list_address_len,
+						access_list_storage_len,
+						self.config,
+					) + authorization_list_cost(authorization_list_len, self.config);
 
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
@@ -436,6 +438,31 @@ pub fn create_transaction_cost(
 		initcode_cost,
 		authorization_list_len,
 	}
+}
+
+/// Calculate total calldata cost (zero + non-zero bytes)
+pub fn calldata_cost(
+	zero_bytes_in_calldata: usize,
+	non_zero_bytes_in_calldata: usize,
+	config: &Config,
+) -> u64 {
+	zero_bytes_in_calldata as u64 * config.gas_transaction_zero_data
+		+ non_zero_bytes_in_calldata as u64 * config.gas_transaction_non_zero_data
+}
+
+/// Calculate total access list cost (addresses + storage keys)
+pub fn access_list_cost(
+	access_list_address_len: usize,
+	access_list_storage_len: usize,
+	config: &Config,
+) -> u64 {
+	access_list_address_len as u64 * config.gas_access_list_address
+		+ access_list_storage_len as u64 * config.gas_access_list_storage_key
+}
+
+/// Calculate authorization list cost
+pub fn authorization_list_cost(authorization_list_len: usize, config: &Config) -> u64 {
+	authorization_list_len as u64 * config.gas_per_empty_account_cost
 }
 
 pub fn init_code_cost(code_length: u64) -> u64 {

@@ -71,8 +71,12 @@ impl GasMetrics {
 			return cached;
 		}
 
-		let cost = (config.gas_transaction_zero_data * (self.zero_bytes_in_calldata as u64))
-			+ (config.gas_transaction_non_zero_data * (self.non_zero_bytes_in_calldata as u64));
+		let cost = super::calldata_cost(
+			self.zero_bytes_in_calldata,
+			self.non_zero_bytes_in_calldata,
+			config,
+		);
+
 		self.cached_standard_calldata_cost = Some(cost);
 		cost
 	}
@@ -107,8 +111,12 @@ impl GasMetrics {
 			return cached;
 		}
 
-		let cost = self.access_list_address_len as u64 * config.gas_access_list_address
-			+ self.access_list_storage_len as u64 * config.gas_access_list_storage_key;
+		let cost = super::access_list_cost(
+			self.access_list_address_len,
+			self.access_list_storage_len,
+			config,
+		);
+
 		self.cached_access_list_cost = Some(cost);
 		cost
 	}
@@ -118,7 +126,8 @@ impl GasMetrics {
 			return cached;
 		}
 
-		let cost = self.authorization_list_len as u64 * config.gas_per_empty_account_cost;
+		let cost = super::authorization_list_cost(self.authorization_list_len, config);
+
 		self.cached_authorization_list_cost = Some(cost);
 		cost
 	}
