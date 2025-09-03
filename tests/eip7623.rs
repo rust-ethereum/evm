@@ -4,7 +4,7 @@ use evm::{
 	gasometer::{call_transaction_cost, create_transaction_cost, Gasometer, TransactionCost},
 	Config, ExitError, ExitReason,
 };
-use primitive_types::{H160, U256};
+use primitive_types::{H160, H256, U256};
 use std::collections::BTreeMap;
 
 // ============================================================================
@@ -906,7 +906,337 @@ mod snapshot_tests {
 }
 
 // ============================================================================
-// Section 7: Integration Tests with Full Transaction Execution
+// Section 7: EIP-7623 Gas Limit Validation Tests
+// ============================================================================
+
+#[cfg(test)]
+mod gas_limit_validation_tests {
+	use super::*;
+
+	#[test]
+	fn test_gas_limit_validation_passes_with_sufficient_gas() {
+		let config = create_eip7623_config();
+
+		// Create calldata that requires floor cost
+		let data = vec![0xffu8; 100]; // 100 non-zero bytes = 400 tokens * 10 = 4000 floor cost
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Calculate required minimum gas
+		// Base cost: 21000 + Floor cost: 4000 = 25000
+		let required_gas = 25_000;
+		let gas_limit = required_gas + 1000; // Add some buffer
+
+		let mut gasometer = Gasometer::new(gas_limit, &config);
+		let result = gasometer.record_transaction(cost);
+
+		assert!(
+			result.is_ok(),
+			"Should accept transaction with sufficient gas limit"
+		);
+	}
+
+	#[test]
+	fn test_gas_limit_validation_fails_below_floor_requirement() {
+		let config = create_eip7623_config();
+
+		// Create calldata that requires significant floor cost
+		let data = vec![0xffu8; 100]; // 100 non-zero bytes = 400 tokens * 10 = 4000 floor cost
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Set gas limit below floor requirement
+		// Floor requirement: 21000 (base) + 4000 (floor) = 25000
+		let insufficient_gas = 24_999;
+
+		let mut gasometer = Gasometer::new(insufficient_gas, &config);
+		let result = gasometer.record_transaction(cost);
+
+		assert!(
+			matches!(result, Err(ExitError::OutOfGas)),
+			"Should reject transaction when gas limit is below floor requirement"
+		);
+	}
+
+	#[test]
+	fn test_gas_limit_validation_exact_floor_requirement() {
+		let config = create_eip7623_config();
+
+		// Create calldata with known floor cost
+		let data = vec![0xffu8; 50]; // 50 non-zero bytes = 200 tokens * 10 = 2000 floor cost
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Set gas limit to exactly the floor requirement
+		// Floor requirement: 21000 (base) + 2000 (floor) = 23000
+		let exact_gas = 23_000;
+
+		let mut gasometer = Gasometer::new(exact_gas, &config);
+		let result = gasometer.record_transaction(cost);
+
+		assert!(
+			result.is_ok(),
+			"Should accept transaction at exact floor requirement"
+		);
+	}
+
+	#[test]
+	fn test_gas_limit_validation_with_mixed_calldata() {
+		let config = create_eip7623_config();
+
+		// Mixed calldata: 20 zero bytes + 30 non-zero bytes
+		// Tokens: 20 + (30 * 4) = 140
+		// Floor cost: 140 * 10 = 1400
+		let mut data = vec![0u8; 20];
+		data.extend(vec![0xffu8; 30]);
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Test with insufficient gas (below floor)
+		let insufficient_gas = 22_000; // 21000 + 999 < 21000 + 1400
+		let mut gasometer_fail = Gasometer::new(insufficient_gas, &config);
+		let result_fail = gasometer_fail.record_transaction(cost.clone());
+
+		assert!(
+			matches!(result_fail, Err(ExitError::OutOfGas)),
+			"Should fail with insufficient gas for mixed calldata"
+		);
+
+		// Test with sufficient gas (above floor)
+		let sufficient_gas = 23_000; // 21000 + 2000 > 21000 + 1400
+		let mut gasometer_pass = Gasometer::new(sufficient_gas, &config);
+		let result_pass = gasometer_pass.record_transaction(cost);
+
+		assert!(
+			result_pass.is_ok(),
+			"Should pass with sufficient gas for mixed calldata"
+		);
+	}
+
+	#[test]
+	fn test_gas_limit_validation_compares_floor_vs_intrinsic() {
+		let config = create_eip7623_config();
+
+		// Create calldata where intrinsic cost might be higher than floor cost
+		// Small calldata with access list to increase intrinsic cost
+		let data = vec![0xffu8; 10]; // 10 non-zero bytes = 40 tokens * 10 = 400 floor cost
+		let access_list = vec![(
+			H160::from_slice(&[1u8; 20]),
+			vec![H256::from_slice(&[1u8; 32]), H256::from_slice(&[2u8; 32])],
+		)]; // 1 address + 2 storage keys
+
+		let cost = call_transaction_cost(&data, &access_list, &vec![]);
+
+		// Calculate intrinsic cost:
+		// Base: 21000
+		// Calldata: 10 * 16 = 160
+		// Access list: 1 * 2400 + 2 * 1900 = 6200
+		// Total intrinsic: 21000 + 160 + 6200 = 27360
+
+		// Floor cost: 21000 + 400 = 21400
+		// max(27360, 21400) = 27360 (intrinsic wins)
+
+		// Test with gas just below intrinsic cost
+		let insufficient_gas = 27_000;
+		let mut gasometer_fail = Gasometer::new(insufficient_gas, &config);
+		let result_fail = gasometer_fail.record_transaction(cost.clone());
+
+		assert!(
+			matches!(result_fail, Err(ExitError::OutOfGas)),
+			"Should fail when below intrinsic cost (even if above floor cost)"
+		);
+
+		// Test with gas above intrinsic cost
+		let sufficient_gas = 28_000;
+		let mut gasometer_pass = Gasometer::new(sufficient_gas, &config);
+		let result_pass = gasometer_pass.record_transaction(cost);
+
+		assert!(result_pass.is_ok(), "Should pass when above intrinsic cost");
+	}
+
+	#[test]
+	fn test_gas_limit_validation_disabled_without_eip7623() {
+		let config = create_pre_eip7623_config();
+
+		// Create calldata that would fail under EIP-7623
+		let data = vec![0xffu8; 1000]; // Large calldata
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Calculate actual intrinsic cost without EIP-7623:
+		// Base: 21000 + Calldata: 1000 * 16 = 37000 total
+		let required_gas = 37_000; // Account for actual intrinsic cost
+
+		let mut gasometer = Gasometer::new(required_gas, &config);
+		let result = gasometer.record_transaction(cost);
+
+		// Should pass because EIP-7623 validation is disabled (no floor cost applied)
+		assert!(
+			result.is_ok(),
+			"Should pass when EIP-7623 is disabled, result: {:?}",
+			result
+		);
+	}
+
+	#[test]
+	fn test_gas_limit_validation_empty_calldata() {
+		let config = create_eip7623_config();
+
+		// Empty calldata - no floor cost beyond base
+		let data = vec![];
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Just base gas should be sufficient
+		let minimal_gas = 21_000;
+
+		let mut gasometer = Gasometer::new(minimal_gas, &config);
+		let result = gasometer.record_transaction(cost);
+
+		assert!(result.is_ok(), "Empty calldata should pass with base gas");
+	}
+
+	#[test]
+	fn test_gas_limit_validation_contract_creation() {
+		let config = create_eip7623_config();
+
+		// For contract creation, the validation compares:
+		// max(21000 + floor_calldata_cost, intrinsic_cost)
+		// where intrinsic_cost includes the full 53000 creation cost
+		//
+		// So for contracts, intrinsic cost will almost always win unless
+		// we have massive calldata. Let's test both scenarios:
+
+		// Scenario 1: Small calldata where intrinsic cost wins
+		let small_initcode = vec![0u8; 10]; // 10 zero bytes
+		let cost_small = create_transaction_cost(&small_initcode, &vec![], &vec![]);
+
+		// Intrinsic: 53000 + 40 + 2 = 53042 (base + calldata + initcode)
+		// Floor: 21000 + 100 = 21100 (21000 + 10*10)
+		// Required: max(21100, 53042) = 53042
+
+		let mut gasometer_small = Gasometer::new(53_000, &config); // Below intrinsic
+		let result_small = gasometer_small.record_transaction(cost_small);
+		assert!(
+			matches!(result_small, Err(ExitError::OutOfGas)),
+			"Should fail when below intrinsic cost"
+		);
+
+		// Scenario 2: Demonstrate floor cost comparison with actual values
+		// Let's create a scenario where the floor calculation matters
+		let large_initcode = vec![0u8; 5000]; // 5000 zero bytes = 5000*10 = 50000 floor
+		let cost_large = create_transaction_cost(&large_initcode, &vec![], &vec![]);
+
+		// Floor comparison: 21000 + 50000 = 71000
+		// Intrinsic: 53000 + 20000 + 314 = 73314 (base + calldata + initcode)
+		// Required: max(71000, 73314) = 73314
+
+		let mut gasometer_large_fail = Gasometer::new(73_000, &config); // Below requirement
+		let result_large_fail = gasometer_large_fail.record_transaction(cost_large.clone());
+		assert!(
+			matches!(result_large_fail, Err(ExitError::OutOfGas)),
+			"Should fail when below required gas for large initcode"
+		);
+
+		let mut gasometer_large_pass = Gasometer::new(74_000, &config); // Above requirement
+		let result_large_pass = gasometer_large_pass.record_transaction(cost_large);
+		assert!(
+			result_large_pass.is_ok(),
+			"Should pass with sufficient gas for large initcode"
+		);
+	}
+
+	#[test]
+	fn test_gas_limit_validation_edge_case_boundary() {
+		let config = create_eip7623_config();
+
+		// Create calldata that results in exact boundary conditions
+		// Use 21 non-zero bytes: 21 * 4 = 84 tokens * 10 = 840 floor cost
+		let data = vec![0xffu8; 21];
+		let cost = call_transaction_cost(&data, &vec![], &vec![]);
+
+		// Calculate exact requirements
+		// Base: 21000
+		// Standard calldata: 21 * 16 = 336
+		// Floor: 84 * 10 = 840
+		// Required: max(21000 + 336, 21000 + 840) = 21840
+
+		let boundary_tests = vec![
+			(21_839, false, "one below boundary"),
+			(21_840, true, "exact boundary"),
+			(21_841, true, "one above boundary"),
+		];
+
+		for (gas_limit, should_pass, description) in boundary_tests {
+			let mut gasometer = Gasometer::new(gas_limit, &config);
+			let result = gasometer.record_transaction(cost.clone());
+
+			if should_pass {
+				assert!(
+					result.is_ok(),
+					"Should pass {}: gas_limit={}",
+					description,
+					gas_limit
+				);
+			} else {
+				assert!(
+					matches!(result, Err(ExitError::OutOfGas)),
+					"Should fail {}: gas_limit={}",
+					description,
+					gas_limit
+				);
+			}
+		}
+	}
+
+	#[test]
+	fn test_gas_limit_validation_with_authorization_list() {
+		let config = create_eip7623_config();
+
+		// Create transaction with authorization list (EIP-7702)
+		let data = vec![0xffu8; 50]; // 50 non-zero bytes = 200 tokens * 10 = 2000 floor
+		let authorization_list = vec![
+			(
+				U256::from(1),
+				H160::from_slice(&[1u8; 20]),
+				U256::from(1),
+				None,
+			),
+			(
+				U256::from(2),
+				H160::from_slice(&[2u8; 20]),
+				U256::from(2),
+				None,
+			),
+		]; // 2 authorizations * gas_per_empty_account_cost
+
+		let cost = call_transaction_cost(&data, &vec![], &authorization_list);
+
+		// Calculate intrinsic cost including authorization list
+		// Base: 21000
+		// Calldata: 50 * 16 = 800
+		// Authorizations: 2 * gas_per_empty_account_cost (25000 each) = 50000
+		// Total intrinsic: 21000 + 800 + 50000 = 71800
+
+		// Floor cost: 21000 + 2000 = 23000
+		// max(71800, 23000) = 71800 (intrinsic wins due to authorizations)
+
+		let insufficient_gas = 71_000;
+		let mut gasometer_fail = Gasometer::new(insufficient_gas, &config);
+		let result_fail = gasometer_fail.record_transaction(cost.clone());
+
+		assert!(
+			matches!(result_fail, Err(ExitError::OutOfGas)),
+			"Should fail when below intrinsic cost with authorization list"
+		);
+
+		let sufficient_gas = 72_000;
+		let mut gasometer_pass = Gasometer::new(sufficient_gas, &config);
+		let result_pass = gasometer_pass.record_transaction(cost);
+
+		assert!(
+			result_pass.is_ok(),
+			"Should pass when above intrinsic cost with authorization list"
+		);
+	}
+}
+
+// ============================================================================
+// Section 8: Integration Tests with Full Transaction Execution
 // ============================================================================
 
 #[cfg(test)]
