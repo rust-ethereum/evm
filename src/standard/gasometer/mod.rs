@@ -126,9 +126,14 @@ impl GasometerState {
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, false);
 		let cost = TransactionCost::call(data, access_list).cost(config);
 
+		// EIP-7623: Check if gas limit meets the floor requirement
+		if config.eip7623_calldata_floor && gas_limit < cost.floor {
+			return Err(ExitException::OutOfGas.into());
+		}
+
+		let mut s = Self::new(gas_limit, false);
 		s.records_transaction_cost(cost)?;
 		Ok(s)
 	}
@@ -146,9 +151,14 @@ impl GasometerState {
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, false);
 		let cost = TransactionCost::create(code, access_list).cost(config);
 
+		// EIP-7623: Check if gas limit meets the floor requirement
+		if config.eip7623_calldata_floor && gas_limit < cost.floor {
+			return Err(ExitException::OutOfGas.into());
+		}
+
+		let mut s = Self::new(gas_limit, false);
 		s.records_transaction_cost(cost)?;
 		Ok(s)
 	}
