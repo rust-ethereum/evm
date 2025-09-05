@@ -35,7 +35,6 @@ macro_rules! event {
 mod consts;
 mod costs;
 mod memory;
-mod metrics;
 mod utils;
 
 use alloc::vec::Vec;
@@ -43,8 +42,6 @@ use core::cmp::max;
 use evm_core::{ExitError, Opcode, Stack};
 use evm_runtime::{Config, Handler};
 use primitive_types::{H160, H256, U256};
-
-use crate::metrics::GasMetrics;
 
 macro_rules! try_or_fail {
 	( $inner:expr, $e:expr ) => {
@@ -84,9 +81,9 @@ impl<'config> Gasometer<'config> {
 			inner: Ok(Inner {
 				memory_gas: 0,
 				used_gas: 0,
+				floor_gas: 0,
 				refunded_gas: 0,
 				config,
-				metrics: GasMetrics::new(),
 			}),
 		}
 	}
@@ -245,7 +242,7 @@ impl<'config> Gasometer<'config> {
 
 	/// Record transaction cost.
 	pub fn record_transaction(&mut self, cost: TransactionCost) -> Result<(), ExitError> {
-		let gas_cost = match cost {
+		let (gas_cost, floor_gas) = match cost {
 			TransactionCost::Call {
 				zero_data_len,
 				non_zero_data_len,
@@ -253,10 +250,6 @@ impl<'config> Gasometer<'config> {
 				access_list_storage_len,
 				authorization_list_len,
 			} => {
-				self.inner_mut()?
-					.metrics
-					.init(zero_data_len, non_zero_data_len, false);
-
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
 					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
@@ -265,6 +258,8 @@ impl<'config> Gasometer<'config> {
 						access_list_storage_len,
 						self.config,
 					) + authorization_list_cost(authorization_list_len, self.config);
+
+				let floor = floor_gas(zero_data_len, non_zero_data_len, self.config);
 
 				log_gas!(
 					self,
@@ -278,7 +273,7 @@ impl<'config> Gasometer<'config> {
 					authorization_list_len
 				);
 
-				cost
+				(cost, floor)
 			}
 			TransactionCost::Create {
 				zero_data_len,
@@ -288,10 +283,6 @@ impl<'config> Gasometer<'config> {
 				initcode_cost,
 				authorization_list_len,
 			} => {
-				self.inner_mut()?
-					.metrics
-					.init(zero_data_len, non_zero_data_len, true);
-
 				let mut cost = self.config.gas_transaction_create
 					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
 					+ access_list_cost(
@@ -303,6 +294,8 @@ impl<'config> Gasometer<'config> {
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
 				}
+
+				let floor = floor_gas(zero_data_len, non_zero_data_len, self.config);
 
 				log_gas!(
 					self,
@@ -316,7 +309,8 @@ impl<'config> Gasometer<'config> {
 					initcode_cost,
 					authorization_list_len
 				);
-				cost
+
+				(cost, floor)
 			}
 		};
 
@@ -329,10 +323,7 @@ impl<'config> Gasometer<'config> {
 		if self.config.has_eip_7623 {
 			// Any transaction with a gas limit below:
 			// 21000 + TOTAL_COST_FLOOR_PER_TOKEN * tokens_in_calldata
-			if self.gas()
-				< self.config().gas_transaction_call
-					+ self.inner_mut()?.floor_calldata_cost_metrics()
-			{
+			if self.gas() < floor_gas {
 				self.inner = Err(ExitError::OutOfGas);
 				return Err(ExitError::OutOfGas);
 			}
@@ -346,6 +337,7 @@ impl<'config> Gasometer<'config> {
 		}
 
 		self.inner_mut()?.used_gas += gas_cost;
+		self.inner_mut()?.floor_gas += floor_gas;
 		Ok(())
 	}
 
@@ -365,16 +357,8 @@ impl<'config> Gasometer<'config> {
 		// Apply EIP-7623 adjustments
 		if self.config.has_eip_7623 {
 			let inner = self.inner_mut()?;
-			let standard_calldata_cost = inner.standard_calldata_cost_metrics();
-			let floor_calldata_cost = inner.floor_calldata_cost_metrics();
-			let contract_creation_cost = inner.contract_creation_cost_metrics();
-			let execution_cost = inner.execution_cost_metrics();
-			let cost = standard_calldata_cost + execution_cost + contract_creation_cost;
-			let eip_7623_cost = max(cost, floor_calldata_cost);
 
-			// Adjust used_gas to match the target
-			inner.used_gas -= cost;
-			inner.used_gas += eip_7623_cost;
+			inner.used_gas = max(inner.used_gas, inner.floor_gas);
 		}
 
 		Ok(())
@@ -459,6 +443,25 @@ pub fn init_code_cost(code_length: u64) -> u64 {
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.
 	2 * ((code_length + 31) / 32)
+}
+
+pub fn floor_gas(
+	zero_bytes_in_calldata: usize,
+	non_zero_bytes_in_calldata: usize,
+	config: &Config,
+) -> u64 {
+	config
+		.gas_transaction_call
+		.saturating_add(
+			config
+				.gas_calldata_zero_floor
+				.saturating_mul(zero_bytes_in_calldata as u64),
+		)
+		.saturating_add(
+			config
+				.gas_calldata_non_zero_floor
+				.saturating_mul(non_zero_bytes_in_calldata as u64),
+		)
 }
 
 /// Counts the number of addresses and storage keys in the access list
@@ -875,9 +878,9 @@ pub fn dynamic_opcode_cost<H: Handler>(
 struct Inner<'config> {
 	memory_gas: u64,
 	used_gas: u64,
+	floor_gas: u64,
 	refunded_gas: i64,
 	config: &'config Config,
-	metrics: GasMetrics,
 }
 
 impl Inner<'_> {
@@ -1032,31 +1035,6 @@ impl Inner<'_> {
 			} if !self.config.decrease_clears_refund => costs::suicide_refund(already_removed),
 			_ => 0,
 		}
-	}
-
-	/// Standard gas cost for transaction calldata.
-	/// Valid only after [`GasMetrics::init`] has been called.
-	fn standard_calldata_cost_metrics(&mut self) -> u64 {
-		self.metrics.standard_calldata_cost(self.config)
-	}
-
-	/// Floor gas cost for transaction calldata as defined by EIP-7623.
-	/// Valid only after [`GasMetrics::init`] has been called.
-	fn floor_calldata_cost_metrics(&mut self) -> u64 {
-		self.metrics.floor_calldata_cost(self.config)
-	}
-
-	/// Gas cost for contract creation.
-	/// Valid only after [`GasMetrics::init`] has been called with `is_contract_creation` set to true.
-	fn contract_creation_cost_metrics(&mut self) -> u64 {
-		self.metrics.contract_creation_cost(self.config)
-	}
-
-	/// Gas consumed during transaction execution, excluding base transaction costs,
-	/// calldata costs, and contract creation costs. This value represents
-	/// the actual execution cost only when called from within [`Gasometer::post_execution`].
-	fn execution_cost_metrics(&mut self) -> u64 {
-		self.metrics.execution_cost(self.used_gas, self.config)
 	}
 }
 
