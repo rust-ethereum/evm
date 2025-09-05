@@ -79,9 +79,9 @@ impl GasometerState {
 		Ok(())
 	}
 
-	/// Record real and floor costs of a transaction.
+	/// Record used and floor costs of a transaction.
 	pub fn records_transaction_cost(&mut self, cost: TransactionCost) -> Result<(), ExitError> {
-		self.record_gas64(cost.real)?;
+		self.record_gas64(cost.used)?;
 		self.floor_gas = cost.floor;
 		Ok(())
 	}
@@ -955,7 +955,7 @@ enum Transaction {
 }
 
 pub struct TransactionCost {
-	real: u64,
+	used: u64,
 	floor: u64,
 }
 
@@ -996,7 +996,7 @@ impl Transaction {
 				access_list_address_len,
 				access_list_storage_len,
 			} => {
-				let cost = config.gas_transaction_call()
+				let used = config.gas_transaction_call()
 					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
@@ -1006,7 +1006,7 @@ impl Transaction {
 					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
 
-				TransactionCost { real: cost, floor }
+				TransactionCost { used, floor }
 			}
 			Transaction::Create {
 				zero_data_len,
@@ -1015,21 +1015,21 @@ impl Transaction {
 				access_list_storage_len,
 				initcode_cost,
 			} => {
-				let mut cost = config.gas_transaction_create()
+				let mut used = config.gas_transaction_create()
 					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
 					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
 
 				if config.max_initcode_size().is_some() {
-					cost += initcode_cost;
+					used += initcode_cost;
 				}
 
 				let floor = config.gas_transaction_call()
 					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
 
-				TransactionCost { real: cost, floor }
+				TransactionCost { used, floor }
 			}
 		}
 	}
