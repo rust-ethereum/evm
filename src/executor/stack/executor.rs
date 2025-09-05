@@ -453,7 +453,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				.state
 				.metadata_mut()
 				.gasometer
-				.record_cost(gasometer::init_code_cost(init_code.len() as u64));
+				.record_cost(gasometer::init_code_cost(init_code));
 		}
 		Ok(())
 	}

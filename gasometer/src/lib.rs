@@ -252,12 +252,11 @@ impl<'config> Gasometer<'config> {
 			} => {
 				#[deny(clippy::let_and_return)]
 				let cost = self.config.gas_transaction_call
-					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
-					+ access_list_cost(
-						access_list_address_len,
-						access_list_storage_len,
-						self.config,
-					) + authorization_list_cost(authorization_list_len, self.config);
+					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
+					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
+					+ access_list_address_len as u64 * self.config.gas_access_list_address
+					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
+					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
 
 				let floor = floor_gas(zero_data_len, non_zero_data_len, self.config);
 
@@ -284,13 +283,11 @@ impl<'config> Gasometer<'config> {
 				authorization_list_len,
 			} => {
 				let mut cost = self.config.gas_transaction_create
-					+ calldata_cost(zero_data_len, non_zero_data_len, self.config)
-					+ access_list_cost(
-						access_list_address_len,
-						access_list_storage_len,
-						self.config,
-					) + authorization_list_cost(authorization_list_len, self.config);
-
+					+ zero_data_len as u64 * self.config.gas_transaction_zero_data
+					+ non_zero_data_len as u64 * self.config.gas_transaction_non_zero_data
+					+ access_list_address_len as u64 * self.config.gas_access_list_address
+					+ access_list_storage_len as u64 * self.config.gas_access_list_storage_key
+					+ authorization_list_len as u64 * self.config.gas_per_empty_account_cost;
 				if self.config.max_initcode_size.is_some() {
 					cost += initcode_cost;
 				}
@@ -401,7 +398,7 @@ pub fn create_transaction_cost(
 	// Per EIP-7702: Initially charge PER_EMPTY_ACCOUNT_COST for all authorizations
 	// Non-empty accounts will be refunded later when we have access to account state
 	let authorization_list_len = authorization_list.len();
-	let initcode_cost = init_code_cost(data.len() as u64);
+	let initcode_cost = init_code_cost(data);
 
 	TransactionCost::Create {
 		zero_data_len,
@@ -413,36 +410,11 @@ pub fn create_transaction_cost(
 	}
 }
 
-/// Calculate total calldata cost (zero + non-zero bytes)
-pub fn calldata_cost(
-	zero_bytes_in_calldata: usize,
-	non_zero_bytes_in_calldata: usize,
-	config: &Config,
-) -> u64 {
-	zero_bytes_in_calldata as u64 * config.gas_transaction_zero_data
-		+ non_zero_bytes_in_calldata as u64 * config.gas_transaction_non_zero_data
-}
-
-/// Calculate total access list cost (addresses + storage keys)
-pub fn access_list_cost(
-	access_list_address_len: usize,
-	access_list_storage_len: usize,
-	config: &Config,
-) -> u64 {
-	access_list_address_len as u64 * config.gas_access_list_address
-		+ access_list_storage_len as u64 * config.gas_access_list_storage_key
-}
-
-/// Calculate authorization list cost
-pub fn authorization_list_cost(authorization_list_len: usize, config: &Config) -> u64 {
-	authorization_list_len as u64 * config.gas_per_empty_account_cost
-}
-
-pub fn init_code_cost(code_length: u64) -> u64 {
+pub fn init_code_cost(data: &[u8]) -> u64 {
 	// As per EIP-3860:
 	// > We define initcode_cost(initcode) to equal INITCODE_WORD_COST * ceil(len(initcode) / 32).
 	// where INITCODE_WORD_COST is 2.
-	2 * ((code_length + 31) / 32)
+	2 * ((data.len() as u64 + 31) / 32)
 }
 
 pub fn floor_gas(
