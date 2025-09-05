@@ -364,6 +364,16 @@ impl Config {
 		}
 	}
 
+	/// Floor gas paid for zero data in a transaction.
+	pub fn gas_floor_transaction_zero_data(&self) -> u64 {
+		10
+	}
+
+	/// Floor gas paid for non-zero data in a transaction.
+	pub fn gas_floor_transaction_non_zero_data(&self) -> u64 {
+		40
+	}
+
 	/// Gas paid per address in transaction access list (see EIP-2930).
 	pub fn gas_access_list_address(&self) -> u64 {
 		if self.eip2930_access_list { 2400 } else { 0 }

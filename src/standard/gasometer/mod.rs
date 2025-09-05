@@ -19,6 +19,7 @@ pub struct GasometerState {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
+	floor_gas: u64,
 	refunded_gas: i64,
 	/// Whether the gasometer is in static context.
 	pub is_static: bool,
@@ -99,6 +100,7 @@ impl GasometerState {
 			gas_limit,
 			memory_gas: 0,
 			used_gas: 0,
+			floor_gas: 0,
 			refunded_gas: 0,
 			is_static,
 		}
@@ -118,9 +120,10 @@ impl GasometerState {
 		};
 
 		let mut s = Self::new(gas_limit, false);
-		let transaction_cost = TransactionCost::call(data, access_list).cost(config);
+		let (transaction_cost, floor_cost) = TransactionCost::call(data, access_list).cost(config);
 
 		s.record_gas64(transaction_cost)?;
+		s.floor_gas = floor_cost;
 		Ok(s)
 	}
 
@@ -138,9 +141,11 @@ impl GasometerState {
 		};
 
 		let mut s = Self::new(gas_limit, false);
-		let transaction_cost = TransactionCost::create(code, access_list).cost(config);
+		let (transaction_cost, floor_cost) =
+			TransactionCost::create(code, access_list).cost(config);
 
 		s.record_gas64(transaction_cost)?;
+		s.floor_gas = floor_cost;
 		Ok(s)
 	}
 
@@ -201,6 +206,11 @@ impl GasometerState {
 			}
 			MergeStrategy::Discard => {}
 		}
+	}
+
+	/// Apply the floor gas cost for calldata as defined in EIP-7623
+	pub fn apply_transaction_floor_cost(&mut self) {
+		self.used_gas = max(self.used_gas, self.floor_gas);
 	}
 }
 
@@ -969,7 +979,7 @@ impl TransactionCost {
 		}
 	}
 
-	pub fn cost(&self, config: &Config) -> u64 {
+	pub fn cost(&self, config: &Config) -> (u64, u64) {
 		match self {
 			TransactionCost::Call {
 				zero_data_len,
@@ -977,14 +987,17 @@ impl TransactionCost {
 				access_list_address_len,
 				access_list_storage_len,
 			} => {
-				#[deny(clippy::let_and_return)]
 				let cost = config.gas_transaction_call()
 					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
 					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
 
-				cost
+				let floor = config.gas_transaction_call()
+					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
+					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
+
+				(cost, floor)
 			}
 			TransactionCost::Create {
 				zero_data_len,
@@ -998,11 +1011,16 @@ impl TransactionCost {
 					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
 					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
+
 				if config.max_initcode_size().is_some() {
 					cost += initcode_cost;
 				}
 
-				cost
+				let floor = config.gas_transaction_call()
+					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
+					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
+
+				(cost, floor)
 			}
 		}
 	}
