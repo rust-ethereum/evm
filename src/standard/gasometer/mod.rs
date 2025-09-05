@@ -79,6 +79,13 @@ impl GasometerState {
 		Ok(())
 	}
 
+	/// Record real and floor costs of a transaction.
+	pub fn records_transaction_cost(&mut self, cost: TransactionCost) -> Result<(), ExitError> {
+		self.record_gas64(cost.real)?;
+		self.floor_gas = cost.floor;
+		Ok(())
+	}
+
 	/// Set memory gas usage.
 	pub fn set_memory_gas(&mut self, memory_cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.used_gas.checked_add(memory_cost);
@@ -120,10 +127,9 @@ impl GasometerState {
 		};
 
 		let mut s = Self::new(gas_limit, false);
-		let (transaction_cost, floor_cost) = TransactionCost::call(data, access_list).cost(config);
+		let cost = Transaction::call(data, access_list).cost(config);
 
-		s.record_gas64(transaction_cost)?;
-		s.floor_gas = floor_cost;
+		s.records_transaction_cost(cost)?;
 		Ok(s)
 	}
 
@@ -141,11 +147,9 @@ impl GasometerState {
 		};
 
 		let mut s = Self::new(gas_limit, false);
-		let (transaction_cost, floor_cost) =
-			TransactionCost::create(code, access_list).cost(config);
+		let cost = Transaction::create(code, access_list).cost(config);
 
-		s.record_gas64(transaction_cost)?;
-		s.floor_gas = floor_cost;
+		s.records_transaction_cost(cost)?;
 		Ok(s)
 	}
 
@@ -923,7 +927,7 @@ impl MemoryCost {
 
 /// Transaction cost.
 #[derive(Debug, Clone, Copy)]
-enum TransactionCost {
+enum Transaction {
 	/// Call transaction cost.
 	Call {
 		/// Length of zeros in transaction data.
@@ -950,13 +954,18 @@ enum TransactionCost {
 	},
 }
 
-impl TransactionCost {
-	pub fn call(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+pub struct TransactionCost {
+	real: u64,
+	floor: u64,
+}
+
+impl Transaction {
+	pub fn call(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> Transaction {
 		let zero_data_len = data.iter().filter(|v| **v == 0).count();
 		let non_zero_data_len = data.len() - zero_data_len;
 		let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
 
-		TransactionCost::Call {
+		Transaction::Call {
 			zero_data_len,
 			non_zero_data_len,
 			access_list_address_len,
@@ -964,13 +973,13 @@ impl TransactionCost {
 		}
 	}
 
-	pub fn create(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
+	pub fn create(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> Transaction {
 		let zero_data_len = data.iter().filter(|v| **v == 0).count();
 		let non_zero_data_len = data.len() - zero_data_len;
 		let (access_list_address_len, access_list_storage_len) = count_access_list(access_list);
 		let initcode_cost = init_code_cost(data.len());
 
-		TransactionCost::Create {
+		Transaction::Create {
 			zero_data_len,
 			non_zero_data_len,
 			access_list_address_len,
@@ -979,9 +988,9 @@ impl TransactionCost {
 		}
 	}
 
-	pub fn cost(&self, config: &Config) -> (u64, u64) {
+	pub fn cost(&self, config: &Config) -> TransactionCost {
 		match self {
-			TransactionCost::Call {
+			Transaction::Call {
 				zero_data_len,
 				non_zero_data_len,
 				access_list_address_len,
@@ -997,9 +1006,9 @@ impl TransactionCost {
 					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
 
-				(cost, floor)
+				TransactionCost { real: cost, floor }
 			}
-			TransactionCost::Create {
+			Transaction::Create {
 				zero_data_len,
 				non_zero_data_len,
 				access_list_address_len,
@@ -1020,7 +1029,7 @@ impl TransactionCost {
 					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
 
-				(cost, floor)
+				TransactionCost { real: cost, floor }
 			}
 		}
 	}
