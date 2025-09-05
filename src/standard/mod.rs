@@ -230,4 +230,8 @@ impl<'config> InvokerState for State<'config> {
 	fn effective_gas(&self, with_refund: bool) -> U256 {
 		self.gasometer.effective_gas(with_refund, self.config)
 	}
+
+	fn apply_transaction_floor_cost(&mut self) {
+		self.gasometer.apply_transaction_floor_cost()
+	}
 }

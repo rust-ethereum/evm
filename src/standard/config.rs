@@ -86,6 +86,8 @@ pub struct Config {
 	pub eip4844_shard_blob: bool,
 	/// EIP-7516: Blob base fee per gas.
 	pub eip7516_blob_base_fee: bool,
+	/// EIP-7623: Increase calldata cost with floor.
+	pub eip7623_calldata_floor: bool,
 }
 
 impl Config {
@@ -132,6 +134,7 @@ impl Config {
 			eip2930_access_list: false,
 			eip4844_shard_blob: false,
 			eip7516_blob_base_fee: false,
+			eip7623_calldata_floor: false,
 		}
 	}
 
@@ -234,6 +237,13 @@ impl Config {
 		config.runtime.eip6780_suicide_only_in_same_tx = true;
 		config.eip4844_shard_blob = true;
 		config.eip7516_blob_base_fee = true;
+		config
+	}
+
+	/// Prague
+	pub const fn prague() -> Config {
+		let mut config = Self::cancun();
+		config.eip7623_calldata_floor = true;
 		config
 	}
 
@@ -366,12 +376,12 @@ impl Config {
 
 	/// Floor gas paid for zero data in a transaction.
 	pub fn gas_floor_transaction_zero_data(&self) -> u64 {
-		10
+		if self.eip7623_calldata_floor { 10 } else { 0 }
 	}
 
 	/// Floor gas paid for non-zero data in a transaction.
 	pub fn gas_floor_transaction_non_zero_data(&self) -> u64 {
-		40
+		if self.eip7623_calldata_floor { 40 } else { 0 }
 	}
 
 	/// Gas paid per address in transaction access list (see EIP-2930).
