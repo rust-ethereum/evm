@@ -514,12 +514,12 @@ where
 			Ok(_) => exit
 				.substate
 				.as_ref()
-				.map(|s| s.effective_gas(true, invoke.config.eip7623_calldata_floor))
+				.map(|s| s.effective_gas(true))
 				.unwrap_or_default(),
 			Err(ExitError::Reverted) => exit
 				.substate
 				.as_ref()
-				.map(|s| s.effective_gas(false, invoke.config.eip7623_calldata_floor))
+				.map(|s| s.effective_gas(false))
 				.unwrap_or_default(),
 			Err(_) => U256::zero(),
 		};

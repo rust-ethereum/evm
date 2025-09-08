@@ -166,7 +166,7 @@ impl GasometerState {
 	/// The effective used gas at the end of the transaction.
 	///
 	/// In case of revert, refunded gas are not taken into account.
-	pub fn effective_gas(&self, with_refund: bool, with_floor: bool, config: &Config) -> U256 {
+	pub fn effective_gas(&self, with_refund: bool, config: &Config) -> U256 {
 		let refunded_gas = self.refunded_gas.max(0) as u64;
 
 		let used_gas = if with_refund {
@@ -176,7 +176,7 @@ impl GasometerState {
 			self.total_used_gas()
 		};
 
-		let used_gas = if with_floor {
+		let used_gas = if config.eip7623_calldata_floor {
 			used_gas.max(self.floor_gas)
 		} else {
 			used_gas
