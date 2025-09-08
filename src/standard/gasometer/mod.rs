@@ -3,7 +3,7 @@ mod costs;
 mod utils;
 
 use alloc::vec::Vec;
-use core::cmp::{max, min};
+use core::cmp::max;
 
 use evm_interpreter::{
 	Control, ExitError, ExitException, Machine, Opcode, Stack,
@@ -166,23 +166,23 @@ impl GasometerState {
 	/// The effective used gas at the end of the transaction.
 	///
 	/// In case of revert, refunded gas are not taken into account.
-	pub fn effective_gas(&self, with_refund: bool, config: &Config) -> U256 {
-		let refunded_gas = if self.refunded_gas >= 0 {
-			self.refunded_gas as u64
+	pub fn effective_gas(&self, with_refund: bool, with_floor: bool, config: &Config) -> U256 {
+		let refunded_gas = self.refunded_gas.max(0) as u64;
+
+		let used_gas = if with_refund {
+			let max_refund = self.total_used_gas() / config.max_refund_quotient();
+			self.total_used_gas() - refunded_gas.min(max_refund)
 		} else {
-			0
+			self.total_used_gas()
 		};
 
-		U256::from(if with_refund {
-			self.gas_limit
-				- (self.total_used_gas()
-					- min(
-						self.total_used_gas() / config.max_refund_quotient(),
-						refunded_gas,
-					))
+		let used_gas = if with_floor {
+			used_gas.max(self.floor_gas)
 		} else {
-			self.gas_limit - self.total_used_gas()
-		})
+			used_gas
+		};
+
+		U256::from(self.gas_limit - used_gas)
 	}
 
 	/// Create a submeter.
@@ -220,11 +220,6 @@ impl GasometerState {
 			}
 			MergeStrategy::Discard => {}
 		}
-	}
-
-	/// Apply the floor gas cost for calldata as defined in EIP-7623
-	pub fn apply_transaction_floor_cost(&mut self) {
-		self.used_gas = max(self.used_gas, self.floor_gas);
 	}
 }
 

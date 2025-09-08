@@ -510,23 +510,16 @@ where
 
 		let result = work();
 
-		// Apply EIP-7623 floor cost before calculating effective gas
-		if let Some(substate) = exit.substate.as_mut()
-			&& invoke.config.eip7623_calldata_floor
-		{
-			substate.apply_transaction_floor_cost();
-		}
-
 		let effective_gas = match result {
 			Ok(_) => exit
 				.substate
 				.as_ref()
-				.map(|s| s.effective_gas(true))
+				.map(|s| s.effective_gas(true, invoke.config.eip7623_calldata_floor))
 				.unwrap_or_default(),
 			Err(ExitError::Reverted) => exit
 				.substate
 				.as_ref()
-				.map(|s| s.effective_gas(false))
+				.map(|s| s.effective_gas(false, invoke.config.eip7623_calldata_floor))
 				.unwrap_or_default(),
 			Err(_) => U256::zero(),
 		};

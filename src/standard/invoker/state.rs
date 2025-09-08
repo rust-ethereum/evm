@@ -46,7 +46,5 @@ pub trait InvokerState: GasState + Sized {
 	/// Whether the current state is in the static frame.
 	fn is_static(&self) -> bool;
 	/// Effective gas. The final used gas as reported by the transaction.
-	fn effective_gas(&self, with_refund: bool) -> U256;
-	/// Apply transaction floor cost for EIP-7623.
-	fn apply_transaction_floor_cost(&mut self);
+	fn effective_gas(&self, with_refund: bool, with_floor: bool) -> U256;
 }
