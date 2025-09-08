@@ -1007,9 +1007,16 @@ impl TransactionCost {
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
 					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
 
-				let floor = config.gas_transaction_call()
-					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
-					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
+				let floor = config
+					.gas_transaction_call()
+					.saturating_add(
+						(*zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_zero_data()),
+					)
+					.saturating_add(
+						(*non_zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_non_zero_data()),
+					);
 
 				TransactionGas { used, floor }
 			}
@@ -1030,9 +1037,16 @@ impl TransactionCost {
 					used += initcode_cost;
 				}
 
-				let floor = config.gas_transaction_call()
-					+ *zero_data_len as u64 * config.gas_floor_transaction_zero_data()
-					+ *non_zero_data_len as u64 * config.gas_floor_transaction_non_zero_data();
+				let floor = config
+					.gas_transaction_call()
+					.saturating_add(
+						(*zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_zero_data()),
+					)
+					.saturating_add(
+						(*non_zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_non_zero_data()),
+					);
 
 				TransactionGas { used, floor }
 			}
