@@ -3,7 +3,7 @@ mod costs;
 mod utils;
 
 use alloc::vec::Vec;
-use core::cmp::{max, min};
+use core::cmp::max;
 
 use evm_interpreter::{
 	Control, ExitError, ExitException, Machine, Opcode, Stack,
@@ -19,6 +19,7 @@ pub struct GasometerState {
 	gas_limit: u64,
 	memory_gas: u64,
 	used_gas: u64,
+	floor_gas: u64,
 	refunded_gas: i64,
 	/// Whether the gasometer is in static context.
 	pub is_static: bool,
@@ -78,6 +79,13 @@ impl GasometerState {
 		Ok(())
 	}
 
+	/// Record used and floor costs of a transaction.
+	pub fn records_transaction_cost(&mut self, cost: TransactionGas) -> Result<(), ExitError> {
+		self.record_gas64(cost.used)?;
+		self.floor_gas = cost.floor;
+		Ok(())
+	}
+
 	/// Set memory gas usage.
 	pub fn set_memory_gas(&mut self, memory_cost: u64) -> Result<(), ExitError> {
 		let all_gas_cost = self.used_gas.checked_add(memory_cost);
@@ -99,6 +107,7 @@ impl GasometerState {
 			gas_limit,
 			memory_gas: 0,
 			used_gas: 0,
+			floor_gas: 0,
 			refunded_gas: 0,
 			is_static,
 		}
@@ -117,10 +126,15 @@ impl GasometerState {
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, false);
-		let transaction_cost = TransactionCost::call(data, access_list).cost(config);
+		let cost = TransactionCost::call(data, access_list).cost(config);
 
-		s.record_gas64(transaction_cost)?;
+		// EIP-7623: Check if gas limit meets the floor requirement
+		if config.eip7623_calldata_floor && gas_limit < cost.floor {
+			return Err(ExitException::OutOfGas.into());
+		}
+
+		let mut s = Self::new(gas_limit, false);
+		s.records_transaction_cost(cost)?;
 		Ok(s)
 	}
 
@@ -137,10 +151,15 @@ impl GasometerState {
 			gas_limit.as_u64()
 		};
 
-		let mut s = Self::new(gas_limit, false);
-		let transaction_cost = TransactionCost::create(code, access_list).cost(config);
+		let cost = TransactionCost::create(code, access_list).cost(config);
 
-		s.record_gas64(transaction_cost)?;
+		// EIP-7623: Check if gas limit meets the floor requirement
+		if config.eip7623_calldata_floor && gas_limit < cost.floor {
+			return Err(ExitException::OutOfGas.into());
+		}
+
+		let mut s = Self::new(gas_limit, false);
+		s.records_transaction_cost(cost)?;
 		Ok(s)
 	}
 
@@ -148,22 +167,22 @@ impl GasometerState {
 	///
 	/// In case of revert, refunded gas are not taken into account.
 	pub fn effective_gas(&self, with_refund: bool, config: &Config) -> U256 {
-		let refunded_gas = if self.refunded_gas >= 0 {
-			self.refunded_gas as u64
+		let refunded_gas = self.refunded_gas.max(0) as u64;
+
+		let used_gas = if with_refund {
+			let max_refund = self.total_used_gas() / config.max_refund_quotient();
+			self.total_used_gas() - refunded_gas.min(max_refund)
 		} else {
-			0
+			self.total_used_gas()
 		};
 
-		U256::from(if with_refund {
-			self.gas_limit
-				- (self.total_used_gas()
-					- min(
-						self.total_used_gas() / config.max_refund_quotient(),
-						refunded_gas,
-					))
+		let used_gas = if config.eip7623_calldata_floor {
+			used_gas.max(self.floor_gas)
 		} else {
-			self.gas_limit - self.total_used_gas()
-		})
+			used_gas
+		};
+
+		U256::from(self.gas_limit - used_gas)
 	}
 
 	/// Create a submeter.
@@ -940,6 +959,11 @@ enum TransactionCost {
 	},
 }
 
+pub struct TransactionGas {
+	used: u64,
+	floor: u64,
+}
+
 impl TransactionCost {
 	pub fn call(data: &[u8], access_list: &[(H160, Vec<H256>)]) -> TransactionCost {
 		let zero_data_len = data.iter().filter(|v| **v == 0).count();
@@ -969,7 +993,7 @@ impl TransactionCost {
 		}
 	}
 
-	pub fn cost(&self, config: &Config) -> u64 {
+	pub fn cost(&self, config: &Config) -> TransactionGas {
 		match self {
 			TransactionCost::Call {
 				zero_data_len,
@@ -977,14 +1001,24 @@ impl TransactionCost {
 				access_list_address_len,
 				access_list_storage_len,
 			} => {
-				#[deny(clippy::let_and_return)]
-				let cost = config.gas_transaction_call()
+				let used = config.gas_transaction_call()
 					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
 					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
 
-				cost
+				let floor = config
+					.gas_transaction_call()
+					.saturating_add(
+						(*zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_zero_data()),
+					)
+					.saturating_add(
+						(*non_zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_non_zero_data()),
+					);
+
+				TransactionGas { used, floor }
 			}
 			TransactionCost::Create {
 				zero_data_len,
@@ -993,16 +1027,28 @@ impl TransactionCost {
 				access_list_storage_len,
 				initcode_cost,
 			} => {
-				let mut cost = config.gas_transaction_create()
+				let mut used = config.gas_transaction_create()
 					+ *zero_data_len as u64 * config.gas_transaction_zero_data()
 					+ *non_zero_data_len as u64 * config.gas_transaction_non_zero_data()
 					+ *access_list_address_len as u64 * config.gas_access_list_address()
 					+ *access_list_storage_len as u64 * config.gas_access_list_storage_key();
+
 				if config.max_initcode_size().is_some() {
-					cost += initcode_cost;
+					used += initcode_cost;
 				}
 
-				cost
+				let floor = config
+					.gas_transaction_call()
+					.saturating_add(
+						(*zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_zero_data()),
+					)
+					.saturating_add(
+						(*non_zero_data_len as u64)
+							.saturating_mul(config.gas_floor_transaction_non_zero_data()),
+					);
+
+				TransactionGas { used, floor }
 			}
 		}
 	}
