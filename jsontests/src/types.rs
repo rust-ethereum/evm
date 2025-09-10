@@ -166,6 +166,7 @@ pub enum Fork {
 	Paris,
 	Berlin,
 	Cancun,
+	Prague,
 	London,
 	Merge,
 	Shanghai,

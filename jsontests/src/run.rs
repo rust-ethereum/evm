@@ -190,6 +190,7 @@ pub fn run_test(
 		Fork::London => Config::london(),
 		Fork::Shanghai => Config::shanghai(),
 		Fork::Cancun => Config::cancun(),
+		Fork::Prague => Config::prague(),
 		_ => return Err(Error::UnsupportedFork),
 	};
 	config_change(&mut config);
