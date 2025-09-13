@@ -258,7 +258,7 @@ pub enum TouchKind {
 	Access,
 }
 
-/// The distinguish between `RuntimeBaseBackend` and `RuntimeBackend` is for the implementation of
+/// The distinction between `RuntimeBaseBackend` and `RuntimeBackend` is for the implementation of
 /// overlays.
 pub trait RuntimeBackend: RuntimeBaseBackend {
 	/// Get original storage value of address at index.
