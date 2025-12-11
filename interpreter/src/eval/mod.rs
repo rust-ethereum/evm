@@ -7,6 +7,7 @@ mod bitwise;
 mod misc;
 mod system;
 
+#[allow(unused_imports)]
 use crate::uint::{U256, U256Ext};
 use alloc::boxed::Box;
 use core::ops::{BitAnd, BitOr, BitXor};

@@ -4,7 +4,7 @@ use std::{
 	io::{BufReader, BufWriter},
 };
 
-use evm::uint::{H256, U256};
+use evm::uint::{H256, U256, U256Ext};
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
 	interpreter::{Capture, runtime::GasState},

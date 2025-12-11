@@ -9,7 +9,7 @@ use evm_interpreter::uint::{H160, H256, U256, U256Ext};
 use evm_interpreter::{
 	Control, ExitError, ExitException, Machine, Opcode, Stack,
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
-	utils::{u256_to_h160, u256_to_h256, u256_to_usize},
+	utils::u256_to_usize,
 };
 
 use crate::{MergeStrategy, standard::Config};
@@ -333,7 +333,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BLOBBASEFEE => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -342,7 +342,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::ExtCodeSize { target_is_cold }
 		}
 		Opcode::BALANCE => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -353,7 +353,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.eip1052_ext_code_hash => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -364,7 +364,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
 
 		Opcode::CALLCODE => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -380,7 +380,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		}
 
 		Opcode::STATICCALL if config.eip214_static_call => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -399,7 +399,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			len: stack.peek(1)?,
 		},
 		Opcode::EXTCODECOPY => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -420,7 +420,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			power: stack.peek(1)?,
 		},
 		Opcode::SLOAD => {
-			let index = u256_to_h256(stack.peek(0)?);
+			let index = stack.peek(0)?.to_h256();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
@@ -431,7 +431,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::TLOAD if config.eip1153_transient_storage => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.eip7_delegate_call => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -453,8 +453,8 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode),
 
 		Opcode::SSTORE if !is_static => {
-			let index = u256_to_h256(stack.peek(0)?);
-			let value = u256_to_h256(stack.peek(1)?);
+			let index = stack.peek(0)?.to_h256();
+			let value = stack.peek(1)?.to_h256();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
@@ -495,7 +495,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			len: stack.peek(2)?,
 		},
 		Opcode::SUICIDE if !is_static => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -511,7 +511,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			}
 		}
 		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::ZERO) => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929

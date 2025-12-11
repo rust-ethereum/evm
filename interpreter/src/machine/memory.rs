@@ -6,6 +6,7 @@ use core::{
 };
 
 use crate::error::{ExitException, ExitFatal};
+#[allow(unused_imports)]
 use crate::uint::{U256, U256Ext};
 
 /// A sequential memory. It uses Rust's `Vec` for internal

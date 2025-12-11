@@ -6,27 +6,8 @@ use core::{
 };
 
 use crate::error::{ExitError, ExitFatal};
+#[allow(unused_imports)]
 use crate::uint::{H160, H256, U256, U256Ext};
-
-/// Convert [U256] into [H256].
-#[must_use]
-pub fn u256_to_h256(v: U256) -> H256 {
-	let mut r = H256::default();
-	v.to_big_endian(&mut r[..]);
-	r
-}
-
-/// Convert [H256] to [U256].
-#[must_use]
-pub fn h256_to_u256(v: H256) -> U256 {
-	U256::from_big_endian(&v[..])
-}
-
-/// Convert [U256] into [H160]
-#[must_use]
-pub fn u256_to_h160(v: U256) -> H160 {
-	u256_to_h256(v).into()
-}
 
 /// Convert [U256] to [usize].
 pub fn u256_to_usize(v: U256) -> Result<usize, ExitError> {

@@ -1,9 +1,9 @@
 use alloc::{borrow::Cow, vec::Vec};
 use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Group, Gt};
-use evm::uint::U256;
+use evm::uint::{U256, U256Ext};
 use evm::{
 	GasMutState,
-	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed, utils::u256_to_h256},
+	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 };
 
 use crate::PurePrecompile;
@@ -206,7 +206,7 @@ pub fn run_pair<G: GasMutState>(
 	let pairing_result = pairing_check(&points)?;
 	Ok((
 		ExitSucceed::Returned,
-		u256_to_h256(bool_to_u256(pairing_result)).0.into(),
+		bool_to_u256(pairing_result).to_h256().0.into(),
 	))
 }
 

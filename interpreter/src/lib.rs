@@ -1,7 +1,6 @@
 //! Core layer for EVM.
 
-#![deny(warnings)]
-#![forbid(unused_variables, unused_imports)]
+#![deny(warnings, unused_variables, unused_imports)]
 #![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 

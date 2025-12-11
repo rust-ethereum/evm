@@ -1,5 +1,6 @@
 use core::cmp::{max, min};
 
+#[allow(unused_imports)]
 use crate::uint::{H256, U256, U256Ext};
 use crate::{Control, ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 

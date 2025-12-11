@@ -4,12 +4,13 @@ use alloc::vec::Vec;
 use core::{cmp::min, convert::Infallible};
 use sha3::{Digest, Keccak256};
 
+#[allow(unused_imports)]
 use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{
 	error::{ExitError, ExitException, ExitResult},
 	machine::{Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
-	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
+	utils::u256_to_usize,
 };
 
 /// Consume `T` to get `Rest`.
@@ -248,7 +249,7 @@ impl CallTrap {
 						memory,
 						state,
 						*gas,
-						u256_to_h256(*to),
+						to.to_h256(),
 						Some(*value),
 						*in_offset,
 						*in_len,
@@ -264,7 +265,7 @@ impl CallTrap {
 						memory,
 						state,
 						*gas,
-						u256_to_h256(*to),
+						to.to_h256(),
 						None,
 						*in_offset,
 						*in_len,
@@ -504,7 +505,7 @@ impl CreateTrap {
 
 			let scheme = CreateScheme::Create2 {
 				caller: state.as_ref().context.address,
-				salt: u256_to_h256(*salt),
+				salt: salt.to_h256(),
 				code_hash,
 			};
 
@@ -549,7 +550,7 @@ impl CreateFeedback {
 
 		let ret = match reason {
 			Ok(address) => {
-				machine.stack.push(h256_to_u256(address.into()))?;
+				machine.stack.push(U256::from_h160(address))?;
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {

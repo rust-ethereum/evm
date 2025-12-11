@@ -1,6 +1,5 @@
 use evm::backend::InMemoryBackend;
-use evm::interpreter::utils::h256_to_u256;
-use evm::uint::{H256, U256};
+use evm::uint::{H256, U256, U256Ext};
 use sha3::{Digest, Keccak256};
 
 /// Basic account type.
@@ -73,7 +72,7 @@ pub fn state_root(backend: &InMemoryBackend) -> H256 {
 				account
 					.storage
 					.iter()
-					.map(|(k, v)| (k, rlp::encode(&h256_to_u256(*v)))),
+					.map(|(k, v)| (k, rlp::encode(&U256::from_h256(*v)))),
 			);
 
 			let code_hash = H256::from_slice(&Keccak256::digest(&account.code));

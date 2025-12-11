@@ -4,6 +4,7 @@ use alloc::{rc::Rc, vec::Vec};
 use sha3::{Digest, Keccak256};
 
 use crate::error::ExitError;
+#[allow(unused_imports)]
 use crate::uint::{H160, H256, U256, U256Ext};
 
 /// Gas state.

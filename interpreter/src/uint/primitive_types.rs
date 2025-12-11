@@ -1,4 +1,4 @@
-use super::U256Ext;
+use super::{H256, U256Ext};
 use ::primitive_types::U512;
 
 pub use ::primitive_types::U256;
@@ -33,5 +33,19 @@ impl U256Ext for U256 {
 			v.try_into()
 				.expect("op3 is less than U256::MAX, thus it never overflows; qed")
 		}
+	}
+
+	fn as_usize(&self) -> usize {
+		self.as_usize()
+	}
+
+	fn to_h256(self) -> H256 {
+		let mut r = H256::default();
+		self.to_big_endian(&mut r[..]);
+		r
+	}
+
+	fn from_h256(v: H256) -> Self {
+		U256::from_big_endian(&v[..])
 	}
 }

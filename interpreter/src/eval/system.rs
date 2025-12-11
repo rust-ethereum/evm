@@ -2,8 +2,8 @@ use alloc::vec::Vec;
 
 use sha3::{Digest, Keccak256};
 
+#[allow(unused_imports)]
 use crate::uint::{H256, U256, U256Ext};
-use crate::utils::u256_to_h256;
 
 use crate::{
 	Control, ExitException, ExitFatal, ExitSucceed, Machine,
@@ -354,7 +354,7 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	for _ in 0..(n as usize) {
 		match machine.stack.pop() {
 			Ok(value) => {
-				topics.push(u256_to_h256(value));
+				topics.push(value.to_h256());
 			}
 			Err(e) => return Control::Exit(e.into()),
 		}
@@ -381,7 +381,7 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 
 		handler.transfer(Transfer {
 			source: address,
-			target: u256_to_h256(*target).into(),
+			target: target.to_h160(),
 			value: balance,
 		})?;
 
