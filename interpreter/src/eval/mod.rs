@@ -7,9 +7,9 @@ mod bitwise;
 mod misc;
 mod system;
 
+use crate::uint::U256;
 use alloc::boxed::Box;
 use core::ops::{BitAnd, BitOr, BitXor};
-use crate::uint::U256;
 
 use crate::{
 	Control, ExitException, ExitSucceed, Machine, Opcode,

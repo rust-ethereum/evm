@@ -16,8 +16,8 @@ pub mod etable;
 pub mod eval;
 pub mod runtime;
 pub mod trap;
-pub mod utils;
 pub mod uint;
+pub mod utils;
 
 pub use self::error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, ExitSucceed};
 pub use self::interpreter::{

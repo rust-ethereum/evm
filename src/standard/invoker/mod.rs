@@ -4,6 +4,7 @@ mod state;
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, marker::PhantomData};
+use evm_interpreter::uint::{H160, H256, U256};
 use evm_interpreter::{
 	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
 	runtime::{
@@ -15,7 +16,6 @@ use evm_interpreter::{
 		CreateTrap, TrapConsume,
 	},
 };
-use evm_interpreter::uint::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub use self::{

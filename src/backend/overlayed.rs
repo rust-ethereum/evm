@@ -5,7 +5,6 @@ use alloc::{
 };
 use core::mem;
 
-use crate::{MergeStrategy, backend::TransactionalBackend};
 use crate::interpreter::{
 	ExitError, ExitException, ExitFatal,
 	runtime::{
@@ -14,6 +13,7 @@ use crate::interpreter::{
 	},
 };
 use crate::uint::{H160, H256, U256};
+use crate::{MergeStrategy, backend::TransactionalBackend};
 use sha3::{Digest, Keccak256};
 
 const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);

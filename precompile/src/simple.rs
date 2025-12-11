@@ -1,12 +1,12 @@
 use alloc::vec::Vec;
 use core::cmp::min;
 
+use evm::uint::{H256, U256};
 use evm::{
 	GasMutState,
 	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 };
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
-use evm::uint::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 use crate::{PurePrecompile, linear_cost};

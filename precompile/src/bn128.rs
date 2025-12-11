@@ -1,10 +1,10 @@
 use alloc::{borrow::Cow, vec::Vec};
 use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Group, Gt};
+use evm::uint::U256;
 use evm::{
 	GasMutState,
 	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed, utils::u256_to_h256},
 };
-use evm::uint::U256;
 
 use crate::PurePrecompile;
 

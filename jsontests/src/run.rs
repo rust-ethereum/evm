@@ -4,13 +4,13 @@ use std::{
 	io::{BufReader, BufWriter},
 };
 
+use evm::uint::{H256, U256};
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
 	interpreter::{Capture, runtime::GasState},
 	standard::{Config, TransactArgs, TransactArgsCallCreate, TransactGasPrice},
 };
 use evm_mainnet::with_mainnet_invoker;
-use evm::uint::{H256, U256};
 
 use crate::{
 	error::{Error, TestError},

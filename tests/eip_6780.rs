@@ -1,4 +1,5 @@
 mod mock;
+use evm::uint::{H160, H256, U256};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::{
@@ -11,7 +12,6 @@ use evm::{
 	},
 };
 use mock::{MockAccount, MockBackend};
-use evm::uint::{H160, H256, U256};
 
 const SIMPLE_CONTRACT_INITCODE: &str = include_str!("./contract/simple_contract_bytecode.txt");
 const DEPLOY_AND_DESTROY_INITCODE: &str = include_str!("./contract/deploy_and_destroy_init_code");

@@ -26,6 +26,7 @@ mod grammar;
 use std::alloc::System;
 
 use backend::MockBackend;
+use evm::uint::{H160, U256};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::{
@@ -37,7 +38,6 @@ use evm::{
 		TransactValue, TransactValueCallCreate,
 	},
 };
-use evm::uint::{H160, U256};
 #[cfg(not(feature = "fuzzing"))]
 use stats_alloc::{INSTRUMENTED_SYSTEM, StatsAlloc};
 

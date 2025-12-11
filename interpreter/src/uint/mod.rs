@@ -3,7 +3,7 @@
 //! Depending on the feature flag, different underlying crate may be used.
 
 mod primitive_types;
-pub use self::primitive_types::{U256, H256, H160};
+pub use self::primitive_types::{H160, H256, U256};
 
 /// Extension for specialized U256 operations.
 pub trait U256Ext {

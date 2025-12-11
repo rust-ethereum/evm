@@ -34,6 +34,7 @@ use crate::{
 	modexp::{ModexpBerlin, ModexpByzantium},
 	simple::{ECRecover, Identity, Ripemd160, Sha256},
 };
+use evm::uint::H160;
 use evm::{
 	GasMutState,
 	interpreter::{
@@ -42,7 +43,6 @@ use evm::{
 	},
 	standard::{Config, PrecompileSet},
 };
-use evm::uint::H160;
 
 trait PurePrecompile<G> {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);

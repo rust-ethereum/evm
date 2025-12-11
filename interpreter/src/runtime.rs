@@ -3,8 +3,8 @@
 use alloc::{rc::Rc, vec::Vec};
 use sha3::{Digest, Keccak256};
 
-use crate::uint::{H160, H256, U256};
 use crate::error::ExitError;
+use crate::uint::{H160, H256, U256};
 
 /// Gas state.
 pub trait GasState {

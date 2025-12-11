@@ -84,8 +84,8 @@ pub use evm_interpreter as interpreter;
 pub use crate::{
 	call_stack::{HeapTransact, transact},
 	gasometer::GasMutState,
-	invoker::{Invoker, InvokerControl},
 	interpreter::uint,
+	invoker::{Invoker, InvokerControl},
 };
 
 /// Merge strategy of a backend substate layer or a call stack gasometer layer.

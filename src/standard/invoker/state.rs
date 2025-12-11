@@ -1,10 +1,10 @@
 use alloc::vec::Vec;
 
+use evm_interpreter::uint::{H160, H256, U256};
 use evm_interpreter::{
 	ExitError,
 	runtime::{GasState, RuntimeState},
 };
-use evm_interpreter::uint::{H160, H256, U256};
 
 use crate::MergeStrategy;
 

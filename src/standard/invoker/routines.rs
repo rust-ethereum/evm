@@ -1,6 +1,7 @@
 //! Internal routines that can be reused.
 
 use alloc::vec::Vec;
+use evm_interpreter::uint::H160;
 use evm_interpreter::{
 	ExitError, ExitException, Interpreter, Opcode,
 	runtime::{
@@ -8,7 +9,6 @@ use evm_interpreter::{
 	},
 	trap::{CallScheme, CallTrap, CreateTrap},
 };
-use evm_interpreter::uint::H160;
 
 use crate::{
 	backend::TransactionalBackend,
