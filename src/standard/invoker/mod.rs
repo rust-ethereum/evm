@@ -270,6 +270,7 @@ where
 	type TransactInvoke = TransactInvoke<'config>;
 	type SubstackInvoke = SubstackInvoke;
 
+	#[allow(deprecated)]
 	fn new_transact(
 		&self,
 		args: Self::TransactArgs,

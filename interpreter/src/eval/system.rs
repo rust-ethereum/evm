@@ -10,6 +10,7 @@ use crate::{
 	runtime::{GasState, Log, RuntimeBackend, RuntimeEnvironment, RuntimeState, Transfer},
 };
 
+#[allow(deprecated)]
 pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(machine, from, len);
 
