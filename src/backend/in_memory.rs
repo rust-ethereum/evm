@@ -1,6 +1,6 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
-use crate::uint::{H160, H256, U256};
+use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{
 	backend::OverlayedChangeSet,
 	interpreter::runtime::{RuntimeBaseBackend, RuntimeEnvironment},
@@ -220,8 +220,8 @@ impl RuntimeBaseBackend for InMemoryBackend {
 	}
 
 	fn can_create(&self, address: H160) -> bool {
-		self.nonce(address) == U256::zero()
-			&& self.code_size(address) == U256::zero()
+		self.nonce(address) == U256::ZERO
+			&& self.code_size(address) == U256::ZERO
 			&& self
 				.state
 				.get(&address)

@@ -1,6 +1,6 @@
 use core::cmp::{max, min};
 
-use crate::uint::{H256, U256};
+use crate::uint::{H256, U256, U256Ext};
 use crate::{Control, ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 
 #[inline]
@@ -65,7 +65,7 @@ pub fn calldatacopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, memory_offset, data_offset, len);
 
 	try_or_fail!(state.memory.resize_offset(memory_offset, len));
-	if len == U256::zero() {
+	if len == U256::ZERO {
 		return Control::Continue(1);
 	}
 
@@ -126,7 +126,7 @@ pub fn mstore<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 #[inline]
 pub fn mstore8<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, index, value);
-	try_or_fail!(state.memory.resize_offset(index, U256::one()));
+	try_or_fail!(state.memory.resize_offset(index, U256::ONE));
 	let index = as_usize_or_fail!(index);
 	let value = (value.low_u32() & 0xff) as u8;
 	match state.memory.set(index, &[value], Some(1)) {

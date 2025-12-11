@@ -37,7 +37,7 @@ fn self_destruct_before_cancun() {
 		MockAccount {
 			balance: U256::from(1_000_000_000),
 			code: vec![],
-			nonce: U256::one(),
+			nonce: U256::ONE,
 			storage: Default::default(),
 			transient_storage: Default::default(),
 		},
@@ -52,7 +52,7 @@ fn self_destruct_before_cancun() {
 			salt: Some(H256::from_low_u64_be(4)),
 		},
 		caller: H160::from_low_u64_be(1),
-		value: U256::zero(),
+		value: U256::ZERO,
 		gas_limit: U256::from(400_000),
 		gas_price: U256::from(1).into(),
 		access_list: vec![],
@@ -70,7 +70,7 @@ fn self_destruct_before_cancun() {
 
 	// Verify contract creation
 	assert!(!overlayed_backend.code(contract_address).is_empty());
-	assert_eq!(overlayed_backend.nonce(contract_address), U256::one());
+	assert_eq!(overlayed_backend.nonce(contract_address), U256::ONE);
 
 	// Apply overlayed changeset
 	let (mut backend, changeset) = overlayed_backend.deconstruct();
@@ -87,9 +87,9 @@ fn self_destruct_before_cancun() {
 			.unwrap(),
 		},
 		caller: H160::from_low_u64_be(1),
-		value: U256::zero(),
+		value: U256::ZERO,
 		gas_limit: U256::from(400_000),
-		gas_price: U256::one().into(),
+		gas_price: U256::ONE.into(),
 		access_list: vec![],
 		config: &config,
 	};
@@ -109,7 +109,7 @@ fn self_destruct_cancun() {
 		MockAccount {
 			balance: U256::from(1_000_000_000),
 			code: vec![],
-			nonce: U256::one(),
+			nonce: U256::ONE,
 			storage: Default::default(),
 			transient_storage: Default::default(),
 		},
@@ -125,7 +125,7 @@ fn self_destruct_cancun() {
 			salt: Some(H256::from_low_u64_be(4)),
 		},
 		caller: H160::from_low_u64_be(1),
-		value: U256::zero(),
+		value: U256::ZERO,
 		gas_limit: U256::from(400_000),
 		gas_price: U256::from(1).into(),
 		access_list: vec![],
@@ -143,7 +143,7 @@ fn self_destruct_cancun() {
 
 	// Verify contract creation
 	assert!(!overlayed_backend.code(contract_address).is_empty());
-	assert_eq!(overlayed_backend.nonce(contract_address), U256::one());
+	assert_eq!(overlayed_backend.nonce(contract_address), U256::ONE);
 
 	// Apply overlayed changeset
 	let (mut backend, changeset) = overlayed_backend.deconstruct();
@@ -160,9 +160,9 @@ fn self_destruct_cancun() {
 			.unwrap(),
 		},
 		caller: H160::from_low_u64_be(1),
-		value: U256::zero(),
+		value: U256::ZERO,
 		gas_limit: U256::from(400_000),
-		gas_price: U256::one().into(),
+		gas_price: U256::ONE.into(),
 		access_list: vec![],
 		config: &config,
 	};
@@ -182,7 +182,7 @@ fn self_destruct_same_tx_cancun() {
 		MockAccount {
 			balance: U256::from(1_000_000_000),
 			code: vec![],
-			nonce: U256::one(),
+			nonce: U256::ONE,
 			storage: Default::default(),
 			transient_storage: Default::default(),
 		},
@@ -198,7 +198,7 @@ fn self_destruct_same_tx_cancun() {
 			salt: Some(H256::from_low_u64_be(4)),
 		},
 		caller: H160::from_low_u64_be(1),
-		value: U256::zero(),
+		value: U256::ZERO,
 		gas_limit: U256::from(400_000),
 		gas_price: U256::from(1).into(),
 		access_list: vec![],

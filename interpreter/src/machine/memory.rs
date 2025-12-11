@@ -6,7 +6,7 @@ use core::{
 };
 
 use crate::error::{ExitException, ExitFatal};
-use crate::uint::U256;
+use crate::uint::{U256, U256Ext};
 
 /// A sequential memory. It uses Rust's `Vec` for internal
 /// representation.
@@ -23,7 +23,7 @@ impl Memory {
 	pub fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
-			effective_len: U256::zero(),
+			effective_len: U256::ZERO,
 			limit,
 		}
 	}
@@ -61,14 +61,14 @@ impl Memory {
 	pub(crate) fn swap_and_clear(&mut self, other: &mut Vec<u8>) {
 		mem::swap(&mut self.data, other);
 		self.data = Vec::new();
-		self.effective_len = U256::zero();
+		self.effective_len = U256::ZERO;
 	}
 
 	/// Resize the memory, making it cover the memory region of `offset..(offset + len)`,
 	/// with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitException> {
-		if len == U256::zero() {
+		if len == U256::ZERO {
 			return Ok(());
 		}
 

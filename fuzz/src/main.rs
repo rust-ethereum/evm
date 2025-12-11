@@ -26,7 +26,7 @@ mod grammar;
 use std::alloc::System;
 
 use backend::MockBackend;
-use evm::uint::{H160, U256};
+use evm::uint::{H160, U256, U256Ext};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::{
@@ -72,7 +72,7 @@ fn main() {
 			backend::MockAccount {
 				balance: init_balance,
 				code: vec![],
-				nonce: U256::one(),
+				nonce: U256::ONE,
 				storage: Default::default(),
 				transient_storage: Default::default(),
 			},
@@ -85,7 +85,7 @@ fn main() {
 				salt: None,
 			},
 			caller: H160::from_low_u64_be(1),
-			value: U256::zero(),
+			value: U256::ZERO,
 			gas_limit,
 			gas_price: gas_price.into(),
 			access_list: vec![],
@@ -117,7 +117,7 @@ fn main() {
 				salt: None,
 			},
 			caller: H160::from_low_u64_be(1),
-			value: U256::zero(),
+			value: U256::ZERO,
 			gas_limit,
 			gas_price: gas_price.into(),
 			access_list: vec![],
@@ -141,7 +141,7 @@ fn main() {
 				data: calldata,
 			},
 			caller: user_address,
-			value: U256::zero(),
+			value: U256::ZERO,
 			gas_limit,
 			gas_price: gas_price.into(),
 			access_list: vec![],
@@ -160,7 +160,7 @@ fn main() {
 	});
 }
 fn assert_no_mint(backend: &MockBackend, initial_balance: U256) -> U256 {
-	let mut total = U256::zero();
+	let mut total = U256::ZERO;
 	for (_k, v) in backend.state.iter() {
 		total += v.balance;
 	}

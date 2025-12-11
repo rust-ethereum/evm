@@ -1,5 +1,5 @@
 use evm_interpreter::ExitException;
-use evm_interpreter::uint::{H256, U256};
+use evm_interpreter::uint::{H256, U256, U256Ext};
 
 use super::{consts::*, utils::log2floor};
 use crate::standard::Config;
@@ -59,10 +59,10 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitException> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)
 	let sha_addup_base = len / U256::from(32)
-		+ if len % U256::from(32) == U256::zero() {
-			U256::zero()
+		+ if len % U256::from(32) == U256::ZERO {
+			U256::ZERO
 		} else {
-			U256::one()
+			U256::ONE
 		};
 	let sha_addup = U256::from(G_SHA3WORD)
 		.checked_mul(sha_addup_base)
@@ -77,7 +77,7 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitException> {
 }
 
 pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
-	if power == U256::zero() {
+	if power == U256::ZERO {
 		Ok(G_EXP)
 	} else {
 		let gas = U256::from(G_EXP)
@@ -103,10 +103,10 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
 	let gas = U256::from(G_VERYLOW)
 		.checked_add(
 			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr == U256::ZERO {
 					wordd
 				} else {
-					wordd + U256::one()
+					wordd + U256::ONE
 				})
 				.ok_or(ExitException::OutOfGas)?,
 		)
@@ -125,10 +125,10 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code(), config))
 		.checked_add(
 			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr == U256::ZERO {
 					wordd
 				} else {
-					wordd + U256::one()
+					wordd + U256::ONE
 				})
 				.ok_or(ExitException::OutOfGas)?,
 		)
@@ -166,10 +166,10 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
 	let gas = U256::from(G_SHA3)
 		.checked_add(
 			U256::from(G_SHA3WORD)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr == U256::ZERO {
 					wordd
 				} else {
-					wordd + U256::one()
+					wordd + U256::ONE
 				})
 				.ok_or(ExitException::OutOfGas)?,
 		)
@@ -248,7 +248,7 @@ pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
 	let eip161 = config.runtime.eip161_empty_check;
 	let should_charge_topup = if eip161 {
-		value != U256::zero() && !target_exists
+		value != U256::ZERO && !target_exists
 	} else {
 		!target_exists
 	};

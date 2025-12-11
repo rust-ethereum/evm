@@ -6,7 +6,7 @@ use core::{
 };
 
 use crate::error::{ExitError, ExitFatal};
-use crate::uint::{H160, H256, U256};
+use crate::uint::{H160, H256, U256, U256Ext};
 
 /// Convert [U256] into [H256].
 #[must_use]
@@ -62,7 +62,7 @@ impl I256 {
 	/// Zero value of I256.
 	#[must_use]
 	pub const fn zero() -> I256 {
-		I256(Sign::Zero, U256::zero())
+		I256(Sign::Zero, U256::ZERO)
 	}
 	/// Minimum value of I256.
 	#[must_use]
@@ -101,7 +101,7 @@ impl Default for I256 {
 
 impl From<U256> for I256 {
 	fn from(val: U256) -> I256 {
-		if val == U256::zero() {
+		if val == U256::ZERO {
 			I256::zero()
 		} else if val & SIGN_BIT_MASK == val {
 			I256(Sign::Plus, val)
@@ -115,7 +115,7 @@ impl From<I256> for U256 {
 	fn from(value: I256) -> U256 {
 		let sign = value.0;
 		if sign == Sign::Zero {
-			U256::zero()
+			U256::ZERO
 		} else if sign == Sign::Plus {
 			value.1
 		} else {
@@ -138,7 +138,7 @@ impl Div for I256 {
 
 		let d = (self.1 / other.1) & SIGN_BIT_MASK;
 
-		if d == U256::zero() {
+		if d == U256::ZERO {
 			return I256::zero();
 		}
 
@@ -162,7 +162,7 @@ impl Rem for I256 {
 	fn rem(self, other: I256) -> I256 {
 		let r = (self.1 % other.1) & SIGN_BIT_MASK;
 
-		if r == U256::zero() {
+		if r == U256::ZERO {
 			return I256::zero();
 		}
 

@@ -416,5 +416,5 @@ fn right_pad<const LEN: usize>(data: &[u8]) -> Cow<'_, [u8; LEN]> {
 
 #[inline]
 pub const fn bool_to_u256(value: bool) -> U256 {
-	if value { U256::one() } else { U256::zero() }
+	if value { U256::ONE } else { U256::ZERO }
 }

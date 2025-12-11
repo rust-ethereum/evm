@@ -2,7 +2,7 @@ use alloc::vec::Vec;
 
 use sha3::{Digest, Keccak256};
 
-use crate::uint::{H256, U256};
+use crate::uint::{H256, U256, U256Ext};
 use crate::utils::u256_to_h256;
 
 use crate::{
@@ -15,7 +15,7 @@ pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr>
 	pop_u256!(machine, from, len);
 
 	try_or_fail!(machine.memory.resize_offset(from, len));
-	let data = if len == U256::zero() {
+	let data = if len == U256::ZERO {
 		Vec::new()
 	} else {
 		let from = as_usize_or_fail!(from);
@@ -341,7 +341,7 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	pop_u256!(machine, offset, len);
 
 	try_or_fail!(machine.memory.resize_offset(offset, len));
-	let data = if len == U256::zero() {
+	let data = if len == U256::ZERO {
 		Vec::new()
 	} else {
 		let offset = as_usize_or_fail!(offset);

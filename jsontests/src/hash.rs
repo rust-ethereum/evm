@@ -20,7 +20,7 @@ pub struct TrieAccount {
 
 impl rlp::Encodable for TrieAccount {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = self.code_version == U256::zero();
+		let use_short_version = self.code_version == U256::ZERO;
 
 		match use_short_version {
 			true => {
@@ -56,7 +56,7 @@ impl rlp::Decodable for TrieAccount {
 			storage_root: rlp.val_at(2)?,
 			code_hash: rlp.val_at(3)?,
 			code_version: if use_short_version {
-				U256::zero()
+				U256::ZERO
 			} else {
 				rlp.val_at(4)?
 			},
@@ -82,7 +82,7 @@ pub fn state_root(backend: &InMemoryBackend) -> H256 {
 				balance: account.balance,
 				storage_root,
 				code_hash,
-				code_version: U256::zero(),
+				code_version: U256::ZERO,
 			};
 
 			(address, rlp::encode(&account))

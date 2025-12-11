@@ -69,7 +69,7 @@ macro_rules! op2_u256_bool_ref {
 	($machine:expr, $op:ident) => {{
 		pop_u256!($machine, op1, op2);
 		let ret = op1.$op(&op2);
-		push_u256!($machine, if ret { U256::one() } else { U256::zero() });
+		push_u256!($machine, if ret { U256::ONE } else { U256::ZERO });
 
 		Control::Continue(1)
 	}};

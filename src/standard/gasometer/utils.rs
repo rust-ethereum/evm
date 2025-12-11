@@ -1,7 +1,7 @@
-use crate::uint::U256;
+use crate::uint::{U256, U256Ext};
 
 pub fn log2floor(value: U256) -> u64 {
-	assert_ne!(value, U256::zero());
+	assert_ne!(value, U256::ZERO);
 	let mut l: u64 = 256;
 	for i in 0..4 {
 		let i = 3 - i;

@@ -5,8 +5,8 @@ use crate::utils::I256;
 
 #[inline]
 pub fn div(op1: U256, op2: U256) -> U256 {
-	if op2 == U256::zero() {
-		U256::zero()
+	if op2 == U256::ZERO {
+		U256::ZERO
 	} else {
 		op1 / op2
 	}
@@ -22,8 +22,8 @@ pub fn sdiv(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn rem(op1: U256, op2: U256) -> U256 {
-	if op2 == U256::zero() {
-		U256::zero()
+	if op2 == U256::ZERO {
+		U256::ZERO
 	} else {
 		op1.rem(op2)
 	}
@@ -31,8 +31,8 @@ pub fn rem(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn srem(op1: U256, op2: U256) -> U256 {
-	if op2 == U256::zero() {
-		U256::zero()
+	if op2 == U256::ZERO {
+		U256::ZERO
 	} else {
 		let op1: I256 = op1.into();
 		let op2: I256 = op2.into();
@@ -89,7 +89,7 @@ pub fn signextend(op1: U256, op2: U256) -> U256 {
 		// `low_u32` works since op1 < 32
 		let bit_index = (8 * op1.low_u32() + 7) as usize;
 		let bit = op2.bit(bit_index);
-		let mask = (U256::one() << bit_index) - U256::one();
+		let mask = (U256::ONE << bit_index) - U256::ONE;
 		if bit { op2 | !mask } else { op2 & mask }
 	} else {
 		op2
@@ -105,15 +105,15 @@ mod tests {
 	#[test]
 	fn test_signextend() {
 		let test_values = vec![
-			U256::zero(),
-			U256::one(),
+			U256::ZERO,
+			U256::ONE,
 			U256::from(8),
 			U256::from(10),
 			U256::from(65),
 			U256::from(100),
 			U256::from(128),
-			U256::from(11) * (U256::one() << 65),
-			U256::from(7) * (U256::one() << 123),
+			U256::from(11) * (U256::ONE << 65),
+			U256::from(7) * (U256::ONE << 123),
 			U256::MAX / 167,
 			U256::MAX,
 		];
@@ -135,13 +135,13 @@ mod tests {
 		if op1 > U256::from(32) {
 			op2
 		} else {
-			let mut ret = U256::zero();
+			let mut ret = U256::ZERO;
 			let len: usize = op1.as_usize();
 			let t: usize = 8 * (len + 1) - 1;
-			let t_bit_mask = U256::one() << t;
+			let t_bit_mask = U256::ONE << t;
 			let t_value = (op2 & t_bit_mask) >> t;
 			for i in 0..256 {
-				let bit_mask = U256::one() << i;
+				let bit_mask = U256::ONE << i;
 				let i_value = (op2 & bit_mask) >> i;
 				if i <= t {
 					ret = ret.overflowing_add(i_value << i).0;

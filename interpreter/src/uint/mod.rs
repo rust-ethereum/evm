@@ -12,6 +12,11 @@ pub use ::primitive_types::{H160, H256};
 
 /// Extension for specialized U256 operations.
 pub trait U256Ext {
+	/// Zero value.
+	const ZERO: Self;
+	/// One value.
+	const ONE: Self;
+
 	/// An ADDMOD operation for U256.
 	fn addmod(op1: Self, op2: Self, op3: Self) -> Self;
 	/// An MULMOD operation for U256.

@@ -5,7 +5,7 @@ mod utils;
 use alloc::vec::Vec;
 use core::cmp::max;
 
-use evm_interpreter::uint::{H160, H256, U256};
+use evm_interpreter::uint::{H160, H256, U256, U256Ext};
 use evm_interpreter::{
 	Control, ExitError, ExitException, Machine, Opcode, Stack,
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
@@ -510,7 +510,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				already_removed: handler.deleted(address),
 			}
 		}
-		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::zero()) => {
+		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::ZERO) => {
 			let target = u256_to_h160(stack.peek(1)?);
 			let target_exists = handler.exists(target);
 
@@ -772,7 +772,7 @@ impl GasCost {
 				target_exists,
 				..
 			} => costs::call_cost(
-				U256::zero(),
+				U256::ZERO,
 				target_is_cold,
 				false,
 				false,
@@ -784,7 +784,7 @@ impl GasCost {
 				target_exists,
 				..
 			} => costs::call_cost(
-				U256::zero(),
+				U256::ZERO,
 				target_is_cold,
 				false,
 				true,
@@ -893,11 +893,11 @@ struct MemoryCost {
 impl MemoryCost {
 	/// Join two memory cost together.
 	pub fn join(self, other: MemoryCost) -> MemoryCost {
-		if self.len == U256::zero() {
+		if self.len == U256::ZERO {
 			return other;
 		}
 
-		if other.len == U256::zero() {
+		if other.len == U256::ZERO {
 			return self;
 		}
 
@@ -912,7 +912,7 @@ impl MemoryCost {
 		let from = self.offset;
 		let len = self.len;
 
-		if len == U256::zero() {
+		if len == U256::ZERO {
 			return Ok(None);
 		}
 

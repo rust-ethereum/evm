@@ -4,7 +4,7 @@ use alloc::vec::Vec;
 use core::{cmp::min, convert::Infallible};
 use sha3::{Digest, Keccak256};
 
-use crate::uint::{H160, H256, U256};
+use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{
 	error::{ExitError, ExitException, ExitResult},
 	machine::{Machine, Memory},
@@ -154,22 +154,22 @@ impl CallTrap {
 		out_offset: U256,
 		out_len: U256,
 	) -> Result<((), Self), ExitError> {
-		let value = value.unwrap_or(U256::zero());
+		let value = value.unwrap_or(U256::ZERO);
 
 		let in_end = in_offset
 			.checked_add(in_len)
 			.ok_or(ExitException::InvalidRange)?;
-		if in_len != U256::zero() {
+		if in_len != U256::ZERO {
 			memory.resize_end(in_end)?;
 		}
 		let out_end = out_offset
 			.checked_add(out_len)
 			.ok_or(ExitException::InvalidRange)?;
-		if out_len != U256::zero() {
+		if out_len != U256::ZERO {
 			memory.resize_end(out_end)?;
 		}
 
-		let in_offset_len = if in_len == U256::zero() {
+		let in_offset_len = if in_len == U256::ZERO {
 			None
 		} else {
 			Some((u256_to_usize(in_offset)?, u256_to_usize(in_len)?))
@@ -281,7 +281,7 @@ impl CallTrap {
 	pub fn has_value(&self) -> bool {
 		self.transfer
 			.as_ref()
-			.is_some_and(|t| t.value != U256::zero())
+			.is_some_and(|t| t.value != U256::ZERO)
 	}
 }
 
@@ -316,37 +316,37 @@ impl CallFeedback {
 			Ok(_) => {
 				match machine
 					.memory
-					.copy_large(out_offset, U256::zero(), target_len, &retbuf[..])
+					.copy_large(out_offset, U256::ZERO, target_len, &retbuf[..])
 				{
 					Ok(()) => {
-						machine.stack.push(U256::one())?;
+						machine.stack.push(U256::ONE)?;
 
 						Ok(())
 					}
 					Err(_) => {
-						machine.stack.push(U256::zero())?;
+						machine.stack.push(U256::ZERO)?;
 
 						Ok(())
 					}
 				}
 			}
 			Err(ExitError::Reverted) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 
 				let _ =
 					machine
 						.memory
-						.copy_large(out_offset, U256::zero(), target_len, &retbuf[..]);
+						.copy_large(out_offset, U256::ZERO, target_len, &retbuf[..]);
 
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 
 				Err(e.into())
 			}
@@ -443,13 +443,13 @@ impl CreateTrap {
 				.checked_add(*code_len)
 				.ok_or(ExitException::InvalidRange)?;
 
-			let code_offset_len = if code_len == &U256::zero() {
+			let code_offset_len = if code_len == &U256::ZERO {
 				None
 			} else {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
 
-			if *code_len != U256::zero() {
+			if *code_len != U256::ZERO {
 				memory.resize_end(code_end)?;
 			}
 
@@ -488,7 +488,7 @@ impl CreateTrap {
 				.checked_add(*code_len)
 				.ok_or(ExitException::InvalidRange)?;
 
-			let code_offset_len = if code_len == &U256::zero() {
+			let code_offset_len = if code_len == &U256::ZERO {
 				None
 			} else {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
@@ -553,15 +553,15 @@ impl CreateFeedback {
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 				Err(e.into())
 			}
 		};
