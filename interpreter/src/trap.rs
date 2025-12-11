@@ -383,6 +383,7 @@ pub enum CreateScheme {
 
 impl CreateScheme {
 	/// Resolved address.
+	#[allow(deprecated)]
 	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
 		match self {
 			Self::Create2 {
@@ -474,6 +475,7 @@ impl CreateTrap {
 	}
 
 	/// Create a new `CREATE2` trap from the machine state.
+	#[allow(deprecated)]
 	pub fn new_create2_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {

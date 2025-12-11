@@ -14,6 +14,7 @@ use crate::{PurePrecompile, linear_cost};
 pub struct ECRecover;
 
 impl<G: GasMutState> PurePrecompile<G> for ECRecover {
+	#[allow(deprecated)]
 	fn execute(&self, i: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const COST_BASE: u64 = 3000;
 		const COST_WORD: u64 = 0;
