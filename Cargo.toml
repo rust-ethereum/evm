@@ -58,3 +58,9 @@ scale = [
 serde = [
 	"evm-interpreter/serde",
 ]
+ruint = [
+    "evm-interpreter/ruint",
+]
+ethnum = [
+    "evm-interpreter/ethnum",
+]
