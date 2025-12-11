@@ -2,9 +2,9 @@
 
 use alloc::vec::Vec;
 use core::{cmp::min, convert::Infallible};
-use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
+use crate::uint::{H160, H256, U256};
 use crate::{
 	error::{ExitError, ExitException, ExitResult},
 	machine::{Machine, Memory},

@@ -10,7 +10,7 @@ use evm_interpreter::{
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
 	utils::{u256_to_h160, u256_to_h256, u256_to_usize},
 };
-use primitive_types::{H160, H256, U256};
+use evm_interpreter::uint::{H160, H256, U256};
 
 use crate::{MergeStrategy, standard::Config};
 

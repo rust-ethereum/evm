@@ -5,17 +5,16 @@ use alloc::{
 };
 use core::mem;
 
-use evm_interpreter::{
+use crate::{MergeStrategy, backend::TransactionalBackend};
+use crate::interpreter::{
 	ExitError, ExitException, ExitFatal,
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeConfig, RuntimeEnvironment, SetCodeOrigin,
 		TouchKind,
 	},
 };
-use primitive_types::{H160, H256, U256};
+use crate::uint::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
-
-use crate::{MergeStrategy, backend::TransactionalBackend};
 
 const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
 

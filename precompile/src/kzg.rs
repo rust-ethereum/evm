@@ -8,7 +8,7 @@ use evm::{
 	GasMutState,
 	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 };
-use primitive_types::U256;
+use evm::uint::U256;
 use sha2::Digest;
 
 use crate::PurePrecompile;

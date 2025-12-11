@@ -5,8 +5,7 @@ use core::{
 	ops::{Div, Rem},
 };
 
-use primitive_types::{H160, H256, U256};
-
+use crate::uint::{H160, H256, U256};
 use crate::error::{ExitError, ExitFatal};
 
 /// Convert [U256] into [H256].

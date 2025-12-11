@@ -42,7 +42,7 @@ use evm::{
 	},
 	standard::{Config, PrecompileSet},
 };
-use primitive_types::H160;
+use evm::uint::H160;
 
 trait PurePrecompile<G> {
 	fn execute(&self, input: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>);

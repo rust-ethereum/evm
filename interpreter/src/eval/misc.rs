@@ -1,7 +1,6 @@
 use core::cmp::{max, min};
 
-use primitive_types::{H256, U256};
-
+use crate::uint::{H256, U256};
 use crate::{Control, ExitError, ExitException, ExitFatal, ExitSucceed, Machine};
 
 #[inline]

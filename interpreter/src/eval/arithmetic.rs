@@ -1,7 +1,6 @@
 use core::ops::Rem;
 
-use primitive_types::{U256, U512};
-
+use crate::uint::{U256, U256Ext};
 use crate::utils::I256;
 
 #[inline]
@@ -44,32 +43,12 @@ pub fn srem(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn addmod(op1: U256, op2: U256, op3: U256) -> U256 {
-	let op1: U512 = op1.into();
-	let op2: U512 = op2.into();
-	let op3: U512 = op3.into();
-
-	if op3 == U512::zero() {
-		U256::zero()
-	} else {
-		let v = (op1 + op2) % op3;
-		v.try_into()
-			.expect("op3 is less than U256::MAX, thus it never overflows; qed")
-	}
+	U256Ext::addmod(op1, op2, op3)
 }
 
 #[inline]
 pub fn mulmod(op1: U256, op2: U256, op3: U256) -> U256 {
-	let op1: U512 = op1.into();
-	let op2: U512 = op2.into();
-	let op3: U512 = op3.into();
-
-	if op3 == U512::zero() {
-		U256::zero()
-	} else {
-		let v = (op1 * op2) % op3;
-		v.try_into()
-			.expect("op3 is less than U256::MAX, thus it never overflows; qed")
-	}
+	U256Ext::mulmod(op1, op2, op3)
 }
 
 #[inline]

@@ -1,5 +1,5 @@
 use evm_interpreter::ExitException;
-use primitive_types::{H256, U256};
+use evm_interpreter::uint::{H256, U256};
 
 use super::{consts::*, utils::log2floor};
 use crate::standard::Config;

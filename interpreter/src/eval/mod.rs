@@ -9,7 +9,7 @@ mod system;
 
 use alloc::boxed::Box;
 use core::ops::{BitAnd, BitOr, BitXor};
-use primitive_types::U256;
+use crate::uint::U256;
 
 use crate::{
 	Control, ExitException, ExitSucceed, Machine, Opcode,

@@ -6,7 +6,7 @@ use evm_interpreter::{
 	runtime::{RuntimeBackend, RuntimeState},
 	trap::CallScheme,
 };
-use primitive_types::H160;
+use evm_interpreter::uint::H160;
 
 use crate::{
 	invoker::{InvokerControl, InvokerExit},

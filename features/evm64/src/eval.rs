@@ -1,7 +1,7 @@
 use core::ops::{BitAnd, BitOr, BitXor};
 
 use evm::interpreter::{Control, ExitException, Machine};
-use primitive_types::U256;
+use evm::uint::U256;
 
 macro_rules! pop_u64 {
 	( $machine:expr, $( $x:ident ),* ) => (

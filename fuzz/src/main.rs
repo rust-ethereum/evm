@@ -37,7 +37,7 @@ use evm::{
 		TransactValue, TransactValueCallCreate,
 	},
 };
-use primitive_types::{H160, U256};
+use evm::uint::{H160, U256};
 #[cfg(not(feature = "fuzzing"))]
 use stats_alloc::{INSTRUMENTED_SYSTEM, StatsAlloc};
 

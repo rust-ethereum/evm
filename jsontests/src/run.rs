@@ -10,7 +10,7 @@ use evm::{
 	standard::{Config, TransactArgs, TransactArgsCallCreate, TransactGasPrice},
 };
 use evm_mainnet::with_mainnet_invoker;
-use primitive_types::{H256, U256};
+use evm::uint::{H256, U256};
 
 use crate::{
 	error::{Error, TestError},

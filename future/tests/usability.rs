@@ -5,7 +5,7 @@ use evm::interpreter::{
 	},
 };
 use evm_future::{FutureInterpreter, FutureInterpreterAction, FutureInterpreterSubmit};
-use primitive_types::{H160, H256, U256};
+use evm::uint::{H160, H256, U256};
 use std::rc::Rc;
 
 struct EmptyAction;

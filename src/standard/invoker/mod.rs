@@ -15,7 +15,7 @@ use evm_interpreter::{
 		CreateTrap, TrapConsume,
 	},
 };
-use primitive_types::{H160, H256, U256};
+use evm_interpreter::uint::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub use self::{

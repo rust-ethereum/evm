@@ -4,7 +4,7 @@ use crate::{
 	backend::OverlayedChangeSet,
 	interpreter::runtime::{RuntimeBaseBackend, RuntimeEnvironment},
 };
-use primitive_types::{H160, H256, U256};
+use crate::uint::{H160, H256, U256};
 
 /// Environment information of an in-memory backend.
 #[derive(Clone, Debug)]

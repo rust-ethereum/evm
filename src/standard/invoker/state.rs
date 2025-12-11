@@ -4,7 +4,7 @@ use evm_interpreter::{
 	ExitError,
 	runtime::{GasState, RuntimeState},
 };
-use primitive_types::{H160, H256, U256};
+use evm_interpreter::uint::{H160, H256, U256};
 
 use crate::MergeStrategy;
 

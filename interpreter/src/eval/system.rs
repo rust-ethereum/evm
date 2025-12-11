@@ -1,8 +1,8 @@
 use alloc::vec::Vec;
 
-use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
+use crate::uint::{H256, U256};
 use crate::utils::u256_to_h256;
 
 use crate::{

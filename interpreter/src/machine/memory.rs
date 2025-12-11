@@ -5,8 +5,7 @@ use core::{
 	ops::{BitAnd, Not, Range},
 };
 
-use primitive_types::U256;
-
+use crate::uint::U256;
 use crate::error::{ExitException, ExitFatal};
 
 /// A sequential memory. It uses Rust's `Vec` for internal

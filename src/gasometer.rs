@@ -1,7 +1,7 @@
 //! EVM gasometer.
 
 use evm_interpreter::{ExitError, runtime::GasState};
-use primitive_types::U256;
+use evm_interpreter::uint::U256;
 
 /// Mutable [GasState]. This simply allows recording an arbitrary gas.
 pub trait GasMutState: GasState {

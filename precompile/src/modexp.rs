@@ -4,7 +4,7 @@ use evm::{
 	GasMutState,
 	interpreter::{ExitException, ExitResult, ExitSucceed},
 };
-use primitive_types::U256;
+use evm::uint::U256;
 
 use crate::PurePrecompile;
 

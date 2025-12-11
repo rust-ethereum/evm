@@ -8,7 +8,7 @@ use evm_interpreter::{
 	},
 	trap::{CallScheme, CallTrap, CreateTrap},
 };
-use primitive_types::H160;
+use evm_interpreter::uint::H160;
 
 use crate::{
 	backend::TransactionalBackend,

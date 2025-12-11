@@ -40,7 +40,6 @@ keywords = { workspace = true }
 description = "Ethereum Virtual Machine"
 
 [dependencies]
-primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 sha3 = { version = "0.10", default-features = false }
 evm-interpreter = { workspace = true }
 
@@ -50,16 +49,12 @@ hex = { version = "0.4", features = [ "serde" ] }
 [features]
 default = ["std"]
 std = [
-	"primitive-types/std",
 	"sha3/std",
 	"evm-interpreter/std",
 ]
 scale = [
-	"primitive-types/codec",
-	"primitive-types/scale-info",
 	"evm-interpreter/scale",
 ]
 serde = [
-	"primitive-types/impl-serde",
 	"evm-interpreter/serde",
 ]

@@ -1,4 +1,4 @@
-use primitive_types::U256;
+use crate::uint::U256;
 
 pub fn log2floor(value: U256) -> u64 {
 	assert_ne!(value, U256::zero());
