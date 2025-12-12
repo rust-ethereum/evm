@@ -1,3 +1,4 @@
+#[allow(unused_imports)]
 use evm::uint::U256Ext;
 use evm::{
 	interpreter::{Control, ExitException, Machine, Opcode},
