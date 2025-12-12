@@ -32,9 +32,9 @@ pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Clone + Copy {
 	const SIGN_BIT_MASK: Self;
 
 	/// An ADDMOD operation for U256.
-	fn addmod(op1: Self, op2: Self, op3: Self) -> Self;
+	fn add_mod(op1: Self, op2: Self, op3: Self) -> Self;
 	/// An MULMOD operation for U256.
-	fn mulmod(op1: Self, op2: Self, op3: Self) -> Self;
+	fn mul_mod(op1: Self, op2: Self, op3: Self) -> Self;
 
 	/// Conversion to usize with overflow checking.
 	/// Should panic if the number is larger than usize::MAX.

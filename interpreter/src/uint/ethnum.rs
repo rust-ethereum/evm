@@ -19,11 +19,11 @@ impl U256Ext for U256 {
 		0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff,
 	);
 
-	fn addmod(_op1: U256, _op2: U256, _op3: U256) -> U256 {
+	fn add_mod(_op1: U256, _op2: U256, _op3: U256) -> U256 {
 		unimplemented!()
 	}
 
-	fn mulmod(_op1: U256, _op2: U256, _op3: U256) -> U256 {
+	fn mul_mod(_op1: U256, _op2: U256, _op3: U256) -> U256 {
 		unimplemented!()
 	}
 
