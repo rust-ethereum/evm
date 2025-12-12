@@ -5,6 +5,9 @@ pub use ::primitive_types::U256;
 
 const _: () = assert!(usize::BITS <= 64);
 
+pub trait Sealed {}
+impl Sealed for U256 {}
+
 impl U256Ext for U256 {
 	const ZERO: U256 = U256::zero();
 	const ONE: U256 = U256::one();

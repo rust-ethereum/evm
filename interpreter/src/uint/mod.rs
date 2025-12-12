@@ -15,7 +15,7 @@ pub use ::primitive_types::{H160, H256};
 // identical name, then Rust would by default calls the implementation on the
 // struct directly. We take advantage of this for the extension trait.
 #[doc(hidden)]
-pub trait U256Ext: Sized + Eq + PartialEq + Clone + Copy {
+pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Clone + Copy {
 	/// Zero value.
 	const ZERO: Self;
 	/// One value.
@@ -86,16 +86,22 @@ pub trait U256Ext: Sized + Eq + PartialEq + Clone + Copy {
 #[cfg(all(not(feature = "ruint"), not(feature = "ethnum")))]
 mod primitive_types;
 #[cfg(all(not(feature = "ruint"), not(feature = "ethnum")))]
+use self::primitive_types::Sealed;
+#[cfg(all(not(feature = "ruint"), not(feature = "ethnum")))]
 pub use self::primitive_types::U256;
 
 // Use ruint U256 implementation.
 #[cfg(feature = "ruint")]
 mod ruint;
 #[cfg(feature = "ruint")]
+use self::ruint::Sealed;
+#[cfg(feature = "ruint")]
 pub use self::ruint::U256;
 
 // Use ethnum U256 implementation.
 #[cfg(feature = "ethnum")]
 mod ethnum;
+#[cfg(feature = "ethnum")]
+use self::ethnum::Sealed;
 #[cfg(feature = "ethnum")]
 pub use self::ethnum::U256;
