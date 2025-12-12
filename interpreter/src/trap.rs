@@ -334,10 +334,9 @@ impl CallFeedback {
 			Err(ExitError::Reverted) => {
 				machine.stack.push(U256::ZERO)?;
 
-				let _ =
-					machine
-						.memory
-						.copy_large(out_offset, U256::ZERO, target_len, &retbuf[..]);
+				let _ = machine
+					.memory
+					.copy_large(out_offset, U256::ZERO, target_len, &retbuf[..]);
 
 				Ok(())
 			}

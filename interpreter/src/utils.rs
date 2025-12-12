@@ -41,7 +41,10 @@ impl I256 {
 	/// Minimum value of I256.
 	#[must_use]
 	pub fn min_value() -> I256 {
-		I256(Sign::Minus, (U256::MAX & U256::SIGN_BIT_MASK) + U256::from(1u64))
+		I256(
+			Sign::Minus,
+			(U256::MAX & U256::SIGN_BIT_MASK) + U256::from(1u64),
+		)
 	}
 }
 

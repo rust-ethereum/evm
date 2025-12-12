@@ -86,11 +86,7 @@ pub fn caller<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<T
 }
 
 pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
-	let ret = machine
-		.state
-		.as_ref()
-		.context
-		.apparent_value;
+	let ret = machine.state.as_ref().context.apparent_value;
 	push_u256!(machine, ret);
 
 	Control::Continue(1)
@@ -100,11 +96,7 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 	machine: &mut Machine<S>,
 	_handler: &H,
 ) -> Control<Tr> {
-	let ret = machine
-		.state
-		.as_ref()
-		.transaction_context
-		.gas_price;
+	let ret = machine.state.as_ref().transaction_context.gas_price;
 	push_u256!(machine, ret);
 
 	Control::Continue(1)

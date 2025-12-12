@@ -7,11 +7,7 @@ pub fn slt(op1: U256, op2: U256) -> U256 {
 	let op1: I256 = op1.into();
 	let op2: I256 = op2.into();
 
-	if op1.lt(&op2) {
-		U256::ONE
-	} else {
-		U256::ZERO
-	}
+	if op1.lt(&op2) { U256::ONE } else { U256::ZERO }
 }
 
 #[inline]
@@ -19,11 +15,7 @@ pub fn sgt(op1: U256, op2: U256) -> U256 {
 	let op1: I256 = op1.into();
 	let op2: I256 = op2.into();
 
-	if op1.gt(&op2) {
-		U256::ONE
-	} else {
-		U256::ZERO
-	}
+	if op1.gt(&op2) { U256::ONE } else { U256::ZERO }
 }
 
 #[inline]
