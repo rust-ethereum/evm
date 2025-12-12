@@ -27,9 +27,9 @@ jobs:
     - name: clippy with normal features
       run: cargo clippy --workspace --features std,scale,serde --all-targets -- -D warnings
     - name: clippy with ruint
-      run: cargo clippy --workspace --features ruint -- -D warnings
+      run: cargo clippy --features ruint -- -D warnings
     - name: clippy with ethnum
-      run: cargo clippy --workspace --features ethnum -- -D warnings
+      run: cargo clippy --features ethnum -- -D warnings
   build:
     runs-on: ubuntu-latest
     steps:
@@ -39,7 +39,7 @@ jobs:
     - name: Build no-std
       run: cargo build --no-default-features
     - name: Build all-features
-      run: cargo build --features std,scale,serde
+      run: cargo build --workspace --features std,scale,serde
     - name: Build ruint
       run: cargo build --features ruint
     - name: Build ethnum

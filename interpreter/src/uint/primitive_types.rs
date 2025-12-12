@@ -55,6 +55,10 @@ impl U256Ext for U256 {
 		self.as_u64()
 	}
 
+	fn low_u64(&self) -> u64 {
+		self.low_u64()
+	}
+
 	fn low_u32(&self) -> u32 {
 		self.low_u32()
 	}
@@ -83,6 +87,10 @@ impl U256Ext for U256 {
 
 	fn bit(&self, index: usize) -> bool {
 		self.bit(index)
+	}
+
+	fn bits(&self) -> usize {
+		self.bits()
 	}
 
 	fn log2floor(&self) -> u64 {

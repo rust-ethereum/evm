@@ -42,6 +42,8 @@ pub trait U256Ext: Sized + Eq + PartialEq + Clone + Copy {
 	/// Should panic if the number is larger than u64::MAX.
 	fn as_u64(&self) -> u64;
 
+	/// Lower word of u64.
+	fn low_u64(&self) -> u64;
 	/// Lower word of u32.
 	fn low_u32(&self) -> u32;
 
@@ -71,6 +73,8 @@ pub trait U256Ext: Sized + Eq + PartialEq + Clone + Copy {
 	}
 	/// Whether a specific bit is set.
 	fn bit(&self, index: usize) -> bool;
+	/// Least number of bits needed to represent the number.
+	fn bits(&self) -> usize;
 	/// Log2 of the value, rounded down.
 	fn log2floor(&self) -> u64;
 	/// Append the value to RLP stream.

@@ -36,6 +36,10 @@ impl U256Ext for U256 {
 		unimplemented!()
 	}
 
+	fn low_u64(&self) -> u64 {
+		unimplemented!()
+	}
+
 	fn from_u32(v: u32) -> Self {
 		U256::from(v)
 	}
@@ -57,6 +61,10 @@ impl U256Ext for U256 {
 	}
 
 	fn bit(&self, _index: usize) -> bool {
+		unimplemented!()
+	}
+
+	fn bits(&self) -> usize {
 		unimplemented!()
 	}
 

@@ -4,6 +4,7 @@ use std::{
 	io::{BufReader, BufWriter},
 };
 
+#[allow(unused_imports)]
 use evm::uint::{H256, U256, U256Ext};
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},

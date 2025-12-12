@@ -40,6 +40,10 @@ impl U256Ext for U256 {
 		unimplemented!()
 	}
 
+	fn low_u64(&self) -> u64 {
+		unimplemented!()
+	}
+
 	fn from_u32(v: u32) -> Self {
 		U256::from(v)
 	}
@@ -62,6 +66,10 @@ impl U256Ext for U256 {
 
 	fn bit(&self, index: usize) -> bool {
 		self.bit(index)
+	}
+
+	fn bits(&self) -> usize {
+		unimplemented!()
 	}
 
 	fn log2floor(&self) -> u64 {

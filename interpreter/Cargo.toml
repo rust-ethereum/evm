@@ -44,4 +44,6 @@ scale = [
 serde = [
 	"dep:serde",
 	"primitive-types/impl-serde",
+	"ruint?/serde",
+	"ethnum?/serde",
 ]

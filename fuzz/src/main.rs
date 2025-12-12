@@ -26,6 +26,7 @@ mod grammar;
 use std::alloc::System;
 
 use backend::MockBackend;
+#[allow(unused_imports)]
 use evm::uint::{H160, U256, U256Ext};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
@@ -49,9 +50,9 @@ static GLOBAL: &StatsAlloc<System> = &INSTRUMENTED_SYSTEM;
 fn main() {
 	ziggy::fuzz!(|data: FuzzData| {
 		// CONFIG
-		let init_balance = U256::from(1_000_000_000);
-		let gas_limit = U256::from(400_000);
-		let gas_price = U256::from(30);
+		let init_balance = U256::from_u64(1_000_000_000);
+		let gas_limit = U256::from_u64(400_000);
+		let gas_price = U256::from_u64(30);
 		let config = Config::istanbul();
 
 		let mut contract_one = vec![];

@@ -6,6 +6,7 @@ use evm::{
 	GasMutState,
 	interpreter::{ExitException, ExitResult, ExitSucceed},
 };
+use evm::uint::{U256, U256Ext};
 
 use crate::PurePrecompile;
 
@@ -36,7 +37,7 @@ impl<G: GasMutState> PurePrecompile<G> for Blake2F {
 		let rounds: u32 = u32::from_be_bytes(rounds_buf);
 
 		let gas_cost: u64 = (rounds as u64) * Blake2F::GAS_COST_PER_ROUND;
-		try_some!(gasometer.record_gas(gas_cost.into()));
+		try_some!(gasometer.record_gas(U256::from_u64(gas_cost)));
 
 		// we use from_le_bytes below to effectively swap byte order to LE if architecture is BE
 		let mut h_buf: [u8; 64] = [0; 64];

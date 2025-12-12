@@ -143,7 +143,7 @@ pub fn run_add<G: GasMutState>(
 	gas_cost: u64,
 	gasometer: &mut G,
 ) -> Result<(ExitSucceed, Vec<u8>), ExitError> {
-	gasometer.record_gas(gas_cost.into())?;
+	gasometer.record_gas(U256::from_u64(gas_cost))?;
 
 	let input = right_pad::<ADD_INPUT_LEN>(input);
 
@@ -160,7 +160,7 @@ pub fn run_mul<G: GasMutState>(
 	gas_cost: u64,
 	gasometer: &mut G,
 ) -> Result<(ExitSucceed, Vec<u8>), ExitError> {
-	gasometer.record_gas(gas_cost.into())?;
+	gasometer.record_gas(U256::from_u64(gas_cost))?;
 
 	let input = right_pad::<MUL_INPUT_LEN>(input);
 
@@ -179,7 +179,7 @@ pub fn run_pair<G: GasMutState>(
 	gasometer: &mut G,
 ) -> Result<(ExitSucceed, Vec<u8>), ExitError> {
 	let gas_used = (input.len() / PAIR_ELEMENT_LEN) as u64 * pair_per_point_cost + pair_base_cost;
-	gasometer.record_gas(gas_used.into())?;
+	gasometer.record_gas(U256::from_u64(gas_used))?;
 
 	if !input.len().is_multiple_of(PAIR_ELEMENT_LEN) {
 		return Err(ExitException::OutOfGas.into());
