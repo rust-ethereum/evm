@@ -56,10 +56,10 @@ pub fn mulmod(op1: U256, op2: U256, op3: U256) -> U256 {
 pub fn exp(op1: U256, op2: U256) -> U256 {
 	let mut op1 = op1;
 	let mut op2 = op2;
-	let mut r: U256 = 1.into();
+	let mut r: U256 = U256::ONE;
 
-	while op2 != 0.into() {
-		if op2 & 1.into() != 0.into() {
+	while op2 != U256::ZERO {
+		if op2 & U256::ONE != U256::ZERO {
 			r = r.overflowing_mul(op1).0;
 		}
 		op2 >>= 1;

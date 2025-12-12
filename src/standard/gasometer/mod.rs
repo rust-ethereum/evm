@@ -1,6 +1,5 @@
 mod consts;
 mod costs;
-mod utils;
 
 use alloc::vec::Vec;
 use core::cmp::max;
@@ -45,7 +44,7 @@ impl GasometerState {
 
 	/// Left gas. Same as [Self::gas64] but in [U256].
 	pub fn gas(&self) -> U256 {
-		self.gas64().into()
+		U256::from_u64(self.gas64())
 	}
 
 	/// Record an explicit cost.

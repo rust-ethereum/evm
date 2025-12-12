@@ -86,14 +86,12 @@ pub fn caller<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<T
 }
 
 pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
-	let mut ret = H256::default();
-	machine
+	let ret = machine
 		.state
 		.as_ref()
 		.context
-		.apparent_value
-		.to_big_endian(&mut ret[..]);
-	push_h256!(machine, ret);
+		.apparent_value;
+	push_u256!(machine, ret);
 
 	Control::Continue(1)
 }
@@ -102,14 +100,12 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 	machine: &mut Machine<S>,
 	_handler: &H,
 ) -> Control<Tr> {
-	let mut ret = H256::default();
-	machine
+	let ret = machine
 		.state
 		.as_ref()
 		.transaction_context
-		.gas_price
-		.to_big_endian(&mut ret[..]);
-	push_h256!(machine, ret);
+		.gas_price;
+	push_u256!(machine, ret);
 
 	Control::Continue(1)
 }
@@ -118,9 +114,8 @@ pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
-	let mut ret = H256::default();
-	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
-	push_h256!(machine, ret);
+	let ret = handler.block_base_fee_per_gas();
+	push_u256!(machine, ret);
 
 	Control::Continue(1)
 }

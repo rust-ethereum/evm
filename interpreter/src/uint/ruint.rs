@@ -1,4 +1,4 @@
-use super::U256Ext;
+use super::{H256, U256Ext};
 use ::ruint::Uint;
 
 /// Ruint's U256 type definition.
@@ -7,6 +7,13 @@ pub type U256 = Uint<256, 4>;
 impl U256Ext for U256 {
 	const ZERO: U256 = U256::ZERO;
 	const ONE: U256 = U256::ONE;
+	const VALUE_32: U256 = U256::from_limbs([32, 0, 0, 0]);
+	const SIGN_BIT_MASK: U256 = U256::from_limbs([
+		0xffff_ffff_ffff_ffff,
+		0xffff_ffff_ffff_ffff,
+		0xffff_ffff_ffff_ffff,
+		0x7fff_ffff_ffff_ffff,
+	]);
 
 	fn addmod(_op1: U256, _op2: U256, _op3: U256) -> U256 {
 		unimplemented!()
@@ -18,5 +25,53 @@ impl U256Ext for U256 {
 
 	fn as_usize(&self) -> usize {
 		self.to::<usize>()
+	}
+
+	fn as_u64(&self) -> u64 {
+		self.to::<u64>()
+	}
+
+	fn low_u32(&self) -> u32 {
+		unimplemented!()
+	}
+
+	fn from_u32(v: u32) -> Self {
+		U256::from(v)
+	}
+
+	fn from_u64(v: u64) -> Self {
+		U256::from(v)
+	}
+
+	fn to_h256(self) -> H256 {
+		unimplemented!()
+	}
+
+	fn from_h256(_v: H256) -> Self {
+		unimplemented!()
+	}
+
+	fn log2floor(&self) -> u64 {
+		let value = *self;
+
+		let mut l: u64 = 256;
+		let mut i = 3;
+		loop {
+			if value.as_limbs()[i] == 0u64 {
+				l -= 64;
+			} else {
+				l -= value.as_limbs()[i].leading_zeros() as u64;
+				if l == 0 {
+					return l;
+				} else {
+					return l - 1;
+				}
+			}
+			if i == 0 {
+				break;
+			}
+			i -= 1;
+		}
+		l
 	}
 }

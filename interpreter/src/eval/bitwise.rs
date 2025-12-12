@@ -45,7 +45,7 @@ pub fn byte(op1: U256, op2: U256) -> U256 {
 	let mut ret = U256::ZERO;
 
 	for i in 0..256 {
-		if i < 8 && op1 < 32.into() {
+		if i < 8 && op1 < U256::VALUE_32 {
 			let o: usize = op1.as_usize();
 			let t = 255 - (7 - i + 8 * o);
 			let bit_mask = U256::ONE << t;

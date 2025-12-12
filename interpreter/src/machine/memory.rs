@@ -237,7 +237,7 @@ impl Memory {
 #[inline]
 fn next_multiple_of_32(x: U256) -> Option<U256> {
 	let r = x.low_u32().bitand(31).not().wrapping_add(1).bitand(31);
-	x.checked_add(r.into())
+	x.checked_add(U256::from_u32(r))
 }
 
 #[cfg(test)]

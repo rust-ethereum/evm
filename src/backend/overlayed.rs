@@ -12,7 +12,7 @@ use crate::interpreter::{
 		TouchKind,
 	},
 };
-use crate::uint::{H160, H256, U256, U256Ext};
+use crate::uint::{H160, H256, U256};
 use crate::{MergeStrategy, backend::TransactionalBackend};
 use sha3::{Digest, Keccak256};
 

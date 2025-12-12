@@ -19,6 +19,10 @@ pub trait U256Ext: Sized {
 	const ZERO: Self;
 	/// One value.
 	const ONE: Self;
+	/// Value 32.
+	const VALUE_32: Self;
+	/// Sign bit mask.
+	const SIGN_BIT_MASK: Self;
 
 	/// An ADDMOD operation for U256.
 	fn addmod(op1: Self, op2: Self, op3: Self) -> Self;
@@ -28,6 +32,17 @@ pub trait U256Ext: Sized {
 	/// Conversion to usize with overflow checking.
 	/// Should panic if the number is larger than usize::MAX.
 	fn as_usize(&self) -> usize;
+	/// Conversion to u64 with overflow checking.
+	/// Should panic if the number is larger than u64::MAX.
+	fn as_u64(&self) -> u64;
+
+	/// Lower word of u32.
+	fn low_u32(&self) -> u32;
+
+	/// Conversion from u32.
+	fn from_u32(v: u32) -> Self;
+	/// Conversion from u64.
+	fn from_u64(v: u64) -> Self;
 
 	/// Conversion to H256 big-endian.
 	fn to_h256(self) -> H256;
@@ -41,6 +56,9 @@ pub trait U256Ext: Sized {
 	fn from_h160(v: H160) -> Self {
 		Self::from_h256(v.into())
 	}
+
+	/// Log2 of the value, rounded down.
+	fn log2floor(&self) -> u64;
 }
 
 // Use default primitive-types U256 implementation.

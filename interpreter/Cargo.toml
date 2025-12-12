@@ -19,7 +19,7 @@ sha3 = { version = "0.10", default-features = false }
 scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
-ruint = { version = "1.17", default-features = false, optional = true }
+ruint = { version = "1.17", default-features = false, features = ["rlp"], optional = true }
 ethnum = { version = "1.5", optional = true }
 
 [dev-dependencies]

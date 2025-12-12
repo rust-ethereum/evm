@@ -1,7 +1,7 @@
 use evm_interpreter::ExitException;
 use evm_interpreter::uint::{H256, U256, U256Ext};
 
-use super::{consts::*, utils::log2floor};
+use super::consts::*;
 use crate::standard::Config;
 
 pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitException> {
@@ -83,7 +83,7 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
 		let gas = U256::from(G_EXP)
 			.checked_add(
 				U256::from(config.gas_expbyte())
-					.checked_mul(U256::from(log2floor(power) / 8 + 1))
+					.checked_mul(U256::from(power.log2floor() / 8 + 1))
 					.ok_or(ExitException::OutOfGas)?,
 			)
 			.ok_or(ExitException::OutOfGas)?;

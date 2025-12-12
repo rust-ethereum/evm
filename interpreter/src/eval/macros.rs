@@ -11,11 +11,7 @@ macro_rules! pop_h256 {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(
 			let $x = match $machine.stack.pop() {
-				Ok(value) => {
-					let mut hvalue = H256::default();
-					value.to_big_endian(&mut hvalue[..]);
-					hvalue
-				},
+				Ok(value) => value.to_h256(),
 				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
@@ -36,7 +32,7 @@ macro_rules! pop_u256 {
 macro_rules! push_h256 {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			match $machine.stack.push(U256::from_big_endian(H256::as_ref(&$x))) {
+			match $machine.stack.push(U256::from_h256($x)) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}

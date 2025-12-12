@@ -4,7 +4,7 @@ mod state;
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, marker::PhantomData};
-use evm_interpreter::uint::{H160, H256, U256, U256Ext};
+use evm_interpreter::uint::{H160, H256, U256};
 use evm_interpreter::{
 	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
 	runtime::{
