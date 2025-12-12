@@ -90,9 +90,9 @@ impl Memory {
 
 	/// Resize to range. Used for return value.
 	pub fn resize_to_range(&mut self, return_range: Range<U256>) {
-		let ret = if return_range.start > U256::from(usize::MAX) {
+		let ret = if return_range.start > U256::USIZE_MAX {
 			vec![0; (return_range.end - return_range.start).as_usize()]
-		} else if return_range.end > U256::from(usize::MAX) {
+		} else if return_range.end > U256::USIZE_MAX {
 			let mut ret = self.get(
 				return_range.start.as_usize(),
 				usize::MAX - return_range.start.as_usize(),
@@ -193,20 +193,20 @@ impl Memory {
 			return Ok(());
 		}
 
-		let memory_offset = if memory_offset > U256::from(usize::MAX) {
+		let memory_offset = if memory_offset > U256::USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			memory_offset.as_usize()
 		};
 
-		let ulen = if len > U256::from(usize::MAX) {
+		let ulen = if len > U256::USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
 			len.as_usize()
 		};
 
 		let data: &[u8] = data_offset.checked_add(len).map_or(&[], |end| {
-			if end > U256::from(usize::MAX) {
+			if end > U256::USIZE_MAX {
 				&[]
 			} else {
 				let data_offset = data_offset.as_usize();

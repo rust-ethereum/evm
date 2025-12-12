@@ -86,7 +86,7 @@ pub fn exp(op1: U256, op2: U256) -> U256 {
 /// bits from `b`; this is equal to `y & mask` where `&` is bitwise `AND`.
 #[inline]
 pub fn signextend(op1: U256, op2: U256) -> U256 {
-	if op1 < U256::from(32) {
+	if op1 < U256::VALUE_32 {
 		// `low_u32` works since op1 < 32
 		let bit_index = (8 * op1.low_u32() + 7) as usize;
 		let bit = op2.bit(bit_index);

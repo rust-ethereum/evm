@@ -11,7 +11,7 @@ use crate::uint::{H160, H256, U256, U256Ext};
 
 /// Convert [U256] to [usize].
 pub fn u256_to_usize(v: U256) -> Result<usize, ExitError> {
-	if v > U256::from(usize::MAX) {
+	if v > U256::USIZE_MAX {
 		return Err(ExitFatal::NotSupported.into());
 	}
 	Ok(v.as_usize())

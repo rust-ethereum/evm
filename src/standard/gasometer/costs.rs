@@ -58,8 +58,8 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 pub fn create2_cost(len: U256) -> Result<u64, ExitException> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)
-	let sha_addup_base = len / U256::from(32)
-		+ if len % U256::from(32) == U256::ZERO {
+	let sha_addup_base = len / U256::VALUE_32
+		+ if (len % U256::VALUE_32).is_zero() {
 			U256::ZERO
 		} else {
 			U256::ONE
@@ -97,8 +97,8 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
 }
 
 pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
-	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let wordd = len / U256::VALUE_32;
+	let wordr = len % U256::VALUE_32;
 
 	let gas = U256::from(G_VERYLOW)
 		.checked_add(
@@ -120,8 +120,8 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
 }
 
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitException> {
-	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let wordd = len / U256::VALUE_32;
+	let wordr = len % U256::VALUE_32;
 	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code(), config))
 		.checked_add(
 			U256::from(G_COPY)
@@ -160,8 +160,8 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitException> {
 }
 
 pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
-	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let wordd = len / U256::VALUE_32;
+	let wordr = len % U256::VALUE_32;
 
 	let gas = U256::from(G_SHA3)
 		.checked_add(

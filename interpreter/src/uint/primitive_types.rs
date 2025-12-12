@@ -3,10 +3,15 @@ use ::primitive_types::U512;
 
 pub use ::primitive_types::U256;
 
+const _: () = assert!(usize::BITS <= 64);
+
 impl U256Ext for U256 {
 	const ZERO: U256 = U256::zero();
 	const ONE: U256 = U256::one();
 	const VALUE_32: U256 = U256([32, 0, 0, 0]);
+	const VALUE_64: U256 = U256([64, 0, 0, 0]);
+	const VALUE_256: U256 = U256([256, 0, 0, 0]);
+	const USIZE_MAX: U256 = U256([usize::MAX as u64, 0, 0, 0]);
 	const SIGN_BIT_MASK: U256 = U256([
 		0xffff_ffff_ffff_ffff,
 		0xffff_ffff_ffff_ffff,
@@ -62,6 +67,10 @@ impl U256Ext for U256 {
 		U256::from(v)
 	}
 
+	fn from_usize(v: usize) -> U256 {
+		U256::from(v)
+	}
+
 	fn to_h256(self) -> H256 {
 		let mut r = H256::default();
 		self.to_big_endian(&mut r[..]);
@@ -70,6 +79,10 @@ impl U256Ext for U256 {
 
 	fn from_h256(v: H256) -> Self {
 		U256::from_big_endian(&v[..])
+	}
+
+	fn bit(&self, index: usize) -> bool {
+		self.bit(index)
 	}
 
 	fn log2floor(&self) -> u64 {
@@ -91,5 +104,9 @@ impl U256Ext for U256 {
 			}
 		}
 		l
+	}
+
+	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream) {
+		rlp.append(self);
 	}
 }

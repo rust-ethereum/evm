@@ -156,7 +156,7 @@ impl RuntimeEnvironment for InMemoryBackend {
 	}
 
 	fn blob_versioned_hash(&self, index: U256) -> H256 {
-		if index < U256::from(self.environment.blob_versioned_hashes.len()) {
+		if index < U256::from_usize(self.environment.blob_versioned_hashes.len()) {
 			self.environment.blob_versioned_hashes[index.as_usize()]
 		} else {
 			H256::default()

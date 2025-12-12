@@ -4,10 +4,15 @@ use ::ruint::Uint;
 /// Ruint's U256 type definition.
 pub type U256 = Uint<256, 4>;
 
+const _: () = assert!(usize::BITS <= 64);
+
 impl U256Ext for U256 {
 	const ZERO: U256 = U256::ZERO;
 	const ONE: U256 = U256::ONE;
 	const VALUE_32: U256 = U256::from_limbs([32, 0, 0, 0]);
+	const VALUE_64: U256 = U256::from_limbs([64, 0, 0, 0]);
+	const VALUE_256: U256 = U256::from_limbs([256, 0, 0, 0]);
+	const USIZE_MAX: U256 = U256::from_limbs([usize::MAX as u64, 0, 0, 0]);
 	const SIGN_BIT_MASK: U256 = U256::from_limbs([
 		0xffff_ffff_ffff_ffff,
 		0xffff_ffff_ffff_ffff,
@@ -43,12 +48,20 @@ impl U256Ext for U256 {
 		U256::from(v)
 	}
 
+	fn from_usize(v: usize) -> Self {
+		U256::from(v)
+	}
+
 	fn to_h256(self) -> H256 {
 		unimplemented!()
 	}
 
 	fn from_h256(_v: H256) -> Self {
 		unimplemented!()
+	}
+
+	fn bit(&self, index: usize) -> bool {
+		self.bit(index)
 	}
 
 	fn log2floor(&self) -> u64 {
@@ -73,5 +86,9 @@ impl U256Ext for U256 {
 			i -= 1;
 		}
 		l
+	}
+
+	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream) {
+		rlp.append(self);
 	}
 }

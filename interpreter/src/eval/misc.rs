@@ -10,7 +10,7 @@ pub fn codesize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let code = &state.code;
 
 	match stack.perform_pop0_push1(|| {
-		let size = U256::from(code.len());
+		let size = U256::from_usize(code.len());
 		Ok((size, ()))
 	}) {
 		Ok(()) => Control::Continue(1),
@@ -40,8 +40,8 @@ pub fn calldataload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	let mut load = [0u8; 32];
 	#[allow(clippy::needless_range_loop)]
 	for i in 0..32 {
-		if let Some(p) = index.checked_add(U256::from(i))
-			&& p <= U256::from(usize::MAX)
+		if let Some(p) = index.checked_add(U256::from_usize(i))
+			&& p <= U256::USIZE_MAX
 		{
 			let p = p.as_usize();
 			if p < state.data.len() {
@@ -56,7 +56,7 @@ pub fn calldataload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 
 #[inline]
 pub fn calldatasize<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
-	let len = U256::from(state.data.len());
+	let len = U256::from_usize(state.data.len());
 	push_u256!(state, len);
 	Control::Continue(1)
 }
@@ -88,7 +88,7 @@ pub fn pop<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 #[inline]
 pub fn mload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, index);
-	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
+	try_or_fail!(state.memory.resize_offset(index, U256::VALUE_32));
 	let index = as_usize_or_fail!(index);
 	let value = H256::from_slice(&state.memory.get(index, 32)[..]);
 	push_h256!(state, value);
@@ -116,7 +116,7 @@ pub fn mcopy<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 pub fn mstore<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 	pop_u256!(state, index);
 	pop_h256!(state, value);
-	try_or_fail!(state.memory.resize_offset(index, U256::from(32)));
+	try_or_fail!(state.memory.resize_offset(index, U256::VALUE_32));
 	let index = as_usize_or_fail!(index);
 	match state.memory.set(index, &value[..], Some(32)) {
 		Ok(()) => Control::Continue(1),
@@ -159,7 +159,7 @@ pub fn jumpi<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 
 #[inline]
 pub fn pc<S, Tr>(state: &mut Machine<S>, position: usize) -> Control<Tr> {
-	push_u256!(state, U256::from(position));
+	push_u256!(state, U256::from_usize(position));
 	Control::Continue(1)
 }
 

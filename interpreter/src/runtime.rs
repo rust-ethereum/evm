@@ -214,7 +214,7 @@ pub trait RuntimeBaseBackend {
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
 	fn code_size(&self, address: H160) -> U256 {
-		U256::from(self.code(address).len())
+		U256::from_usize(self.code(address).len())
 	}
 	/// Get code hash of address.
 	///

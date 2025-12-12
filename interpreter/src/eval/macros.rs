@@ -113,7 +113,7 @@ macro_rules! op3_u256_fn {
 
 macro_rules! as_usize_or_fail {
 	($v:expr) => {{
-		if $v > U256::from(usize::MAX) {
+		if $v > U256::USIZE_MAX {
 			return Control::Exit(ExitFatal::NotSupported.into());
 		}
 
@@ -121,7 +121,7 @@ macro_rules! as_usize_or_fail {
 	}};
 
 	($v:expr, $reason:expr) => {{
-		if $v > U256::from(usize::MAX) {
+		if $v > U256::USIZE_MAX {
 			return Control::Exit($reason.into());
 		}
 

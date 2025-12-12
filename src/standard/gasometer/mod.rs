@@ -565,12 +565,12 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
 			offset: stack.peek(0)?,
-			len: U256::from(32),
+			len: U256::VALUE_32,
 		}),
 
 		Opcode::MSTORE8 => Some(MemoryCost {
 			offset: stack.peek(0)?,
-			len: U256::from(1),
+			len: U256::ONE,
 		}),
 
 		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
@@ -917,7 +917,7 @@ impl MemoryCost {
 
 		let end = from.checked_add(len).ok_or(ExitException::OutOfGas)?;
 
-		if end > U256::from(usize::MAX) {
+		if end > U256::USIZE_MAX {
 			return Err(ExitException::OutOfGas.into());
 		}
 		let end = end.as_usize();

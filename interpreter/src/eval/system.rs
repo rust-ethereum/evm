@@ -184,7 +184,7 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 }
 
 pub fn returndatasize<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
-	let size = U256::from(machine.state.as_ref().retbuf.len());
+	let size = U256::from_usize(machine.state.as_ref().retbuf.len());
 	push_u256!(machine, size);
 
 	Control::Continue(1)
@@ -196,7 +196,7 @@ pub fn returndatacopy<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> C
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 	if data_offset
 		.checked_add(len)
-		.is_none_or(|l| l > U256::from(machine.state.as_ref().retbuf.len()))
+		.is_none_or(|l| l > U256::from_usize(machine.state.as_ref().retbuf.len()))
 	{
 		return Control::Exit(ExitException::OutOfOffset.into());
 	}

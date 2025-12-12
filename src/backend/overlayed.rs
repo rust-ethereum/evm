@@ -12,7 +12,8 @@ use crate::interpreter::{
 		TouchKind,
 	},
 };
-use crate::uint::{H160, H256, U256};
+#[allow(unused_imports)]
+use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{MergeStrategy, backend::TransactionalBackend};
 use sha3::{Digest, Keccak256};
 
@@ -369,7 +370,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		if old_nonce >= U256::from(u64::MAX) {
 			return Err(ExitException::MaxNonce.into());
 		}
-		let new_nonce = old_nonce.saturating_add(U256::from(1));
+		let new_nonce = old_nonce.saturating_add(U256::ONE);
 		self.substate.nonces.insert(address, new_nonce);
 		Ok(())
 	}

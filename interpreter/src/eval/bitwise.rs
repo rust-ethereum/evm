@@ -59,7 +59,7 @@ pub fn byte(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn shl(shift: U256, value: U256) -> U256 {
-	if value == U256::ZERO || shift >= U256::from(256) {
+	if value == U256::ZERO || shift >= U256::VALUE_256 {
 		U256::ZERO
 	} else {
 		let shift: u64 = shift.as_u64();
@@ -69,7 +69,7 @@ pub fn shl(shift: U256, value: U256) -> U256 {
 
 #[inline]
 pub fn shr(shift: U256, value: U256) -> U256 {
-	if value == U256::ZERO || shift >= U256::from(256) {
+	if value == U256::ZERO || shift >= U256::VALUE_256 {
 		U256::ZERO
 	} else {
 		let shift: u64 = shift.as_u64();
@@ -81,7 +81,7 @@ pub fn shr(shift: U256, value: U256) -> U256 {
 pub fn sar(shift: U256, value: U256) -> U256 {
 	let value = I256::from(value);
 
-	if value == I256::zero() || shift >= U256::from(256) {
+	if value == I256::zero() || shift >= U256::VALUE_256 {
 		let I256(sign, _) = value;
 		match sign {
 			// value is 0 or >=1, pushing 0

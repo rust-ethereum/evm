@@ -310,7 +310,7 @@ impl CallFeedback {
 
 		let reason = self.reason;
 		let retbuf = self.retbuf;
-		let target_len = min(self.trap.out_len, U256::from(retbuf.len()));
+		let target_len = min(self.trap.out_len, U256::from_usize(retbuf.len()));
 		let out_offset = self.trap.out_offset;
 
 		let ret = match reason {
@@ -403,7 +403,7 @@ impl CreateScheme {
 				let nonce = handler.nonce(*caller);
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(caller);
-				stream.append(&nonce);
+				nonce.append_to_rlp_stream(&mut stream);
 				H256::from_slice(Keccak256::digest(stream.out()).as_slice()).into()
 			}
 		}

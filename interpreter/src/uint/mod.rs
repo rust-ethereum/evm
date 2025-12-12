@@ -14,13 +14,19 @@ pub use ::primitive_types::{H160, H256};
 // Note on name resolution: when trait and struct itself defines functions of
 // identical name, then Rust would by default calls the implementation on the
 // struct directly. We take advantage of this for the extension trait.
-pub trait U256Ext: Sized {
+pub trait U256Ext: Sized + Eq + PartialEq + Clone + Copy {
 	/// Zero value.
 	const ZERO: Self;
 	/// One value.
 	const ONE: Self;
 	/// Value 32.
 	const VALUE_32: Self;
+	/// Value 64.
+	const VALUE_64: Self;
+	/// Value 256.
+	const VALUE_256: Self;
+	/// Usize max.
+	const USIZE_MAX: Self;
 	/// Sign bit mask.
 	const SIGN_BIT_MASK: Self;
 
@@ -43,6 +49,8 @@ pub trait U256Ext: Sized {
 	fn from_u32(v: u32) -> Self;
 	/// Conversion from u64.
 	fn from_u64(v: u64) -> Self;
+	/// Conversion from usize.
+	fn from_usize(v: usize) -> Self;
 
 	/// Conversion to H256 big-endian.
 	fn to_h256(self) -> H256;
@@ -57,8 +65,16 @@ pub trait U256Ext: Sized {
 		Self::from_h256(v.into())
 	}
 
+	/// Whether the value is zero.
+	fn is_zero(&self) -> bool {
+		*self == Self::ZERO
+	}
+	/// Whether a specific bit is set.
+	fn bit(&self, index: usize) -> bool;
 	/// Log2 of the value, rounded down.
 	fn log2floor(&self) -> u64;
+	/// Append the value to RLP stream.
+	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream);
 }
 
 // Use default primitive-types U256 implementation.
