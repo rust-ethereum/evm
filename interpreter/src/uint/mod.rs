@@ -14,6 +14,7 @@ pub use ::primitive_types::{H160, H256};
 // Note on name resolution: when trait and struct itself defines functions of
 // identical name, then Rust would by default calls the implementation on the
 // struct directly. We take advantage of this for the extension trait.
+#[doc(hidden)]
 pub trait U256Ext: Sized + Eq + PartialEq + Clone + Copy {
 	/// Zero value.
 	const ZERO: Self;
