@@ -44,12 +44,12 @@ pub fn srem(op1: U256, op2: U256) -> U256 {
 
 #[inline]
 pub fn addmod(op1: U256, op2: U256, op3: U256) -> U256 {
-	U256::add_mod(op1, op2, op3)
+	op1.add_mod(op2, op3)
 }
 
 #[inline]
 pub fn mulmod(op1: U256, op2: U256, op3: U256) -> U256 {
-	U256::mul_mod(op1, op2, op3)
+	op1.mul_mod(op2, op3)
 }
 
 #[inline]

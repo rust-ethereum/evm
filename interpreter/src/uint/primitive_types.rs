@@ -22,8 +22,8 @@ impl U256Ext for U256 {
 		0x7fff_ffff_ffff_ffff,
 	]);
 
-	fn add_mod(op1: U256, op2: U256, op3: U256) -> U256 {
-		let op1: U512 = op1.into();
+	fn add_mod(self, op2: U256, op3: U256) -> U256 {
+		let op1: U512 = self.into();
 		let op2: U512 = op2.into();
 		let op3: U512 = op3.into();
 
@@ -36,8 +36,8 @@ impl U256Ext for U256 {
 		}
 	}
 
-	fn mul_mod(op1: U256, op2: U256, op3: U256) -> U256 {
-		let op1: U512 = op1.into();
+	fn mul_mod(self, op2: U256, op3: U256) -> U256 {
+		let op1: U512 = self.into();
 		let op2: U512 = op2.into();
 		let op3: U512 = op3.into();
 
