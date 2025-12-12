@@ -1,8 +1,8 @@
+use evm::uint::U256Ext;
 use evm::{
 	interpreter::{Control, ExitException, Machine, Opcode},
 	standard::GasometerState,
 };
-use evm::uint::U256Ext;
 
 macro_rules! try_or_fail {
 	($e:expr) => {

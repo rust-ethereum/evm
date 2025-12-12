@@ -2,11 +2,11 @@ mod eip152;
 
 use alloc::vec::Vec;
 
+use evm::uint::{U256, U256Ext};
 use evm::{
 	GasMutState,
 	interpreter::{ExitException, ExitResult, ExitSucceed},
 };
-use evm::uint::{U256, U256Ext};
 
 use crate::PurePrecompile;
 
