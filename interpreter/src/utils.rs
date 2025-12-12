@@ -9,7 +9,6 @@ use crate::error::{ExitError, ExitFatal};
 #[allow(unused_imports)]
 use crate::uint::{H160, H256, U256, U256Ext};
 
-
 /// Convert [U256] into [H256].
 #[must_use]
 pub fn u256_to_h256(v: U256) -> H256 {
