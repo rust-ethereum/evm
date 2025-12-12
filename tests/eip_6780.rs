@@ -1,5 +1,5 @@
 mod mock;
-use evm::uint::{H160, H256, U256};
+use evm::uint::{H160, H256, U256, U256Ext};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
 	interpreter::{
