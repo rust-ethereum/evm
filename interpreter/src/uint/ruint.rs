@@ -60,11 +60,11 @@ impl U256Ext for U256 {
 	}
 
 	fn to_h256(self) -> H256 {
-		unimplemented!()
+		H256(self.to_be_bytes())
 	}
 
-	fn from_h256(_v: H256) -> Self {
-		unimplemented!()
+	fn from_h256(v: H256) -> Self {
+		U256::from_be_bytes(v.0)
 	}
 
 	fn bit(&self, index: usize) -> bool {
