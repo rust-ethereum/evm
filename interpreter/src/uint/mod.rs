@@ -117,6 +117,7 @@ pub use self::ruint::U256;
 
 #[cfg(test)]
 mod tests {
+	#[allow(unused_imports)]
 	use super::{U256, U256Ext};
 
 	#[test]
