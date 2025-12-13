@@ -61,6 +61,3 @@ serde = [
 ruint = [
     "evm-interpreter/ruint",
 ]
-ethnum = [
-    "evm-interpreter/ethnum",
-]

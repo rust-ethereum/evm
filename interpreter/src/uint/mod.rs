@@ -3,7 +3,6 @@
 //! Depending on the feature flag, different underlying crate may be used.
 //! * Default (no feature flag): use `primitive-types` crate.
 //! * `ruint` feature flag: use `ruint` crate.
-//! * `ethnum` feature flag: use `ethnum` crate.
 
 // H256 and H160 are pretty standardized, and there's no performance difference
 // in different implementations, so we always only use the one from
@@ -98,19 +97,14 @@ pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Ord + PartialOrd + Clone + 
 	fn log2floor(&self) -> u64;
 	/// Append the value to RLP stream.
 	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream);
-	/// Exponentiation by squaring.
-	/// This function is there because ethnum has a different signature compared with
-	/// `primitive-types` and `ruint`.
-	/// Panics if overflow.
-	fn pow_(self, exp: Self) -> Self;
 }
 
 // Use default primitive-types U256 implementation.
-#[cfg(all(not(feature = "ruint"), not(feature = "ethnum")))]
+#[cfg(not(feature = "ruint"))]
 mod primitive_types;
-#[cfg(all(not(feature = "ruint"), not(feature = "ethnum")))]
+#[cfg(not(feature = "ruint"))]
 use self::primitive_types::Sealed;
-#[cfg(all(not(feature = "ruint"), not(feature = "ethnum")))]
+#[cfg(not(feature = "ruint"))]
 pub use self::primitive_types::U256;
 
 // Use ruint U256 implementation.
@@ -121,10 +115,12 @@ use self::ruint::Sealed;
 #[cfg(feature = "ruint")]
 pub use self::ruint::U256;
 
-// Use ethnum U256 implementation.
-#[cfg(feature = "ethnum")]
-mod ethnum;
-#[cfg(feature = "ethnum")]
-use self::ethnum::Sealed;
-#[cfg(feature = "ethnum")]
-pub use self::ethnum::U256;
+#[cfg(test)]
+mod tests {
+	use super::{U256, U256Ext};
+
+	#[test]
+	fn shl_overflowing() {
+		assert_eq!(U256::ONE << 257, U256::ZERO);
+	}
+}

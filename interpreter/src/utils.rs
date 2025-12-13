@@ -187,8 +187,8 @@ mod tests {
 		let two = I256(Sign::Zero, U256::from_usize(2));
 		let neg_one_hundred = I256(Sign::Minus, U256::from_usize(100));
 		let minus_one = I256(Sign::Minus, U256::from_usize(1));
-		let max_value = I256(Sign::Plus, U256::from_usize(2).pow_(U256::from_usize(255)) - U256::ONE);
-		let neg_max_value = I256(Sign::Minus, U256::from_usize(2).pow_(U256::from_usize(255)) - U256::ONE);
+		let max_value = I256(Sign::Plus, U256::from_usize(2).pow(U256::from_usize(255)) - U256::ONE);
+		let neg_max_value = I256(Sign::Minus, U256::from_usize(2).pow(U256::from_usize(255)) - U256::ONE);
 
 		assert_eq!(I256::min_value() / minus_one, I256::min_value());
 		assert_eq!(I256::min_value() / one, I256::min_value());

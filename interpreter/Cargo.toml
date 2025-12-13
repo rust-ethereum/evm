@@ -20,7 +20,6 @@ scale-codec = { package = "parity-scale-codec", version = "3.2", default-feature
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 ruint = { version = "1.17", default-features = false, features = ["rlp"], optional = true }
-ethnum = { version = "1.5", optional = true }
 
 [dev-dependencies]
 hex = "0.4"
@@ -45,5 +44,4 @@ serde = [
 	"dep:serde",
 	"primitive-types/impl-serde",
 	"ruint?/serde",
-	"ethnum?/serde",
 ]

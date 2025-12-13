@@ -28,8 +28,7 @@ jobs:
       run: cargo clippy --workspace --features std,scale,serde --all-targets -- -D warnings
     - name: clippy with ruint
       run: cargo clippy -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ruint -- -D warnings
-    - name: clippy with ethnum
-      run: cargo clippy -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ethnum -- -D warnings
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -42,8 +41,7 @@ jobs:
       run: cargo build --workspace --features std,scale,serde
     - name: Build ruint
       run: cargo build -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ruint
-    - name: Build ethnum
-      run: cargo build -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ethnum
+
   semver:
     runs-on: ubuntu-latest
     steps:
@@ -58,6 +56,7 @@ jobs:
       run: cargo semver-checks --default-features -p evm-precompile
     - name: SemVer evm-mainnet
       run: cargo semver-checks --default-features -p evm-mainnet
+
   tests:
     runs-on: ubuntu-latest
     steps:
@@ -66,7 +65,5 @@ jobs:
         submodules: recursive
     - name: Run ruint tests.
       run: cargo test --release --verbose -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ruint
-    - name: Run ethnum tests.
-      run: cargo test --release --verbose -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ethnum
     - name: Run main tests
       run: cargo test --all --release --verbose

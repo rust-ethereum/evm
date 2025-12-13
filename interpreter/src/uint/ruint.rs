@@ -1,4 +1,5 @@
 use super::{H256, U256Ext};
+use core::ops::Shl;
 use ::ruint::Uint;
 
 /// Ruint's U256 type definition.
@@ -111,9 +112,5 @@ impl U256Ext for U256 {
 
 	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream) {
 		rlp.append(self);
-	}
-
-	fn pow_(self, exp: Self) -> Self {
-		self.pow(exp)
 	}
 }
