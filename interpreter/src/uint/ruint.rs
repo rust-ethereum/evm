@@ -1,5 +1,4 @@
 use super::{H256, U256Ext};
-use core::ops::Shl;
 use ::ruint::Uint;
 
 /// Ruint's U256 type definition.
