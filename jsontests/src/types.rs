@@ -1,6 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use evm::uint::{H160, H256, U256, U256Ext};
+use evm::uint::{H160, H256, U256};
+use evm::interpreter::utils::u256_to_h256;
 use hex::FromHex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
@@ -257,7 +258,7 @@ where
 {
 	let m: BTreeMap<U256, U256> = Deserialize::deserialize(deserializer)?;
 	Ok(m.into_iter()
-		.map(|(k, v)| (k.to_h256(), v.to_h256()))
+		.map(|(k, v)| (u256_to_h256(k), u256_to_h256(v)))
 		.collect())
 }
 

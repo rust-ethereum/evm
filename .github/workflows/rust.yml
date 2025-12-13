@@ -64,5 +64,9 @@ jobs:
     - uses: actions/checkout@v5
       with:
         submodules: recursive
-    - name: Run tests
+    - name: Run ruint tests.
+      run: cargo test --release --verbose -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ruint
+    - name: Run ethnum tests.
+      run: cargo test --release --verbose -p evm -p evm-mainnet -p evm-interpreter -p evm-precompile -p evm-feature-evm64 --features ethnum
+    - name: Run main tests
       run: cargo test --all --release --verbose

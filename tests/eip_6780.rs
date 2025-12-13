@@ -1,4 +1,5 @@
 mod mock;
+#[allow(unused_imports)]
 use evm::uint::{H160, H256, U256, U256Ext};
 use evm::{
 	backend::{OverlayedBackend, RuntimeBaseBackend},
