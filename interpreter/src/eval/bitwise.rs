@@ -38,7 +38,8 @@ pub fn byte(op1: U256, op2: U256) -> U256 {
 
 	for i in 0..256 {
 		if i < 8 && op1 < U256::VALUE_32 {
-			let o: usize = op1.as_usize();
+			// `op1` is less than 32.
+			let o = op1.low_usize();
 			let t = 255 - (7 - i + 8 * o);
 			let bit_mask = U256::ONE << t;
 			let value = (op2 & bit_mask) >> t;
@@ -54,8 +55,9 @@ pub fn shl(shift: U256, value: U256) -> U256 {
 	if value == U256::ZERO || shift >= U256::VALUE_256 {
 		U256::ZERO
 	} else {
-		let shift: u64 = shift.as_u64();
-		value << shift as usize
+		// `shift` is less than 256.
+		let shift = shift.low_usize();
+		value << shift
 	}
 }
 
@@ -64,8 +66,9 @@ pub fn shr(shift: U256, value: U256) -> U256 {
 	if value == U256::ZERO || shift >= U256::VALUE_256 {
 		U256::ZERO
 	} else {
-		let shift: u64 = shift.as_u64();
-		value >> shift as usize
+		// `shift` is less than 256.
+		let shift = shift.low_usize();
+		value >> shift
 	}
 }
 
@@ -82,12 +85,13 @@ pub fn sar(shift: U256, value: U256) -> U256 {
 			Sign::Minus => I256(Sign::Minus, U256::ONE).into(),
 		}
 	} else {
-		let shift: u64 = shift.as_u64();
+		// `shift` is less than 256.
+		let shift = shift.low_usize();
 
 		match value.0 {
-			Sign::Plus | Sign::Zero => value.1 >> shift as usize,
+			Sign::Plus | Sign::Zero => value.1 >> shift,
 			Sign::Minus => {
-				let shifted = ((value.1.overflowing_sub(U256::ONE).0) >> shift as usize)
+				let shifted = ((value.1.overflowing_sub(U256::ONE).0) >> shift)
 					.overflowing_add(U256::ONE)
 					.0;
 				I256(Sign::Minus, shifted).into()

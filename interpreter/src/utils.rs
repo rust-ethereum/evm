@@ -32,7 +32,7 @@ pub fn u256_to_usize(v: U256) -> Result<usize, ExitError> {
 	if v > U256::USIZE_MAX {
 		return Err(ExitFatal::NotSupported.into());
 	}
-	Ok(v.as_usize())
+	Ok(v.low_usize())
 }
 
 /// Sign of [I256].

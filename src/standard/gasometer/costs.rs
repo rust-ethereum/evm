@@ -73,7 +73,8 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
@@ -92,7 +93,8 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
 			return Err(ExitException::OutOfGas);
 		}
 
-		Ok(gas.as_u64())
+		// `gas` is less than `u64::MAX`.
+		Ok(gas.low_u64())
 	}
 }
 
@@ -116,7 +118,8 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitException> {
@@ -138,7 +141,8 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitException> {
@@ -156,7 +160,8 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
@@ -179,7 +184,8 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn sload_cost(is_cold: bool, config: &Config) -> u64 {

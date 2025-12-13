@@ -15,7 +15,7 @@ pub use ::primitive_types::{H160, H256};
 // identical name, then Rust would by default calls the implementation on the
 // struct directly. We take advantage of this for the extension trait.
 #[doc(hidden)]
-pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Clone + Copy {
+pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Ord + PartialOrd + Clone + Copy {
 	/// Zero value.
 	const ZERO: Self;
 	/// One value.
@@ -28,6 +28,10 @@ pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Clone + Copy {
 	const VALUE_256: Self;
 	/// Usize max.
 	const USIZE_MAX: Self;
+	/// U64 max.
+	const U64_MAX: Self;
+	/// U32 max.
+	const U32_MAX: Self;
 	/// Sign bit mask.
 	const SIGN_BIT_MASK: Self;
 
@@ -38,15 +42,29 @@ pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Clone + Copy {
 
 	/// Conversion to usize with overflow checking.
 	/// Should panic if the number is larger than usize::MAX.
-	fn as_usize(&self) -> usize;
+	fn to_usize(&self) -> usize {
+		assert!(*self <= Self::USIZE_MAX);
+		self.low_usize()
+	}
 	/// Conversion to u64 with overflow checking.
 	/// Should panic if the number is larger than u64::MAX.
-	fn as_u64(&self) -> u64;
+	fn to_u64(&self) -> u64 {
+		assert!(*self <= Self::U64_MAX);
+		self.low_u64()
+	}
+	/// Conversion to u32 with overflow checking.
+	/// Should panic if the number is larger than u32::MAX.
+	fn to_u32(&self) -> u32 {
+		assert!(*self <= Self::U32_MAX);
+		self.low_u32()
+	}
 
 	/// Lower word of u64.
 	fn low_u64(&self) -> u64;
 	/// Lower word of u32.
 	fn low_u32(&self) -> u32;
+	/// Lower word of usize.
+	fn low_usize(&self) -> usize;
 
 	/// Conversion from u32.
 	fn from_u32(v: u32) -> Self;

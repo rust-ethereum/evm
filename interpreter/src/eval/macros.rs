@@ -117,7 +117,7 @@ macro_rules! as_usize_or_fail {
 			return Control::Exit(ExitFatal::NotSupported.into());
 		}
 
-		$v.as_usize()
+		$v.low_usize()
 	}};
 
 	($v:expr, $reason:expr) => {{
@@ -125,6 +125,6 @@ macro_rules! as_usize_or_fail {
 			return Control::Exit($reason.into());
 		}
 
-		$v.as_usize()
+		$v.low_usize()
 	}};
 }

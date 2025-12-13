@@ -16,6 +16,8 @@ impl U256Ext for U256 {
 	const VALUE_64: U256 = U256::from_limbs([64, 0, 0, 0]);
 	const VALUE_256: U256 = U256::from_limbs([256, 0, 0, 0]);
 	const USIZE_MAX: U256 = U256::from_limbs([usize::MAX as u64, 0, 0, 0]);
+	const U64_MAX: U256 = U256::from_limbs([u64::MAX, 0, 0, 0]);
+	const U32_MAX: U256 = U256::from_limbs([u32::MAX as u64, 0, 0, 0]);
 	const SIGN_BIT_MASK: U256 = U256::from_limbs([
 		0xffff_ffff_ffff_ffff,
 		0xffff_ffff_ffff_ffff,
@@ -31,12 +33,16 @@ impl U256Ext for U256 {
 		self.mul_mod(op2, op3)
 	}
 
-	fn as_usize(&self) -> usize {
+	fn to_usize(&self) -> usize {
 		self.to::<usize>()
 	}
 
-	fn as_u64(&self) -> u64 {
+	fn to_u64(&self) -> u64 {
 		self.to::<u64>()
+	}
+
+	fn to_u32(&self) -> u32 {
+		self.to::<u32>()
 	}
 
 	fn low_u32(&self) -> u32 {
@@ -44,6 +50,10 @@ impl U256Ext for U256 {
 	}
 
 	fn low_u64(&self) -> u64 {
+		self.wrapping_to()
+	}
+
+	fn low_usize(&self) -> usize {
 		self.wrapping_to()
 	}
 

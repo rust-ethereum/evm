@@ -43,7 +43,7 @@ pub fn calldataload<S, Tr>(state: &mut Machine<S>) -> Control<Tr> {
 		if let Some(p) = index.checked_add(U256::from_usize(i))
 			&& p <= U256::USIZE_MAX
 		{
-			let p = p.as_usize();
+			let p = p.low_usize();
 			if p < state.data.len() {
 				load[i] = state.data[p];
 			}

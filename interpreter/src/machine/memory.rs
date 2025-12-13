@@ -91,20 +91,26 @@ impl Memory {
 	/// Resize to range. Used for return value.
 	pub fn resize_to_range(&mut self, return_range: Range<U256>) {
 		let ret = if return_range.start > U256::USIZE_MAX {
-			vec![0; (return_range.end - return_range.start).as_usize()]
+			// TODO: Potential wrapping and hugely inefficient resizing.
+			vec![0; (return_range.end - return_range.start).low_usize()]
 		} else if return_range.end > U256::USIZE_MAX {
+			// `return_range.start` is less than `usize::MAX`.
 			let mut ret = self.get(
-				return_range.start.as_usize(),
-				usize::MAX - return_range.start.as_usize(),
+				return_range.start.low_usize(),
+				usize::MAX - return_range.start.low_usize(),
 			);
-			while ret.len() < (return_range.end - return_range.start).as_usize() {
+			// TODO: Potential wrapping and hugely inefficient resizing.
+			while ret.len() < (return_range.end - return_range.start).low_usize() {
 				ret.push(0);
 			}
 			ret
 		} else {
 			self.get(
-				return_range.start.as_usize(),
-				(return_range.end - return_range.start).as_usize(),
+				// `return_range.start` is less than `usize::MAX`.
+				return_range.start.low_usize(),
+				// Both `return_range.start` and `return_range.end` is less than `usize::MAX`.
+				// Therefore their substraction is less than `usize::MAX`.
+				(return_range.end - return_range.start).low_usize(),
 			)
 		};
 		self.data = ret;
@@ -196,21 +202,26 @@ impl Memory {
 		let memory_offset = if memory_offset > U256::USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
-			memory_offset.as_usize()
+			// `memory_offset` is less than `usize::MAX`.
+			memory_offset.low_usize()
 		};
 
 		let ulen = if len > U256::USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
-			len.as_usize()
+			// `len` is less than `usize::MAX`.
+			len.low_usize()
 		};
 
 		let data: &[u8] = data_offset.checked_add(len).map_or(&[], |end| {
 			if end > U256::USIZE_MAX {
 				&[]
 			} else {
-				let data_offset = data_offset.as_usize();
-				let end = end.as_usize();
+				// `data_offset + len == end`, and `end` is less than `usize::MAX`.
+				// `data_offset` therefore must be less than `usize::MAX`.
+				let data_offset = data_offset.low_usize();
+				// `end` is less than `usize::MAX`.
+				let end = end.low_usize();
 
 				if data_offset > data.len() {
 					&[]

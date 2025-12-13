@@ -14,6 +14,8 @@ impl U256Ext for U256 {
 	const VALUE_64: U256 = U256::new(64);
 	const VALUE_256: U256 = U256::new(256);
 	const USIZE_MAX: U256 = U256::new(usize::MAX as u128);
+	const U64_MAX: U256 = U256::new(u64::MAX as u128);
+	const U32_MAX: U256 = U256::new(u32::MAX as u128);
 	const SIGN_BIT_MASK: U256 = U256::from_words(
 		0x7fff_ffff_ffff_ffff_ffff_ffff_ffff_ffff,
 		0xffff_ffff_ffff_ffff_ffff_ffff_ffff_ffff,
@@ -27,20 +29,16 @@ impl U256Ext for U256 {
 		unimplemented!()
 	}
 
-	fn as_usize(&self) -> usize {
-		unimplemented!()
-	}
-
-	fn as_u64(&self) -> u64 {
-		unimplemented!()
-	}
-
 	fn low_u32(&self) -> u32 {
-		unimplemented!()
+		self.as_u32()
 	}
 
 	fn low_u64(&self) -> u64 {
-		unimplemented!()
+		self.as_u64()
+	}
+
+	fn low_usize(&self) -> usize {
+		self.as_usize()
 	}
 
 	fn from_u32(v: u32) -> Self {

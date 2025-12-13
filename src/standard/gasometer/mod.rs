@@ -68,7 +68,8 @@ impl GasometerState {
 			return Err(ExitException::OutOfGas.into());
 		}
 
-		self.record_gas64(cost.as_u64())
+		// `cost` is less than `u64::MAX`.
+		self.record_gas64(cost.low_u64())
 	}
 
 	/// Record code deposit gas.
@@ -122,7 +123,8 @@ impl GasometerState {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
-			gas_limit.as_u64()
+			// `gas_limit` is less than `u64::MAX`.
+			gas_limit.low_u64()
 		};
 
 		let cost = TransactionCost::call(data, access_list).cost(config);
@@ -147,7 +149,8 @@ impl GasometerState {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
-			gas_limit.as_u64()
+			// `gas_limit` is less than `u64::MAX`.
+			gas_limit.low_u64()
 		};
 
 		let cost = TransactionCost::create(code, access_list).cost(config);
@@ -195,7 +198,8 @@ impl GasometerState {
 		let mut gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
-			gas_limit.as_u64()
+			// `gas_limit` is less than `u64::MAX`.
+			gas_limit.low_u64()
 		};
 
 		self.record_gas64(gas_limit)?;
@@ -920,7 +924,8 @@ impl MemoryCost {
 		if end > U256::USIZE_MAX {
 			return Err(ExitException::OutOfGas.into());
 		}
-		let end = end.as_usize();
+		// `end` is less than `usize::MAX`.
+		let end = end.low_usize();
 
 		let rem = end % 32;
 		let new = if rem == 0 { end / 32 } else { end / 32 + 1 };

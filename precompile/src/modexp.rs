@@ -72,7 +72,8 @@ where
 	if gas > U256::from(u64::MAX) {
 		u64::MAX
 	} else {
-		max(MIN_PRICE, gas.as_u64())
+		// `gas` is less than `u64::MAX`.
+		max(MIN_PRICE, gas.low_u64())
 	}
 }
 

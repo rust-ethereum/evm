@@ -15,6 +15,8 @@ impl U256Ext for U256 {
 	const VALUE_64: U256 = U256([64, 0, 0, 0]);
 	const VALUE_256: U256 = U256([256, 0, 0, 0]);
 	const USIZE_MAX: U256 = U256([usize::MAX as u64, 0, 0, 0]);
+	const U64_MAX: U256 = U256([u64::MAX, 0, 0, 0]);
+	const U32_MAX: U256 = U256([u32::MAX as u64, 0, 0, 0]);
 	const SIGN_BIT_MASK: U256 = U256([
 		0xffff_ffff_ffff_ffff,
 		0xffff_ffff_ffff_ffff,
@@ -50,12 +52,19 @@ impl U256Ext for U256 {
 		}
 	}
 
-	fn as_usize(&self) -> usize {
+	fn to_usize(&self) -> usize {
+		// `primitive-types`'s as-functions will panic by itself.
 		self.as_usize()
 	}
 
-	fn as_u64(&self) -> u64 {
+	fn to_u64(&self) -> u64 {
+		// `primitive-types`'s as-functions will panic by itself.
 		self.as_u64()
+	}
+
+	fn to_u32(&self) -> u32 {
+		// `primitive-types`'s as-functions will panic by itself.
+		self.as_u32()
 	}
 
 	fn low_u64(&self) -> u64 {
@@ -64,6 +73,10 @@ impl U256Ext for U256 {
 
 	fn low_u32(&self) -> u32 {
 		self.low_u32()
+	}
+
+	fn low_usize(&self) -> usize {
+		self.low_u64() as usize
 	}
 
 	fn from_u32(v: u32) -> U256 {
