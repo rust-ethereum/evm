@@ -253,13 +253,13 @@ fn next_multiple_of_32(x: U256) -> Option<U256> {
 
 #[cfg(test)]
 mod tests {
-	use super::{Memory, U256, next_multiple_of_32};
+	use super::{Memory, U256, U256Ext, next_multiple_of_32};
 
 	#[test]
 	fn test_next_multiple_of_32() {
 		// next_multiple_of_32 returns x when it is a multiple of 32
 		for i in 0..32 {
-			let x = U256::from(i * 32);
+			let x = U256::from_usize(i * 32);
 			assert_eq!(Some(x), next_multiple_of_32(x));
 		}
 
@@ -270,15 +270,15 @@ mod tests {
 			}
 			let next_multiple = x + 32 - (x % 32);
 			assert_eq!(
-				Some(U256::from(next_multiple)),
-				next_multiple_of_32(x.into())
+				Some(U256::from_usize(next_multiple)),
+				next_multiple_of_32(U256::from_usize(x))
 			);
 		}
 
 		// next_multiple_of_32 returns None when the next multiple of 32 is too big
-		let last_multiple_of_32 = U256::MAX & !U256::from(31);
+		let last_multiple_of_32 = U256::MAX & !U256::from_usize(31);
 		for i in 0..63 {
-			let x = U256::MAX - U256::from(i);
+			let x = U256::MAX - U256::from_usize(i);
 			if x > last_multiple_of_32 {
 				assert_eq!(None, next_multiple_of_32(x));
 			} else {

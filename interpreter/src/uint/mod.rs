@@ -98,6 +98,11 @@ pub trait U256Ext: Sealed + Sized + Eq + PartialEq + Ord + PartialOrd + Clone + 
 	fn log2floor(&self) -> u64;
 	/// Append the value to RLP stream.
 	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream);
+	/// Exponentiation by squaring.
+	/// This function is there because ethnum has a different signature compared with
+	/// `primitive-types` and `ruint`.
+	/// Panics if overflow.
+	fn pow_(self, exp: Self) -> Self;
 }
 
 // Use default primitive-types U256 implementation.

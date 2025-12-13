@@ -112,4 +112,8 @@ impl U256Ext for U256 {
 	fn append_to_rlp_stream(&self, rlp: &mut rlp::RlpStream) {
 		rlp.append(self);
 	}
+
+	fn pow_(self, exp: Self) -> Self {
+		self.pow(exp)
+	}
 }

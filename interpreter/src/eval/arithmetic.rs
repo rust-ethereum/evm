@@ -108,19 +108,19 @@ mod tests {
 		let test_values = vec![
 			U256::ZERO,
 			U256::ONE,
-			U256::from(8),
-			U256::from(10),
-			U256::from(65),
-			U256::from(100),
-			U256::from(128),
-			U256::from(11) * (U256::ONE << 65),
-			U256::from(7) * (U256::ONE << 123),
-			U256::MAX / 167,
+			U256::from_usize(8),
+			U256::from_usize(10),
+			U256::from_usize(65),
+			U256::from_usize(100),
+			U256::from_usize(128),
+			U256::from_usize(11) * (U256::ONE << 65),
+			U256::from_usize(7) * (U256::ONE << 123),
+			U256::MAX / U256::from_usize(167),
 			U256::MAX,
 		];
 		for x in 0..64 {
 			for y in test_values.iter() {
-				compare_old_signextend(x.into(), *y);
+				compare_old_signextend(U256::from_usize(x), *y);
 			}
 		}
 	}
@@ -133,11 +133,11 @@ mod tests {
 	}
 
 	fn old_signextend(op1: U256, op2: U256) -> U256 {
-		if op1 > U256::from(32) {
+		if op1 > U256::from_usize(32) {
 			op2
 		} else {
 			let mut ret = U256::ZERO;
-			let len: usize = op1.as_usize();
+			let len: usize = op1.to_usize();
 			let t: usize = 8 * (len + 1) - 1;
 			let t_bit_mask = U256::ONE << t;
 			let t_value = (op2 & t_bit_mask) >> t;

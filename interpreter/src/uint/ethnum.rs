@@ -76,4 +76,8 @@ impl U256Ext for U256 {
 	fn append_to_rlp_stream(&self, _rlp: &mut rlp::RlpStream) {
 		unimplemented!()
 	}
+
+	fn pow_(self, exp: Self) -> Self {
+		self.pow(exp.to_u32())
+	}
 }
