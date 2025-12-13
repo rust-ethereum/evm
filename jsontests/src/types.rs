@@ -1,7 +1,7 @@
 use std::{collections::BTreeMap, str::FromStr};
 
-use evm::uint::{H160, H256, U256};
 use evm::interpreter::utils::u256_to_h256;
+use evm::uint::{H160, H256, U256};
 use hex::FromHex;
 use serde::{Deserialize, Deserializer, Serialize, Serializer, de, ser};
 
