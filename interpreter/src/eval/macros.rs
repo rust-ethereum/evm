@@ -11,11 +11,7 @@ macro_rules! pop_h256 {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(
 			let $x = match $machine.stack.pop() {
-				Ok(value) => {
-					let mut hvalue = H256::default();
-					value.to_big_endian(&mut hvalue[..]);
-					hvalue
-				},
+				Ok(value) => value.to_h256(),
 				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
@@ -36,7 +32,7 @@ macro_rules! pop_u256 {
 macro_rules! push_h256 {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			match $machine.stack.push(U256::from_big_endian(H256::as_ref(&$x))) {
+			match $machine.stack.push(U256::from_h256($x)) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}
@@ -69,7 +65,7 @@ macro_rules! op2_u256_bool_ref {
 	($machine:expr, $op:ident) => {{
 		pop_u256!($machine, op1, op2);
 		let ret = op1.$op(&op2);
-		push_u256!($machine, if ret { U256::one() } else { U256::zero() });
+		push_u256!($machine, if ret { U256::ONE } else { U256::ZERO });
 
 		Control::Continue(1)
 	}};
@@ -117,18 +113,18 @@ macro_rules! op3_u256_fn {
 
 macro_rules! as_usize_or_fail {
 	($v:expr) => {{
-		if $v > U256::from(usize::MAX) {
+		if $v > U256::USIZE_MAX {
 			return Control::Exit(ExitFatal::NotSupported.into());
 		}
 
-		$v.as_usize()
+		$v.low_usize()
 	}};
 
 	($v:expr, $reason:expr) => {{
-		if $v > U256::from(usize::MAX) {
+		if $v > U256::USIZE_MAX {
 			return Control::Exit($reason.into());
 		}
 
-		$v.as_usize()
+		$v.low_usize()
 	}};
 }

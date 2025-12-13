@@ -1,13 +1,13 @@
 use core::ops::{BitAnd, BitOr, BitXor};
 
 use evm::interpreter::{Control, ExitException, Machine};
-use primitive_types::U256;
+use evm::uint::{U256, U256Ext};
 
 macro_rules! pop_u64 {
 	( $machine:expr, $( $x:ident ),* ) => (
 		$(
 			let $x = match $machine.stack.pop() {
-				Ok(value) => value.0[0],
+				Ok(value) => value.low_u64(),
 				Err(e) => return Control::Exit(e.into()),
 			};
 		)*
@@ -17,7 +17,7 @@ macro_rules! pop_u64 {
 macro_rules! push_u64 {
 	( $machine:expr, $( $x:expr ),* ) => (
 		$(
-			match $machine.stack.push(U256([$x, 0, 0, 0])) {
+			match $machine.stack.push(U256::from_u64($x)) {
 				Ok(()) => (),
 				Err(e) => return Control::Exit(e.into()),
 			}

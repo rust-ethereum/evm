@@ -1,8 +1,7 @@
 use alloc::vec::Vec;
 
-use primitive_types::U256;
-
 use crate::error::{ExitError, ExitException};
+use crate::uint::U256;
 
 /// EVM stack.
 #[derive(Clone, Debug)]

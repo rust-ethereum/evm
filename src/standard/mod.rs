@@ -11,12 +11,12 @@ mod invoker;
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
+use evm_interpreter::uint::{H160, H256, U256};
 use evm_interpreter::{
 	Control, ExitError, etable, eval,
 	runtime::{GasState, RuntimeBackend, RuntimeConfig, RuntimeEnvironment, RuntimeState},
 	trap::CallCreateTrap,
 };
-use primitive_types::{H160, H256, U256};
 
 pub use self::{
 	config::Config,

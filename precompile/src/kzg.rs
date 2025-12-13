@@ -4,11 +4,11 @@ use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
 use ark_ff::{BigInteger, One, PrimeField};
 use ark_serialize::CanonicalDeserialize;
 use core::ops::Neg;
+use evm::uint::U256;
 use evm::{
 	GasMutState,
 	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 };
-use primitive_types::U256;
 use sha2::Digest;
 
 use crate::PurePrecompile;

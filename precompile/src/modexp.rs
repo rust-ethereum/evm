@@ -1,10 +1,10 @@
 use alloc::{borrow::Cow, vec, vec::Vec};
 use core::cmp::{max, min};
+use evm::uint::{H256, U256, U256Ext};
 use evm::{
 	GasMutState,
 	interpreter::{ExitException, ExitResult, ExitSucceed},
 };
-use primitive_types::U256;
 
 use crate::PurePrecompile;
 
@@ -33,14 +33,14 @@ pub fn byzantium_gas_calc(base_len: u64, exp_len: u64, mod_len: u64, exp_highp: 
 	gas_calc::<0, 8, 20, _>(base_len, exp_len, mod_len, exp_highp, |max_len| -> U256 {
 		// Output of this function is bounded by 2^128
 		if max_len <= 64 {
-			U256::from(max_len * max_len)
+			U256::from_u64(max_len * max_len)
 		} else if max_len <= 1_024 {
-			U256::from(max_len * max_len / 4 + 96 * max_len - 3_072)
+			U256::from_u64(max_len * max_len / 4 + 96 * max_len - 3_072)
 		} else {
 			// Up-cast to avoid overflow
-			let x = U256::from(max_len);
+			let x = U256::from_u64(max_len);
 			let x_sq = x * x; // x < 2^64 => x*x < 2^128 < 2^256 (no overflow)
-			x_sq / U256::from(16) + U256::from(480) * x - U256::from(199_680)
+			x_sq / U256::from_u64(16) + U256::from_u64(480) * x - U256::from_u64(199_680)
 		}
 	})
 }
@@ -72,7 +72,8 @@ where
 	if gas > U256::from(u64::MAX) {
 		u64::MAX
 	} else {
-		max(MIN_PRICE, gas.as_u64())
+		// `gas` is less than `u64::MAX`.
+		max(MIN_PRICE, gas.low_u64())
 	}
 }
 
@@ -152,9 +153,9 @@ fn execute<G: GasMutState>(
 	const HEADER_LENGTH: usize = 96;
 
 	// Extract the header
-	let base_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 0).into_owned());
-	let exp_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 32).into_owned());
-	let mod_len = U256::from_big_endian(&right_pad_with_offset::<32>(input, 64).into_owned());
+	let base_len = U256::from_h256(H256(right_pad_with_offset::<32>(input, 0).into_owned()));
+	let exp_len = U256::from_h256(H256(right_pad_with_offset::<32>(input, 32).into_owned()));
+	let mod_len = U256::from_h256(H256(right_pad_with_offset::<32>(input, 64).into_owned()));
 
 	// Cast base and modulus to usize, it does not make sense to handle larger values
 	let base_len = try_some!(usize::try_from(base_len).map_err(|_| ExitException::OutOfGas));
@@ -173,7 +174,7 @@ fn execute<G: GasMutState>(
 		let right_padded_highp = right_pad_with_offset::<32>(input, base_len);
 		// If exp_len is less then 32 bytes get only exp_len bytes and do left padding.
 		let out = left_pad::<32>(&right_padded_highp[..exp_highp_len]);
-		U256::from_big_endian(&out.into_owned())
+		U256::from_h256(H256(out.into_owned()))
 	};
 
 	// Check if we have enough gas.

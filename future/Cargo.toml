@@ -12,6 +12,3 @@ keywords.workspace = true
 [dependencies]
 evm = { path = ".." }
 environmental = "1.1"
-
-[dev-dependencies]
-primitive-types = "0.12"

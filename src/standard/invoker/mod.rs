@@ -4,6 +4,8 @@ mod state;
 
 use alloc::{boxed::Box, rc::Rc, vec::Vec};
 use core::{cmp::min, marker::PhantomData};
+#[allow(unused_imports)]
+use evm_interpreter::uint::{H160, H256, U256, U256Ext};
 use evm_interpreter::{
 	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
 	runtime::{
@@ -15,7 +17,6 @@ use evm_interpreter::{
 		CreateTrap, TrapConsume,
 	},
 };
-use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 pub use self::{
@@ -336,7 +337,7 @@ where
 
 		handler.mark_hot(coinbase, TouchKind::Coinbase);
 
-		if handler.code_size(caller) != U256::zero() {
+		if handler.code_size(caller) != U256::ZERO {
 			handler.push_substate();
 			return Ok((
 				invoke,
@@ -522,7 +523,7 @@ where
 				.as_ref()
 				.map(|s| s.effective_gas(false))
 				.unwrap_or_default(),
-			Err(_) => U256::zero(),
+			Err(_) => U256::ZERO,
 		};
 
 		match &result {
@@ -567,7 +568,7 @@ where
 		Self::Interrupt,
 	> {
 		fn l64(gas: U256) -> U256 {
-			gas - gas / U256::from(64)
+			gas - gas / U256::VALUE_64
 		}
 
 		let trap_data = match trap.consume() {
@@ -651,7 +652,7 @@ where
 				}
 
 				if let Some(transfer) = &call_trap_data.transfer
-					&& transfer.value != U256::zero()
+					&& transfer.value != U256::ZERO
 					&& handler.balance(transfer.source) < transfer.value
 				{
 					handler.push_substate();
@@ -729,7 +730,7 @@ where
 					)));
 				}
 
-				if value != U256::zero() && handler.balance(caller) < value {
+				if value != U256::ZERO && handler.balance(caller) < value {
 					handler.push_substate();
 					return Capture::Exit(Ok((
 						SubstackInvoke::Create {

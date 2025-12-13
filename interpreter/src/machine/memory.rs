@@ -5,9 +5,9 @@ use core::{
 	ops::{BitAnd, Not, Range},
 };
 
-use primitive_types::U256;
-
 use crate::error::{ExitException, ExitFatal};
+#[allow(unused_imports)]
+use crate::uint::{U256, U256Ext};
 
 /// A sequential memory. It uses Rust's `Vec` for internal
 /// representation.
@@ -24,7 +24,7 @@ impl Memory {
 	pub fn new(limit: usize) -> Self {
 		Self {
 			data: Vec::new(),
-			effective_len: U256::zero(),
+			effective_len: U256::ZERO,
 			limit,
 		}
 	}
@@ -62,14 +62,14 @@ impl Memory {
 	pub(crate) fn swap_and_clear(&mut self, other: &mut Vec<u8>) {
 		mem::swap(&mut self.data, other);
 		self.data = Vec::new();
-		self.effective_len = U256::zero();
+		self.effective_len = U256::ZERO;
 	}
 
 	/// Resize the memory, making it cover the memory region of `offset..(offset + len)`,
 	/// with 32 bytes as the step. If the length is zero, this function
 	/// does nothing.
 	pub fn resize_offset(&mut self, offset: U256, len: U256) -> Result<(), ExitException> {
-		if len == U256::zero() {
+		if len == U256::ZERO {
 			return Ok(());
 		}
 
@@ -90,21 +90,27 @@ impl Memory {
 
 	/// Resize to range. Used for return value.
 	pub fn resize_to_range(&mut self, return_range: Range<U256>) {
-		let ret = if return_range.start > U256::from(usize::MAX) {
-			vec![0; (return_range.end - return_range.start).as_usize()]
-		} else if return_range.end > U256::from(usize::MAX) {
+		let ret = if return_range.start > U256::USIZE_MAX {
+			// TODO: Potential wrapping and hugely inefficient resizing.
+			vec![0; (return_range.end - return_range.start).low_usize()]
+		} else if return_range.end > U256::USIZE_MAX {
+			// `return_range.start` is less than `usize::MAX`.
 			let mut ret = self.get(
-				return_range.start.as_usize(),
-				usize::MAX - return_range.start.as_usize(),
+				return_range.start.low_usize(),
+				usize::MAX - return_range.start.low_usize(),
 			);
-			while ret.len() < (return_range.end - return_range.start).as_usize() {
+			// TODO: Potential wrapping and hugely inefficient resizing.
+			while ret.len() < (return_range.end - return_range.start).low_usize() {
 				ret.push(0);
 			}
 			ret
 		} else {
 			self.get(
-				return_range.start.as_usize(),
-				(return_range.end - return_range.start).as_usize(),
+				// `return_range.start` is less than `usize::MAX`.
+				return_range.start.low_usize(),
+				// Both `return_range.start` and `return_range.end` is less than `usize::MAX`.
+				// Therefore their substraction is less than `usize::MAX`.
+				(return_range.end - return_range.start).low_usize(),
 			)
 		};
 		self.data = ret;
@@ -193,24 +199,29 @@ impl Memory {
 			return Ok(());
 		}
 
-		let memory_offset = if memory_offset > U256::from(usize::MAX) {
+		let memory_offset = if memory_offset > U256::USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
-			memory_offset.as_usize()
+			// `memory_offset` is less than `usize::MAX`.
+			memory_offset.low_usize()
 		};
 
-		let ulen = if len > U256::from(usize::MAX) {
+		let ulen = if len > U256::USIZE_MAX {
 			return Err(ExitFatal::NotSupported);
 		} else {
-			len.as_usize()
+			// `len` is less than `usize::MAX`.
+			len.low_usize()
 		};
 
 		let data: &[u8] = data_offset.checked_add(len).map_or(&[], |end| {
-			if end > U256::from(usize::MAX) {
+			if end > U256::USIZE_MAX {
 				&[]
 			} else {
-				let data_offset = data_offset.as_usize();
-				let end = end.as_usize();
+				// `data_offset + len == end`, and `end` is less than `usize::MAX`.
+				// `data_offset` therefore must be less than `usize::MAX`.
+				let data_offset = data_offset.low_usize();
+				// `end` is less than `usize::MAX`.
+				let end = end.low_usize();
 
 				if data_offset > data.len() {
 					&[]
@@ -237,18 +248,18 @@ impl Memory {
 #[inline]
 fn next_multiple_of_32(x: U256) -> Option<U256> {
 	let r = x.low_u32().bitand(31).not().wrapping_add(1).bitand(31);
-	x.checked_add(r.into())
+	x.checked_add(U256::from_u32(r))
 }
 
 #[cfg(test)]
 mod tests {
-	use super::{Memory, U256, next_multiple_of_32};
+	use super::{Memory, U256, U256Ext, next_multiple_of_32};
 
 	#[test]
 	fn test_next_multiple_of_32() {
 		// next_multiple_of_32 returns x when it is a multiple of 32
 		for i in 0..32 {
-			let x = U256::from(i * 32);
+			let x = U256::from_usize(i * 32);
 			assert_eq!(Some(x), next_multiple_of_32(x));
 		}
 
@@ -259,15 +270,15 @@ mod tests {
 			}
 			let next_multiple = x + 32 - (x % 32);
 			assert_eq!(
-				Some(U256::from(next_multiple)),
-				next_multiple_of_32(x.into())
+				Some(U256::from_usize(next_multiple)),
+				next_multiple_of_32(U256::from_usize(x))
 			);
 		}
 
 		// next_multiple_of_32 returns None when the next multiple of 32 is too big
-		let last_multiple_of_32 = U256::MAX & !U256::from(31);
+		let last_multiple_of_32 = U256::MAX & !U256::from_usize(31);
 		for i in 0..63 {
-			let x = U256::MAX - U256::from(i);
+			let x = U256::MAX - U256::from_usize(i);
 			if x > last_multiple_of_32 {
 				assert_eq!(None, next_multiple_of_32(x));
 			} else {

@@ -84,6 +84,7 @@ pub use evm_interpreter as interpreter;
 pub use crate::{
 	call_stack::{HeapTransact, transact},
 	gasometer::GasMutState,
+	interpreter::uint,
 	invoker::{Invoker, InvokerControl},
 };
 

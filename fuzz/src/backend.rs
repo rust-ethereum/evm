@@ -21,7 +21,7 @@
 use std::collections::BTreeMap;
 
 use evm::backend::{OverlayedChangeSet, RuntimeBaseBackend, RuntimeEnvironment};
-use primitive_types::{H160, H256, U256};
+use evm::uint::{H160, H256, U256};
 
 #[derive(Default, Clone, Debug, PartialEq)]
 pub struct MockAccount {

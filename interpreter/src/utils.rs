@@ -5,36 +5,34 @@ use core::{
 	ops::{Div, Rem},
 };
 
-use primitive_types::{H160, H256, U256};
-
 use crate::error::{ExitError, ExitFatal};
+#[allow(unused_imports)]
+use crate::uint::{H160, H256, U256, U256Ext};
 
 /// Convert [U256] into [H256].
 #[must_use]
 pub fn u256_to_h256(v: U256) -> H256 {
-	let mut r = H256::default();
-	v.to_big_endian(&mut r[..]);
-	r
+	v.to_h256()
 }
 
 /// Convert [H256] to [U256].
 #[must_use]
 pub fn h256_to_u256(v: H256) -> U256 {
-	U256::from_big_endian(&v[..])
+	U256::from_h256(v)
 }
 
 /// Convert [U256] into [H160]
 #[must_use]
 pub fn u256_to_h160(v: U256) -> H160 {
-	u256_to_h256(v).into()
+	v.to_h160()
 }
 
 /// Convert [U256] to [usize].
 pub fn u256_to_usize(v: U256) -> Result<usize, ExitError> {
-	if v > U256::from(usize::MAX) {
+	if v > U256::USIZE_MAX {
 		return Err(ExitFatal::NotSupported.into());
 	}
-	Ok(v.as_usize())
+	Ok(v.low_usize())
 }
 
 /// Sign of [I256].
@@ -48,13 +46,6 @@ pub enum Sign {
 	Zero,
 }
 
-const SIGN_BIT_MASK: U256 = U256([
-	0xffff_ffff_ffff_ffff,
-	0xffff_ffff_ffff_ffff,
-	0xffff_ffff_ffff_ffff,
-	0x7fff_ffff_ffff_ffff,
-]);
-
 /// Signed 256-bit integer.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub struct I256(pub Sign, pub U256);
@@ -63,12 +54,15 @@ impl I256 {
 	/// Zero value of I256.
 	#[must_use]
 	pub const fn zero() -> I256 {
-		I256(Sign::Zero, U256::zero())
+		I256(Sign::Zero, U256::ZERO)
 	}
 	/// Minimum value of I256.
 	#[must_use]
 	pub fn min_value() -> I256 {
-		I256(Sign::Minus, (U256::MAX & SIGN_BIT_MASK) + U256::from(1u64))
+		I256(
+			Sign::Minus,
+			(U256::MAX & U256::SIGN_BIT_MASK) + U256::from(1u64),
+		)
 	}
 }
 
@@ -102,9 +96,9 @@ impl Default for I256 {
 
 impl From<U256> for I256 {
 	fn from(val: U256) -> I256 {
-		if val == U256::zero() {
+		if val == U256::ZERO {
 			I256::zero()
-		} else if val & SIGN_BIT_MASK == val {
+		} else if val & U256::SIGN_BIT_MASK == val {
 			I256(Sign::Plus, val)
 		} else {
 			I256(Sign::Minus, !val + U256::from(1u64))
@@ -116,7 +110,7 @@ impl From<I256> for U256 {
 	fn from(value: I256) -> U256 {
 		let sign = value.0;
 		if sign == Sign::Zero {
-			U256::zero()
+			U256::ZERO
 		} else if sign == Sign::Plus {
 			value.1
 		} else {
@@ -137,9 +131,9 @@ impl Div for I256 {
 			return I256::min_value();
 		}
 
-		let d = (self.1 / other.1) & SIGN_BIT_MASK;
+		let d = (self.1 / other.1) & U256::SIGN_BIT_MASK;
 
-		if d == U256::zero() {
+		if d == U256::ZERO {
 			return I256::zero();
 		}
 
@@ -161,9 +155,9 @@ impl Rem for I256 {
 	type Output = I256;
 
 	fn rem(self, other: I256) -> I256 {
-		let r = (self.1 % other.1) & SIGN_BIT_MASK;
+		let r = (self.1 % other.1) & U256::SIGN_BIT_MASK;
 
-		if r == U256::zero() {
+		if r == U256::ZERO {
 			return I256::zero();
 		}
 
@@ -187,14 +181,20 @@ mod tests {
 		assert_eq!(100i8 / 2, 50i8);
 
 		// Now the same calculations based on i256
-		let one = I256(Sign::Zero, U256::from(1));
-		let one_hundred = I256(Sign::Zero, U256::from(100));
-		let fifty = I256(Sign::Plus, U256::from(50));
-		let two = I256(Sign::Zero, U256::from(2));
-		let neg_one_hundred = I256(Sign::Minus, U256::from(100));
-		let minus_one = I256(Sign::Minus, U256::from(1));
-		let max_value = I256(Sign::Plus, U256::from(2).pow(U256::from(255)) - 1);
-		let neg_max_value = I256(Sign::Minus, U256::from(2).pow(U256::from(255)) - 1);
+		let one = I256(Sign::Zero, U256::from_usize(1));
+		let one_hundred = I256(Sign::Zero, U256::from_usize(100));
+		let fifty = I256(Sign::Plus, U256::from_usize(50));
+		let two = I256(Sign::Zero, U256::from_usize(2));
+		let neg_one_hundred = I256(Sign::Minus, U256::from_usize(100));
+		let minus_one = I256(Sign::Minus, U256::from_usize(1));
+		let max_value = I256(
+			Sign::Plus,
+			U256::from_usize(2).pow(U256::from_usize(255)) - U256::ONE,
+		);
+		let neg_max_value = I256(
+			Sign::Minus,
+			U256::from_usize(2).pow(U256::from_usize(255)) - U256::ONE,
+		);
 
 		assert_eq!(I256::min_value() / minus_one, I256::min_value());
 		assert_eq!(I256::min_value() / one, I256::min_value());

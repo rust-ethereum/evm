@@ -1,11 +1,11 @@
 //! Runtime state and related traits.
 
 use alloc::{rc::Rc, vec::Vec};
-
-use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
 use crate::error::ExitError;
+#[allow(unused_imports)]
+use crate::uint::{H160, H256, U256, U256Ext};
 
 /// Gas state.
 pub trait GasState {
@@ -119,13 +119,13 @@ impl<'config> AsRef<RuntimeConfig> for RuntimeStateAndConfig<'config> {
 
 impl GasState for RuntimeState {
 	fn gas(&self) -> U256 {
-		U256::zero()
+		U256::ZERO
 	}
 }
 
 impl<'config> GasState for RuntimeStateAndConfig<'config> {
 	fn gas(&self) -> U256 {
-		U256::zero()
+		U256::ZERO
 	}
 }
 
@@ -214,7 +214,7 @@ pub trait RuntimeBaseBackend {
 	fn balance(&self, address: H160) -> U256;
 	/// Get code size of address.
 	fn code_size(&self, address: H160) -> U256 {
-		U256::from(self.code(address).len())
+		U256::from_usize(self.code(address).len())
 	}
 	/// Get code hash of address.
 	///
@@ -240,7 +240,7 @@ pub trait RuntimeBaseBackend {
 	fn exists(&self, address: H160) -> bool;
 	/// Detect for create collision. Note EIP-7610.
 	fn can_create(&self, address: H160) -> bool {
-		self.code_size(address) == U256::zero() && self.nonce(address) == U256::zero()
+		self.code_size(address) == U256::ZERO && self.nonce(address) == U256::ZERO
 	}
 
 	/// Get the current nonce of an account.
