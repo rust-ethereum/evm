@@ -23,3 +23,6 @@ thiserror = "1"
 
 [dev-dependencies]
 jsontests-proc-macro = { path = "proc-macro" }
+
+[features]
+time-consuming = []
