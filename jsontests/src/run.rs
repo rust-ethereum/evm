@@ -4,7 +4,8 @@ use std::{
 	io::{BufReader, BufWriter},
 };
 
-use evm::uint::{H256, U256};
+#[allow(unused_imports)]
+use evm::uint::{H256, U256, U256Ext};
 use evm::{
 	backend::{InMemoryAccount, InMemoryBackend, InMemoryEnvironment, OverlayedBackend},
 	interpreter::{Capture, runtime::GasState},
@@ -229,10 +230,10 @@ pub fn run_test(
 			let mut block_hashes = BTreeMap::new();
 			// Add the previous block hash to the block_hashes map
 			// In EVM, BLOCKHASH opcode can access hashes of the last 256 blocks
-			if test.env.current_number > U256::zero()
+			if test.env.current_number > U256::ZERO
 				&& let Some(previous_hash) = test.env.previous_hash
 			{
-				block_hashes.insert(test.env.current_number - U256::one(), previous_hash);
+				block_hashes.insert(test.env.current_number - U256::ONE, previous_hash);
 			}
 			block_hashes
 		},
@@ -243,13 +244,13 @@ pub fn run_test(
 		block_randomness: test.env.current_random,
 		block_gas_limit: test.env.current_gas_limit,
 		block_base_fee_per_gas: test.env.current_base_fee.unwrap_or_default(),
-		blob_base_fee_per_gas: U256::zero(),
+		blob_base_fee_per_gas: U256::ZERO,
 		blob_versioned_hashes: test
 			.transaction
 			.blob_versioned_hashes
 			.clone()
 			.unwrap_or_default(),
-		chain_id: U256::one(),
+		chain_id: U256::ONE,
 	};
 
 	let state = test
