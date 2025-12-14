@@ -1,9 +1,9 @@
 use alloc::vec::Vec;
 
-use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
-use crate::utils::u256_to_h256;
+#[allow(unused_imports)]
+use crate::uint::{H256, U256, U256Ext};
 
 use crate::{
 	Control, ExitException, ExitFatal, ExitSucceed, Machine,
@@ -15,7 +15,7 @@ pub fn sha3<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr>
 	pop_u256!(machine, from, len);
 
 	try_or_fail!(machine.memory.resize_offset(from, len));
-	let data = if len == U256::zero() {
+	let data = if len == U256::ZERO {
 		Vec::new()
 	} else {
 		let from = as_usize_or_fail!(from);
@@ -86,14 +86,8 @@ pub fn caller<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<T
 }
 
 pub fn callvalue<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
-	let mut ret = H256::default();
-	machine
-		.state
-		.as_ref()
-		.context
-		.apparent_value
-		.to_big_endian(&mut ret[..]);
-	push_h256!(machine, ret);
+	let ret = machine.state.as_ref().context.apparent_value;
+	push_u256!(machine, ret);
 
 	Control::Continue(1)
 }
@@ -102,14 +96,8 @@ pub fn gasprice<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, 
 	machine: &mut Machine<S>,
 	_handler: &H,
 ) -> Control<Tr> {
-	let mut ret = H256::default();
-	machine
-		.state
-		.as_ref()
-		.transaction_context
-		.gas_price
-		.to_big_endian(&mut ret[..]);
-	push_h256!(machine, ret);
+	let ret = machine.state.as_ref().transaction_context.gas_price;
+	push_u256!(machine, ret);
 
 	Control::Continue(1)
 }
@@ -118,9 +106,8 @@ pub fn basefee<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 	machine: &mut Machine<S>,
 	handler: &H,
 ) -> Control<Tr> {
-	let mut ret = H256::default();
-	handler.block_base_fee_per_gas().to_big_endian(&mut ret[..]);
-	push_h256!(machine, ret);
+	let ret = handler.block_base_fee_per_gas();
+	push_u256!(machine, ret);
 
 	Control::Continue(1)
 }
@@ -189,7 +176,7 @@ pub fn extcodecopy<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBacken
 }
 
 pub fn returndatasize<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> Control<Tr> {
-	let size = U256::from(machine.state.as_ref().retbuf.len());
+	let size = U256::from_usize(machine.state.as_ref().retbuf.len());
 	push_u256!(machine, size);
 
 	Control::Continue(1)
@@ -201,7 +188,7 @@ pub fn returndatacopy<S: AsRef<RuntimeState>, Tr>(machine: &mut Machine<S>) -> C
 	try_or_fail!(machine.memory.resize_offset(memory_offset, len));
 	if data_offset
 		.checked_add(len)
-		.is_none_or(|l| l > U256::from(machine.state.as_ref().retbuf.len()))
+		.is_none_or(|l| l > U256::from_usize(machine.state.as_ref().retbuf.len()))
 	{
 		return Control::Exit(ExitException::OutOfOffset.into());
 	}
@@ -341,7 +328,7 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	pop_u256!(machine, offset, len);
 
 	try_or_fail!(machine.memory.resize_offset(offset, len));
-	let data = if len == U256::zero() {
+	let data = if len == U256::ZERO {
 		Vec::new()
 	} else {
 		let offset = as_usize_or_fail!(offset);
@@ -354,7 +341,7 @@ pub fn log<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, Tr>(
 	for _ in 0..(n as usize) {
 		match machine.stack.pop() {
 			Ok(value) => {
-				topics.push(u256_to_h256(value));
+				topics.push(value.to_h256());
 			}
 			Err(e) => return Control::Exit(e.into()),
 		}
@@ -381,7 +368,7 @@ pub fn suicide<S: AsRef<RuntimeState>, H: RuntimeEnvironment + RuntimeBackend, T
 
 		handler.transfer(Transfer {
 			source: address,
-			target: u256_to_h256(*target).into(),
+			target: target.to_h160(),
 			value: balance,
 		})?;
 

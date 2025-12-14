@@ -1,10 +1,10 @@
 use alloc::{collections::BTreeMap, vec::Vec};
 
+use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{
 	backend::OverlayedChangeSet,
 	interpreter::runtime::{RuntimeBaseBackend, RuntimeEnvironment},
 };
-use primitive_types::{H160, H256, U256};
 
 /// Environment information of an in-memory backend.
 #[derive(Clone, Debug)]
@@ -156,8 +156,9 @@ impl RuntimeEnvironment for InMemoryBackend {
 	}
 
 	fn blob_versioned_hash(&self, index: U256) -> H256 {
-		if index < U256::from(self.environment.blob_versioned_hashes.len()) {
-			self.environment.blob_versioned_hashes[index.as_usize()]
+		if index < U256::from_usize(self.environment.blob_versioned_hashes.len()) {
+			// `index` is less than `blob_versioned_hashes.len()`, therefore it must be less than `usize::MAX`.
+			self.environment.blob_versioned_hashes[index.low_usize()]
 		} else {
 			H256::default()
 		}
@@ -220,8 +221,8 @@ impl RuntimeBaseBackend for InMemoryBackend {
 	}
 
 	fn can_create(&self, address: H160) -> bool {
-		self.nonce(address) == U256::zero()
-			&& self.code_size(address) == U256::zero()
+		self.nonce(address) == U256::ZERO
+			&& self.code_size(address) == U256::ZERO
 			&& self
 				.state
 				.get(&address)

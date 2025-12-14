@@ -7,9 +7,11 @@ mod bitwise;
 mod misc;
 mod system;
 
+#[allow(unused_imports)]
+use crate::uint::{U256, U256Ext};
 use alloc::boxed::Box;
+#[allow(unused_imports)]
 use core::ops::{BitAnd, BitOr, BitXor};
-use primitive_types::U256;
 
 use crate::{
 	Control, ExitException, ExitSucceed, Machine, Opcode,

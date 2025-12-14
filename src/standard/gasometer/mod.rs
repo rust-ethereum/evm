@@ -1,16 +1,15 @@
 mod consts;
 mod costs;
-mod utils;
 
 use alloc::vec::Vec;
 use core::cmp::max;
 
+use evm_interpreter::uint::{H160, H256, U256, U256Ext};
 use evm_interpreter::{
 	Control, ExitError, ExitException, Machine, Opcode, Stack,
 	runtime::{RuntimeBackend, RuntimeState, TouchKind},
-	utils::{u256_to_h160, u256_to_h256, u256_to_usize},
+	utils::u256_to_usize,
 };
-use primitive_types::{H160, H256, U256};
 
 use crate::{MergeStrategy, standard::Config};
 
@@ -45,7 +44,7 @@ impl GasometerState {
 
 	/// Left gas. Same as [Self::gas64] but in [U256].
 	pub fn gas(&self) -> U256 {
-		self.gas64().into()
+		U256::from_u64(self.gas64())
 	}
 
 	/// Record an explicit cost.
@@ -69,7 +68,8 @@ impl GasometerState {
 			return Err(ExitException::OutOfGas.into());
 		}
 
-		self.record_gas64(cost.as_u64())
+		// `cost` is less than `u64::MAX`.
+		self.record_gas64(cost.low_u64())
 	}
 
 	/// Record code deposit gas.
@@ -123,7 +123,8 @@ impl GasometerState {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
-			gas_limit.as_u64()
+			// `gas_limit` is less than `u64::MAX`.
+			gas_limit.low_u64()
 		};
 
 		let cost = TransactionCost::call(data, access_list).cost(config);
@@ -148,7 +149,8 @@ impl GasometerState {
 		let gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
-			gas_limit.as_u64()
+			// `gas_limit` is less than `u64::MAX`.
+			gas_limit.low_u64()
 		};
 
 		let cost = TransactionCost::create(code, access_list).cost(config);
@@ -196,7 +198,8 @@ impl GasometerState {
 		let mut gas_limit = if gas_limit > U256::from(u64::MAX) {
 			return Err(ExitException::OutOfGas.into());
 		} else {
-			gas_limit.as_u64()
+			// `gas_limit` is less than `u64::MAX`.
+			gas_limit.low_u64()
 		};
 
 		self.record_gas64(gas_limit)?;
@@ -333,7 +336,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BLOBBASEFEE => GasCost::Invalid(opcode),
 
 		Opcode::EXTCODESIZE => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -342,7 +345,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			GasCost::ExtCodeSize { target_is_cold }
 		}
 		Opcode::BALANCE => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -353,7 +356,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::BLOCKHASH => GasCost::BlockHash,
 
 		Opcode::EXTCODEHASH if config.eip1052_ext_code_hash => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -364,7 +367,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::EXTCODEHASH => GasCost::Invalid(opcode),
 
 		Opcode::CALLCODE => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -380,7 +383,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		}
 
 		Opcode::STATICCALL if config.eip214_static_call => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -399,7 +402,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			len: stack.peek(1)?,
 		},
 		Opcode::EXTCODECOPY => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(target, None);
@@ -420,7 +423,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			power: stack.peek(1)?,
 		},
 		Opcode::SLOAD => {
-			let index = u256_to_h256(stack.peek(0)?);
+			let index = stack.peek(0)?.to_h256();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
@@ -431,7 +434,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::TLOAD if config.eip1153_transient_storage => GasCost::TLoad,
 
 		Opcode::DELEGATECALL if config.eip7_delegate_call => {
-			let target = u256_to_h160(stack.peek(1)?);
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -453,8 +456,8 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 		Opcode::RETURNDATASIZE | Opcode::RETURNDATACOPY => GasCost::Invalid(opcode),
 
 		Opcode::SSTORE if !is_static => {
-			let index = u256_to_h256(stack.peek(0)?);
-			let value = u256_to_h256(stack.peek(1)?);
+			let index = stack.peek(0)?.to_h256();
+			let value = stack.peek(1)?.to_h256();
 
 			// https://eips.ethereum.org/EIPS/eip-2929
 			let target_is_cold = handler.is_cold(address, Some(index));
@@ -495,7 +498,7 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 			len: stack.peek(2)?,
 		},
 		Opcode::SUICIDE if !is_static => {
-			let target = u256_to_h160(stack.peek(0)?);
+			let target = stack.peek(0)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -510,8 +513,8 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 				already_removed: handler.deleted(address),
 			}
 		}
-		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::zero()) => {
-			let target = u256_to_h160(stack.peek(1)?);
+		Opcode::CALL if !is_static || (is_static && stack.peek(2)? == U256::ZERO) => {
+			let target = stack.peek(1)?.to_h160();
 			let target_exists = handler.exists(target);
 
 			// https://eips.ethereum.org/EIPS/eip-2929
@@ -566,12 +569,12 @@ fn dynamic_opcode_cost<H: RuntimeBackend>(
 
 		Opcode::MLOAD | Opcode::MSTORE => Some(MemoryCost {
 			offset: stack.peek(0)?,
-			len: U256::from(32),
+			len: U256::VALUE_32,
 		}),
 
 		Opcode::MSTORE8 => Some(MemoryCost {
 			offset: stack.peek(0)?,
-			len: U256::from(1),
+			len: U256::ONE,
 		}),
 
 		Opcode::CREATE | Opcode::CREATE2 => Some(MemoryCost {
@@ -772,7 +775,7 @@ impl GasCost {
 				target_exists,
 				..
 			} => costs::call_cost(
-				U256::zero(),
+				U256::ZERO,
 				target_is_cold,
 				false,
 				false,
@@ -784,7 +787,7 @@ impl GasCost {
 				target_exists,
 				..
 			} => costs::call_cost(
-				U256::zero(),
+				U256::ZERO,
 				target_is_cold,
 				false,
 				true,
@@ -893,11 +896,11 @@ struct MemoryCost {
 impl MemoryCost {
 	/// Join two memory cost together.
 	pub fn join(self, other: MemoryCost) -> MemoryCost {
-		if self.len == U256::zero() {
+		if self.len == U256::ZERO {
 			return other;
 		}
 
-		if other.len == U256::zero() {
+		if other.len == U256::ZERO {
 			return self;
 		}
 
@@ -912,16 +915,17 @@ impl MemoryCost {
 		let from = self.offset;
 		let len = self.len;
 
-		if len == U256::zero() {
+		if len == U256::ZERO {
 			return Ok(None);
 		}
 
 		let end = from.checked_add(len).ok_or(ExitException::OutOfGas)?;
 
-		if end > U256::from(usize::MAX) {
+		if end > U256::USIZE_MAX {
 			return Err(ExitException::OutOfGas.into());
 		}
-		let end = end.as_usize();
+		// `end` is less than `usize::MAX`.
+		let end = end.low_usize();
 
 		let rem = end % 32;
 		let new = if rem == 0 { end / 32 } else { end / 32 + 1 };

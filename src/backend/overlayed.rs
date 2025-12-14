@@ -5,17 +5,17 @@ use alloc::{
 };
 use core::mem;
 
-use evm_interpreter::{
+use crate::interpreter::{
 	ExitError, ExitException, ExitFatal,
 	runtime::{
 		Log, RuntimeBackend, RuntimeBaseBackend, RuntimeConfig, RuntimeEnvironment, SetCodeOrigin,
 		TouchKind,
 	},
 };
-use primitive_types::{H160, H256, U256};
-use sha3::{Digest, Keccak256};
-
+#[allow(unused_imports)]
+use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{MergeStrategy, backend::TransactionalBackend};
+use sha3::{Digest, Keccak256};
 
 const RIPEMD: H160 = H160([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
 
@@ -195,9 +195,9 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 
 	fn exists(&self, address: H160) -> bool {
 		if self.config.eip161_empty_check {
-			let is_empty = self.balance(address) == U256::zero()
-				&& self.code_size(address) == U256::zero()
-				&& self.nonce(address) == U256::zero();
+			let is_empty = self.balance(address) == U256::ZERO
+				&& self.code_size(address) == U256::ZERO
+				&& self.nonce(address) == U256::ZERO;
 			!is_empty
 		} else if let Some(exists) = self.substate.known_exists(address) {
 			exists
@@ -217,7 +217,7 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 	fn can_create(&self, address: H160) -> bool {
 		if self.config.eip7610_create_check_storage {
 			if let Some(nonce) = self.substate.known_nonce(address)
-				&& nonce != U256::zero()
+				&& nonce != U256::ZERO
 			{
 				return false;
 			}
@@ -234,7 +234,7 @@ impl<B: RuntimeBaseBackend> RuntimeBaseBackend for OverlayedBackend<'_, B> {
 
 			self.backend.can_create(address)
 		} else {
-			self.nonce(address) == U256::zero() && self.code_size(address) == U256::zero()
+			self.nonce(address) == U256::ZERO && self.code_size(address) == U256::ZERO
 		}
 	}
 }
@@ -314,11 +314,11 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		if self.config.eip6780_suicide_only_in_same_tx {
 			if self.created(address) {
 				self.substate.deletes.insert(address);
-				self.substate.balances.insert(address, U256::zero());
+				self.substate.balances.insert(address, U256::ZERO);
 			}
 		} else {
 			self.substate.deletes.insert(address);
-			self.substate.balances.insert(address, U256::zero());
+			self.substate.balances.insert(address, U256::ZERO);
 		}
 	}
 
@@ -341,7 +341,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn deposit(&mut self, target: H160, value: U256) {
-		if value == U256::zero() {
+		if value == U256::ZERO {
 			return;
 		}
 
@@ -352,7 +352,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 	}
 
 	fn withdrawal(&mut self, source: H160, value: U256) -> Result<(), ExitError> {
-		if value == U256::zero() {
+		if value == U256::ZERO {
 			return Ok(());
 		}
 
@@ -370,7 +370,7 @@ impl<B: RuntimeBaseBackend> RuntimeBackend for OverlayedBackend<'_, B> {
 		if old_nonce >= U256::from(u64::MAX) {
 			return Err(ExitException::MaxNonce.into());
 		}
-		let new_nonce = old_nonce.saturating_add(U256::from(1));
+		let new_nonce = old_nonce.saturating_add(U256::ONE);
 		self.substate.nonces.insert(address, new_nonce);
 		Ok(())
 	}

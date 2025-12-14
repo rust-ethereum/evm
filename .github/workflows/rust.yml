@@ -24,8 +24,11 @@ jobs:
       run: cargo clippy --workspace -- -D warnings
     - name: clippy no-std
       run: cargo clippy --workspace --no-default-features --all-targets -- -D warnings
-    - name: clippy with features
-      run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+    - name: clippy with normal features
+      run: cargo clippy --workspace --features std,scale,serde --all-targets -- -D warnings
+    - name: clippy with ruint
+      run: cargo clippy --workspace --features ruint --all-targets -- -D warnings
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -35,9 +38,10 @@ jobs:
     - name: Build no-std
       run: cargo build --no-default-features
     - name: Build all-features
-      run: cargo build --all-features
-    - name: Run tests
-      run: cargo test --verbose
+      run: cargo build --workspace --features std,scale,serde
+    - name: Build ruint
+      run: cargo build --workspace --features ruint
+
   semver:
     runs-on: ubuntu-latest
     steps:
@@ -45,18 +49,30 @@ jobs:
     - name: Install cargo-semver-checks
       run: cargo install cargo-semver-checks --locked
     - name: SemVer evm-interpreter
-      run: cargo semver-checks -p evm-interpreter
+      run: cargo semver-checks --default-features -p evm-interpreter
     - name: SemVer evm
-      run: cargo semver-checks -p evm
+      run: cargo semver-checks --default-features -p evm
     - name: SemVer evm-precompile
-      run: cargo semver-checks -p evm-precompile
+      run: cargo semver-checks --default-features -p evm-precompile
     - name: SemVer evm-mainnet
-      run: cargo semver-checks -p evm-mainnet
+      run: cargo semver-checks --default-features -p evm-mainnet
+
   tests:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
       with:
         submodules: recursive
-    - name: Run tests
+    - name: Run main tests
       run: cargo test --all --release --verbose
+    - name: Run ruint tests.
+      run: cargo test --all --release --verbose --features ruint
+
+  time-consuming-tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+      with:
+        submodules: recursive
+    - name: Run time consuming tests.
+      run: cargo test --all --release --verbose --features time-consuming

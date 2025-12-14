@@ -1,7 +1,7 @@
 use evm_interpreter::ExitException;
-use primitive_types::{H256, U256};
+use evm_interpreter::uint::{H256, U256, U256Ext};
 
-use super::{consts::*, utils::log2floor};
+use super::consts::*;
 use crate::standard::Config;
 
 pub fn call_extra_check(gas: U256, after_gas: u64, config: &Config) -> Result<(), ExitException> {
@@ -58,11 +58,11 @@ pub fn sstore_refund(original: H256, current: H256, new: H256, config: &Config) 
 pub fn create2_cost(len: U256) -> Result<u64, ExitException> {
 	let base = U256::from(G_CREATE);
 	// ceil(len / 32.0)
-	let sha_addup_base = len / U256::from(32)
-		+ if len % U256::from(32) == U256::zero() {
-			U256::zero()
+	let sha_addup_base = len / U256::VALUE_32
+		+ if (len % U256::VALUE_32).is_zero() {
+			U256::ZERO
 		} else {
-			U256::one()
+			U256::ONE
 		};
 	let sha_addup = U256::from(G_SHA3WORD)
 		.checked_mul(sha_addup_base)
@@ -73,17 +73,18 @@ pub fn create2_cost(len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
-	if power == U256::zero() {
+	if power == U256::ZERO {
 		Ok(G_EXP)
 	} else {
 		let gas = U256::from(G_EXP)
 			.checked_add(
 				U256::from(config.gas_expbyte())
-					.checked_mul(U256::from(log2floor(power) / 8 + 1))
+					.checked_mul(U256::from(power.log2floor() / 8 + 1))
 					.ok_or(ExitException::OutOfGas)?,
 			)
 			.ok_or(ExitException::OutOfGas)?;
@@ -92,21 +93,22 @@ pub fn exp_cost(power: U256, config: &Config) -> Result<u64, ExitException> {
 			return Err(ExitException::OutOfGas);
 		}
 
-		Ok(gas.as_u64())
+		// `gas` is less than `u64::MAX`.
+		Ok(gas.low_u64())
 	}
 }
 
 pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
-	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let wordd = len / U256::VALUE_32;
+	let wordr = len % U256::VALUE_32;
 
 	let gas = U256::from(G_VERYLOW)
 		.checked_add(
 			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr == U256::ZERO {
 					wordd
 				} else {
-					wordd + U256::one()
+					wordd + U256::ONE
 				})
 				.ok_or(ExitException::OutOfGas)?,
 		)
@@ -116,19 +118,20 @@ pub fn verylowcopy_cost(len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64, ExitException> {
-	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let wordd = len / U256::VALUE_32;
+	let wordr = len % U256::VALUE_32;
 	let gas = U256::from(address_access_cost(is_cold, config.gas_ext_code(), config))
 		.checked_add(
 			U256::from(G_COPY)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr == U256::ZERO {
 					wordd
 				} else {
-					wordd + U256::one()
+					wordd + U256::ONE
 				})
 				.ok_or(ExitException::OutOfGas)?,
 		)
@@ -138,7 +141,8 @@ pub fn extcodecopy_cost(len: U256, is_cold: bool, config: &Config) -> Result<u64
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitException> {
@@ -156,20 +160,21 @@ pub fn log_cost(n: u8, len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
-	let wordd = len / U256::from(32);
-	let wordr = len % U256::from(32);
+	let wordd = len / U256::VALUE_32;
+	let wordr = len % U256::VALUE_32;
 
 	let gas = U256::from(G_SHA3)
 		.checked_add(
 			U256::from(G_SHA3WORD)
-				.checked_mul(if wordr == U256::zero() {
+				.checked_mul(if wordr == U256::ZERO {
 					wordd
 				} else {
-					wordd + U256::one()
+					wordd + U256::ONE
 				})
 				.ok_or(ExitException::OutOfGas)?,
 		)
@@ -179,7 +184,8 @@ pub fn sha3_cost(len: U256) -> Result<u64, ExitException> {
 		return Err(ExitException::OutOfGas);
 	}
 
-	Ok(gas.as_u64())
+	// `gas` is less than `u64::MAX`.
+	Ok(gas.low_u64())
 }
 
 pub fn sload_cost(is_cold: bool, config: &Config) -> u64 {
@@ -248,7 +254,7 @@ pub fn tstore_cost(config: &Config) -> Result<u64, ExitException> {
 pub fn suicide_cost(value: U256, is_cold: bool, target_exists: bool, config: &Config) -> u64 {
 	let eip161 = config.runtime.eip161_empty_check;
 	let should_charge_topup = if eip161 {
-		value != U256::zero() && !target_exists
+		value != U256::ZERO && !target_exists
 	} else {
 		!target_exists
 	};

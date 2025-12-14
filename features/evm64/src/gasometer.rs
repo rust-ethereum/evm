@@ -1,3 +1,5 @@
+#[allow(unused_imports)]
+use evm::uint::U256Ext;
 use evm::{
 	interpreter::{Control, ExitException, Machine, Opcode},
 	standard::GasometerState,
@@ -66,7 +68,7 @@ where
 	#[allow(clippy::single_match)]
 	match opcode {
 		Opcode::EXP => {
-			let power = try_or_fail!(machine.stack.peek(1)).0[0];
+			let power = try_or_fail!(machine.stack.peek(1)).low_u64();
 			let cost = if power == 0 {
 				G_EXP64_STATIC
 			} else {

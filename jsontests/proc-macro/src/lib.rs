@@ -41,6 +41,15 @@ impl Parse for Input {
 	}
 }
 
+const TIME_CONSUMING_TESTS: [&str; 6] = [
+	"legacytests_cancun__stTimeConsuming",
+	"legacytests_constaninople__stTimeConsuming",
+	"legacytests_cancun__VMTests__vmPerformance",
+	"legacytests_constaninople__VMTests__vmPerformance",
+	"oldethtests__stTimeConsuming",
+	"oldethtests__VMTests__vmPerformance",
+];
+
 #[proc_macro]
 pub fn statetest_folder(item: TokenStream) -> TokenStream {
 	let mut source_file = std::path::absolute(
@@ -79,7 +88,13 @@ pub fn statetest_folder(item: TokenStream) -> TokenStream {
 		} else {
 			quote! { jsontests::run::empty_config_change }
 		};
+		let time_consuming_flag = if TIME_CONSUMING_TESTS.iter().any(|t| name.starts_with(t)) {
+			quote! { #[cfg(feature = "time-consuming")] }
+		} else {
+			quote! {}
+		};
 		tests.push(quote! {
+			#time_consuming_flag
 			#[test]
 			fn #ident() -> Result<(), jsontests::error::Error> {
 				let tests_status = jsontests::run::run_file(#test_file_path, false, None, #modify_config);

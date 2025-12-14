@@ -1,10 +1,10 @@
 use alloc::{borrow::Cow, vec::Vec};
 use bn::{AffineG1, AffineG2, Fq, Fq2, G1, G2, Group, Gt};
+use evm::uint::{U256, U256Ext};
 use evm::{
 	GasMutState,
-	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed, utils::u256_to_h256},
+	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 };
-use primitive_types::U256;
 
 use crate::PurePrecompile;
 
@@ -143,7 +143,7 @@ pub fn run_add<G: GasMutState>(
 	gas_cost: u64,
 	gasometer: &mut G,
 ) -> Result<(ExitSucceed, Vec<u8>), ExitError> {
-	gasometer.record_gas(gas_cost.into())?;
+	gasometer.record_gas(U256::from_u64(gas_cost))?;
 
 	let input = right_pad::<ADD_INPUT_LEN>(input);
 
@@ -160,7 +160,7 @@ pub fn run_mul<G: GasMutState>(
 	gas_cost: u64,
 	gasometer: &mut G,
 ) -> Result<(ExitSucceed, Vec<u8>), ExitError> {
-	gasometer.record_gas(gas_cost.into())?;
+	gasometer.record_gas(U256::from_u64(gas_cost))?;
 
 	let input = right_pad::<MUL_INPUT_LEN>(input);
 
@@ -179,7 +179,7 @@ pub fn run_pair<G: GasMutState>(
 	gasometer: &mut G,
 ) -> Result<(ExitSucceed, Vec<u8>), ExitError> {
 	let gas_used = (input.len() / PAIR_ELEMENT_LEN) as u64 * pair_per_point_cost + pair_base_cost;
-	gasometer.record_gas(gas_used.into())?;
+	gasometer.record_gas(U256::from_u64(gas_used))?;
 
 	if !input.len().is_multiple_of(PAIR_ELEMENT_LEN) {
 		return Err(ExitException::OutOfGas.into());
@@ -206,7 +206,7 @@ pub fn run_pair<G: GasMutState>(
 	let pairing_result = pairing_check(&points)?;
 	Ok((
 		ExitSucceed::Returned,
-		u256_to_h256(bool_to_u256(pairing_result)).0.into(),
+		bool_to_u256(pairing_result).to_h256().0.into(),
 	))
 }
 
@@ -416,5 +416,5 @@ fn right_pad<const LEN: usize>(data: &[u8]) -> Cow<'_, [u8; LEN]> {
 
 #[inline]
 pub const fn bool_to_u256(value: bool) -> U256 {
-	if value { U256::one() } else { U256::zero() }
+	if value { U256::ONE } else { U256::ZERO }
 }
