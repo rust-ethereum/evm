@@ -82,7 +82,7 @@ impl U256Ext for U256 {
 	}
 
 	fn bits(&self) -> usize {
-		self.most_significant_bits().1
+		self.bit_len()
 	}
 
 	fn log2floor(&self) -> u64 {
