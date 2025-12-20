@@ -1,4 +1,5 @@
 #![no_std]
+#![warn(missing_docs)]
 
 extern crate alloc;
 
@@ -14,10 +15,26 @@ use evm::interpreter::{
 	Capture, ExitError, ExitFatal, ExitResult, FeedbackInterpreter, Interpreter,
 };
 
+/// An action that can be executed by a future interpreter.
+///
+/// This trait defines the interface for asynchronous operations that can be
+/// submitted to a future interpreter. Implementations should handle the
+/// execution logic and return appropriate feedback or trap information.
 pub trait FutureInterpreterAction<S, H> {
+	/// The feedback type returned when the action completes successfully.
 	type Feedback;
+	/// The trap type that can be raised during action execution.
 	type Trap;
 
+	/// Execute the action with the given state, return buffer, and handler.
+	///
+	/// # Parameters
+	/// - `state`: Mutable reference to the interpreter state
+	/// - `retbuf`: Mutable reference to the return buffer
+	/// - `handle`: Mutable reference to the handler
+	///
+	/// # Returns
+	/// A `Capture` that either contains feedback on success or a trap on failure.
 	fn run(
 		self,
 		state: &mut S,
@@ -26,6 +43,11 @@ pub trait FutureInterpreterAction<S, H> {
 	) -> Capture<Self::Feedback, Self::Trap>;
 }
 
+/// A submitter for future interpreter actions.
+///
+/// This structure manages the submission and feedback mechanism for asynchronous
+/// actions in a future interpreter. It provides a way to submit actions and
+/// receive feedback through a future-based interface.
 pub struct FutureInterpreterSubmit<A, F> {
 	action: Cell<Option<A>>,
 	action_feedback: Cell<Option<F>>,
@@ -39,6 +61,13 @@ impl<A, F> FutureInterpreterSubmit<A, F> {
 		}
 	}
 
+	/// Submit an action for execution and return a future that resolves with feedback.
+	///
+	/// # Parameters
+	/// - `action`: The action to be executed
+	///
+	/// # Returns
+	/// A future that resolves with the feedback from the action execution.
 	pub fn submit(self: Rc<Self>, action: A) -> impl Future<Output = F> {
 		struct SubmitFuture<A, F>(Cell<Option<A>>, Rc<FutureInterpreterSubmit<A, F>>);
 
@@ -64,6 +93,11 @@ impl<A, F> FutureInterpreterSubmit<A, F> {
 	}
 }
 
+/// A future-based interpreter for asynchronous EVM operations.
+///
+/// This interpreter allows for asynchronous execution of EVM operations,
+/// particularly useful for async precompiles and other operations that
+/// require non-blocking execution.
 pub struct FutureInterpreter<A, F, S, Tr> {
 	state: S,
 	retbuf: Vec<u8>,
@@ -73,6 +107,15 @@ pub struct FutureInterpreter<A, F, S, Tr> {
 }
 
 impl<A, F, S, Tr> FutureInterpreter<A, F, S, Tr> {
+	/// Create a new future interpreter.
+	///
+	/// # Parameters
+	/// - `state`: The initial state for the interpreter
+	/// - `retbuf`: The return buffer for the interpreter
+	/// - `f`: A function that creates the future to be executed
+	///
+	/// # Returns
+	/// A new `FutureInterpreter` instance.
 	pub fn new<Fn, Fu>(state: S, retbuf: Vec<u8>, f: Fn) -> Self
 	where
 		Fn: FnOnce(Rc<FutureInterpreterSubmit<A, F>>) -> Fu,
