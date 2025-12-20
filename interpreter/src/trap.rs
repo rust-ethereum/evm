@@ -2,14 +2,15 @@
 
 use alloc::vec::Vec;
 use core::{cmp::min, convert::Infallible};
-use primitive_types::{H160, H256, U256};
 use sha3::{Digest, Keccak256};
 
+#[allow(unused_imports)]
+use crate::uint::{H160, H256, U256, U256Ext};
 use crate::{
 	error::{ExitError, ExitException, ExitResult},
 	machine::{Machine, Memory},
 	runtime::{Context, RuntimeBackend, RuntimeState, Transfer},
-	utils::{h256_to_u256, u256_to_h256, u256_to_usize},
+	utils::u256_to_usize,
 };
 
 /// Consume `T` to get `Rest`.
@@ -154,22 +155,22 @@ impl CallTrap {
 		out_offset: U256,
 		out_len: U256,
 	) -> Result<((), Self), ExitError> {
-		let value = value.unwrap_or(U256::zero());
+		let value = value.unwrap_or(U256::ZERO);
 
 		let in_end = in_offset
 			.checked_add(in_len)
 			.ok_or(ExitException::InvalidRange)?;
-		if in_len != U256::zero() {
+		if in_len != U256::ZERO {
 			memory.resize_end(in_end)?;
 		}
 		let out_end = out_offset
 			.checked_add(out_len)
 			.ok_or(ExitException::InvalidRange)?;
-		if out_len != U256::zero() {
+		if out_len != U256::ZERO {
 			memory.resize_end(out_end)?;
 		}
 
-		let in_offset_len = if in_len == U256::zero() {
+		let in_offset_len = if in_len == U256::ZERO {
 			None
 		} else {
 			Some((u256_to_usize(in_offset)?, u256_to_usize(in_len)?))
@@ -248,7 +249,7 @@ impl CallTrap {
 						memory,
 						state,
 						*gas,
-						u256_to_h256(*to),
+						to.to_h256(),
 						Some(*value),
 						*in_offset,
 						*in_len,
@@ -264,7 +265,7 @@ impl CallTrap {
 						memory,
 						state,
 						*gas,
-						u256_to_h256(*to),
+						to.to_h256(),
 						None,
 						*in_offset,
 						*in_len,
@@ -281,7 +282,7 @@ impl CallTrap {
 	pub fn has_value(&self) -> bool {
 		self.transfer
 			.as_ref()
-			.is_some_and(|t| t.value != U256::zero())
+			.is_some_and(|t| t.value != U256::ZERO)
 	}
 }
 
@@ -309,44 +310,43 @@ impl CallFeedback {
 
 		let reason = self.reason;
 		let retbuf = self.retbuf;
-		let target_len = min(self.trap.out_len, U256::from(retbuf.len()));
+		let target_len = min(self.trap.out_len, U256::from_usize(retbuf.len()));
 		let out_offset = self.trap.out_offset;
 
 		let ret = match reason {
 			Ok(_) => {
 				match machine
 					.memory
-					.copy_large(out_offset, U256::zero(), target_len, &retbuf[..])
+					.copy_large(out_offset, U256::ZERO, target_len, &retbuf[..])
 				{
 					Ok(()) => {
-						machine.stack.push(U256::one())?;
+						machine.stack.push(U256::ONE)?;
 
 						Ok(())
 					}
 					Err(_) => {
-						machine.stack.push(U256::zero())?;
+						machine.stack.push(U256::ZERO)?;
 
 						Ok(())
 					}
 				}
 			}
 			Err(ExitError::Reverted) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 
-				let _ =
-					machine
-						.memory
-						.copy_large(out_offset, U256::zero(), target_len, &retbuf[..]);
+				let _ = machine
+					.memory
+					.copy_large(out_offset, U256::ZERO, target_len, &retbuf[..]);
 
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 
 				Err(e.into())
 			}
@@ -383,6 +383,7 @@ pub enum CreateScheme {
 
 impl CreateScheme {
 	/// Resolved address.
+	#[allow(deprecated)]
 	pub fn address<H: RuntimeBackend>(&self, handler: &H) -> H160 {
 		match self {
 			Self::Create2 {
@@ -401,7 +402,7 @@ impl CreateScheme {
 				let nonce = handler.nonce(*caller);
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(caller);
-				stream.append(&nonce);
+				nonce.append_to_rlp_stream(&mut stream);
 				H256::from_slice(Keccak256::digest(stream.out()).as_slice()).into()
 			}
 		}
@@ -442,13 +443,13 @@ impl CreateTrap {
 				.checked_add(*code_len)
 				.ok_or(ExitException::InvalidRange)?;
 
-			let code_offset_len = if code_len == &U256::zero() {
+			let code_offset_len = if code_len == &U256::ZERO {
 				None
 			} else {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
 			};
 
-			if *code_len != U256::zero() {
+			if *code_len != U256::ZERO {
 				memory.resize_end(code_end)?;
 			}
 
@@ -474,6 +475,7 @@ impl CreateTrap {
 	}
 
 	/// Create a new `CREATE2` trap from the machine state.
+	#[allow(deprecated)]
 	pub fn new_create2_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
@@ -486,7 +488,7 @@ impl CreateTrap {
 				.checked_add(*code_len)
 				.ok_or(ExitException::InvalidRange)?;
 
-			let code_offset_len = if code_len == &U256::zero() {
+			let code_offset_len = if code_len == &U256::ZERO {
 				None
 			} else {
 				Some((u256_to_usize(*code_offset)?, u256_to_usize(*code_len)?))
@@ -502,7 +504,7 @@ impl CreateTrap {
 
 			let scheme = CreateScheme::Create2 {
 				caller: state.as_ref().context.address,
-				salt: u256_to_h256(*salt),
+				salt: salt.to_h256(),
 				code_hash,
 			};
 
@@ -547,19 +549,19 @@ impl CreateFeedback {
 
 		let ret = match reason {
 			Ok(address) => {
-				machine.stack.push(h256_to_u256(address.into()))?;
+				machine.stack.push(U256::from_h160(address))?;
 				Ok(())
 			}
 			Err(ExitError::Reverted) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 				Ok(())
 			}
 			Err(ExitError::Exception(_)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 				Ok(())
 			}
 			Err(ExitError::Fatal(e)) => {
-				machine.stack.push(U256::zero())?;
+				machine.stack.push(U256::ZERO)?;
 				Err(e.into())
 			}
 		};

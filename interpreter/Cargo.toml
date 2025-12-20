@@ -1,6 +1,6 @@
 [package]
 name = "evm-interpreter"
-version = "1.0.0"
+version = "1.1.0"
 edition = { workspace = true }
 rust-version = { workspace = true }
 license = { workspace = true }
@@ -14,10 +14,12 @@ auto_impl = "1.2"
 paste = "1.0"
 primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 rlp = { version = "0.5", default-features = false }
+sha3 = { version = "0.10", default-features = false }
+
 scale-codec = { package = "parity-scale-codec", version = "3.2", default-features = false, features = ["derive", "full"], optional = true }
 scale-info = { version = "2.3", default-features = false, features = ["derive"], optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
-sha3 = { version = "0.10", default-features = false }
+ruint = { version = "1.17", default-features = false, features = ["rlp"], optional = true }
 
 [dev-dependencies]
 hex = "0.4"
@@ -27,10 +29,11 @@ default = ["std"]
 std = [
 	"primitive-types/std",
 	"rlp/std",
-	"scale-codec/std",
-	"scale-info/std",
-	"serde/std",
 	"sha3/std",
+	"scale-codec?/std",
+	"scale-info?/std",
+	"serde?/std",
+	"ruint?/std",
 ]
 scale = [
 	"scale-codec",
@@ -40,4 +43,5 @@ scale = [
 serde = [
 	"dep:serde",
 	"primitive-types/impl-serde",
+	"ruint?/serde",
 ]

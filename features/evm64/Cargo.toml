@@ -10,12 +10,10 @@ repository = { workspace = true }
 keywords = { workspace = true }
 
 [dependencies]
-primitive-types = { version = "0.12", default-features = false, features = ["rlp"] }
 evm = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-	"primitive-types/std",
 	"evm/std",
 ]

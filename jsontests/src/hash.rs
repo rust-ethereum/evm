@@ -1,8 +1,7 @@
-use evm::interpreter::utils::h256_to_u256;
-use primitive_types::{H256, U256};
-use sha3::{Digest, Keccak256};
-
 use evm::backend::InMemoryBackend;
+#[allow(unused_imports)]
+use evm::uint::{H256, U256, U256Ext};
+use sha3::{Digest, Keccak256};
 
 /// Basic account type.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -21,7 +20,7 @@ pub struct TrieAccount {
 
 impl rlp::Encodable for TrieAccount {
 	fn rlp_append(&self, stream: &mut rlp::RlpStream) {
-		let use_short_version = self.code_version == U256::zero();
+		let use_short_version = self.code_version == U256::ZERO;
 
 		match use_short_version {
 			true => {
@@ -57,7 +56,7 @@ impl rlp::Decodable for TrieAccount {
 			storage_root: rlp.val_at(2)?,
 			code_hash: rlp.val_at(3)?,
 			code_version: if use_short_version {
-				U256::zero()
+				U256::ZERO
 			} else {
 				rlp.val_at(4)?
 			},
@@ -74,7 +73,7 @@ pub fn state_root(backend: &InMemoryBackend) -> H256 {
 				account
 					.storage
 					.iter()
-					.map(|(k, v)| (k, rlp::encode(&h256_to_u256(*v)))),
+					.map(|(k, v)| (k, rlp::encode(&U256::from_h256(*v)))),
 			);
 
 			let code_hash = H256::from_slice(&Keccak256::digest(&account.code));
@@ -83,7 +82,7 @@ pub fn state_root(backend: &InMemoryBackend) -> H256 {
 				balance: account.balance,
 				storage_root,
 				code_hash,
-				code_version: U256::zero(),
+				code_version: U256::ZERO,
 			};
 
 			(address, rlp::encode(&account))

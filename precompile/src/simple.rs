@@ -1,12 +1,12 @@
 use alloc::vec::Vec;
 use core::cmp::min;
 
+use evm::uint::{H256, U256};
 use evm::{
 	GasMutState,
 	interpreter::{ExitError, ExitException, ExitResult, ExitSucceed},
 };
 use k256::ecdsa::{RecoveryId, Signature, VerifyingKey};
-use primitive_types::{H256, U256};
 use sha3::{Digest, Keccak256};
 
 use crate::{PurePrecompile, linear_cost};
@@ -14,6 +14,7 @@ use crate::{PurePrecompile, linear_cost};
 pub struct ECRecover;
 
 impl<G: GasMutState> PurePrecompile<G> for ECRecover {
+	#[allow(deprecated)]
 	fn execute(&self, i: &[u8], gasometer: &mut G) -> (ExitResult, Vec<u8>) {
 		const COST_BASE: u64 = 3000;
 		const COST_WORD: u64 = 0;
