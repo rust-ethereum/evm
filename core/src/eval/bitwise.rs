@@ -103,11 +103,9 @@ pub fn sar(shift: U256, value: U256) -> U256 {
 	}
 }
 
+/// Count leading zeros in a 256-bit value.
+/// Returns 256 if the value is zero.
 #[inline]
 pub fn clz(value: U256) -> U256 {
-	if value == U256::zero() {
-		U256::from(256)
-	} else {
-		U256::from(value.leading_zeros())
-	}
+	U256::from(value.leading_zeros())
 }
