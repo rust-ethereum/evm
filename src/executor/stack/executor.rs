@@ -239,7 +239,7 @@ pub trait StackState<'config>: Backend {
 	/// can be customized to use a more performant approach that don't need to
 	/// fetch the code.
 	fn code_hash(&self, address: H160) -> H256 {
-		H256::from_slice(Keccak256::digest(self.code(address)).as_slice())
+		H256::from_slice(Keccak256::digest(self.code(address)).as_ref())
 	}
 
 	fn record_external_operation(
@@ -540,7 +540,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			}
 		}
 
-		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_slice());
+		let code_hash = H256::from_slice(Keccak256::digest(&init_code).as_ref());
 		event!(TransactCreate2 {
 			caller,
 			value,
@@ -792,14 +792,14 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				hasher.update(&caller[..]);
 				hasher.update(&salt[..]);
 				hasher.update(&code_hash[..]);
-				H256::from_slice(hasher.finalize().as_slice()).into()
+				H256::from_slice(hasher.finalize().as_ref()).into()
 			}
 			CreateScheme::Legacy { caller } => {
 				let nonce = self.nonce(caller);
 				let mut stream = rlp::RlpStream::new_list(2);
 				stream.append(&caller);
 				stream.append(&nonce);
-				H256::from_slice(Keccak256::digest(stream.out()).as_slice()).into()
+				H256::from_slice(Keccak256::digest(stream.out()).as_ref()).into()
 			}
 			CreateScheme::Fixed(naddress) => naddress,
 		}
