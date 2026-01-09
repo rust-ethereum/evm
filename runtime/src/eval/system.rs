@@ -21,7 +21,7 @@ pub fn sha3<H: Handler>(runtime: &mut Runtime) -> Control<H> {
 	};
 
 	let ret = Keccak256::digest(data.as_slice());
-	push!(runtime, H256::from_slice(ret.as_slice()));
+	push!(runtime, H256::from_slice(ret.as_ref()));
 
 	Control::Continue
 }
@@ -324,7 +324,7 @@ pub fn create<H: Handler>(runtime: &mut Runtime, is_create2: bool, handler: &mut
 
 	let scheme = if is_create2 {
 		pop!(runtime, salt);
-		let code_hash = H256::from_slice(Keccak256::digest(&code).as_slice());
+		let code_hash = H256::from_slice(Keccak256::digest(&code).as_ref());
 		CreateScheme::Create2 {
 			caller: runtime.context.address,
 			salt,
