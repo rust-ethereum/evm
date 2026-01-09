@@ -142,7 +142,10 @@ mod clz_function_tests {
 		let config = create_eip7939_config();
 		let code = build_clz_bytecode(value);
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		U256::from_big_endian(&return_value)
 	}
 
@@ -245,7 +248,10 @@ mod integration_tests {
 
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		assert_eq!(return_value.len(), 32);
 
 		let result = U256::from_big_endian(&return_value);
@@ -259,7 +265,10 @@ mod integration_tests {
 
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		let result = U256::from_big_endian(&return_value);
 		assert_eq!(result, U256::from(0));
 	}
@@ -272,7 +281,10 @@ mod integration_tests {
 
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		let result = U256::from_big_endian(&return_value);
 		assert_eq!(result, U256::from(0));
 	}
@@ -284,7 +296,10 @@ mod integration_tests {
 
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		let result = U256::from_big_endian(&return_value);
 		assert_eq!(result, U256::from(255));
 	}
@@ -294,9 +309,9 @@ mod integration_tests {
 		let config = create_eip7939_config();
 
 		let test_cases = vec![
-			(U256::from(0x80), U256::from(248)),    // 0x80 = 1000_0000, 248 leading zeros
-			(U256::from(0x100), U256::from(247)),   // 0x100 = 1_0000_0000, 247 leading zeros
-			(U256::from(0x8000), U256::from(240)),  // 240 leading zeros
+			(U256::from(0x80), U256::from(248)), // 0x80 = 1000_0000, 248 leading zeros
+			(U256::from(0x100), U256::from(247)), // 0x100 = 1_0000_0000, 247 leading zeros
+			(U256::from(0x8000), U256::from(240)), // 240 leading zeros
 			(U256::from(0x10000), U256::from(239)), // 239 leading zeros
 		];
 
@@ -304,7 +319,10 @@ mod integration_tests {
 			let code = build_clz_bytecode(input);
 			let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-			assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+			assert!(matches!(
+				exit_reason,
+				ExitReason::Succeed(ExitSucceed::Returned)
+			));
 			let result = U256::from_big_endian(&return_value);
 			assert_eq!(
 				result, expected,
@@ -437,9 +455,9 @@ mod edge_case_tests {
 		// Test at byte boundaries
 		let boundary_tests = vec![
 			// (input, expected_clz)
-			(U256::from(0x01), U256::from(255)),       // 1 byte, LSB
-			(U256::from(0x0100), U256::from(247)),     // 2 bytes
-			(U256::from(0x010000), U256::from(239)),   // 3 bytes
+			(U256::from(0x01), U256::from(255)),          // 1 byte, LSB
+			(U256::from(0x0100), U256::from(247)),        // 2 bytes
+			(U256::from(0x010000), U256::from(239)),      // 3 bytes
 			(U256::from(0x01000000u64), U256::from(231)), // 4 bytes
 		];
 
@@ -447,7 +465,10 @@ mod edge_case_tests {
 			let code = build_clz_bytecode(input);
 			let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-			assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+			assert!(matches!(
+				exit_reason,
+				ExitReason::Succeed(ExitSucceed::Returned)
+			));
 			let result = U256::from_big_endian(&return_value);
 			assert_eq!(
 				result, expected,
@@ -488,9 +509,16 @@ mod edge_case_tests {
 
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
 
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		let result = U256::from_big_endian(&return_value);
-		assert_eq!(result, U256::from(248), "CLZ(CLZ(1)) should be CLZ(255) = 248");
+		assert_eq!(
+			result,
+			U256::from(248),
+			"CLZ(CLZ(1)) should be CLZ(255) = 248"
+		);
 	}
 }
 
@@ -507,7 +535,10 @@ mod spec_compliance_tests {
 		let config = create_eip7939_config();
 		let code = build_clz_bytecode(value);
 		let (exit_reason, return_value, _) = execute_bytecode(&config, code);
-		assert!(matches!(exit_reason, ExitReason::Succeed(ExitSucceed::Returned)));
+		assert!(matches!(
+			exit_reason,
+			ExitReason::Succeed(ExitSucceed::Returned)
+		));
 		U256::from_big_endian(&return_value)
 	}
 
@@ -517,11 +548,11 @@ mod spec_compliance_tests {
 		// Test vectors from the EIP specification
 		let test_vectors = vec![
 			// (input, expected_output)
-			(U256::zero(), U256::from(256)),                    // Zero input returns 256
-			(U256::one() << 255, U256::from(0)),               // 0x8000...0000 returns 0
-			(U256::MAX, U256::from(0)),                         // All ones returns 0
-			(U256::one() << 254, U256::from(1)),               // 0x4000...0000 returns 1
-			(U256::one(), U256::from(255)),                     // 0x0000...0001 returns 255
+			(U256::zero(), U256::from(256)),     // Zero input returns 256
+			(U256::one() << 255, U256::from(0)), // 0x8000...0000 returns 0
+			(U256::MAX, U256::from(0)),          // All ones returns 0
+			(U256::one() << 254, U256::from(1)), // 0x4000...0000 returns 1
+			(U256::one(), U256::from(255)),      // 0x0000...0001 returns 255
 		];
 
 		for (input, expected) in test_vectors {
