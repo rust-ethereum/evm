@@ -102,3 +102,12 @@ pub fn sar(shift: U256, value: U256) -> U256 {
 		}
 	}
 }
+
+#[inline]
+pub fn clz(value: U256) -> U256 {
+	if value == U256::zero() {
+		U256::from(256)
+	} else {
+		U256::from(value.leading_zeros())
+	}
+}
