@@ -306,6 +306,8 @@ pub struct Config {
 	pub has_eip_7702: bool,
 	/// Has EIP-7623. See [EIP-7623](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7623.md)
 	pub has_eip_7623: bool,
+	/// Has EIP-7939. See [EIP-7939](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-7939.md)
+	pub has_eip_7939: bool,
 }
 
 impl Config {
@@ -369,6 +371,7 @@ impl Config {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -432,6 +435,7 @@ impl Config {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -465,6 +469,11 @@ impl Config {
 		Self::config_with_derived_values(DerivedConfigInputs::pectra())
 	}
 
+	/// Osaka hard fork configuration.
+	pub const fn osaka() -> Config {
+		Self::config_with_derived_values(DerivedConfigInputs::osaka())
+	}
+
 	const fn config_with_derived_values(inputs: DerivedConfigInputs) -> Config {
 		let DerivedConfigInputs {
 			gas_storage_read_warm,
@@ -485,6 +494,7 @@ impl Config {
 			has_eip_7623,
 			gas_calldata_zero_floor,
 			gas_calldata_non_zero_floor,
+			has_eip_7939,
 		} = inputs;
 
 		// See https://eips.ethereum.org/EIPS/eip-2929
@@ -557,6 +567,7 @@ impl Config {
 			has_eip_7623,
 			gas_calldata_zero_floor,
 			gas_calldata_non_zero_floor,
+			has_eip_7939,
 		}
 	}
 }
@@ -582,6 +593,7 @@ struct DerivedConfigInputs {
 	has_eip_7623: bool,
 	gas_calldata_zero_floor: u64,
 	gas_calldata_non_zero_floor: u64,
+	has_eip_7939: bool,
 }
 
 impl DerivedConfigInputs {
@@ -605,6 +617,7 @@ impl DerivedConfigInputs {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -628,6 +641,7 @@ impl DerivedConfigInputs {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -651,6 +665,7 @@ impl DerivedConfigInputs {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -675,6 +690,7 @@ impl DerivedConfigInputs {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -699,6 +715,7 @@ impl DerivedConfigInputs {
 			has_eip_7623: false,
 			gas_calldata_zero_floor: 0,
 			gas_calldata_non_zero_floor: 0,
+			has_eip_7939: false,
 		}
 	}
 
@@ -726,6 +743,35 @@ impl DerivedConfigInputs {
 			has_eip_7623: true,
 			gas_calldata_zero_floor: 10,
 			gas_calldata_non_zero_floor: 40,
+			has_eip_7939: false,
+		}
+	}
+
+	/// Osaka hard fork configuration.
+	const fn osaka() -> Self {
+		Self {
+			gas_storage_read_warm: 100,
+			gas_sload_cold: 2100,
+			gas_access_list_storage_key: 1900,
+			decrease_clears_refund: true,
+			has_base_fee: true,
+			has_push0: true,
+			disallow_executable_format: true,
+			warm_coinbase_address: true,
+			// 2 * 24576 as per EIP-3860
+			max_initcode_size: Some(0xC000),
+			has_eip_6780: true,
+			has_tloadstore: true,
+			has_mcopy: true,
+			has_eip_7702: true,
+			// PER_AUTH_BASE_COST from EIP-7702
+			gas_auth_base_cost: 12500,
+			// PER_EMPTY_ACCOUNT_COST from EIP-7702
+			gas_per_empty_account_cost: 25000,
+			has_eip_7623: true,
+			gas_calldata_zero_floor: 10,
+			gas_calldata_non_zero_floor: 40,
+			has_eip_7939: true,
 		}
 	}
 }

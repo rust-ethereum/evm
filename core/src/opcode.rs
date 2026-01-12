@@ -79,6 +79,8 @@ impl Opcode {
 	pub const SHR: Opcode = Opcode(0x1c);
 	/// `SAR`
 	pub const SAR: Opcode = Opcode(0x1d);
+	/// `CLZ` - Count leading zeros (EIP-7939)
+	pub const CLZ: Opcode = Opcode(0x1e);
 
 	/// `POP`
 	pub const POP: Opcode = Opcode(0x50);

@@ -592,6 +592,9 @@ pub fn dynamic_opcode_cost<H: Handler>(
 		Opcode::SHL | Opcode::SHR | Opcode::SAR if config.has_bitwise_shifting => GasCost::VeryLow,
 		Opcode::SHL | Opcode::SHR | Opcode::SAR => GasCost::Invalid(opcode),
 
+		Opcode::CLZ if config.has_eip_7939 => GasCost::Low,
+		Opcode::CLZ => GasCost::Invalid(opcode),
+
 		Opcode::SELFBALANCE if config.has_self_balance => GasCost::Low,
 		Opcode::SELFBALANCE => GasCost::Invalid(opcode),
 
