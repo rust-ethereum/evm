@@ -1,3 +1,9 @@
+//! Async interpreter for Rust EVM, mainly for async precompiles.
+//!
+//! This crate provides a future-based interpreter that allows for asynchronous
+//! execution of EVM operations. It is particularly useful for async precompiles
+//! and other operations that require non-blocking execution.
+
 #![no_std]
 #![warn(missing_docs)]
 
