@@ -9,9 +9,13 @@ pub enum InvokerControl<I, S> {
 	DirectExit(InvokerExit<S>),
 }
 
+/// The exit value of an invoker call, containing the result, substate, and return data.
 pub struct InvokerExit<S> {
+	/// The exit result.
 	pub result: ExitResult,
+	/// The substate, if available.
 	pub substate: Option<S>,
+	/// The return data.
 	pub retval: Vec<u8>,
 }
 
