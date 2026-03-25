@@ -85,7 +85,7 @@ pub use crate::{
 	call_stack::{HeapTransact, transact},
 	gasometer::GasMutState,
 	interpreter::uint,
-	invoker::{Invoker, InvokerControl},
+	invoker::{Invoker, InvokerControl, InvokerExit},
 };
 
 /// Merge strategy of a backend substate layer or a call stack gasometer layer.
