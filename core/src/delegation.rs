@@ -98,8 +98,8 @@ mod tests {
 		let bytes = designator.to_bytes();
 
 		assert!(is_delegation_designator(&bytes));
-		let extracted = Delegation::try_from(&bytes);
-		assert_eq!(extracted, Some(designator));
+		let extracted = Delegation::try_from(bytes.as_slice());
+		assert_eq!(extracted, Ok(designator));
 		assert_eq!(*extracted.unwrap().address(), address);
 	}
 
@@ -107,6 +107,9 @@ mod tests {
 	fn test_non_delegation_code() {
 		let regular_code = vec![0x60, 0x00]; // PUSH1 0
 		assert!(!is_delegation_designator(&regular_code));
-		assert_eq!(Delegation::try_from(&regular_code), None);
+		assert_eq!(
+			Delegation::try_from(regular_code.as_slice()),
+			Err(DelegationError::InvalidFormat)
+		);
 	}
 }
