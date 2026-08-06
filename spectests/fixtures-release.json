@@ -1,0 +1,14 @@
+{
+  "repository": "ethereum/execution-specs",
+  "release": "tests@v20.0.1",
+  "asset": "https://github.com/ethereum/execution-specs/releases/download/tests%40v20.0.1/fixtures.tar.gz",
+  "sha256": "3586193db06d4d5745d5e90b3c3008c2255a4e19ccd8f11a3ce887aec8c0b17c",
+  "index_root_hash": "0xcb8bab604063f937b1af3bd809aa5c38edfd43b23792c387b9c326c2a17e5cf1",
+  "targets": {
+    "Cancun": {
+      "path": "state_tests/for_cancun",
+      "format": "state_test",
+      "expected_count": 11554
+    }
+  }
+}
