@@ -1,5 +1,8 @@
 # Debugging against the Ethereum test suite
 
+This page covers the legacy `jsontests` integration. For current Cancun
+conformance testing, use the [EELS fixture runner](spectests.md).
+
 When encountering a failed Ethereum test in the test suite repo, the following
 method can be used for debugging.
 
