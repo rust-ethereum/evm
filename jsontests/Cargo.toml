@@ -10,7 +10,7 @@ keywords = { workspace = true }
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
-ethereum = "0.15.0"
+ethereum = "0.18.2"
 evm = { workspace = true, features = ["std", "serde"] }
 evm-mainnet = { workspace = true, features = ["std"] }
 hex = { version = "0.4", features = ["serde"] }

@@ -69,11 +69,16 @@ pub fn state_root(backend: &InMemoryBackend) -> H256 {
 		.state
 		.iter()
 		.map(|(address, account)| {
-			let storage_root = ethereum::util::sec_trie_root(
-				account
-					.storage
-					.iter()
-					.map(|(k, v)| (k, rlp::encode(&U256::from_h256(*v)))),
+			// `ethereum` uses a newer `primitive-types` than `evm`, so the
+			// root is converted through its bytes.
+			let storage_root = H256(
+				ethereum::util::sec_trie_root(
+					account
+						.storage
+						.iter()
+						.map(|(k, v)| (k, rlp::encode(&U256::from_h256(*v)))),
+				)
+				.0,
 			);
 
 			let code_hash = H256::from_slice(&Keccak256::digest(&account.code));
@@ -89,5 +94,5 @@ pub fn state_root(backend: &InMemoryBackend) -> H256 {
 		})
 		.collect::<Vec<_>>();
 
-	ethereum::util::sec_trie_root(tree)
+	H256(ethereum::util::sec_trie_root(tree).0)
 }
