@@ -20,6 +20,15 @@ The current rewrite is used in production for the Frontier project (the
 Ethereum-compatibility layer for Polkadot). We pass the Ethereum test suite. PRs
 for fixes are welcomed.
 
+## The 0.x line
+
+The 0.x line, released as `evm` up to 0.43.4 and formerly the `v0.x` branch of
+this repository, has moved to
+[rust-ethereum/evm-legacy](https://github.com/rust-ethereum/evm-legacy), where
+its fixes and releases happen. From 0.44.0 on, its main crate is published as
+`evm-legacy`. Its library is still named `evm`, so a project on the 0.x line
+changes only its dependency, to `evm-legacy = "0.44"`.
+
 ## Features
 
 * **Standalone** - can be launched as an independent process or integrated into other apps.
