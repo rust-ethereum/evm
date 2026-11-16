@@ -47,7 +47,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: Install cargo-semver-checks
-      run: cargo install cargo-semver-checks --locked
+      run: cargo install cargo-semver-checks --version 0.49.0 --locked
     - name: SemVer evm-interpreter
       run: cargo semver-checks --default-features -p evm-interpreter
     - name: SemVer evm
