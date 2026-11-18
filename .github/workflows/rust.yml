@@ -68,6 +68,37 @@ jobs:
     - name: Run ruint tests.
       run: cargo test --all --release --verbose --features ruint
 
+  cancun-conformance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+    - uses: actions/checkout@v5
+    - name: Cache pinned Cancun fixtures
+      id: cache-cancun-fixtures
+      uses: actions/cache@v4
+      with:
+        path: .cache/eels-fixtures/tests-v20.0.1
+        key: eels-fixtures-tests-v20.0.1-3586193db06d4d5745d5e90b3c3008c2255a4e19ccd8f11a3ce887aec8c0b17c
+    - name: Download and verify pinned Cancun fixtures
+      if: steps.cache-cancun-fixtures.outputs.cache-hit != 'true'
+      env:
+        FIXTURE_URL: https://github.com/ethereum/execution-specs/releases/download/tests%40v20.0.1/fixtures.tar.gz
+        FIXTURE_SHA256: 3586193db06d4d5745d5e90b3c3008c2255a4e19ccd8f11a3ce887aec8c0b17c
+      run: |
+        mkdir -p .cache/eels-fixtures/tests-v20.0.1
+        curl --fail --location --retry 3 --output fixtures.tar.gz "$FIXTURE_URL"
+        echo "$FIXTURE_SHA256  fixtures.tar.gz" | sha256sum --check --strict
+        tar --extract --gzip --file fixtures.tar.gz \
+          --directory .cache/eels-fixtures/tests-v20.0.1 \
+          --wildcards \
+          fixtures/.meta/index.json \
+          'fixtures/state_tests/for_cancun/*'
+    - name: Run all pinned Cancun state tests
+      run: >-
+        cargo run --release -p spectests --
+        --fixtures .cache/eels-fixtures/tests-v20.0.1/fixtures
+        --target Cancun
+
   time-consuming-tests:
     runs-on: ubuntu-latest
     steps:

@@ -8,6 +8,7 @@ members = [
 	"future",
 	"compat",
 	"mainnet",
+	"spectests",
 
 	"features/evm64",
 ]
@@ -27,6 +28,7 @@ evm-interpreter = { version = "1.1.0", path = "interpreter", default-features = 
 evm-precompile = { version = "1.0.0", path = "precompile", default-features = false }
 evm-mainnet = { version = "1.0.0", path = "mainnet", default-features = false }
 evm-compat = { version = "0.1.0", path = "compat", default-features = false }
+ethereum = { version = "0.19.0", default-features = false }
 
 [package]
 name = "evm"
