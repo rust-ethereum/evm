@@ -21,7 +21,7 @@
 //!
 //! * Select an [Invoker]. The invoker defines all details of the execution
 //!   environment except the external backend. [standard::Invoker] is
-//!   probably want you want if you are not extending EVM.
+//!   probably what you want if you are not extending EVM.
 //! * For the standard invoker, select a [standard::Config], which represents
 //!   different Ethereum hard forks.
 //! * Select the precompile set. You may want the `StandardPrecompileSet` in
