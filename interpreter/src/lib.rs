@@ -22,5 +22,5 @@ pub use self::error::{Capture, ExitError, ExitException, ExitFatal, ExitResult, 
 pub use self::interpreter::{
 	Control, EtableInterpreter, FeedbackInterpreter, Interpreter, StepInterpreter, Valids,
 };
-pub use self::machine::{Machine, Memory, Stack};
+pub use self::machine::{CallInput, Machine, Memory, Stack};
 pub use self::opcode::Opcode;

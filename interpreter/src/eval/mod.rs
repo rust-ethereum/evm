@@ -791,7 +791,7 @@ pub fn eval_call_create_trap<
 		_ => return Control::Exit(Err(ExitException::InvalidOpcode(raw_opcode).into())),
 	};
 
-	let trap = match CallCreateTrap::new_from(opcode, machine) {
+	let trap = match CallCreateTrap::new_from_standard(opcode, machine) {
 		Ok(trap) => trap,
 		Err(err) => return Control::Exit(Err(err)),
 	};

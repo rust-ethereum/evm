@@ -125,7 +125,7 @@ where
 }
 
 /// Enter a call substack, which internally calls [make_enter_call_machine].
-#[allow(clippy::type_complexity, clippy::too_many_arguments)]
+#[allow(clippy::type_complexity, clippy::too_many_arguments, deprecated)]
 pub fn enter_call_substack<H, R>(
 	resolver: &R,
 	trap_data: CallTrap,
