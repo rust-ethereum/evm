@@ -2,6 +2,7 @@
 name = "evm-compat"
 description = "Compat for Rust EVM."
 version = "0.1.0"
+publish = false
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
