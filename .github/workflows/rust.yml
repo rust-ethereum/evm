@@ -42,6 +42,21 @@ jobs:
     - name: Build ruint
       run: cargo build --workspace --features ruint
 
+  build-rust-1-95:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - name: Install Rust 1.95.0
+      run: rustup toolchain install 1.95.0 --profile minimal
+    - name: Build
+      run: cargo +1.95.0 build --locked -p evm -p evm-interpreter -p evm-precompile -p evm-mainnet
+    - name: Build no-std
+      run: cargo +1.95.0 build --locked --no-default-features -p evm -p evm-interpreter -p evm-precompile -p evm-mainnet
+    - name: Build all-features
+      run: cargo +1.95.0 build --locked --features std,scale,serde -p evm -p evm-interpreter -p evm-precompile -p evm-mainnet
+    - name: Build ruint
+      run: cargo +1.95.0 build --locked --features ruint -p evm -p evm-interpreter -p evm-precompile -p evm-mainnet
+
   semver:
     runs-on: ubuntu-latest
     steps:
