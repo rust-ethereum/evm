@@ -1,4 +1,5 @@
 //! KZG point evaluation precompile using Arkworks BLS12-381 implementation.
+use alloc::vec::Vec;
 use ark_bls12_381::{Bls12_381, Fr, G1Affine, G2Affine};
 use ark_ec::{AffineRepr, CurveGroup, pairing::Pairing};
 use ark_ff::{BigInteger, One, PrimeField};
