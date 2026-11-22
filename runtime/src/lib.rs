@@ -118,6 +118,9 @@ pub struct Runtime {
 
 impl Runtime {
 	/// Create a new runtime with given code and data.
+	///
+	/// `data` is copied if the `Rc` is shared elsewhere, and not copied at all
+	/// when the `Rc` is unique.
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
@@ -127,6 +130,24 @@ impl Runtime {
 	) -> Self {
 		Self {
 			machine: Machine::new(code, data, stack_limit, memory_limit),
+			status: Ok(()),
+			return_data_buffer: Vec::new(),
+			return_data_len: U256::zero(),
+			return_data_offset: U256::zero(),
+			context,
+		}
+	}
+
+	/// Create a new runtime with given code and input.
+	pub fn new_with_input(
+		code: Rc<Vec<u8>>,
+		data: CallInput,
+		context: Context,
+		stack_limit: usize,
+		memory_limit: usize,
+	) -> Self {
+		Self {
+			machine: Machine::new_with_input(code, data, stack_limit, memory_limit),
 			status: Ok(()),
 			return_data_buffer: Vec::new(),
 			return_data_len: U256::zero(),
