@@ -5,6 +5,19 @@ use evm_interpreter::{Capture, ExitError, ExitFatal, ExitResult, Interpreter, St
 
 use crate::invoker::{Invoker, InvokerControl, InvokerExit};
 
+/// Switch call input sharing on for an interpreter that the given invoker
+/// handles, when that invoker shares call input.
+fn enable_call_input_sharing<H, I>(invoker: &I, machine: &mut I::Interpreter)
+where
+	I: Invoker<H>,
+{
+	if invoker.shares_call_input()
+		&& let Some(machine) = machine.machine_mut()
+	{
+		machine.enable_call_input_sharing();
+	}
+}
+
 struct Substack<M, TrD> {
 	invoke: TrD,
 	machine: M,
@@ -134,7 +147,9 @@ where
 					self.backend,
 					self.initial_depth + self.stack.len() + 1,
 				) {
-					Capture::Exit(Ok((trap_data, InvokerControl::Enter(sub_machine)))) => {
+					Capture::Exit(Ok((trap_data, InvokerControl::Enter(mut sub_machine)))) => {
+						enable_call_input_sharing(self.invoker, &mut sub_machine);
+
 						self.stack.push(Substack {
 							invoke: trap_data,
 							machine,
@@ -250,7 +265,9 @@ where
 			Capture::Exit(exit) => return Ok((exit, machine)),
 			Capture::Trap(trap) => {
 				match invoker.enter_substack(*trap, &mut machine, backend, initial_depth + 1) {
-					Capture::Exit(Ok((trap_data, InvokerControl::Enter(sub_machine)))) => {
+					Capture::Exit(Ok((trap_data, InvokerControl::Enter(mut sub_machine)))) => {
+						enable_call_input_sharing(invoker, &mut sub_machine);
+
 						let (sub_result, sub_machine) = if heap_depth
 							.is_some_and(|hd| initial_depth + 1 >= hd)
 						{
@@ -384,7 +401,9 @@ where
 					.map_err(|err| Capture::Exit(Err(err)))?;
 
 				match control {
-					InvokerControl::Enter(machine) => {
+					InvokerControl::Enter(mut machine) => {
+						enable_call_input_sharing(invoker, &mut machine);
+
 						let call_stack = CallStack::new(machine, 0, backend, invoker);
 
 						ret = Ok(());
@@ -530,7 +549,9 @@ where
 	let (transact_invoke, control) = invoker.new_transact(args, backend)?;
 
 	match control {
-		InvokerControl::Enter(machine) => {
+		InvokerControl::Enter(mut machine) => {
+			enable_call_input_sharing(invoker, &mut machine);
+
 			let (ret, machine) = execute(machine, 0, heap_depth, backend, invoker)?;
 			let machine = machine.deconstruct();
 			let exit = InvokerExit {
