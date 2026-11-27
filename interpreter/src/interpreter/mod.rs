@@ -6,7 +6,7 @@ use alloc::{boxed::Box, vec::Vec};
 pub use self::etable::EtableInterpreter;
 pub use self::valids::Valids;
 
-use crate::{Capture, ExitError, ExitResult};
+use crate::{Capture, ExitError, ExitResult, Machine};
 
 /// Control state.
 #[derive(Eq, PartialEq, Debug)]
@@ -36,6 +36,21 @@ pub trait Interpreter<H> {
 	fn state(&self) -> &Self::State;
 	/// Get a mutable reference to the internal state.
 	fn state_mut(&mut self) -> &mut Self::State;
+	/// Get a mutable reference to the machine, if this interpreter runs one.
+	///
+	/// An invoker uses it to share call input from the machine. An interpreter
+	/// that returns `Some` lets a call stack whose invoker shares call input
+	/// switch sharing on. The default returns `None`, which keeps the
+	/// behaviour of an interpreter that does not expose a machine.
+	///
+	/// [`Interpreter::deconstruct`] must drop the machine, so that no share of
+	/// a caller's memory outlives its callee. An interpreter that returns
+	/// `Some` but does not run its machine through `EtableInterpreter::step`
+	/// should know that the input range of a pending call is cleared only by
+	/// the trap constructors, by both feedbacks and by that step.
+	fn machine_mut(&mut self) -> Option<&mut Machine<Self::State>> {
+		None
+	}
 	/// Run the interpreter.
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap>;
 }

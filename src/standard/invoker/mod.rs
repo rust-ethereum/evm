@@ -7,7 +7,8 @@ use core::{cmp::min, marker::PhantomData};
 #[allow(unused_imports)]
 use evm_interpreter::uint::{H160, H256, U256, U256Ext};
 use evm_interpreter::{
-	Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter, Interpreter,
+	CallInput, Capture, ExitError, ExitException, ExitFatal, ExitSucceed, FeedbackInterpreter,
+	Interpreter,
 	runtime::{
 		Context, GasState, RuntimeBackend, RuntimeEnvironment, RuntimeState, SetCodeOrigin,
 		TouchKind, TransactionContext, Transfer,
@@ -253,6 +254,28 @@ impl<'config, 'resolver, R> Invoker<'config, 'resolver, R> {
 	}
 }
 
+/// Input of a call trap, as the standard invoker takes it.
+///
+/// Returns `None` when the trap carries its own input, which is always
+/// honoured, and the shared input otherwise, or an empty input when the
+/// calling interpreter shares none.
+fn shared_call_input<H, I>(trap: &CallTrap, machine: &mut I) -> Option<CallInput>
+where
+	I: Interpreter<H>,
+{
+	#[allow(deprecated)]
+	if !trap.input.is_empty() {
+		return None;
+	}
+
+	Some(
+		machine
+			.machine_mut()
+			.and_then(|machine| machine.shared_call_input())
+			.unwrap_or_default(),
+	)
+}
+
 impl<'config, 'resolver, H, R> InvokerT<H> for Invoker<'config, 'resolver, R>
 where
 	R::State: InvokerState + AsRef<RuntimeState> + AsMut<RuntimeState> + AsRef<Config>,
@@ -270,6 +293,10 @@ where
 	type TransactValue = TransactValue;
 	type TransactInvoke = TransactInvoke<'config>;
 	type SubstackInvoke = SubstackInvoke;
+
+	fn shares_call_input(&self) -> bool {
+		true
+	}
 
 	#[allow(deprecated)]
 	fn new_transact(
@@ -675,13 +702,28 @@ where
 
 				let target = call_trap_data.target;
 
-				Capture::Exit(routines::enter_call_substack(
-					self.resolver,
-					call_trap_data,
-					target,
-					substate,
-					handler,
-				))
+				// A trap that carries input bytes is always honoured with them.
+				// Otherwise the input comes from the calling interpreter when
+				// it shares it, and is empty when it does not.
+				let input = shared_call_input(&call_trap_data, machine);
+
+				Capture::Exit(match input {
+					Some(input) => routines::enter_call_substack_with_input(
+						self.resolver,
+						call_trap_data,
+						input,
+						target,
+						substate,
+						handler,
+					),
+					None => routines::enter_call_substack(
+						self.resolver,
+						call_trap_data,
+						target,
+						substate,
+						handler,
+					),
+				})
 			}
 			SubstackInvoke::Create {
 				trap: create_trap_data,

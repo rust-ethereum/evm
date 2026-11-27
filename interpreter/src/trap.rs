@@ -71,27 +71,53 @@ impl CallCreateTrap {
 	}
 
 	/// Create a new trap from the given opcode and the machine state.
+	///
+	/// The trap copies the call input, also on a machine that shares it.
 	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		opcode: CallCreateOpcode,
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
+		Self::from_opcode(opcode, machine, false)
+	}
+
+	/// Create a new trap from the given opcode and the machine state, sharing
+	/// the call input when the machine enables it.
+	pub(crate) fn new_from_standard<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+		opcode: CallCreateOpcode,
+		machine: &mut Machine<S>,
+	) -> Result<Self, ExitError> {
+		let share = machine.shares_call_input();
+		Self::from_opcode(opcode, machine, share)
+	}
+
+	fn from_opcode<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+		opcode: CallCreateOpcode,
+		machine: &mut Machine<S>,
+		share: bool,
+	) -> Result<Self, ExitError> {
+		machine.clear_call_input_range();
 		match opcode {
 			CallCreateOpcode::Create => Ok(Self::Create(CreateTrap::new_create_from(machine)?)),
 			CallCreateOpcode::Create2 => Ok(Self::Create(CreateTrap::new_create2_from(machine)?)),
-			CallCreateOpcode::Call => {
-				Ok(Self::Call(CallTrap::new_from(CallScheme::Call, machine)?))
-			}
-			CallCreateOpcode::CallCode => Ok(Self::Call(CallTrap::new_from(
+			CallCreateOpcode::Call => Ok(Self::Call(CallTrap::new_from_shared(
+				CallScheme::Call,
+				machine,
+				share,
+			)?)),
+			CallCreateOpcode::CallCode => Ok(Self::Call(CallTrap::new_from_shared(
 				CallScheme::CallCode,
 				machine,
+				share,
 			)?)),
-			CallCreateOpcode::DelegateCall => Ok(Self::Call(CallTrap::new_from(
+			CallCreateOpcode::DelegateCall => Ok(Self::Call(CallTrap::new_from_shared(
 				CallScheme::DelegateCall,
 				machine,
+				share,
 			)?)),
-			CallCreateOpcode::StaticCall => Ok(Self::Call(CallTrap::new_from(
+			CallCreateOpcode::StaticCall => Ok(Self::Call(CallTrap::new_from_shared(
 				CallScheme::StaticCall,
 				machine,
+				share,
 			)?)),
 		}
 	}
@@ -119,6 +145,7 @@ pub enum CallScheme {
 }
 
 /// Trap for a call.
+#[allow(deprecated)]
 #[derive(Debug)]
 pub struct CallTrap {
 	/// Call target.
@@ -126,6 +153,13 @@ pub struct CallTrap {
 	/// Transfer instruction, if any.
 	pub transfer: Option<Transfer>,
 	/// Input data.
+	///
+	/// The field is empty for calls that the standard opcode function traps on
+	/// in a pipeline that shares call input. [Machine::shared_call_input] gives
+	/// the input there.
+	#[deprecated(
+		note = "the field is empty for calls that the standard opcode function traps on in a pipeline that shares call input; use `Machine::shared_call_input` instead"
+	)]
 	pub input: Vec<u8>,
 	/// Gas.
 	pub gas: U256,
@@ -147,6 +181,8 @@ impl CallTrap {
 		scheme: CallScheme,
 		memory: &mut Memory,
 		state: &mut S,
+		pending: &mut Option<(usize, usize)>,
+		share: bool,
 		gas: U256,
 		to: H256,
 		value: Option<U256>,
@@ -176,9 +212,18 @@ impl CallTrap {
 			Some((u256_to_usize(in_offset)?, u256_to_usize(in_len)?))
 		};
 
-		let input = in_offset_len
-			.map(|(in_offset, in_len)| memory.get(in_offset, in_len))
-			.unwrap_or(Vec::new());
+		let input = if share {
+			// The callee reads the bytes from the caller's memory, so record
+			// the range instead of copying it. An empty input records the
+			// empty range.
+			let (in_offset, in_len) = in_offset_len.unwrap_or((0, 0));
+			*pending = Some((in_offset, in_len));
+			Vec::new()
+		} else {
+			in_offset_len
+				.map(|(in_offset, in_len)| memory.get(in_offset, in_len))
+				.unwrap_or(Vec::new())
+		};
 
 		let context = match scheme {
 			CallScheme::Call | CallScheme::StaticCall => Context {
@@ -216,30 +261,44 @@ impl CallTrap {
 
 		state.as_mut().retbuf = Vec::new();
 
-		Ok((
-			(),
-			Self {
-				target: to.into(),
-				transfer,
-				input,
-				gas,
-				is_static: scheme == CallScheme::StaticCall,
-				context,
-				out_offset,
-				out_len,
-				scheme,
-			},
-		))
+		#[allow(deprecated)]
+		let trap = Self {
+			target: to.into(),
+			transfer,
+			input,
+			gas,
+			is_static: scheme == CallScheme::StaticCall,
+			context,
+			out_offset,
+			out_len,
+			scheme,
+		};
+
+		Ok(((), trap))
 	}
 
 	/// Create a new call trap from the given call scheme and the machine state.
+	///
+	/// The trap copies the input bytes, also on a machine that shares call
+	/// input.
 	pub fn new_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		scheme: CallScheme,
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
+		Self::new_from_shared(scheme, machine, false)
+	}
+
+	fn new_from_shared<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
+		scheme: CallScheme,
+		machine: &mut Machine<S>,
+		share: bool,
+	) -> Result<Self, ExitError> {
+		machine.clear_call_input_range();
+
 		let stack = &mut machine.stack;
 		let memory = &mut machine.memory;
 		let state = &mut machine.state;
+		let pending = &mut machine.call_input_range;
 
 		match scheme {
 			CallScheme::Call | CallScheme::CallCode => stack.perform_pop7_push0(
@@ -248,6 +307,8 @@ impl CallTrap {
 						scheme,
 						memory,
 						state,
+						pending,
+						share,
 						*gas,
 						to.to_h256(),
 						Some(*value),
@@ -264,6 +325,8 @@ impl CallTrap {
 						scheme,
 						memory,
 						state,
+						pending,
+						share,
 						*gas,
 						to.to_h256(),
 						None,
@@ -308,10 +371,21 @@ impl CallFeedback {
 	) -> Result<(), ExitError> {
 		let machine: &mut Machine<S> = interpreter.as_mut();
 
-		let reason = self.reason;
-		let retbuf = self.retbuf;
-		let target_len = min(self.trap.out_len, U256::from_usize(retbuf.len()));
-		let out_offset = self.trap.out_offset;
+		machine.clear_call_input_range();
+
+		// Drop the trap, and the input it may hold, before the memory takes
+		// back the bytes the callee shared.
+		let Self {
+			trap,
+			reason,
+			retbuf,
+		} = self;
+		let target_len = min(trap.out_len, U256::from_usize(retbuf.len()));
+		let out_offset = trap.out_offset;
+		drop(trap);
+
+		// The callee is gone, so this copies nothing when the input was shared.
+		machine.memory.reclaim();
 
 		let ret = match reason {
 			Ok(_) => {
@@ -434,6 +508,8 @@ impl CreateTrap {
 	pub fn new_create_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
+		machine.clear_call_input_range();
+
 		let stack = &mut machine.stack;
 		let memory = &mut machine.memory;
 		let state = &mut machine.state;
@@ -479,6 +555,8 @@ impl CreateTrap {
 	pub fn new_create2_from<S: AsRef<RuntimeState> + AsMut<RuntimeState>>(
 		machine: &mut Machine<S>,
 	) -> Result<Self, ExitError> {
+		machine.clear_call_input_range();
+
 		let stack = &mut machine.stack;
 		let memory = &mut machine.memory;
 		let state = &mut machine.state;
@@ -543,6 +621,8 @@ impl CreateFeedback {
 		interpreter: &mut I,
 	) -> Result<(), ExitError> {
 		let machine: &mut Machine<S> = interpreter.as_mut();
+
+		machine.clear_call_input_range();
 
 		let reason = self.reason;
 		let retbuf = self.retbuf;

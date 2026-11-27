@@ -2,7 +2,7 @@ use alloc::{rc::Rc, vec::Vec};
 
 use evm_interpreter::uint::H160;
 use evm_interpreter::{
-	EtableInterpreter, ExitError, ExitResult, Interpreter, Machine,
+	CallInput, EtableInterpreter, ExitError, ExitResult, Interpreter, Machine,
 	etable::Etable,
 	runtime::{RuntimeBackend, RuntimeState},
 	trap::CallScheme,
@@ -44,6 +44,31 @@ pub trait Resolver<H> {
 		state: Self::State,
 		handler: &mut H,
 	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError>;
+
+	/// Resolve a call, with the input as a [`CallInput`].
+	///
+	/// The default implementation copies the input once with
+	/// [`CallInput::to_vec`], then drops the [`CallInput`] and calls
+	/// [`Resolver::resolve_call`]. That is correct but costs a copy, so a
+	/// resolver that can hand the bytes to the callee without copying them
+	/// implements this method.
+	///
+	/// An implementation keeps the input only in the callee's interpreter, so
+	/// that dropping that interpreter drops the input and no share of the
+	/// caller's memory outlives the callee.
+	fn resolve_call_with_input(
+		&self,
+		origin: ResolverOrigin,
+		scheme: CallScheme,
+		code_address: H160,
+		input: CallInput,
+		state: Self::State,
+		handler: &mut H,
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
+		let input_bytes = input.to_vec();
+		drop(input);
+		self.resolve_call(origin, scheme, code_address, input_bytes, state, handler)
+	}
 
 	/// Resolve a create (with the init code).
 	fn resolve_create(
@@ -114,9 +139,29 @@ where
 	fn resolve_call(
 		&self,
 		origin: ResolverOrigin,
-		_scheme: CallScheme,
+		scheme: CallScheme,
 		code_address: H160,
 		input: Vec<u8>,
+		state: ES::State,
+		handler: &mut H,
+	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
+		self.resolve_call_with_input(
+			origin,
+			scheme,
+			code_address,
+			CallInput::from(input),
+			state,
+			handler,
+		)
+	}
+
+	/// Resolve a call (with the target code address).
+	fn resolve_call_with_input(
+		&self,
+		origin: ResolverOrigin,
+		_scheme: CallScheme,
+		code_address: H160,
+		input: CallInput,
 		mut state: ES::State,
 		handler: &mut H,
 	) -> Result<InvokerControl<Self::Interpreter, Self::State>, ExitError> {
@@ -138,9 +183,9 @@ where
 		let code = handler.code(code_address);
 		let config: &Config = state.as_ref();
 
-		let machine = Machine::<ES::State>::new(
+		let machine = Machine::<ES::State>::new_with_input(
 			Rc::new(code),
-			Rc::new(input),
+			input,
 			config.stack_limit(),
 			config.memory_limit(),
 			state,

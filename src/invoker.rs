@@ -61,6 +61,33 @@ pub trait Invoker<H> {
 		handler: &mut H,
 	) -> Result<Self::TransactValue, ExitError>;
 
+	/// Whether every call trap that this invoker handles takes its input from
+	/// the calling interpreter.
+	///
+	/// Return `true` only if every call trap that the invoker handles itself
+	/// takes its input from the calling interpreter, through
+	/// `Interpreter::machine_mut` and `Machine::shared_call_input`, whenever
+	/// `CallTrap::input` is empty, as the standard invoker does, and never
+	/// uses `routines::enter_call_substack` for such a trap.
+	///
+	/// A call stack switches call input sharing on for each interpreter that it
+	/// runs, only when the invoker that it was given returns `true` here, so an
+	/// invoker that returns `false` keeps the input copied.
+	///
+	/// Code below such an invoker sees the call traps of the standard opcode
+	/// function carry an empty `CallTrap::input`; the invoker reads the input
+	/// from the calling interpreter when it handles the trap. It must never
+	/// keep a shared input past the callee, for example in a `SubstackInvoke`.
+	///
+	/// Sharing grows the caller's memory with zeros up to the end of the input
+	/// range, and that growth does not apply the memory limit: only the memory
+	/// gas bounds it. Without memory metering, a call can therefore allocate up
+	/// to `in_offset + in_len` bytes, where a copy of the input allocated
+	/// `in_len` bytes.
+	fn shares_call_input(&self) -> bool {
+		false
+	}
+
 	/// Enter a sub-layer call stack.
 	#[allow(clippy::type_complexity)]
 	fn enter_substack(

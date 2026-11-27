@@ -856,7 +856,7 @@ dependencies = [
 
 [[package]]
 name = "evm"
-version = "1.1.1"
+version = "1.2.0"
 dependencies = [
  "evm-interpreter",
  "hex",
@@ -898,7 +898,7 @@ dependencies = [
 
 [[package]]
 name = "evm-interpreter"
-version = "1.1.0"
+version = "1.2.0"
 dependencies = [
  "auto_impl",
  "hex",
@@ -914,7 +914,7 @@ dependencies = [
 
 [[package]]
 name = "evm-mainnet"
-version = "1.0.0"
+version = "1.2.0"
 dependencies = [
  "evm",
  "evm-precompile",
@@ -922,7 +922,7 @@ dependencies = [
 
 [[package]]
 name = "evm-precompile"
-version = "1.0.1"
+version = "1.2.0"
 dependencies = [
  "ark-bls12-381",
  "ark-ec",

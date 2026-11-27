@@ -124,6 +124,10 @@ impl<'etable, S, H, ES: Etable<H, State = S>> Interpreter<H> for EtableInterpret
 		&mut self.machine.state
 	}
 
+	fn machine_mut(&mut self) -> Option<&mut Machine<S>> {
+		Some(&mut self.machine)
+	}
+
 	fn run(&mut self, handle: &mut H) -> Capture<ExitResult, Self::Trap> {
 		loop {
 			match self.step(handle) {
@@ -175,6 +179,8 @@ impl<'etable, S, H, ES: Etable<H, State = S>> StepInterpreter<H>
 		if position >= self.code.len() {
 			return Err(Capture::Exit(ExitSucceed::Stopped.into()));
 		}
+
+		self.machine.clear_call_input_range();
 
 		let control = self.etable.eval(&mut self.machine, handle, self.position);
 
