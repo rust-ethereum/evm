@@ -12,6 +12,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Without a lock file, pick the dependency versions that support the pinned toolchain.
+  CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
 
 jobs:
   lint:
@@ -19,7 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install taplo
-      run: cargo install taplo-cli
+      run: cargo install taplo-cli --locked
     - name: Rustfmt
       run: cargo fmt --all -- --check
     - name: TOML fmt
