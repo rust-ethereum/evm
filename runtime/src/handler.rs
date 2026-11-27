@@ -1,6 +1,8 @@
 use core::convert::TryFrom;
 
-use crate::{Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack};
+use crate::{
+	CallInput, Capture, Context, CreateScheme, ExitError, ExitReason, Machine, Opcode, Stack,
+};
 use alloc::vec::Vec;
 use evm_core::delegation::Delegation;
 use primitive_types::{H160, H256, U256};
@@ -119,6 +121,31 @@ pub trait Handler {
 		is_static: bool,
 		context: Context,
 	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt>;
+	/// Invoke a call operation, with the input the callee reads.
+	///
+	/// The input is a [`CallInput`], which may share the caller's memory
+	/// instead of holding a copy of it. The default implementation copies it
+	/// with [`CallInput::to_vec`] and calls [`Handler::call`], so a handler
+	/// that does not implement this method stays correct, but keeps copying
+	/// the input.
+	///
+	/// An implementation must drop the input once the callee ends: while it is
+	/// alive, the caller's next write to its memory copies the whole buffer.
+	/// A handler that forwards each method to an inner handler must forward
+	/// this one too, or the input is copied on the way.
+	fn call_with_input(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: CallInput,
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: Context,
+	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
+		let data = input.to_vec();
+		drop(input);
+		self.call(code_address, transfer, data, target_gas, is_static, context)
+	}
 	/// Feed in call feedback.
 	fn call_feedback(&mut self, _feedback: Self::CallFeedback) -> Result<(), ExitError> {
 		Ok(())

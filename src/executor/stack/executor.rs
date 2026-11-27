@@ -6,8 +6,8 @@ use crate::executor::stack::tagged_runtime::{RuntimeKind, TaggedRuntime};
 use crate::gasometer::{self, Gasometer, StorageTarget};
 use crate::maybe_borrowed::MaybeBorrowed;
 use crate::{
-	Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode, Runtime, Stack,
-	Transfer,
+	CallInput, Capture, Config, Context, CreateScheme, ExitError, ExitReason, Handler, Opcode,
+	Runtime, Stack, Transfer,
 };
 use alloc::{collections::BTreeSet, rc::Rc, vec::Vec};
 use core::cmp::min;
@@ -735,7 +735,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 				target: address,
 				value,
 			}),
-			data,
+			CallInput::from(data),
 			Some(gas_limit),
 			false,
 			false,
@@ -1043,7 +1043,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		&mut self,
 		code_address: H160,
 		transfer: Option<Transfer>,
-		input: Vec<u8>,
+		input: CallInput,
 		target_gas: Option<u64>,
 		is_static: bool,
 		take_l64: bool,
@@ -1066,7 +1066,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		event!(Call {
 			code_address,
 			transfer: &transfer,
-			input: &input,
+			input: &input[..],
 			target_gas,
 			is_static,
 			context: &context,
@@ -1156,7 +1156,7 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 		if let Some(result) = self.precompile_set.execute(&mut StackExecutorHandle {
 			executor: self,
 			code_address,
-			input: &input,
+			input: &input[..],
 			gas_limit: Some(gas_limit),
 			context: &context,
 			is_static: precompile_is_static,
@@ -1190,9 +1190,9 @@ impl<'config, 'precompiles, S: StackState<'config>, P: PrecompileSet>
 			};
 		}
 
-		let runtime = Runtime::new(
+		let runtime = Runtime::new_with_input(
 			Rc::new(code),
-			Rc::new(input),
+			input,
 			context,
 			self.config.stack_limit,
 			self.config.memory_limit,
@@ -1549,6 +1549,28 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
 		self.call_inner(
 			code_address,
 			transfer,
+			CallInput::from(input),
+			target_gas,
+			is_static,
+			true,
+			true,
+			context,
+		)
+	}
+
+	#[cfg(not(feature = "tracing"))]
+	fn call_with_input(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: CallInput,
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: Context,
+	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
+		self.call_inner(
+			code_address,
+			transfer,
 			input,
 			target_gas,
 			is_static,
@@ -1564,6 +1586,34 @@ impl<'config, S: StackState<'config>, P: PrecompileSet> Handler
 		code_address: H160,
 		transfer: Option<Transfer>,
 		input: Vec<u8>,
+		target_gas: Option<u64>,
+		is_static: bool,
+		context: Context,
+	) -> Capture<(ExitReason, Vec<u8>), Self::CallInterrupt> {
+		let capture = self.call_inner(
+			code_address,
+			transfer,
+			CallInput::from(input),
+			target_gas,
+			is_static,
+			true,
+			true,
+			context,
+		);
+
+		if let Capture::Exit((ref reason, ref return_value)) = capture {
+			emit_exit!(reason, return_value);
+		}
+
+		capture
+	}
+
+	#[cfg(feature = "tracing")]
+	fn call_with_input(
+		&mut self,
+		code_address: H160,
+		transfer: Option<Transfer>,
+		input: CallInput,
 		target_gas: Option<u64>,
 		is_static: bool,
 		context: Context,

@@ -1,7 +1,7 @@
 use super::Control;
 use crate::{
-	CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitSucceed, Handler,
-	Runtime, Transfer,
+	CallInput, CallScheme, Capture, Context, CreateScheme, ExitError, ExitFatal, ExitSucceed,
+	Handler, Runtime, Transfer,
 };
 use alloc::vec::Vec;
 use primitive_types::{H256, U256};
@@ -378,12 +378,12 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		.resize_offset(out_offset, out_len));
 
 	let input = if in_len == U256::zero() {
-		Vec::new()
+		CallInput::default()
 	} else {
 		let in_offset = as_usize_or_fail!(in_offset);
 		let in_len = as_usize_or_fail!(in_len);
 
-		runtime.machine.memory().get(in_offset, in_len)
+		runtime.machine.memory_mut().share(in_offset, in_len)
 	};
 
 	let context = match scheme {
@@ -420,7 +420,7 @@ pub fn call<H: Handler>(runtime: &mut Runtime, scheme: CallScheme, handler: &mut
 		None
 	};
 
-	match handler.call(
+	match handler.call_with_input(
 		to.into(),
 		transfer,
 		input,

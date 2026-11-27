@@ -1,23 +1,39 @@
-use crate::{ExitError, ExitFatal};
+use crate::{CallInput, ExitError, ExitFatal};
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::cmp::{max, min};
+use core::fmt;
 use core::ops::{BitAnd, Not};
 use primitive_types::U256;
 
-/// A sequencial memory. It uses Rust's `Vec` for internal
-/// representation.
-#[derive(Clone, Debug)]
+/// A sequencial memory.
+///
+/// Its bytes are a `Vec` behind a shared, copy-on-write pointer, so that
+/// [`Memory::share`] can hand a range of them to a callee without copying.
+/// They are copied only when the memory is written while such a range is
+/// still alive.
+#[derive(Clone)]
 pub struct Memory {
-	data: Vec<u8>,
+	data: Option<Arc<Vec<u8>>>,
 	effective_len: U256,
 	limit: usize,
+}
+
+impl fmt::Debug for Memory {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("Memory")
+			.field("data", self.data())
+			.field("effective_len", &self.effective_len)
+			.field("limit", &self.limit)
+			.finish()
+	}
 }
 
 impl Memory {
 	/// Create a new memory with the given limit.
 	pub fn new(limit: usize) -> Self {
 		Self {
-			data: Vec::new(),
+			data: None,
 			effective_len: U256::zero(),
 			limit,
 		}
@@ -30,7 +46,7 @@ impl Memory {
 
 	/// Get the length of the current memory range.
 	pub fn len(&self) -> usize {
-		self.data.len()
+		self.data.as_ref().map(|data| data.len()).unwrap_or(0)
 	}
 
 	/// Get the effective length.
@@ -45,7 +61,12 @@ impl Memory {
 
 	/// Return the full memory.
 	pub fn data(&self) -> &Vec<u8> {
-		&self.data
+		static EMPTY: Vec<u8> = Vec::new();
+
+		match &self.data {
+			Some(data) => data,
+			None => &EMPTY,
+		}
 	}
 
 	/// Resize the memory, making it cover the memory region of `offset..(offset + len)`,
@@ -85,17 +106,61 @@ impl Memory {
 		let mut ret = Vec::new();
 		ret.resize(size, 0);
 
+		let data = self.data();
 		#[allow(clippy::needless_range_loop)]
 		for index in 0..size {
 			let position = offset + index;
-			if position >= self.data.len() {
+			if position >= data.len() {
 				break;
 			}
 
-			ret[index] = self.data[position];
+			ret[index] = data[position];
 		}
 
 		ret
+	}
+
+	/// Share the memory region at `offset..(offset + len)` as the input of a
+	/// call, instead of copying it.
+	///
+	/// The returned [`CallInput`] reads this memory's buffer in place, so it
+	/// must not outlive the call it is the input of. While it is alive, the
+	/// next write to this memory copies the whole buffer (copy-on-write),
+	/// because the buffer is no longer uniquely owned.
+	///
+	/// The physical buffer is grown with zeros up to `offset + len` when it is
+	/// shorter, and this growth does not apply the memory `limit`, which keeps
+	/// governing writes only. This stays within the memory the caller paid for
+	/// only because the gasometer charges the expansion up to `offset + len`
+	/// before the opcode body runs; without memory metering, sharing can
+	/// allocate more than a copy of `len` bytes would.
+	///
+	/// A zero `len` returns an empty input and leaves the memory untouched. If
+	/// `offset + len` overflows, the region is copied as [`Memory::get`] does.
+	///
+	/// ## Panics
+	///
+	/// Without memory metering, sharing a range allocates up to `offset + len`
+	/// bytes, and the allocation aborts if it fails. An `offset + len` above
+	/// `isize::MAX` panics with a capacity overflow instead, since no
+	/// allocation can be larger; a 32-bit target reaches that with a range of
+	/// more than about 2 GiB.
+	pub fn share(&mut self, offset: usize, len: usize) -> CallInput {
+		if len == 0 {
+			return CallInput::default();
+		}
+
+		let end = match offset.checked_add(len) {
+			Some(end) => end,
+			None => return CallInput::from(self.get(offset, len)),
+		};
+
+		let data = self.data.get_or_insert_with(|| Arc::new(Vec::new()));
+		if data.len() < end {
+			Arc::make_mut(data).resize(end, 0);
+		}
+
+		CallInput::from_shared(Arc::clone(data), offset..end)
 	}
 
 	/// Set memory region at given offset. The offset and value is considered
@@ -119,17 +184,19 @@ impl Memory {
 			return Err(ExitFatal::NotSupported);
 		}
 
-		if self.data.len() < offset + target_size {
-			self.data.resize(offset + target_size, 0);
+		let data = Arc::make_mut(self.data.get_or_insert_with(|| Arc::new(Vec::new())));
+
+		if data.len() < offset + target_size {
+			data.resize(offset + target_size, 0);
 		}
 
 		if target_size > value.len() {
-			self.data[offset..((value.len()) + offset)].clone_from_slice(value);
+			data[offset..((value.len()) + offset)].clone_from_slice(value);
 			for index in (value.len())..target_size {
-				self.data[offset + index] = 0;
+				data[offset + index] = 0;
 			}
 		} else {
-			self.data[offset..(target_size + offset)].clone_from_slice(&value[..target_size]);
+			data[offset..(target_size + offset)].clone_from_slice(&value[..target_size]);
 		}
 
 		Ok(())
@@ -187,10 +254,11 @@ impl Memory {
 	/// Copies part of the memory inside another part of itself.
 	pub fn copy(&mut self, dst: usize, src: usize, len: usize) {
 		let resize_offset = max(dst, src);
-		if self.data.len() < resize_offset + len {
-			self.data.resize(resize_offset + len, 0);
+		let data = Arc::make_mut(self.data.get_or_insert_with(|| Arc::new(Vec::new())));
+		if data.len() < resize_offset + len {
+			data.resize(resize_offset + len, 0);
 		}
-		self.data.copy_within(src..src + len, dst);
+		data.copy_within(src..src + len, dst);
 	}
 }
 

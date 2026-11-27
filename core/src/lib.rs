@@ -6,6 +6,7 @@
 
 extern crate alloc;
 
+mod call_input;
 pub mod delegation;
 mod error;
 mod eval;
@@ -16,6 +17,7 @@ mod stack;
 mod utils;
 mod valids;
 
+pub use crate::call_input::CallInput;
 pub use crate::error::{Capture, ExitError, ExitFatal, ExitReason, ExitRevert, ExitSucceed, Trap};
 pub use crate::external::ExternalOperation;
 pub use crate::memory::Memory;
@@ -32,7 +34,7 @@ use primitive_types::U256;
 /// Core execution layer for EVM.
 pub struct Machine {
 	/// Program data.
-	data: Rc<Vec<u8>>,
+	data: CallInput,
 	/// Program code.
 	code: Rc<Vec<u8>>,
 	/// Program counter.
@@ -70,9 +72,23 @@ impl Machine {
 	}
 
 	/// Create a new machine with given code and data.
+	///
+	/// `data` is copied if the `Rc` is shared elsewhere, and not copied at all
+	/// when the `Rc` is unique.
 	pub fn new(
 		code: Rc<Vec<u8>>,
 		data: Rc<Vec<u8>>,
+		stack_limit: usize,
+		memory_limit: usize,
+	) -> Self {
+		let data = Rc::try_unwrap(data).unwrap_or_else(|data| (*data).clone());
+		Self::new_with_input(code, CallInput::from(data), stack_limit, memory_limit)
+	}
+
+	/// Create a new machine with given code and input.
+	pub fn new_with_input(
+		code: Rc<Vec<u8>>,
+		data: CallInput,
 		stack_limit: usize,
 		memory_limit: usize,
 	) -> Self {

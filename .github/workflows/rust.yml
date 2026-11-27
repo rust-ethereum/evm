@@ -12,6 +12,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  # Without a lock file, pick the dependency versions that support the pinned toolchain.
+  CARGO_RESOLVER_INCOMPATIBLE_RUST_VERSIONS: fallback
 
 jobs:
   lint:
@@ -19,7 +21,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Install taplo
-      run: cargo install taplo-cli
+      run: cargo install taplo-cli --locked
     - name: Rustfmt
       run: cargo fmt --all -- --check
     - name: TOML fmt
@@ -39,6 +41,14 @@ jobs:
       run: cargo build --features tracing --verbose
     - name: Run tests
       run: cargo test --verbose
+    - name: Run tests with tracing
+      run: cargo test --verbose --features tracing
+    # Integration targets only: `evm-core`'s own unit tests do not compile.
+    - name: Run the evm-core integration tests
+      run: cargo test --verbose -p evm-core --test memory_share --test performance
+    # A `--test` filter leaves doctests out, so they run on their own.
+    - name: Run the evm-core doctests
+      run: cargo test --verbose -p evm-core --doc
   # FIXME: Due to the evm-tests repository used by the jsontests job being archived, the tests cannot be run, 
   #        so this jsontests job has been temporarily removed. The jsontests job will be improved later, 
   #        see issue #182
